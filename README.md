@@ -408,3 +408,7 @@ extension View {
     ) -> some View
 }
 ```
+
+## License
+
+Distributed under the BSD 2-Clause License. See ``LICENSE.md`` for more information.
