@@ -224,7 +224,7 @@ extension View {
     public func presentation<T, Destination: View>(
         _ value: Binding<T?>,
         transition: PresentationLinkTransition = .default,
-        @ViewBuilder destination: (T) -> Destination
+        @ViewBuilder destination: (Binding<T>) -> Destination
     ) -> some View
 }
 ```
@@ -336,7 +336,7 @@ extension View {
         _ value: Binding<T?>,
         level: WindowLinkLevel = .default,
         transition: WindowLinkTransition = .opacity,
-        @ViewBuilder destination: (T) -> D
+        @ViewBuilder destination: (Binding<T>) -> D
     ) -> some View
 }
 ```

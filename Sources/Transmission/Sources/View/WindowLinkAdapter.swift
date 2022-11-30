@@ -101,10 +101,10 @@ extension View {
         _ value: Binding<T?>,
         level: WindowLinkLevel = .default,
         transition: WindowLinkTransition = .opacity,
-        @ViewBuilder destination: (T) -> D
+        @ViewBuilder destination: (Binding<T>) -> D
     ) -> some View {
         window(level: level, transition: transition, isPresented: value.isNotNil()) {
-            OptionalAdapter(value.wrappedValue, content: destination)
+            OptionalAdapter(value, content: destination)
         }
     }
 }

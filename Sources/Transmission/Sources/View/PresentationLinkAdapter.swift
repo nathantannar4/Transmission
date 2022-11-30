@@ -113,10 +113,10 @@ extension View {
     public func presentation<T, Destination: View>(
         _ value: Binding<T?>,
         transition: PresentationLinkTransition = .default,
-        @ViewBuilder destination: (T) -> Destination
+        @ViewBuilder destination: (Binding<T>) -> Destination
     ) -> some View {
         presentation(transition: transition, isPresented: value.isNotNil()) {
-            OptionalAdapter(value.wrappedValue, content: destination)
+            OptionalAdapter(value, content: destination)
         }
     }
 }
@@ -281,7 +281,7 @@ private struct PresentationLinkAdapterBody<
                 // Swizzle to hook up for programatic dismissal
                 adapter.viewController.presentationDelegate = context.coordinator
                 if let presentedViewController = presentingViewController.presentedViewController {
-                    presentedViewController.dismiss(animated: false) {
+                    presentedViewController.dismiss(animated: isAnimated) {
                         presentingViewController.present(adapter.viewController, animated: isAnimated)
                     }
                 } else {
