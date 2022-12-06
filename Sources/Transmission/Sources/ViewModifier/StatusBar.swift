@@ -14,7 +14,7 @@ import Engine
 extension View {
     /// Sets the preferred status bar style of the hosting views `UIViewController`
     ///
-    /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `NO`
+    /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
     ///
     public func preferredStatusBarStyle(_ style: UIStatusBarStyle) -> some View {
         modifier(PreferredStatusBarSyleModifier(style: style))
@@ -22,7 +22,7 @@ extension View {
 
     /// Sets the preferred status bar visibility of the hosting views `UIViewController`
     ///
-    /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `NO`
+    /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
     ///
     public func prefersStatusBarHidden(_ isHidden: Bool = true) -> some View {
         modifier(PrefersStatusBarHiddenModifier(isHidden: isHidden))
@@ -31,7 +31,7 @@ extension View {
 
 /// Sets the preferred status bar style of the hosting views `UIViewController`
 ///
-/// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `NO`
+/// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
 ///
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
@@ -99,7 +99,7 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
 
 /// Sets the preferred status bar visibility of the hosting views `UIViewController`
 ///
-/// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `NO`
+/// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
 ///
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
@@ -167,6 +167,59 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
 
 extension UIViewController {
 
+    private var swizzled_childForStatusBar: UIViewController? {
+        if let navigationController = self as? UINavigationController {
+            return navigationController.topViewController
+        }
+        if let tabBarController = self as? UITabBarController {
+            return tabBarController.selectedViewController
+        }
+        if let pageViewController = self as? UIPageViewController {
+            return pageViewController.viewControllers?.first
+        }
+        return nil
+    }
+
+    private func getChildForStatusBarAppearance() -> UIViewController? {
+        if let child = swizzled_childForStatusBar {
+            return child
+        }
+        if let host = self as? AnyHostingController, host.parent == nil {
+            return host.children.first
+        }
+        return nil
+    }
+
+    @objc
+    var swizzled_childForStatusBarStyle: UIViewController? {
+        if getPreferredStatusBarStyle() != .default {
+            return nil
+        }
+        
+        if let child = swizzled_childForStatusBar {
+            return child
+        }
+
+        typealias GetChildForStatusBarStyleMethod = @convention(c) (NSObject, Selector) -> UIViewController?
+        let swizzled = #selector(getter: UIViewController.swizzled_childForStatusBarStyle)
+        return unsafeBitCast(method(for: swizzled), to: GetChildForStatusBarStyleMethod.self)(self, swizzled)
+    }
+
+    @objc
+    var swizzled_childForStatusBarHidden: UIViewController? {
+        if getPrefersStatusBarHidden() != false {
+            return nil
+        }
+
+        if let child = swizzled_childForStatusBar {
+            return child
+        }
+
+        typealias GetChildForStatusBarHiddenMethod = @convention(c) (NSObject, Selector) -> UIViewController?
+        let swizzled = #selector(getter: UIViewController.swizzled_childForStatusBarHidden)
+        return unsafeBitCast(method(for: swizzled), to: GetChildForStatusBarHiddenMethod.self)(self, swizzled)
+    }
+
     // MARK: preferredStatusBarStyle
 
     private static var preferredStatusBarStyleKey: Bool = false
@@ -176,26 +229,6 @@ extension UIViewController {
             return box.value
         } else if let child = getChildForStatusBarAppearance() {
             return child.getPreferredStatusBarStyle()
-        }
-        return nil
-    }
-
-    private func getChildForStatusBarAppearance() -> UIViewController? {
-        if let child = childForStatusBarStyle {
-            return child
-        }
-
-        if let navigationController = self as? UINavigationController {
-            return navigationController.visibleViewController
-        }
-        if let tabBarController = self as? UITabBarController {
-            return tabBarController.selectedViewController
-        }
-        if let pageViewController = self as? UIPageViewController {
-            return pageViewController.viewControllers?.first
-        }
-        if let host = self as? AnyHostingController, host.parent == nil {
-            return host.children.first
         }
         return nil
     }
@@ -215,13 +248,15 @@ extension UIViewController {
             if !Self.preferredStatusBarStyleKey {
                 Self.preferredStatusBarStyleKey = true
 
-                let original = #selector(getter: UIViewController.preferredStatusBarStyle)
-                let swizzled = #selector(getter: UIViewController.swizzled_preferredStatusBarStyle)
-                if let originalMethod = class_getInstanceMethod(UIHostingController<AnyView>.self, original),
-                   let swizzledMethod = class_getInstanceMethod(UIViewController.self, swizzled)
-                {
-                    method_exchangeImplementations(originalMethod, swizzledMethod)
-                }
+                objc_class_swizzle(
+                    original: #selector(getter: UIViewController.preferredStatusBarStyle),
+                    replacement: #selector(getter: UIViewController.swizzled_preferredStatusBarStyle)
+                )
+
+                objc_class_swizzle(
+                    original: #selector(getter: UIViewController.childForStatusBarStyle),
+                    replacement: #selector(getter: UIViewController.swizzled_childForStatusBarStyle)
+                )
             }
 
             if let box = objc_getAssociatedObject(self, &Self.preferredStatusBarStyleKey) as? ObjCBox<UIStatusBarStyle> {
@@ -240,8 +275,7 @@ extension UIViewController {
     private func getPrefersStatusBarHidden() -> Bool? {
         if let box = objc_getAssociatedObject(self, &Self.prefersStatusBarHiddenKey) as? ObjCBox<Bool> {
             return box.value
-        }
-        if let child = getChildForStatusBarAppearance() {
+        } else if let child = getChildForStatusBarAppearance() {
             return child.getPrefersStatusBarHidden()
         }
         return nil
@@ -262,13 +296,15 @@ extension UIViewController {
             if !Self.prefersStatusBarHiddenKey {
                 Self.prefersStatusBarHiddenKey = true
 
-                let original = #selector(getter: UIViewController.prefersStatusBarHidden)
-                let swizzled = #selector(getter: UIViewController.swizzled_prefersStatusBarHidden)
-                if let originalMethod = class_getInstanceMethod(UIHostingController<AnyView>.self, original),
-                   let swizzledMethod = class_getInstanceMethod(UIViewController.self, swizzled)
-                {
-                    method_exchangeImplementations(originalMethod, swizzledMethod)
-                }
+                objc_class_swizzle(
+                    original: #selector(getter: UIViewController.prefersStatusBarHidden),
+                    replacement: #selector(getter: UIViewController.swizzled_prefersStatusBarHidden)
+                )
+
+                objc_class_swizzle(
+                    original: #selector(getter: UIViewController.childForStatusBarHidden),
+                    replacement: #selector(getter: UIViewController.swizzled_childForStatusBarHidden)
+                )
             }
 
             if let box = objc_getAssociatedObject(self, &Self.prefersStatusBarHiddenKey) as? ObjCBox<Bool> {
@@ -278,6 +314,14 @@ extension UIViewController {
                 objc_setAssociatedObject(self, &Self.prefersStatusBarHiddenKey, box, .OBJC_ASSOCIATION_RETAIN)
             }
         }
+    }
+}
+
+private func objc_class_swizzle(original: Selector, replacement swizzled: Selector) {
+    if let originalMethod = class_getInstanceMethod(UIHostingController<AnyView>.self, original),
+        let swizzledMethod = class_getInstanceMethod(UIViewController.self, swizzled)
+    {
+        method_exchangeImplementations(originalMethod, swizzledMethod)
     }
 }
 

@@ -279,7 +279,8 @@ extension PresentationLinkTransition {
                                 containerTraitCollection: context.containerTraitCollection,
                                 maximumDetentValue: context.maximumDetentValue
                             )
-                            return resolution(ctx)
+                            let max = context.maximumDetentValue
+                            return min(resolution(ctx) ?? max, max)
                         }
                     }
                     // https://github.com/pookjw/CustomSPCDetent/blob/main/CustomSPCDetent/UISheetPresentationControllerDetent%2BPrivate.h

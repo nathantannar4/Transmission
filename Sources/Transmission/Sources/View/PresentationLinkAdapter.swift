@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import SwiftUI
+import EngineCore
 import Turbocharger
 
 /// A modifier that presents a destination view in a new `UIViewController`.
@@ -271,7 +272,7 @@ private struct PresentationLinkAdapterBody<
                     }
 
                 case .custom(_, let delegate):
-                    assert(isClassType(delegate), "PresentationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
+                    assert(!isClassType(delegate), "PresentationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
                     adapter.viewController.modalPresentationStyle = .custom
                 }
@@ -530,16 +531,24 @@ private struct PresentationLinkAdapterBody<
             _ sheetPresentationController: UISheetPresentationController
         ) {
             if case .sheet(let configuration) = adapter?.transition {
-                configuration.selected?.wrappedValue = sheetPresentationController.selectedDetentIdentifier.map {
-                    .init($0.rawValue)
+                func applySelection() {
+                    configuration.selected?.wrappedValue = sheetPresentationController.selectedDetentIdentifier.map {
+                        .init($0.rawValue)
+                    }
                 }
 
                 if sheetPresentationController.selectedDetentIdentifier?.rawValue == PresentationLinkTransition.SheetTransitionOptions.Detent.ideal.identifier.rawValue {
                     if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
                         sheetPresentationController.invalidateDetents()
+                        applySelection()
                     } else {
                         sheetPresentationController.detents = configuration.detents.map { $0.resolve(in: sheetPresentationController).toUIKit() }
+                        withCATransaction {
+                            applySelection()
+                        }
                     }
+                } else {
+                    applySelection()
                 }
             }
         }

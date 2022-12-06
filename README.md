@@ -6,6 +6,10 @@
 
 > Built using [Engine](https://github.com/nathantannar4/Engine)
 
+## Preview
+
+![Example Preview](https://github.com/nathantannar4/Transmission/blob/main/Example/Example.gif)
+
 ## Requirements
 
 - Deployment target: iOS 13.0, macOS 10.15, tvOS 13.0, or watchOS 6.0
@@ -43,6 +47,7 @@ let package = Package(
 
 ## Introduction to Transmission
 
+For some sample code to get started with `Transmission`, build and run the included "Example" project.
 
 ### PresentationLink
 

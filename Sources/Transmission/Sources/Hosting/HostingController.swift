@@ -6,6 +6,7 @@
 
 import SwiftUI
 import Engine
+import Turbocharger
 
 open class HostingController<
     Content: View
@@ -40,8 +41,43 @@ open class HostingController<
 
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        if tracksContentSize, #unavailable(iOS 16.0) {
-            preferredContentSize = view.intrinsicContentSize
+        if tracksContentSize, #available(iOS 15.0, *), let sheetPresentationController = presentationController as? UISheetPresentationController,
+            let containerView = sheetPresentationController.containerView
+        {
+            func performTransition() {
+                UIView.transition(
+                    with: containerView,
+                    duration: 0.35,
+                    options: [.beginFromCurrentState, .curveEaseInOut]
+                ) {
+                    if #available(iOS 16.0, *) {
+                        sheetPresentationController.invalidateDetents()
+                    } else {
+                        sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
+                    }
+                    (containerView.superview ?? containerView).layoutIfNeeded()
+                }
+            }
+
+            if #available(iOS 16.0, *) {
+                // Sync SwiftUI/UIKit animation
+                try? view?.unsafeSetValue(true, forKey: "allowUIKitAnimationsForNextUpdate")
+                performTransition()
+            } else {
+                withCATransaction {
+                    performTransition()
+                }
+            }
+        } else if tracksContentSize {
+            if #available(iOS 16.0, *) {
+                // Sync SwiftUI/UIKit animation
+                try? view?.unsafeSetValue(true, forKey: "allowUIKitAnimationsForNextUpdate")
+            } else {
+                var size = view.intrinsicContentSize
+                size.height -= (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
+                size.width -= (view.safeAreaInsets.left + view.safeAreaInsets.right)
+                preferredContentSize = size
+            }
         }
     }
 }
