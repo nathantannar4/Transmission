@@ -19,15 +19,7 @@ open class HostingController<
 
     public var tracksContentSize: Bool = false {
         didSet {
-            if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
-                if tracksContentSize {
-                    sizingOptions.formUnion([.preferredContentSize, .intrinsicContentSize])
-                } else {
-                    sizingOptions.subtract([.preferredContentSize, .intrinsicContentSize])
-                }
-            } else {
-                view.setNeedsLayout()
-            }
+            view.setNeedsLayout()
         }
     }
 
@@ -72,8 +64,30 @@ open class HostingController<
             if #available(iOS 16.0, *) {
                 // Sync SwiftUI/UIKit animation
                 try? view?.unsafeSetValue(true, forKey: "allowUIKitAnimationsForNextUpdate")
+                if let popoverPresentationController = presentationController as? UIPopoverPresentationController,
+                    let containerView = popoverPresentationController.containerView
+                {
+                    var newSize = view.systemLayoutSizeFitting(
+                        UIView.layoutFittingCompressedSize
+                    )
+                    newSize.height -= (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
+                    newSize.width -= (view.safeAreaInsets.left + view.safeAreaInsets.right)
+                    let oldSize = preferredContentSize
+                    if oldSize != newSize {
+                        let dz = (newSize.width * newSize.height) - (oldSize.width * oldSize.height)
+                        UIView.transition(
+                            with: containerView,
+                            duration: 0.35 + (dz > 0 ? 0.15 : -0.05),
+                            options: [.beginFromCurrentState, .curveEaseInOut]
+                        ) {
+                            self.preferredContentSize = newSize
+                        }
+                    }
+                }
             } else {
-                var size = view.intrinsicContentSize
+                var size = view.systemLayoutSizeFitting(
+                    UIView.layoutFittingCompressedSize
+                )
                 size.height -= (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
                 size.width -= (view.safeAreaInsets.left + view.safeAreaInsets.right)
                 preferredContentSize = size

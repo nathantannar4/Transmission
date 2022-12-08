@@ -59,7 +59,7 @@ public struct PreferredStatusBarSyleModifier: ViewModifier {
 private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
     var style: UIStatusBarStyle
 
-    @WeakStateObject var presentingViewController: UIViewController?
+    @WeakState var presentingViewController: UIViewController?
 
     func makeUIView(context: Context) -> HostingViewReader {
         let uiView = HostingViewReader(presentingViewController: $presentingViewController)
@@ -127,7 +127,7 @@ public struct PrefersStatusBarHiddenModifier: ViewModifier {
 private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
     var isHidden: Bool
 
-    @WeakStateObject var presentingViewController: UIViewController?
+    @WeakState var presentingViewController: UIViewController?
 
     func makeUIView(context: Context) -> HostingViewReader {
         let uiView = HostingViewReader(presentingViewController: $presentingViewController)

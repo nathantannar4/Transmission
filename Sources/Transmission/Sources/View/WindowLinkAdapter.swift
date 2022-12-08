@@ -122,8 +122,8 @@ private struct WindowLinkAdapterBody<
     var level: WindowLinkLevel
     var transition: WindowLinkTransition
 
-    @WeakStateObject var host: UIView?
-    @WeakStateObject var presentingWindow: UIWindow?
+    @WeakState var host: UIView?
+    @WeakState var presentingWindow: UIWindow?
 
     typealias UIViewType = WindowReader
     typealias DestinationContent = ModifiedContent<Destination, WindowBridgeAdapter>

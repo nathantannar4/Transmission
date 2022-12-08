@@ -342,18 +342,43 @@ extension PresentationLinkTransition {
 
     @frozen
     public struct PopoverTransitionOptions {
+        public typealias PermittedArrowDirections = Edge.Set
+
         public var options: Options
-        public var isAdaptive: Bool
+        public var permittedArrowDirections: PermittedArrowDirections
         public var canOverlapSourceViewRect: Bool
+        public var adaptiveTransition: SheetTransitionOptions?
+        public var isInteractive: Bool
 
         public init(
+            permittedArrowDirections: PermittedArrowDirections = .all,
             canOverlapSourceViewRect: Bool = false,
-            isAdaptive: Bool = false,
+            adaptiveTransition: SheetTransitionOptions? = nil,
+            isInteractive: Bool = true,
             options: PresentationLinkTransition.Options = .init()
         ) {
             self.options = options
-            self.isAdaptive = isAdaptive
+            self.permittedArrowDirections = permittedArrowDirections
             self.canOverlapSourceViewRect = canOverlapSourceViewRect
+            self.adaptiveTransition = adaptiveTransition
+            self.isInteractive = isInteractive
+        }
+
+        func permittedArrowDirections(layoutDirection: UITraitEnvironmentLayoutDirection) -> UIPopoverArrowDirection {
+            var directions: UIPopoverArrowDirection = .any
+            if !permittedArrowDirections.contains(.top) {
+                directions.subtract(.up)
+            }
+            if !permittedArrowDirections.contains(.bottom) {
+                directions.subtract(.down)
+            }
+            if !permittedArrowDirections.contains(.leading) {
+                directions.subtract(layoutDirection == .leftToRight ? .left : .right)
+            }
+            if !permittedArrowDirections.contains(.trailing) {
+                directions.subtract(layoutDirection == .leftToRight ? .right : .left)
+            }
+            return directions
         }
     }
 }
@@ -397,6 +422,14 @@ extension PresentationLinkTransition {
         options: PresentationLinkTransition.Options
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .fullscreen(options))
+    }
+
+    /// The popover presentation style.
+    public static func popover(
+        permittedArrowDirections: PresentationLinkTransition.PopoverTransitionOptions.PermittedArrowDirections,
+        canOverlapSourceViewRect: Bool = false
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .popover(.init(permittedArrowDirections: permittedArrowDirections, canOverlapSourceViewRect: canOverlapSourceViewRect)))
     }
 
     /// The popover presentation style.
@@ -466,6 +499,24 @@ public protocol PresentationLinkCustomTransition {
     func interactionControllerForDismissal(
         using animator: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning?
+
+    /// The presentation style to use for an adaptive presentation.
+    ///
+    /// > Note: This protocol implementation is optional and defaults to `.none`
+    ///
+    func adaptivePresentationStyle(
+        for controller: UIPresentationController,
+        traitCollection: UITraitCollection
+    ) -> UIModalPresentationStyle
+
+    /// The presentation controller to use for an adaptive presentation.
+    ///
+    /// > Note: This protocol implementation is optional
+    ///
+    func presentationController(
+        _ presentationController: UIPresentationController,
+        prepare adaptivePresentationController: UIPresentationController
+    )
 }
 
 @available(iOS 14.0, *)
@@ -497,35 +548,19 @@ extension PresentationLinkCustomTransition {
     ) -> UIViewControllerInteractiveTransitioning? {
         return nil
     }
-}
 
-// MARK: - Previews
-
-@available(iOS 15.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
-struct PartialSheetTransitionCoordinator_Previews: PreviewProvider {
-    struct Preview: View {
-        var body: some View {
-            VStack(spacing: 20) {
-                PresentationLink(transition: .sheet) {
-                    Preview()
-                } label: {
-                    Text("Present Sheet")
-                }
-
-                PresentationLink(transition: .sheet(detents: [.medium])) {
-                    Preview()
-                } label: {
-                    Text("Present Partial Sheet")
-                }
-            }
-        }
+    public func adaptivePresentationStyle(
+        for controller: UIPresentationController,
+        traitCollection: UITraitCollection
+    ) -> UIModalPresentationStyle {
+        return .none
     }
 
-    static var previews: some View {
-        Preview()
+    public func presentationController(
+        _ presentationController: UIPresentationController,
+        prepare adaptivePresentationController: UIPresentationController
+    ) {
+
     }
 }
 

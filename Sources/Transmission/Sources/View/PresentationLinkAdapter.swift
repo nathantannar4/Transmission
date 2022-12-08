@@ -134,8 +134,8 @@ private struct PresentationLinkAdapterBody<
     var isPresented: Binding<Bool>
     var destination: Destination
 
-    @WeakStateObject var host: UIView?
-    @WeakStateObject var presentingViewController: UIViewController?
+    @WeakState var host: UIView?
+    @WeakState var presentingViewController: UIViewController?
 
     typealias DestinationViewController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
@@ -164,46 +164,43 @@ private struct PresentationLinkAdapterBody<
 
             let isAnimated = context.transaction.isAnimated || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
             if let adapter = context.coordinator.adapter, !context.coordinator.isBeingReused {
+
+                
                 switch (adapter.transition, transition.value) {
                 case (.sheet(let oldValue), .sheet(let newValue)):
                     adapter.transition = .sheet(newValue)
 
-                    guard #available(iOS 15.0, *), let presentationController = adapter.viewController.presentationController as? UISheetPresentationController else {
+                    guard #available(iOS 15.0, *), let presentationController = adapter.viewController.presentationController as? UISheetPresentationController
+                    else {
                         break
                     }
-                    let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
-                    let detents = newValue.detents.map { $0.resolve(in: presentationController) }
-                    let hasChanges: Bool = {
-                        if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {
-                            return true
-                        } else if let selected = selectedDetentIdentifier,
-                            presentationController.selectedDetentIdentifier != selected
+                    PresentationLinkTransition.SheetTransitionOptions.update(
+                        presentationController: presentationController,
+                        animated: isAnimated,
+                        from: oldValue,
+                        to: newValue
+                    )
+
+                case (.popover(let oldValue), .popover(let newValue)):
+                    adapter.transition = .popover(newValue)
+
+                    if let presentationController = adapter.viewController.presentationController as? UIPopoverPresentationController {
+                        presentationController.permittedArrowDirections = newValue.permittedArrowDirections(
+                            layoutDirection: traits.layoutDirection
+                        )
+                    } else if #available(iOS 15.0, *) {
+                        if let newValue = newValue.adaptiveTransition,
+                            let presentationController = adapter.viewController.presentationController as? UISheetPresentationController
                         {
-                            return true
-                        } else if oldValue.detents != detents {
-                            return true
-                        }
-                        return false
-                    }()
-                    if hasChanges {
-                        func applyConfiguration() {
-                            presentationController.detents = detents.map { $0.toUIKit() }
-                            presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetent?.identifier.toUIKit()
-                            if let selected = newValue.selected {
-                                presentationController.selectedDetentIdentifier = selected.wrappedValue?.toUIKit()
-                            }
-                            presentationController.preferredCornerRadius = newValue.preferredCornerRadius
-                        }
-                        if isAnimated {
-                            withCATransaction {
-                                presentationController.animateChanges {
-                                    applyConfiguration()
-                                }
-                            }
-                        } else {
-                            applyConfiguration()
+                            PresentationLinkTransition.SheetTransitionOptions.update(
+                                presentationController: presentationController,
+                                animated: isAnimated,
+                                from: oldValue.adaptiveTransition ?? .init(),
+                                to: newValue
+                            )
                         }
                     }
+
                 default:
                     adapter.transition = transition.value
                 }
@@ -241,6 +238,7 @@ private struct PresentationLinkAdapterBody<
                 case .currentContext:
                     // transitioningDelegate + .custom breaks .overCurrentContext
                     adapter.viewController.modalPresentationStyle = .overCurrentContext
+                    adapter.viewController.presentationController?.overrideTraitCollection = traits
 
                 case .fullscreen, .sheet, .popover, .`default`:
                     switch adapter.transition {
@@ -255,6 +253,7 @@ private struct PresentationLinkAdapterBody<
 
                     if let presentationController = adapter.viewController.presentationController {
                         presentationController.delegate = context.coordinator
+                        presentationController.overrideTraitCollection = traits
 
                         if #available(iOS 15.0, *),
                            let sheetPresentationController = presentationController as? UISheetPresentationController
@@ -268,6 +267,12 @@ private struct PresentationLinkAdapterBody<
                         } else if let popoverPresentationController = presentationController as? UIPopoverPresentationController {
                             popoverPresentationController.delegate = context.coordinator
                             popoverPresentationController.sourceView = uiView
+                            if case .popover(let options) = adapter.transition {
+                                let permittedArrowDirections = options.permittedArrowDirections(
+                                    layoutDirection: traits.layoutDirection
+                                )
+                                popoverPresentationController.permittedArrowDirections = permittedArrowDirections
+                            }
                         }
                     }
 
@@ -275,15 +280,23 @@ private struct PresentationLinkAdapterBody<
                     assert(!isClassType(delegate), "PresentationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
                     adapter.viewController.modalPresentationStyle = .custom
+                    adapter.viewController.presentationController?.overrideTraitCollection = traits
                 }
-
-                adapter.viewController.presentationController?.overrideTraitCollection = traits
 
                 // Swizzle to hook up for programatic dismissal
                 adapter.viewController.presentationDelegate = context.coordinator
                 if let presentedViewController = presentingViewController.presentedViewController {
-                    presentedViewController.dismiss(animated: isAnimated) {
-                        presentingViewController.present(adapter.viewController, animated: isAnimated)
+                    let shouldDismiss = presentedViewController.presentationController.map {
+                        $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
+                    } ?? true
+                    if shouldDismiss {
+                        presentedViewController.dismiss(animated: isAnimated) {
+                            presentingViewController.present(adapter.viewController, animated: isAnimated)
+                        }
+                    } else {
+                        withCATransaction {
+                            isPresented.wrappedValue = false
+                        }
                     }
                 } else {
                     presentingViewController.present(adapter.viewController, animated: isAnimated)
@@ -364,6 +377,9 @@ private struct PresentationLinkAdapterBody<
             case .sheet(let options):
                 return options.isInteractive
 
+            case .popover(let options):
+                return options.isInteractive
+
             default:
                 return true
             }
@@ -394,9 +410,40 @@ private struct PresentationLinkAdapterBody<
         ) -> UIModalPresentationStyle {
             switch adapter?.transition {
             case .popover(let options):
-                return options.isAdaptive && traitCollection.horizontalSizeClass == .compact ? .formSheet : .none
+                return options.adaptiveTransition != nil && traitCollection.horizontalSizeClass == .compact ? .pageSheet : .none
+
+            case .custom(_, let transition):
+                return transition.adaptivePresentationStyle(for: controller, traitCollection: traitCollection)
+
             default:
                 return .none
+            }
+        }
+
+        func presentationController(
+            _ presentationController: UIPresentationController,
+            prepare adaptivePresentationController: UIPresentationController
+        ) {
+            switch adapter?.transition {
+            case .popover(let options):
+                if #available(iOS 15.0, *) {
+                    if let options = options.adaptiveTransition,
+                        let presentationController = adaptivePresentationController as? UISheetPresentationController
+                    {
+                        PresentationLinkTransition.SheetTransitionOptions.update(
+                            presentationController: presentationController,
+                            animated: false,
+                            from: .init(),
+                            to: options
+                        )
+                    }
+                }
+
+            case .custom(_, let transition):
+                transition.presentationController(presentationController, prepare: adaptivePresentationController)
+
+            default:
+                break
             }
         }
 
@@ -413,6 +460,7 @@ private struct PresentationLinkAdapterBody<
                     forPresented: presented,
                     presenting: presenting
                 )
+
             default:
                 return nil
             }
@@ -424,6 +472,7 @@ private struct PresentationLinkAdapterBody<
             switch adapter?.transition {
             case .custom(_, let transition):
                 return transition.animationController(forDismissed: dismissed)
+
             default:
                 return nil
             }
@@ -435,6 +484,7 @@ private struct PresentationLinkAdapterBody<
             switch adapter?.transition {
             case .custom(_, let transition):
                 return transition.interactionControllerForPresentation(using: animator)
+
             default:
                 return nil
             }
@@ -446,6 +496,7 @@ private struct PresentationLinkAdapterBody<
             switch adapter?.transition {
             case .custom(_, let transition):
                 return transition.interactionControllerForDismissal(using: animator)
+
             default:
                 return nil
             }
@@ -499,6 +550,9 @@ private struct PresentationLinkAdapterBody<
                     presenting: presenting
                 )
                 presentationController.canOverlapSourceViewRect = options.canOverlapSourceViewRect
+                presentationController.permittedArrowDirections = options.permittedArrowDirections(
+                    layoutDirection: presentationController.traitCollection.layoutDirection
+                )
                 presentationController.delegate = self
                 return presentationController
 
@@ -556,8 +610,7 @@ private struct PresentationLinkAdapterBody<
         // MARK: - UIPopoverPresentationControllerDelegate
 
         func prepareForPopoverPresentation(_ popoverPresentationController: UIPopoverPresentationController) {
-            let size = popoverPresentationController.presentedViewController.view.intrinsicContentSize
-            popoverPresentationController.presentedViewController.preferredContentSize = size
+            popoverPresentationController.presentedViewController.view.layoutIfNeeded()
         }
     }
 
@@ -581,6 +634,50 @@ private class SheetPresentationController: UISheetPresentationController {
 
 private class PopoverPresentationController: UIPopoverPresentationController {
 
+}
+
+@available(iOS 15.0, *)
+extension PresentationLinkTransition.SheetTransitionOptions {
+    static func update(
+        presentationController: UISheetPresentationController,
+        animated isAnimated: Bool,
+        from oldValue: Self,
+        to newValue: Self
+    ) {
+        let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
+        let detents = newValue.detents.map { $0.resolve(in: presentationController) }
+        let hasChanges: Bool = {
+            if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {
+                return true
+            } else if let selected = selectedDetentIdentifier,
+                      presentationController.selectedDetentIdentifier != selected
+            {
+                return true
+            } else if oldValue.detents != detents {
+                return true
+            }
+            return false
+        }()
+        if hasChanges {
+            func applyConfiguration() {
+                presentationController.detents = detents.map { $0.toUIKit() }
+                presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetent?.identifier.toUIKit()
+                if let selected = newValue.selected {
+                    presentationController.selectedDetentIdentifier = selected.wrappedValue?.toUIKit()
+                }
+                presentationController.preferredCornerRadius = newValue.preferredCornerRadius
+            }
+            if isAnimated {
+                withCATransaction {
+                    presentationController.animateChanges {
+                        applyConfiguration()
+                    }
+                }
+            } else {
+                applyConfiguration()
+            }
+        }
+    }
 }
 
 @available(iOS 14.0, *)
