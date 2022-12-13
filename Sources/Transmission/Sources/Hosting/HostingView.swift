@@ -5,15 +5,40 @@
 #if os(iOS)
 
 import SwiftUI
+import Engine
 import Turbocharger
 
 open class HostingView<
     Content: View
->: _UIHostingView<_HostingViewContent<Content>> {
+>: _UIHostingView<Content> {
 
     public var content: Content {
-        get { adapter.content }
-        set { adapter.content = newValue }
+        get {
+            if #available(iOS 16.0, *) {
+                return rootView
+            } else {
+                do {
+                    return try swift_getFieldValue("_rootView", Content.self, self)
+                } catch {
+                    fatalError("\(error)")
+                }
+            }
+        }
+        set {
+            if #available(iOS 16.0, *) {
+                rootView = newValue
+            } else {
+                do {
+                    var flags = try swift_getFieldValue("propertiesNeedingUpdate", UInt16.self, self)
+                    try swift_setFieldValue("_rootView", newValue, self)
+                    flags |= 1
+                    try swift_setFieldValue("propertiesNeedingUpdate", flags, self)
+                    setNeedsLayout()
+                } catch {
+                    fatalError("\(error)")
+                }
+            }
+        }
     }
 
     public var disablesSafeArea: Bool = false
@@ -25,12 +50,8 @@ open class HostingView<
         return super.safeAreaInsets
     }
 
-    private let adapter: HostingViewContentAdapter<Content>
-
     public init(content: Content) {
-        let adapter = HostingViewContentAdapter(content: content)
-        self.adapter = adapter
-        super.init(rootView: _HostingViewContent(adapter: adapter))
+        super.init(rootView: content)
         backgroundColor = nil
     }
 
@@ -43,7 +64,7 @@ open class HostingView<
     }
 
     @available(iOS, obsoleted: 13.0, renamed: "init(content:)")
-    public required init(rootView: _HostingViewContent<Content>) {
+    public required init(rootView: Content) {
         fatalError("init(rootView:) has not been implemented")
     }
 
@@ -52,28 +73,6 @@ open class HostingView<
             return nil
         }
         return result
-    }
-}
-
-private class HostingViewContentAdapter<Content: View>: ObservableObject {
-    var content: Content {
-        didSet {
-            withCATransaction {
-                self.objectWillChange.send()
-            }
-        }
-    }
-
-    init(content: Content) {
-        self.content = content
-    }
-}
-
-public struct _HostingViewContent<Content: View>: View {
-    @ObservedObject fileprivate var adapter: HostingViewContentAdapter<Content>
-
-    public var body: some View {
-        adapter.content
     }
 }
 

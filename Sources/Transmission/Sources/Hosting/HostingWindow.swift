@@ -39,12 +39,6 @@ open class HostingWindow<Content: View>: UIWindow {
         fatalError("init(coder:) has not been implemented")
     }
 
-    deinit {
-        #if DEBUG
-        print("Deinit HostingWindow<\(String(describing: Content.self))>")
-        #endif
-    }
-
     public override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let result = super.hitTest(point, with: event)
         if result == rootViewController?.view || result == self {

@@ -5,7 +5,7 @@
 #if os(iOS)
 
 import SwiftUI
-import EngineCore
+import Engine
 import Turbocharger
 
 /// A modifier that presents a destination view in a new `UIViewController`.

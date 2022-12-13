@@ -52,8 +52,7 @@ open class HostingController<
             }
 
             if #available(iOS 16.0, *) {
-                // Sync SwiftUI/UIKit animation
-                try? view?.unsafeSetValue(true, forKey: "allowUIKitAnimationsForNextUpdate")
+                try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
                 performTransition()
             } else {
                 withCATransaction {
@@ -62,8 +61,7 @@ open class HostingController<
             }
         } else if tracksContentSize {
             if #available(iOS 16.0, *) {
-                // Sync SwiftUI/UIKit animation
-                try? view?.unsafeSetValue(true, forKey: "allowUIKitAnimationsForNextUpdate")
+                try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
                 if let popoverPresentationController = presentationController as? UIPopoverPresentationController,
                     let containerView = popoverPresentationController.containerView
                 {
@@ -116,12 +114,6 @@ open class _HostingController<
 
     public required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-
-    deinit {
-        #if DEBUG
-        print("Deinit HostingController<\(String(describing: Content.self))>")
-        #endif
     }
 }
 
