@@ -96,7 +96,7 @@ public struct PresentationLink<
 @available(watchOS, unavailable)
 extension PresentationLink {
     public init<ViewController: UIViewController>(
-        destination: @escaping () -> ViewController,
+        destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
         self.init(transition: .default, destination: destination, label: label)
@@ -104,7 +104,7 @@ extension PresentationLink {
 
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition,
-        destination: @escaping () -> ViewController,
+        destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
         self.init(transition: transition) {
@@ -116,7 +116,7 @@ extension PresentationLink {
 
     public init<ViewController: UIViewController>(
         isPresented: Binding<Bool>,
-        destination: @escaping () -> ViewController,
+        destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
         self.init(transition: .default, isPresented: isPresented, destination: destination, label: label)
@@ -125,7 +125,7 @@ extension PresentationLink {
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition,
         isPresented: Binding<Bool>,
-        destination: @escaping () -> ViewController,
+        destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
         self.init(transition: transition, isPresented: isPresented) {

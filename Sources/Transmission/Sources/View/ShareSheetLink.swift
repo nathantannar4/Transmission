@@ -200,15 +200,40 @@ extension String: ShareSheetItemProvider {
         Source(content: self)
     }
 
-    private class Source: UIActivityItemProvider {
+    private class Source: NSObject, UIActivityItemSource {
         let content: String
 
         init(content: String) {
             self.content = content
-            super.init(placeholderItem: content)
         }
 
-        override var item: Any { content }
+        func activityViewControllerPlaceholderItem(
+            _ activityViewController: UIActivityViewController
+        ) -> Any {
+            content
+        }
+
+        func activityViewController(
+            _ activityViewController: UIActivityViewController,
+            itemForActivityType activityType: UIActivity.ActivityType?
+        ) -> Any? {
+            content
+        }
+
+        func activityViewController(
+            _ activityViewController: UIActivityViewController,
+            subjectForActivityType activityType: UIActivity.ActivityType?
+        ) -> String {
+            content
+        }
+
+        func activityViewControllerLinkMetadata(
+            _ activityViewController: UIActivityViewController
+        ) -> LPLinkMetadata? {
+            let metadata = LPLinkMetadata()
+            metadata.title = content
+            return metadata
+        }
     }
 }
 
@@ -296,6 +321,54 @@ extension URL: ShareSheetItemProvider {
     }
 }
 
+/// A share sheet provider for an object that conforms to `NSItemProviderWriting`.
+public struct ShareSheetItem<T: NSItemProviderWriting> {
+
+    var label: String?
+    var object: T
+
+    public init(label: String? = nil, _ object: T) {
+        self.label = label
+        self.object = object
+    }
+}
+
+extension ShareSheetItem: ShareSheetItemProvider {
+    public func makeUIActivityItemSource(context: Context) -> UIActivityItemSource {
+        Source(item: self)
+    }
+
+    private class Source<T: NSItemProviderWriting>: NSObject, UIActivityItemSource {
+        let item: ShareSheetItem<T>
+
+        init(item: ShareSheetItem<T>) {
+            self.item = item
+        }
+
+        func activityViewControllerPlaceholderItem(
+            _ activityViewController: UIActivityViewController
+        ) -> Any {
+            item.object
+        }
+
+        func activityViewController(
+            _ activityViewController: UIActivityViewController,
+            itemForActivityType activityType: UIActivity.ActivityType?
+        ) -> Any? {
+            item.object
+        }
+
+        func activityViewControllerLinkMetadata(
+            _ activityViewController: UIActivityViewController
+        ) -> LPLinkMetadata? {
+            let metadata = LPLinkMetadata()
+            metadata.title = item.label
+            metadata.imageProvider = NSItemProvider(object: item.object)
+            return metadata
+        }
+    }
+}
+
 /// A share sheet provider for generating an image from a view.
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
@@ -339,7 +412,9 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
             self.provider = SnapshotRenderProvider(content: content)
         }
 
-        func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any {
+        func activityViewControllerPlaceholderItem(
+            _ activityViewController: UIActivityViewController
+        ) -> Any {
             label
         }
 

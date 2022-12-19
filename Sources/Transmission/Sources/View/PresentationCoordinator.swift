@@ -17,6 +17,8 @@ import Turbocharger
 public struct PresentationCoordinator {
     public var isPresented: Bool
 
+    public weak var sourceView: UIView?
+
     @usableFromInline
     var dismissBlock: () -> Void
 

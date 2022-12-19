@@ -209,31 +209,47 @@ private struct PresentationLinkAdapterBody<
 
                 adapter.update(
                     destination: destination,
-                    modifier: PresentationBridgeAdapter(isPresented: isPresented, host: host),
+                    isPresented: isPresented,
+                    sourceView: uiView,
+                    host: host,
                     context: context
                 )
             } else {
-                let adapter: PresentationLinkDestinationViewControllerAdapter<Destination, PresentationBridgeAdapter>
+                let adapter: PresentationLinkDestinationViewControllerAdapter<Destination>
                 if let oldValue = context.coordinator.adapter {
                     adapter = oldValue
                     adapter.transition = transition.value
                     adapter.update(
                         destination: destination,
-                        modifier: PresentationBridgeAdapter(isPresented: isPresented, host: host),
+                        isPresented: isPresented,
+                        sourceView: uiView,
+                        host: host,
                         context: context
                     )
                     context.coordinator.isBeingReused = false
                 } else {
                     adapter = PresentationLinkDestinationViewControllerAdapter(
                         destination: destination,
-                        modifier: PresentationBridgeAdapter(isPresented: isPresented, host: host),
+                        isPresented: isPresented,
+                        sourceView: uiView,
+                        host: host,
                         transition: transition.value,
                         context: context
                     )
                     context.coordinator.adapter = adapter
                 }
 
-                adapter.viewController.transitioningDelegate = context.coordinator
+                if adapter.viewController.transitioningDelegate == nil {
+                    adapter.viewController.transitioningDelegate = context.coordinator
+                } else if case .default = adapter.transition {
+                    switch adapter.transition {
+                    case .`default`:
+                        break
+                    default:
+                        adapter.viewController.transitioningDelegate = context.coordinator
+                    }
+                }
+
                 switch adapter.transition {
                 case .currentContext:
                     // transitioningDelegate + .custom breaks .overCurrentContext
@@ -339,7 +355,7 @@ private struct PresentationLinkAdapterBody<
         UIViewControllerPresentationDelegate
     {
         var isPresented: Binding<Bool>
-        var adapter: PresentationLinkDestinationViewControllerAdapter<Destination, PresentationBridgeAdapter>?
+        var adapter: PresentationLinkDestinationViewControllerAdapter<Destination>?
         var isBeingReused = false
         unowned var sourceView: UIView!
 
@@ -684,7 +700,12 @@ extension PresentationLinkTransition.SheetTransitionOptions {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-private class PresentationLinkDestinationViewControllerAdapter<Destination: View, Modifier: ViewModifier> {
+private class PresentationLinkDestinationViewControllerAdapter<
+    Destination: View
+> {
+
+    typealias DestinationController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
+
     var viewController: UIViewController!
     var context: Any!
 
@@ -693,16 +714,31 @@ private class PresentationLinkDestinationViewControllerAdapter<Destination: View
 
     init(
         destination: Destination,
-        modifier: Modifier,
+        isPresented: Binding<Bool>,
+        sourceView: UIView,
+        host: UIView?,
         transition: PresentationLinkTransition.Value,
         context: PresentationLinkAdapterBody<Destination>.Context
     ) {
         self.transition = transition
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
-            update(destination: destination, modifier: modifier, context: context)
+            update(
+                destination: destination,
+                isPresented: isPresented,
+                sourceView: sourceView,
+                host: host,
+                context: context
+            )
         } else {
-            let viewController = HostingController(content: destination.modifier(modifier))
+            let viewController = DestinationController(
+                content: destination.modifier(
+                    PresentationBridgeAdapter(
+                        isPresented: isPresented,
+                        host: host
+                    )
+                )
+            )
             transition.update(viewController)
             self.viewController = viewController
         }
@@ -720,6 +756,8 @@ private class PresentationLinkDestinationViewControllerAdapter<Destination: View
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: nil,
+                isPresented: .constant(false),
+                sourceView: nil,
                 context: nil,
                 adapter: self
             )
@@ -729,12 +767,16 @@ private class PresentationLinkDestinationViewControllerAdapter<Destination: View
 
     func update(
         destination: Destination,
-        modifier: Modifier,
+        isPresented: Binding<Bool>,
+        sourceView: UIView,
+        host: UIView?,
         context: PresentationLinkAdapterBody<Destination>.Context
     ) {
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
+                isPresented: isPresented,
+                sourceView: sourceView,
                 context: context,
                 adapter: self
             )
@@ -743,8 +785,13 @@ private class PresentationLinkDestinationViewControllerAdapter<Destination: View
                 viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
             }
         } else {
-            let viewController = viewController as! HostingController<ModifiedContent<Destination, Modifier>>
-            viewController.content = destination.modifier(modifier)
+            let viewController = viewController as! DestinationController
+            viewController.content = destination.modifier(
+                PresentationBridgeAdapter(
+                    isPresented: isPresented,
+                    host: host
+                )
+            )
             transition.update(viewController)
         }
     }
@@ -758,8 +805,10 @@ private class PresentationLinkDestinationViewControllerAdapter<Destination: View
 
     private struct Visitor: ViewVisitor {
         var destination: Destination?
+        var isPresented: Binding<Bool>
+        var sourceView: UIView?
         var context: PresentationLinkAdapterBody<Destination>.Context?
-        var adapter: PresentationLinkDestinationViewControllerAdapter<Destination, Modifier>
+        var adapter: PresentationLinkDestinationViewControllerAdapter<Destination>
 
         mutating func visit<Content>(type: Content.Type) where Content: UIViewControllerRepresentable {
             guard
@@ -789,7 +838,16 @@ private class PresentationLinkDestinationViewControllerAdapter<Destination: View
                 adapter.context = unsafeBitCast(context, to: Content.Context.self)
             }
             func project<T>(_ value: T) -> Content.Context {
-                unsafeBitCast(value, to: Content.Context.self)
+                var ctx = unsafeBitCast(value, to: Context<Content.Coordinator>.self)
+                let isPresented = self.isPresented
+                ctx.environment.presentationCoordinator = PresentationCoordinator(
+                    isPresented: isPresented.wrappedValue,
+                    sourceView: sourceView,
+                    dismissBlock: {
+                        isPresented.wrappedValue = false
+                    }
+                )
+                return unsafeBitCast(ctx, to: Content.Context.self)
             }
             let ctx = _openExistential(adapter.context!, do: project)
             if adapter.viewController == nil {

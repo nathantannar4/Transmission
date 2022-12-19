@@ -11,14 +11,14 @@ public struct _ViewControllerRepresentableAdapter<
     Content: UIViewController
 >: UIViewControllerRepresentable {
 
-    var _makeUIViewController: () -> Content
+    var _makeUIViewController: (Context) -> Content
 
-    public init(makeUIViewController: @escaping () -> Content) {
+    public init(makeUIViewController: @escaping (Context) -> Content) {
         self._makeUIViewController = makeUIViewController
     }
 
     public func makeUIViewController(context: Context) -> Content {
-        _makeUIViewController()
+        _makeUIViewController(context)
     }
 
     public func updateUIViewController(_ uiViewController: Content, context: Context) { }
@@ -28,7 +28,7 @@ public struct _ViewControllerRepresentableAdapter<
 
 struct _ViewControllerRepresentableAdapter_Previews: PreviewProvider {
     static var previews: some View {
-        _ViewControllerRepresentableAdapter {
+        _ViewControllerRepresentableAdapter { context in
             let uiViewController = UIViewController()
             uiViewController.view.backgroundColor = .yellow
             uiViewController.preferredContentSize = CGSize(width: 40, height: 40)
@@ -36,7 +36,7 @@ struct _ViewControllerRepresentableAdapter_Previews: PreviewProvider {
         }
         .fixedSize()
 
-        _ViewControllerRepresentableAdapter {
+        _ViewControllerRepresentableAdapter { context in
             let uiViewController = UIViewController()
             uiViewController.view.backgroundColor = .yellow
             return uiViewController
