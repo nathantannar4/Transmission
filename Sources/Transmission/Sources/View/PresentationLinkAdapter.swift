@@ -532,7 +532,7 @@ private struct PresentationLinkAdapterBody<
                     )
                     presentationController.detents = configuration.detents.map { $0.resolve(in: presentationController).toUIKit() }
                     presentationController.selectedDetentIdentifier = (configuration.selected?.wrappedValue ?? configuration.detents.first?.identifier)?.toUIKit()
-                    presentationController.largestUndimmedDetentIdentifier = configuration.largestUndimmedDetent?.identifier.toUIKit()
+                    presentationController.largestUndimmedDetentIdentifier = configuration.largestUndimmedDetentIdentifier?.toUIKit()
                     presentationController.prefersGrabberVisible = configuration.prefersGrabberVisible
                     presentationController.preferredCornerRadius = configuration.preferredCornerRadius
                     presentationController.prefersScrollingExpandsWhenScrolledToEdge = configuration.prefersScrollingExpandsWhenScrolledToEdge
@@ -677,7 +677,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
         if hasChanges {
             func applyConfiguration() {
                 presentationController.detents = detents.map { $0.toUIKit() }
-                presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetent?.identifier.toUIKit()
+                presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetentIdentifier?.toUIKit()
                 if let selected = newValue.selected {
                     presentationController.selectedDetentIdentifier = selected.wrappedValue?.toUIKit()
                 }

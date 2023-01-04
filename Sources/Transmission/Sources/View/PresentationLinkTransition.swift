@@ -300,7 +300,7 @@ extension PresentationLinkTransition {
         public var options: Options
         public var selected: Binding<Detent.Identifier?>?
         public var detents: [Detent]
-        public var largestUndimmedDetent: Detent?
+        public var largestUndimmedDetentIdentifier: Detent.Identifier?
         public var isInteractive: Bool
         public var prefersGrabberVisible: Bool
         public var preferredCornerRadius: CGFloat?
@@ -312,7 +312,7 @@ extension PresentationLinkTransition {
         public init(
             selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
             detents: [SheetTransitionOptions.Detent]? = nil,
-            largestUndimmedDetent: SheetTransitionOptions.Detent? = nil,
+            largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
             isInteractive: Bool = true,
             prefersGrabberVisible: Bool = false,
             preferredCornerRadius: CGFloat? = nil,
@@ -329,7 +329,7 @@ extension PresentationLinkTransition {
             } else {
                 self.detents = []
             }
-            self.largestUndimmedDetent = largestUndimmedDetent
+            self.largestUndimmedDetentIdentifier = largestUndimmedDetentIdentifier
             self.isInteractive = isInteractive
             self.prefersGrabberVisible = prefersGrabberVisible
             self.preferredCornerRadius = preferredCornerRadius
