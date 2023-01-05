@@ -45,24 +45,33 @@ extension UIViewController {
 
     @objc
     func swizzled_dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
-        var delegates = [UIViewControllerPresentationDelegate]()
+        var parentDelegates = [UIViewControllerPresentationDelegate]()
+        var presentedDelegates = [UIViewControllerPresentationDelegate]()
         var next: UIViewController? = parent
         while let current = next {
             if let presentationDelegate = current.presentationDelegate {
-                delegates.append(presentationDelegate)
+                parentDelegates.append(presentationDelegate)
             }
             next = current.parent
         }
-        next = self
+        next = presentedViewController
         while let current = next {
             if let presentationDelegate = current.presentationDelegate {
-                delegates.append(presentationDelegate)
+                presentedDelegates.append(presentationDelegate)
             }
             next = current.presentedViewController
         }
         swizzled_dismiss(animated: flag) {
             if self.transitionCoordinator?.isCancelled != true {
-                for delegate in delegates.reversed() {
+                for delegate in presentedDelegates.reversed() {
+                    delegate.viewControllerDidDismiss()
+                }
+
+                if self.presentingViewController == nil, let delegate = self.presentationDelegate {
+                    delegate.viewControllerDidDismiss()
+                }
+
+                for delegate in parentDelegates.reversed() {
                     delegate.viewControllerDidDismiss()
                 }
             }
