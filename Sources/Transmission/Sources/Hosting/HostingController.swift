@@ -33,9 +33,23 @@ open class HostingController<
 
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        if tracksContentSize, #available(iOS 15.0, *), let sheetPresentationController = presentationController as? UISheetPresentationController,
+
+        guard view.superview != nil else {
+            return
+        }
+
+        if tracksContentSize, #available(iOS 15.0, *),
+            let sheetPresentationController = presentationController as? UISheetPresentationController,
+            sheetPresentationController.presentedViewController == self,
             let containerView = sheetPresentationController.containerView
         {
+            guard
+                let selectedIdentifier = sheetPresentationController.selectedDetentIdentifier,
+                sheetPresentationController.detents.contains(where: { $0.id == selectedIdentifier.rawValue && $0.isDynamic })
+            else {
+                return
+            }
+
             func performTransition() {
                 UIView.transition(
                     with: containerView,
@@ -59,19 +73,30 @@ open class HostingController<
                     performTransition()
                 }
             }
+
         } else if tracksContentSize {
             if #available(iOS 16.0, *) {
                 try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
                 if let popoverPresentationController = presentationController as? UIPopoverPresentationController,
+                    popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {
                     var newSize = view.systemLayoutSizeFitting(
-                        UIView.layoutFittingCompressedSize
+                        UIView.layoutFittingExpandedSize
                     )
-                    newSize.height -= (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
-                    newSize.width -= (view.safeAreaInsets.left + view.safeAreaInsets.right)
+                    // Arrow Height
+                    switch popoverPresentationController.arrowDirection {
+                    case .up, .down:
+                        newSize.height += 6
+                    case .left, .right:
+                        newSize.width += 6
+                    default:
+                        break
+                    }
                     let oldSize = preferredContentSize
-                    if oldSize != newSize {
+                    if oldSize == .zero {
+                        preferredContentSize = newSize
+                    } else if oldSize != newSize {
                         let dz = (newSize.width * newSize.height) - (oldSize.width * oldSize.height)
                         UIView.transition(
                             with: containerView,
@@ -82,13 +107,11 @@ open class HostingController<
                         }
                     }
                 }
+
             } else {
-                var size = view.systemLayoutSizeFitting(
-                    UIView.layoutFittingCompressedSize
+                preferredContentSize = view.systemLayoutSizeFitting(
+                    UIView.layoutFittingExpandedSize
                 )
-                size.height -= (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
-                size.width -= (view.safeAreaInsets.left + view.safeAreaInsets.right)
-                preferredContentSize = size
             }
         }
     }

@@ -25,8 +25,11 @@ final class HostingViewReader: UIView {
     override func didMoveToWindow() {
         super.didMoveToWindow()
         withCATransaction { [weak self] in
-            self?.presentingViewController.wrappedValue = self?.viewController
-            self?.host?.wrappedValue = self?.hostingView
+            guard let self = self else {
+                return
+            }
+            self.presentingViewController.wrappedValue = self.viewController
+            self.host?.wrappedValue = self.hostingView
         }
     }
 }

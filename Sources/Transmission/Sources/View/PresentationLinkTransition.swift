@@ -18,6 +18,7 @@ public struct PresentationLinkTransition {
         case currentContext(Options)
         case fullscreen(Options)
         case popover(PopoverTransitionOptions)
+        case slide(SlideTransitionOptions)
         case custom(Options, PresentationLinkCustomTransition)
 
         var options: Options {
@@ -27,6 +28,8 @@ public struct PresentationLinkTransition {
             case .sheet(let options):
                 return options.options
             case .popover(let options):
+                return options.options
+            case .slide(let options):
                 return options.options
             case .currentContext(let options), .fullscreen(let options), .custom(let options, _):
                 return options
@@ -50,13 +53,14 @@ public struct PresentationLinkTransition {
     /// The popover presentation style.
     public static let popover = PresentationLinkTransition(value: .popover(.init()))
 
+    /// The slide presentation style.
+    public static let slide = PresentationLinkTransition(value: .slide(.init()))
+
     /// A custom presentation style.
     public static func custom<T: PresentationLinkCustomTransition>(_ transition: T) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .custom(.init(), transition))
     }
 }
-
-// MARK: - Base
 
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
@@ -69,18 +73,19 @@ extension PresentationLinkTransition {
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         public var modalPresentationCapturesStatusBarAppearance: Bool
+        public var preferredPresentationBackgroundColor: Color?
 
         public init(
             isDestinationReusable: Bool = false,
-            modalPresentationCapturesStatusBarAppearance: Bool = false
+            modalPresentationCapturesStatusBarAppearance: Bool = false,
+            preferredPresentationBackgroundColor: Color? = nil
         ) {
             self.isDestinationReusable = isDestinationReusable
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
+            self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
         }
     }
 }
-
-// MARK: - Sheet
 
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
@@ -163,7 +168,7 @@ extension PresentationLinkTransition {
 
             public var identifier: Identifier
 
-            var height: Int?
+            var height: CGFloat?
             var resolution: ((ResolutionContext) -> CGFloat?)?
 
             public static func == (
@@ -208,7 +213,7 @@ extension PresentationLinkTransition {
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            public static func constant(_ identifier: Identifier, height: Int) -> Detent {
+            public static func constant(_ identifier: Identifier, height: CGFloat) -> Detent {
                 Detent(identifier: identifier, height: height)
             }
 
@@ -232,7 +237,7 @@ extension PresentationLinkTransition {
                 switch identifier {
                 case .ideal:
                     var copy = self
-                    let resolution: () -> CGFloat = { [unowned presentationController] in
+                    let resolution: () -> CGFloat? = { [unowned presentationController] in
                         guard let containerView = presentationController.containerView else {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
                             return idealHeight
@@ -253,7 +258,7 @@ extension PresentationLinkTransition {
                     if #available(iOS 16.0, *) {
                         copy.resolution = { _ in resolution() }
                     } else {
-                        copy.height = Int(resolution())
+                        copy.height = resolution()
                     }
                     return copy
 
@@ -288,7 +293,7 @@ extension PresentationLinkTransition {
                     guard let height = height, UISheetPresentationController.Detent.responds(to: sel) else {
                         return .large()
                     }
-                    let result = UISheetPresentationController.Detent.perform(sel, with: identifier.rawValue, with: CGFloat(height))
+                    let result = UISheetPresentationController.Detent.perform(sel, with: identifier.rawValue, with: height)
                     guard let detent = result?.takeUnretainedValue() as? UISheetPresentationController.Detent else {
                         return .large()
                     }
@@ -383,6 +388,72 @@ extension PresentationLinkTransition {
     }
 }
 
+@available(iOS 15.0, *)
+extension UISheetPresentationController.Detent {
+    var id: String? {
+        if #available(iOS 16.0, *) {
+            return identifier.rawValue
+        } else {
+            if responds(to: NSSelectorFromString("_identifier")),
+               let identifier = value(forKey: "_identifier") as? String
+            {
+                return identifier
+            } else {
+                return nil
+            }
+        }
+    }
+
+    var isDynamic: Bool {
+        guard let id = id else {
+            return false
+        }
+        switch id {
+        case UISheetPresentationController.Detent.Identifier.large.rawValue,
+             UISheetPresentationController.Detent.Identifier.medium.rawValue:
+            return false
+        default:
+            if responds(to: NSSelectorFromString("_constant")),
+                let constant = value(forKey: "_constant") as? CGFloat,
+                constant > 0
+            {
+                return false
+            }
+            return true
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+extension PresentationLinkTransition {
+    /// The transition options for a slide transition.
+    @frozen
+    public struct SlideTransitionOptions {
+
+        public var edge: Edge
+        public var prefersScaleEffect: Bool
+        public var preferredCornerRadius: CGFloat?
+        public var isInteractive: Bool
+        public var options: Options
+
+        public init(
+            edge: Edge = .bottom,
+            prefersScaleEffect: Bool = true,
+            preferredCornerRadius: CGFloat? = nil,
+            isInteractive: Bool = true,
+            options: Options = .init()
+        ) {
+            self.edge = edge
+            self.prefersScaleEffect = prefersScaleEffect
+            self.isInteractive = isInteractive
+            self.options = options
+        }
+    }
+}
+
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
@@ -437,6 +508,13 @@ extension PresentationLinkTransition {
         options: PopoverTransitionOptions
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .popover(options))
+    }
+
+    /// The slide presentation style.
+    public static func slide(
+        edge: Edge
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .slide(.init(edge: edge)))
     }
 
     /// A custom presentation style.

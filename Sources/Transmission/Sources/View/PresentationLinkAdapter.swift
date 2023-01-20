@@ -201,6 +201,15 @@ private struct PresentationLinkAdapterBody<
                         }
                     }
 
+                case (.slide(let oldValue), .slide(let newValue)):
+                    adapter.transition = .slide(newValue)
+
+                    if oldValue.edge != newValue.edge,
+                        let presentationController = adapter.viewController.presentationController as? SlidePresentationController
+                    {
+                        presentationController.edge = newValue.edge
+                    }
+
                 default:
                     adapter.transition = transition.value
                 }
@@ -291,6 +300,9 @@ private struct PresentationLinkAdapterBody<
                             }
                         }
                     }
+
+                case .slide:
+                    adapter.viewController.modalPresentationStyle = .custom
 
                 case .custom(_, let delegate):
                     assert(!isClassType(delegate), "PresentationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
@@ -396,6 +408,9 @@ private struct PresentationLinkAdapterBody<
             case .popover(let options):
                 return options.isInteractive
 
+            case .slide(let options):
+                return options.isInteractive
+
             default:
                 return true
             }
@@ -471,6 +486,16 @@ private struct PresentationLinkAdapterBody<
             source: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
             switch adapter?.transition {
+            case .slide(let options):
+                let transition = SlideTransition(
+                    isPresenting: true,
+                    edge: options.edge,
+                    prefersScaleEffect: options.prefersScaleEffect,
+                    preferredCornerRadius: options.preferredCornerRadius
+                )
+                transition.wantsInteractiveStart = false
+                return transition
+
             case .custom(_, let transition):
                 return transition.animationController(
                     forPresented: presented,
@@ -486,6 +511,20 @@ private struct PresentationLinkAdapterBody<
             forDismissed dismissed: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
             switch adapter?.transition {
+            case .slide(let options):
+                guard let presentationController = dismissed.presentationController as? SlidePresentationController else {
+                    return nil
+                }
+                let transition = SlideTransition(
+                    isPresenting: false,
+                    edge: options.edge,
+                    prefersScaleEffect: options.prefersScaleEffect,
+                    preferredCornerRadius: options.preferredCornerRadius
+                )
+                transition.wantsInteractiveStart = options.isInteractive
+                presentationController.transition = transition
+                return transition
+
             case .custom(_, let transition):
                 return transition.animationController(forDismissed: dismissed)
 
@@ -510,6 +549,9 @@ private struct PresentationLinkAdapterBody<
             using animator: UIViewControllerAnimatedTransitioning
         ) -> UIViewControllerInteractiveTransitioning? {
             switch adapter?.transition {
+            case .slide:
+                return animator as? SlideTransition
+
             case .custom(_, let transition):
                 return transition.interactionControllerForDismissal(using: animator)
 
@@ -550,16 +592,6 @@ private struct PresentationLinkAdapterBody<
                     return presentationController
                 }
 
-
-            case .custom(_, let adapter):
-                let presentationController = adapter.presentationController(
-                    sourceView: sourceView,
-                    presented: presented,
-                    presenting: presenting
-                )
-                presentationController.delegate = self
-                return presentationController
-
             case .popover(let options):
                 let presentationController = PopoverPresentationController(
                     presentedViewController: presented,
@@ -568,6 +600,24 @@ private struct PresentationLinkAdapterBody<
                 presentationController.canOverlapSourceViewRect = options.canOverlapSourceViewRect
                 presentationController.permittedArrowDirections = options.permittedArrowDirections(
                     layoutDirection: presentationController.traitCollection.layoutDirection
+                )
+                presentationController.delegate = self
+                return presentationController
+
+            case .slide(let options):
+                let presentationController = SlidePresentationController(
+                    presentedViewController: presented,
+                    presenting: presenting
+                )
+                presentationController.edge = options.edge
+                presentationController.delegate = self
+                return presentationController
+
+            case .custom(_, let adapter):
+                let presentationController = adapter.presentationController(
+                    sourceView: sourceView,
+                    presented: presented,
+                    presenting: presenting
                 )
                 presentationController.delegate = self
                 return presentationController
@@ -700,6 +750,437 @@ extension PresentationLinkTransition.SheetTransitionOptions {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
+private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
+
+    let isPresenting: Bool
+    let edge: Edge
+    let prefersScaleEffect: Bool
+    let preferredCornerRadius: CGFloat?
+
+    var animator: UIViewPropertyAnimator?
+
+    static let displayCornerRadius: CGFloat = {
+        let key = String("suidaRrenroCyalpsid_".reversed())
+        return UIScreen.main.value(forKey: key) as? CGFloat ?? 0
+    }()
+
+    init(
+        isPresenting: Bool,
+        edge: Edge,
+        prefersScaleEffect: Bool,
+        preferredCornerRadius: CGFloat?
+    ) {
+        self.isPresenting = isPresenting
+        self.edge = edge
+        self.prefersScaleEffect = prefersScaleEffect
+        self.preferredCornerRadius = preferredCornerRadius
+        super.init()
+    }
+
+    // MARK: - UIViewControllerAnimatedTransitioning
+
+    func transitionDuration(
+        using transitionContext: UIViewControllerContextTransitioning?
+    ) -> TimeInterval {
+        transitionContext?.isAnimated == true ? 0.35 : 0
+    }
+
+    func animateTransition(
+        using transitionContext: UIViewControllerContextTransitioning
+    ) {
+        let animator = makeAnimatorIfNeeded(using: transitionContext)
+        animator.startAnimation()
+
+        if !transitionContext.isAnimated {
+            animator.stopAnimation(false)
+            animator.finishAnimation(at: .end)
+        }
+    }
+
+    func animationEnded(_ transitionCompleted: Bool) {
+        wantsInteractiveStart = false
+        animator = nil
+    }
+
+    func interruptibleAnimator(
+        using transitionContext: UIViewControllerContextTransitioning
+    ) -> UIViewImplicitlyAnimating {
+        let animator = makeAnimatorIfNeeded(using: transitionContext)
+        return animator
+    }
+
+    func makeAnimatorIfNeeded(
+        using transitionContext: UIViewControllerContextTransitioning
+    ) -> UIViewPropertyAnimator {
+        if let animator = animator {
+            return animator
+        }
+
+        let isPresenting = isPresenting
+        let animator = UIViewPropertyAnimator(
+            duration: duration,
+            curve: completionCurve
+        )
+
+        guard
+            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
+        else {
+            transitionContext.completeTransition(false)
+            return animator
+        }
+
+        let isScaleEnabled = prefersScaleEffect
+        let safeAreaInsets = transitionContext.containerView.safeAreaInsets
+        let cornerRadius = preferredCornerRadius ?? Self.displayCornerRadius
+
+        var dzTransform = CGAffineTransform(scaleX: 0.92, y: 0.92)
+        switch edge {
+        case .top:
+            dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.bottom / 2)
+        case .bottom:
+            dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.top / 2)
+        case .leading:
+            switch presented.traitCollection.layoutDirection {
+            case .rightToLeft:
+                dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.left / 2)
+            default:
+                dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.right / 2)
+            }
+        case .trailing:
+            switch presented.traitCollection.layoutDirection {
+            case .leftToRight:
+                dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.right / 2)
+            default:
+                dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.left / 2)
+            }
+        }
+
+        presented.view.layer.masksToBounds = true
+        presented.view.layer.cornerCurve = .continuous
+
+        presenting.view.layer.masksToBounds = true
+        presenting.view.layer.cornerCurve = .continuous
+
+        let frame = transitionContext.finalFrame(for: presented)
+        if isPresenting {
+            presented.view.transform = presentationTransform(
+                presented: presented,
+                frame: frame
+            )
+        } else {
+            presented.view.layer.cornerRadius = cornerRadius
+            if isScaleEnabled {
+                presenting.view.transform = dzTransform
+                presenting.view.layer.cornerRadius = cornerRadius
+            }
+        }
+
+        let presentedTransform = isPresenting ? .identity : presentationTransform(
+            presented: presented,
+            frame: frame
+        )
+        let presentingTransform = isPresenting && isScaleEnabled ? dzTransform : .identity
+        animator.addAnimations {
+            presented.view.transform = presentedTransform
+            presented.view.layer.cornerRadius = isPresenting ? cornerRadius : 0
+            presenting.view.transform = presentingTransform
+            if isScaleEnabled {
+                presenting.view.layer.cornerRadius = isPresenting ? cornerRadius : 0
+            }
+        }
+        animator.addCompletion { animatingPosition in
+
+            presented.view.layer.cornerRadius = 0
+            if isScaleEnabled {
+                presenting.view.layer.cornerRadius = 0
+                presenting.view.transform = .identity
+            }
+
+            switch animatingPosition {
+            case .end:
+                transitionContext.completeTransition(true)
+            default:
+                transitionContext.completeTransition(false)
+            }
+        }
+        self.animator = animator
+        return animator
+    }
+
+    private func presentationTransform(
+        presented: UIViewController,
+        frame: CGRect
+    ) -> CGAffineTransform {
+        switch edge {
+        case .top:
+            return CGAffineTransform(translationX: 0, y: -frame.height)
+        case .bottom:
+            return CGAffineTransform(translationX: 0, y: frame.height)
+        case .leading:
+            switch presented.traitCollection.layoutDirection {
+            case .rightToLeft:
+                return CGAffineTransform(translationX: frame.width, y: 0)
+            default:
+                return CGAffineTransform(translationX: -frame.width, y: 0)
+            }
+        case .trailing:
+            switch presented.traitCollection.layoutDirection {
+            case .leftToRight:
+                return CGAffineTransform(translationX: frame.width, y: 0)
+            default:
+                return CGAffineTransform(translationX: -frame.width, y: 0)
+            }
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+private class SlidePresentationController: UIPresentationController, UIGestureRecognizerDelegate {
+
+    weak var transition: SlideTransition?
+    var edge: Edge = .bottom
+
+    lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
+
+    private var isPanGestureActive = false
+    private var translationOffset: CGPoint = .zero
+
+    override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+
+        guard let containerView = containerView else {
+            return
+        }
+
+        containerView.addSubview(presentedViewController.view)
+        presentedViewController.view.frame = frameOfPresentedViewInContainerView
+        presentedViewController.view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            presentedViewController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
+            presentedViewController.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            presentedViewController.view.leftAnchor.constraint(equalTo: containerView.leftAnchor),
+            presentedViewController.view.rightAnchor.constraint(equalTo: containerView.rightAnchor),
+        ])
+    }
+
+    override func presentationTransitionDidEnd(_ completed: Bool) {
+        super.presentationTransitionDidEnd(completed)
+
+        guard completed else {
+            return
+        }
+
+        panGesture.delegate = self
+        panGesture.allowedScrollTypesMask = .all
+        containerView?.addGestureRecognizer(panGesture)
+    }
+
+    override func dismissalTransitionWillBegin() {
+        super.dismissalTransitionWillBegin()
+
+        delegate?.presentationControllerWillDismiss?(self)
+    }
+
+    override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+
+        if completed {
+            delegate?.presentationControllerDidDismiss?(self)
+        } else {
+            delegate?.presentationControllerDidAttemptToDismiss?(self)
+        }
+    }
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        delegate?.presentationControllerShouldDismiss?(self) ?? false
+    }
+
+    @objc
+    private func onPanGesture(_ gestureRecognizer: UIPanGestureRecognizer) {
+        let scrollView = gestureRecognizer.view as? UIScrollView
+        guard let containerView = scrollView ?? containerView else {
+            return
+        }
+
+        let gestureTranslation = gestureRecognizer.translation(in: containerView)
+        let offset = CGSize(
+            width: gestureTranslation.x - translationOffset.x,
+            height: gestureTranslation.y - translationOffset.y
+        )
+        let translation: CGFloat
+        let percentage: CGFloat
+        switch edge {
+        case .top:
+            if let scrollView {
+                translation = scrollView.contentSize.height + offset.height - scrollView.bounds.height - scrollView.adjustedContentInset.bottom
+            } else {
+                translation = offset.height
+            }
+            percentage = translation / containerView.bounds.height
+        case .bottom:
+            translation = offset.height
+            percentage = translation / containerView.bounds.height
+        case .leading:
+            if let scrollView {
+                translation = scrollView.contentSize.width + offset.width - scrollView.bounds.width
+            } else {
+                translation = offset.width
+            }
+            percentage = translation / containerView.bounds.width
+        case .trailing:
+            translation = offset.width
+            percentage = translation / containerView.bounds.width
+        }
+
+        guard isPanGestureActive else {
+            if !presentedViewController.isBeingDismissed,
+                scrollView.map({ isAtTop(scrollView: $0) }) ?? true,
+                abs(translation) > 1
+            {
+                #if targetEnvironment(macCatalyst)
+                let canStart = true
+                #else
+                var views = presentedViewController.view.map { [$0] } ?? []
+                var firstResponder: UIView?
+                var index = 0
+                repeat {
+                    let view = views[index]
+                    if view.isFirstResponder {
+                        firstResponder = view
+                    } else {
+                        views.append(contentsOf: view.subviews)
+                        index += 1
+                    }
+                } while index < views.count && firstResponder == nil
+                let canStart = firstResponder?.resignFirstResponder() ?? true
+                #endif
+                if canStart {
+                    isPanGestureActive = true
+                    presentedViewController.dismiss(animated: true)
+                }
+            }
+            return
+        }
+
+        guard percentage > 0 && (edge == .bottom || edge == .trailing) ||
+            percentage < 0 && (edge == .top || edge == .leading)
+        else {
+            transition?.cancel()
+            isPanGestureActive = false
+            return
+        }
+
+        switch gestureRecognizer.state {
+        case .began, .changed:
+            if let scrollView = scrollView {
+                switch edge {
+                case .top:
+                    scrollView.contentOffset.y = scrollView.contentSize.height - scrollView.frame.height + scrollView.adjustedContentInset.bottom
+
+                case .bottom:
+                    scrollView.contentOffset.y = -scrollView.adjustedContentInset.top
+
+                case .leading:
+                    scrollView.contentOffset.x = scrollView.contentSize.width - scrollView.frame.width
+
+                case .trailing:
+                    scrollView.contentOffset.x = -scrollView.adjustedContentInset.left
+                }
+            }
+
+            transition?.update(abs(percentage))
+
+        case .ended, .cancelled:
+            // Dismiss if:
+            // - Drag over 50% and not moving up
+            // - Large enough down vector
+            let velocity: CGFloat
+            switch edge {
+            case .top, .bottom:
+                velocity = abs(gestureRecognizer.velocity(in: containerView).y)
+            case .leading, .trailing:
+                velocity = abs(gestureRecognizer.velocity(in: containerView).x)
+            }
+            let shouldDismiss = abs(percentage) > 0.5 && velocity > 0 || velocity > 1000
+            if shouldDismiss {
+                transition?.finish()
+            } else {
+                transition?.completionSpeed = 0.5
+                transition?.cancel()
+            }
+            isPanGestureActive = false
+            translationOffset = .zero
+
+        default:
+            break
+        }
+    }
+
+    func isAtTop(scrollView: UIScrollView) -> Bool {
+        let frame = scrollView.frame
+        let size = scrollView.contentSize
+        let canScrollVertically = size.height > frame.size.height
+        let canScrollHorizontally = size.width > frame.size.width
+
+        switch edge {
+        case .top, .bottom:
+            if canScrollHorizontally && !canScrollVertically {
+                return false
+            }
+
+            let dy = scrollView.contentOffset.y + scrollView.contentInset.top
+            if edge == .bottom {
+                return dy <= 0
+            } else {
+                return dy >= size.height - frame.height
+            }
+
+        case .leading, .trailing:
+            if canScrollVertically && !canScrollHorizontally {
+                return false
+            }
+
+            let dx = scrollView.contentOffset.x + scrollView.contentInset.left
+            if edge == .trailing {
+                return dx <= 0
+            } else {
+                return dx >= size.width - frame.width
+            }
+        }
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        if let scrollView = otherGestureRecognizer.view as? UIScrollView {
+            scrollView.panGestureRecognizer.addTarget(self, action: #selector(onPanGesture(_:)))
+            switch edge {
+            case .bottom, .trailing:
+                translationOffset = CGPoint(
+                    x: scrollView.contentOffset.x + scrollView.adjustedContentInset.left,
+                    y: scrollView.contentOffset.y + scrollView.adjustedContentInset.top
+                )
+            case .top, .leading:
+                translationOffset = CGPoint(
+                    x: scrollView.contentOffset.x - scrollView.adjustedContentInset.left - scrollView.adjustedContentInset.right,
+                    y: scrollView.contentOffset.y - scrollView.adjustedContentInset.bottom - scrollView.adjustedContentInset.top
+                )
+            }
+            return false
+        }
+        return false
+    }
+}
+
+@available(iOS 14.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
 private class PresentationLinkDestinationViewControllerAdapter<
     Destination: View
 > {
@@ -783,6 +1264,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             conformance.visit(visitor: &visitor)
             if case .custom(let options, _) = transition {
                 viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
+                viewController.view.backgroundColor = options.preferredPresentationBackgroundColor.map { UIColor($0) } ?? .systemBackground
             }
         } else {
             let viewController = viewController as! DestinationController
@@ -865,27 +1347,31 @@ private class PresentationLinkDestinationViewControllerAdapter<
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 extension PresentationLinkTransition.Value {
-    func update<Content: View>(_ controller: HostingController<Content>) {
+
+    func update<Content: View>(_ viewController: HostingController<Content>) {
+
+        viewController.view.backgroundColor = options.preferredPresentationBackgroundColor.map { UIColor($0) } ?? .systemBackground
+
         switch self {
         case .custom(let options, _):
-            controller.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
+            viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
 
         case .sheet(let options):
             if #available(iOS 15.0, *) {
-                controller.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal })
+                viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal })
             } else {
-                controller.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
+                viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
             }
-            controller.modalPresentationCapturesStatusBarAppearance = options.options.modalPresentationCapturesStatusBarAppearance
+            viewController.modalPresentationCapturesStatusBarAppearance = options.options.modalPresentationCapturesStatusBarAppearance
 
         case .currentContext(let options):
-            controller.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
+            viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
 
         case .fullscreen(let options):
-            controller.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
+            viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
 
         case .popover:
-            controller.tracksContentSize = true
+            viewController.tracksContentSize = true
 
         default:
             break

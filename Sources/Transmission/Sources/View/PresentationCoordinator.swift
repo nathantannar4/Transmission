@@ -64,12 +64,17 @@ extension EnvironmentValues {
                 return coordinator
             }
             if #available(iOS 15.0, *) {
-                return PresentationCoordinator(isPresented: isPresented, dismissBlock: dismiss.callAsFunction)
+                return PresentationCoordinator(
+                    isPresented: isPresented,
+                    dismissBlock: dismiss.callAsFunction
+                )
             } else {
                 let presentationMode = presentationMode
-                return PresentationCoordinator(isPresented: presentationMode.wrappedValue.isPresented, dismissBlock: {
+                return PresentationCoordinator(
+                    isPresented: presentationMode.wrappedValue.isPresented
+                ) {
                     presentationMode.wrappedValue.dismiss()
-                })
+                }
             }
         }
         set { self[PresentationCoordinatorKey.self] = newValue }

@@ -15,8 +15,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "0.1.3"),
-        .package(url: "https://github.com/nathantannar4/Turbocharger", from: "0.1.2"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "0.1.4"),
+        .package(url: "https://github.com/nathantannar4/Turbocharger", from: "0.1.3"),
     ],
     targets: [
         .target(

@@ -111,18 +111,18 @@ struct ContentView: View {
                     }
 
                     Section {
-                        PresentationLink(transition: .fullscreenSheet) {
-                            ScrollView {
-                                VStack {
-                                    Color.blue.aspectRatio(1, contentMode: .fit)
-
-                                    Text("Hello, World")
-                                }
+                        ForEach(Edge.allCases, id: \.self) { edge in
+                            PresentationLink(transition: .slide(edge: edge)) {
+                                Text("Hello, World")
+                            } label: {
+                                Text("Slide (\(String(describing: edge)))")
                             }
-                        } label: {
-                            Text("Fullscreen Sheet")
                         }
+                    } header: {
+                        Text("Slide Transitions")
+                    }
 
+                    Section {
                         Button {
                             withAnimation {
                                 isHeroPresented = true
@@ -308,6 +308,16 @@ struct ContentView: View {
             .navigationTitle("Transmission")
             .prefersStatusBarHidden(isStatusBarHidden)
             .preferredStatusBarStyle(statusBarStyle.toUIKit())
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    PresentationLink {
+                        ContentView()
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+
+                }
+            }
         }
         .navigationViewStyle(.stack)
     }
@@ -317,17 +327,19 @@ struct Toast: View {
     @Environment(\.presentationCoordinator) var presentationCoordinator
 
     var body: some View {
-        Text("Hello, World")
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background {
-                Capsule(style: .continuous)
-                    .fill(Color.blue)
-            }
-            .onTapGesture {
-                presentationCoordinator.dismiss()
-            }
+        Button {
+            presentationCoordinator.dismiss()
+        } label: {
+            Text("Hello, World")
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(Color.blue)
+                }
+        }
+        .buttonStyle(.plain)
     }
 }
 

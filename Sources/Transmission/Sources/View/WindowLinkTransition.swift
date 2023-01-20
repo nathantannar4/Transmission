@@ -213,11 +213,6 @@ struct WindowBridgeAdapter: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .transaction { transaction in
-                if transaction.animation == nil, !transaction.disablesAnimations {
-                    transaction.animation = transition.animation
-                }
-            }
             .modifier(
                 AppearanceTransitionModifier(
                     transition: transition.value.toSwiftUITransition(),
