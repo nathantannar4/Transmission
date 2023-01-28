@@ -31,6 +31,7 @@ struct ContentView: View {
     @State var isStatusBarHidden: Bool = false
     @State var statusBarStyle: StatusBarStyle = .default
     @State var isHeroPresented: Bool = false
+    @State var progress: CGFloat = 0
 
     var body: some View {
         NavigationView {
@@ -72,13 +73,7 @@ struct ContentView: View {
 
                     Section {
                         PresentationLink(transition: .sheet) {
-                            ScrollView {
-                                VStack {
-                                    Color.blue.aspectRatio(1, contentMode: .fit)
-
-                                    Text("Hello, World")
-                                }
-                            }
+                            ContentView()
                         } label: {
                             Text("Sheet (default Detent)")
                         }
@@ -113,7 +108,7 @@ struct ContentView: View {
                     Section {
                         ForEach(Edge.allCases, id: \.self) { edge in
                             PresentationLink(transition: .slide(edge: edge)) {
-                                Text("Hello, World")
+                                EdgeView(edge: edge)
                             } label: {
                                 Text("Slide (\(String(describing: edge)))")
                             }
@@ -274,18 +269,32 @@ struct ContentView: View {
                         TransitionReader { proxy in
                             Color.blue.opacity(proxy.progress)
                                 .ignoresSafeArea()
+                                .onChange(of: proxy.progress) { newValue in
+                                    progress = newValue
+                                }
                         }
                     } label: {
-                        Text("PresentationLink")
+                        HStack {
+                            Text("PresentationLink")
+
+                            Text(progress.description)
+                        }
                     }
 
                     NavigationLink {
                         TransitionReader { proxy in
                             Color.blue.opacity(proxy.progress)
                                 .ignoresSafeArea()
+                                .onChange(of: proxy.progress) { newValue in
+                                    progress = newValue
+                                }
                         }
                     } label: {
-                        Text("NavigationLink")
+                        HStack {
+                            Text("NavigationLink")
+
+                            Text(progress.description)
+                        }
                     }
 
                 } label: {
@@ -305,21 +314,43 @@ struct ContentView: View {
                     Text("UIStatusBarStyle")
                 }
             }
+            .navigationBarTitleDisplayMode(.inline)
             .navigationTitle("Transmission")
             .prefersStatusBarHidden(isStatusBarHidden)
             .preferredStatusBarStyle(statusBarStyle.toUIKit())
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    PresentationLink {
-                        ContentView()
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
+        }
+        .navigationViewStyle(.stack)
+    }
+}
 
+struct EdgeView: View {
+    var edge: Edge
+
+    var body: some View {
+        let isHorizontal = (edge == .leading || edge == .trailing)
+        ScrollView(isHorizontal ? [.horizontal] : [.vertical]) {
+            if isHorizontal {
+                HStack {
+                    Color.blue
+                        .frame(width: 44)
+
+                    ForEach(0...20, id: \.self) { _ in
+                        Color.red
+                            .frame(width: 44)
+                    }
+                }
+            } else {
+                VStack {
+                    Color.blue
+                        .frame(height: 44)
+
+                    ForEach(0...20, id: \.self) { _ in
+                        Color.red
+                            .frame(height: 44)
+                    }
                 }
             }
         }
-        .navigationViewStyle(.stack)
     }
 }
 

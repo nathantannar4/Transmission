@@ -84,6 +84,18 @@ extension PresentationLinkTransition {
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
         }
+
+        var preferredPresentationBackgroundUIColor: UIColor? {
+            guard let color = preferredPresentationBackgroundColor else {
+                return nil
+            }
+            // Need to extract the UIColor since because SwiftUI's UIColor init
+            // from a Color does not work for dynamic colors when set on UIView's
+            let uiColor = Mirror(reflecting: color).children.lazy.compactMap({ child in
+                Mirror(reflecting: child.value).children.first?.value as? UIColor
+            }).first
+            return uiColor ?? UIColor(color)
+        }
     }
 }
 
@@ -444,7 +456,7 @@ extension PresentationLinkTransition {
             prefersScaleEffect: Bool = true,
             preferredCornerRadius: CGFloat? = nil,
             isInteractive: Bool = true,
-            options: Options = .init()
+            options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
         ) {
             self.edge = edge
             self.prefersScaleEffect = prefersScaleEffect
@@ -515,6 +527,13 @@ extension PresentationLinkTransition {
         edge: Edge
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .slide(.init(edge: edge)))
+    }
+
+    /// The slide presentation style.
+    public static func slide(
+        options: SlideTransitionOptions
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .slide(options))
     }
 
     /// A custom presentation style.

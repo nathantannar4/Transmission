@@ -6,6 +6,7 @@
 
 import SwiftUI
 import Engine
+import EngineCore
 import Turbocharger
 
 /// A modifier that presents a destination view in a new `UIViewController`.
@@ -188,6 +189,7 @@ private struct PresentationLinkAdapterBody<
                         presentationController.permittedArrowDirections = newValue.permittedArrowDirections(
                             layoutDirection: traits.layoutDirection
                         )
+                        presentationController.backgroundColor = newValue.options.preferredPresentationBackgroundUIColor
                     } else if #available(iOS 15.0, *) {
                         if let newValue = newValue.adaptiveTransition,
                             let presentationController = adapter.viewController.presentationController as? UISheetPresentationController
@@ -297,6 +299,7 @@ private struct PresentationLinkAdapterBody<
                                     layoutDirection: traits.layoutDirection
                                 )
                                 popoverPresentationController.permittedArrowDirections = permittedArrowDirections
+                                popoverPresentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
                             }
                         }
                     }
@@ -489,9 +492,7 @@ private struct PresentationLinkAdapterBody<
             case .slide(let options):
                 let transition = SlideTransition(
                     isPresenting: true,
-                    edge: options.edge,
-                    prefersScaleEffect: options.prefersScaleEffect,
-                    preferredCornerRadius: options.preferredCornerRadius
+                    options: options
                 )
                 transition.wantsInteractiveStart = false
                 return transition
@@ -517,9 +518,7 @@ private struct PresentationLinkAdapterBody<
                 }
                 let transition = SlideTransition(
                     isPresenting: false,
-                    edge: options.edge,
-                    prefersScaleEffect: options.prefersScaleEffect,
-                    preferredCornerRadius: options.preferredCornerRadius
+                    options: options
                 )
                 transition.wantsInteractiveStart = options.isInteractive
                 presentationController.transition = transition
@@ -753,9 +752,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
 private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
 
     let isPresenting: Bool
-    let edge: Edge
-    let prefersScaleEffect: Bool
-    let preferredCornerRadius: CGFloat?
+    let options: PresentationLinkTransition.SlideTransitionOptions
 
     var animator: UIViewPropertyAnimator?
 
@@ -766,14 +763,10 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
 
     init(
         isPresenting: Bool,
-        edge: Edge,
-        prefersScaleEffect: Bool,
-        preferredCornerRadius: CGFloat?
+        options: PresentationLinkTransition.SlideTransitionOptions
     ) {
         self.isPresenting = isPresenting
-        self.edge = edge
-        self.prefersScaleEffect = prefersScaleEffect
-        self.preferredCornerRadius = preferredCornerRadius
+        self.options = options
         super.init()
     }
 
@@ -830,12 +823,19 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
             return animator
         }
 
-        let isScaleEnabled = prefersScaleEffect
+        let isTranslucentBackground = options.options.preferredPresentationBackgroundUIColor.map { color in
+            var alpha: CGFloat = 0
+            if color.getWhite(nil, alpha: &alpha) {
+                return alpha < 1
+            }
+            return false
+        } ?? false
+        let isScaleEnabled = options.prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0
         let safeAreaInsets = transitionContext.containerView.safeAreaInsets
-        let cornerRadius = preferredCornerRadius ?? Self.displayCornerRadius
+        let cornerRadius = options.preferredCornerRadius ?? Self.displayCornerRadius
 
         var dzTransform = CGAffineTransform(scaleX: 0.92, y: 0.92)
-        switch edge {
+        switch options.edge {
         case .top:
             dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.bottom / 2)
         case .bottom:
@@ -876,6 +876,8 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
             }
         }
 
+        presented.additionalSafeAreaInsets.top = -1
+
         let presentedTransform = isPresenting ? .identity : presentationTransform(
             presented: presented,
             frame: frame
@@ -912,7 +914,7 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
         presented: UIViewController,
         frame: CGRect
     ) -> CGAffineTransform {
-        switch edge {
+        switch options.edge {
         case .top:
             return CGAffineTransform(translationX: 0, y: -frame.height)
         case .bottom:
@@ -949,6 +951,8 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
     private var isPanGestureActive = false
     private var translationOffset: CGPoint = .zero
 
+    override var presentationStyle: UIModalPresentationStyle { .fullScreen }
+
     override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
 
@@ -957,7 +961,6 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
         }
 
         containerView.addSubview(presentedViewController.view)
-        presentedViewController.view.frame = frameOfPresentedViewInContainerView
         presentedViewController.view.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             presentedViewController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
@@ -1016,7 +1019,8 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
         switch edge {
         case .top:
             if let scrollView {
-                translation = scrollView.contentSize.height + offset.height - scrollView.bounds.height - scrollView.adjustedContentInset.bottom
+                translation = max(0, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.bounds.height) + offset.height
+                print(translation)
             } else {
                 translation = offset.height
             }
@@ -1026,7 +1030,7 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
             percentage = translation / containerView.bounds.height
         case .leading:
             if let scrollView {
-                translation = scrollView.contentSize.width + offset.width - scrollView.bounds.width
+                translation = max(0, scrollView.contentSize.width + scrollView.adjustedContentInset.left - scrollView.bounds.width) + offset.width
             } else {
                 translation = offset.width
             }
@@ -1037,9 +1041,16 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
         }
 
         guard isPanGestureActive else {
-            if !presentedViewController.isBeingDismissed,
-                scrollView.map({ isAtTop(scrollView: $0) }) ?? true,
-                abs(translation) > 1
+            let shouldBeginDismissal: Bool
+            switch edge {
+            case .top, .leading:
+                shouldBeginDismissal = translation < 1
+            case .bottom, .trailing:
+                shouldBeginDismissal = translation > 1
+            }
+            if shouldBeginDismissal,
+                !presentedViewController.isBeingDismissed,
+                scrollView.map({ isAtTop(scrollView: $0) }) ?? true
             {
                 #if targetEnvironment(macCatalyst)
                 let canStart = true
@@ -1079,16 +1090,16 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
             if let scrollView = scrollView {
                 switch edge {
                 case .top:
-                    scrollView.contentOffset.y = scrollView.contentSize.height - scrollView.frame.height + scrollView.adjustedContentInset.bottom
+                    scrollView.contentOffset.y = max(-scrollView.adjustedContentInset.top, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.frame.height)
 
                 case .bottom:
                     scrollView.contentOffset.y = -scrollView.adjustedContentInset.top
 
                 case .leading:
-                    scrollView.contentOffset.x = scrollView.contentSize.width - scrollView.frame.width
+                    scrollView.contentOffset.x = max(-scrollView.adjustedContentInset.left, scrollView.contentSize.width + scrollView.adjustedContentInset.left - scrollView.frame.width)
 
                 case .trailing:
-                    scrollView.contentOffset.x = -scrollView.adjustedContentInset.left
+                    scrollView.contentOffset.x = -scrollView.adjustedContentInset.right
                 }
             }
 
@@ -1167,8 +1178,8 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
                 )
             case .top, .leading:
                 translationOffset = CGPoint(
-                    x: scrollView.contentOffset.x - scrollView.adjustedContentInset.left - scrollView.adjustedContentInset.right,
-                    y: scrollView.contentOffset.y - scrollView.adjustedContentInset.bottom - scrollView.adjustedContentInset.top
+                    x: scrollView.contentOffset.x + scrollView.adjustedContentInset.left + scrollView.adjustedContentInset.right,
+                    y: scrollView.contentOffset.y - scrollView.adjustedContentInset.bottom + scrollView.adjustedContentInset.top
                 )
             }
             return false
@@ -1264,7 +1275,6 @@ private class PresentationLinkDestinationViewControllerAdapter<
             conformance.visit(visitor: &visitor)
             if case .custom(let options, _) = transition {
                 viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
-                viewController.view.backgroundColor = options.preferredPresentationBackgroundColor.map { UIColor($0) } ?? .systemBackground
             }
         } else {
             let viewController = viewController as! DestinationController
@@ -1350,7 +1360,7 @@ extension PresentationLinkTransition.Value {
 
     func update<Content: View>(_ viewController: HostingController<Content>) {
 
-        viewController.view.backgroundColor = options.preferredPresentationBackgroundColor.map { UIColor($0) } ?? .systemBackground
+        viewController.view.backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
 
         switch self {
         case .custom(let options, _):
@@ -1372,6 +1382,9 @@ extension PresentationLinkTransition.Value {
 
         case .popover:
             viewController.tracksContentSize = true
+
+        case .slide(let options):
+            viewController.modalPresentationCapturesStatusBarAppearance = options.options.modalPresentationCapturesStatusBarAppearance
 
         default:
             break
