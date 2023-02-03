@@ -122,21 +122,18 @@ private struct WindowLinkAdapterBody<
     var level: WindowLinkLevel
     var transition: WindowLinkTransition
 
-    @WeakState var host: UIView?
     @WeakState var presentingWindow: UIWindow?
 
-    typealias UIViewType = WindowReader
     typealias DestinationContent = ModifiedContent<Destination, WindowBridgeAdapter>
 
-    func makeUIView(context: Context) -> UIViewType {
-        let uiView = UIViewType(
-            host: $host,
+    func makeUIView(context: Context) -> WindowReader {
+        let uiView = WindowReader(
             presentingWindow: $presentingWindow
         )
         return uiView
     }
 
-    func updateUIView(_ uiView: UIViewType, context: Context) {
+    func updateUIView(_ uiView: WindowReader, context: Context) {
         if let presentingWindow = presentingWindow,
             let windowScene = presentingWindow.windowScene,
             isPresented.wrappedValue
@@ -148,7 +145,6 @@ private struct WindowLinkAdapterBody<
             let destination = destination.modifier(
                 WindowBridgeAdapter(
                     isPresented: isPresented,
-                    host: host,
                     transition: transition,
                     animation: isAnimated ? context.transaction.animation ?? .default : nil
                 )
@@ -185,7 +181,6 @@ private struct WindowLinkAdapterBody<
                 || (presentingWindow?.presentedViewController?._transitionCoordinator?.isAnimated ?? false)
             window.content.modifier = WindowBridgeAdapter(
                 isPresented: isPresented,
-                host: host,
                 transition: transition,
                 animation: isAnimated ? context.transaction.animation ?? .default : nil
             )
@@ -194,30 +189,6 @@ private struct WindowLinkAdapterBody<
                 context.coordinator.isBeingReused = true
             } else {
                 context.coordinator.window = nil
-            }
-        }
-    }
-
-    final class WindowReader: UIView {
-        let host: Binding<UIView?>
-        let presentingWindow: Binding<UIWindow?>
-
-        init(host: Binding<UIView?>, presentingWindow: Binding<UIWindow?>) {
-            self.host = host
-            self.presentingWindow = presentingWindow
-            super.init(frame: .zero)
-            isHidden = true
-        }
-
-        required init?(coder: NSCoder) {
-            fatalError("init(coder:) has not been implemented")
-        }
-
-        override func didMoveToWindow() {
-            super.didMoveToWindow()
-            withCATransaction { [weak self] in
-                self?.presentingWindow.wrappedValue = self?.window
-                self?.host.wrappedValue = self?.hostingView
             }
         }
     }

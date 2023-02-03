@@ -39,6 +39,7 @@ open class HostingController<
         }
 
         if tracksContentSize, #available(iOS 15.0, *),
+            presentingViewController != nil,
             let sheetPresentationController = presentationController as? UISheetPresentationController,
             sheetPresentationController.presentedViewController == self,
             let containerView = sheetPresentationController.containerView
@@ -77,7 +78,8 @@ open class HostingController<
         } else if tracksContentSize {
             if #available(iOS 16.0, *) {
                 try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
-                if let popoverPresentationController = presentationController as? UIPopoverPresentationController,
+                if presentingViewController != nil,
+                    let popoverPresentationController = presentationController as? UIPopoverPresentationController,
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {

@@ -32,14 +32,8 @@ public struct PresentationLink<
     var label: Label
     var destination: Destination
     var transition: PresentationLinkTransition
-    @StateOrBinding var isPresented: Bool
 
-    public init(
-        @ViewBuilder destination: () -> Destination,
-        @ViewBuilder label: () -> Label
-    ) {
-        self.init(transition: .default, destination: destination, label: label)
-    }
+    @StateOrBinding var isPresented: Bool
 
     public init(
         transition: PresentationLinkTransition = .default,
@@ -53,15 +47,7 @@ public struct PresentationLink<
     }
 
     public init(
-        isPresented: Binding<Bool>,
-        @ViewBuilder destination: () -> Destination,
-        @ViewBuilder label: () -> Label
-    ) {
-        self.init(transition: .default, isPresented: isPresented, destination: destination, label: label)
-    }
-
-    public init(
-        transition: PresentationLinkTransition,
+        transition: PresentationLinkTransition = .default,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder label: () -> Label
@@ -96,14 +82,7 @@ public struct PresentationLink<
 @available(watchOS, unavailable)
 extension PresentationLink {
     public init<ViewController: UIViewController>(
-        destination: @escaping (Destination.Context) -> ViewController,
-        @ViewBuilder label: () -> Label
-    ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: .default, destination: destination, label: label)
-    }
-
-    public init<ViewController: UIViewController>(
-        transition: PresentationLinkTransition,
+        transition: PresentationLinkTransition = .default,
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
@@ -115,15 +94,7 @@ extension PresentationLink {
     }
 
     public init<ViewController: UIViewController>(
-        isPresented: Binding<Bool>,
-        destination: @escaping (Destination.Context) -> ViewController,
-        @ViewBuilder label: () -> Label
-    ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: .default, isPresented: isPresented, destination: destination, label: label)
-    }
-
-    public init<ViewController: UIViewController>(
-        transition: PresentationLinkTransition,
+        transition: PresentationLinkTransition = .default,
         isPresented: Binding<Bool>,
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label

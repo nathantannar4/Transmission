@@ -87,7 +87,6 @@ extension EnvironmentValues {
 @available(watchOS, unavailable)
 struct PresentationBridgeAdapter: ViewModifier {
     var isPresented: Binding<Bool>
-    weak var host: UIView?
 
     func body(content: Content) -> some View {
         content
@@ -100,11 +99,6 @@ struct PresentationBridgeAdapter: ViewModifier {
                         isPresented.wrappedValue = false
                     })
             )
-            ._onBindingChange(isPresented) { isPresented in
-                if !isPresented {
-                    (host as? AnyHostingView)?.render()
-                }
-            }
     }
 }
 

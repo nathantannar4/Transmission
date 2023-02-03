@@ -66,6 +66,7 @@ public struct PresentationLinkTransition {
     public static let currentContext: PresentationLinkTransition
     public static let fullscreen: PresentationLinkTransition
     public static let popover: PresentationLinkTransition
+    public static let slide: PresentationLinkTransition
 
     public static func custom<T: PresentationLinkCustomTransition>(_ transition: T) -> PresentationLinkTransition
 }
@@ -83,7 +84,7 @@ extension SheetTransitionOptions.Detent {
     public static let ideal: Detent
 
     /// Creates a detent with a constant height.
-    public static func constant(_ identifier: Identifier, height: Int) -> Detent
+    public static func constant(_ identifier: Identifier, height: CGFloat) -> Detent
     
     /// Creates a detent that's height is lazily resolved.
     public static func custom(

@@ -245,7 +245,7 @@ extension PresentationLinkTransition {
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            func resolve(in presentationController: UISheetPresentationController) -> Detent {
+            func resolve(in presentationController: UIPresentationController) -> Detent {
                 switch identifier {
                 case .ideal:
                     var copy = self
@@ -460,6 +460,7 @@ extension PresentationLinkTransition {
         ) {
             self.edge = edge
             self.prefersScaleEffect = prefersScaleEffect
+            self.preferredCornerRadius = preferredCornerRadius
             self.isInteractive = isInteractive
             self.options = options
         }

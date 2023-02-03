@@ -202,12 +202,14 @@ extension WindowLinkTransition.Value {
 @available(watchOS, unavailable)
 struct WindowBridgeAdapter: ViewModifier {
     var isPresented: Binding<Bool>
-    weak var host: UIView?
     var transition: WindowLinkTransition.AnimatedValue
 
-    init(isPresented: Binding<Bool>, host: UIView? = nil, transition: WindowLinkTransition, animation: Animation?) {
+    init(
+        isPresented: Binding<Bool>,
+        transition: WindowLinkTransition,
+        animation: Animation?
+    ) {
         self.isPresented = isPresented
-        self.host = host
         self.transition = WindowLinkTransition.AnimatedValue(value: transition.value, animation: animation)
     }
 
@@ -226,7 +228,7 @@ struct WindowBridgeAdapter: ViewModifier {
                     animation: transition.animation
                 )
             )
-            .modifier(PresentationBridgeAdapter(isPresented: isPresented, host: host))
+            .modifier(PresentationBridgeAdapter(isPresented: isPresented))
             .frame(maxHeight: .infinity, alignment: transition.value.toSwiftUIAlignment())
     }
 }

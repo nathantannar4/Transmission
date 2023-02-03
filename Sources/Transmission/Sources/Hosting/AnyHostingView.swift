@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import SwiftUI
+import EngineCore
 
 public protocol AnyHostingView: UIView {
     func render()

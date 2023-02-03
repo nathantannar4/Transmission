@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import SwiftUI
+import Engine
 import UniformTypeIdentifiers
 import LinkPresentation
 
@@ -59,6 +60,7 @@ public struct ShareSheetLink<
     var label: Label
     var items: [ShareSheetItemProvider]
     var action: ((Result<UIActivity.ActivityType?, Error>) -> Void)?
+
     @StateOrBinding var isPresented: Bool
 
     public init(

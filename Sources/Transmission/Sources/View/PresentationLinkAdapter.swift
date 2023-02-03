@@ -45,7 +45,7 @@ public struct PresentationLinkAdapter<
     var destination: Destination
 
     public init(
-        transition: PresentationLinkTransition,
+        transition: PresentationLinkTransition = .default,
         isPresented: Binding<Bool>,
         destination: Destination
     ) {
@@ -61,24 +61,6 @@ public struct PresentationLinkAdapter<
                 isPresented: isPresented,
                 destination: destination
             )
-        )
-    }
-}
-
-@available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
-extension PresentationLinkAdapter {
-    public init(
-        transition: PresentationLinkTransition = .default,
-        isPresented: Binding<Bool>,
-        @ViewBuilder destination: () -> Destination
-    ) {
-        self.init(
-            transition: transition,
-            isPresented: isPresented,
-            destination: destination()
         )
     }
 }
@@ -135,17 +117,18 @@ private struct PresentationLinkAdapterBody<
     var isPresented: Binding<Bool>
     var destination: Destination
 
-    @WeakState var host: UIView?
     @WeakState var presentingViewController: UIViewController?
 
     typealias DestinationViewController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
-    func makeUIView(context: Context) -> HostingViewReader {
-        let uiView = HostingViewReader(host: $host, presentingViewController: $presentingViewController)
+    func makeUIView(context: Context) -> ViewControllerReader {
+        let uiView = ViewControllerReader(
+            presentingViewController: $presentingViewController
+        )
         return uiView
     }
 
-    func updateUIView(_ uiView: HostingViewReader, context: Context) {
+    func updateUIView(_ uiView: ViewControllerReader, context: Context) {
         if let presentingViewController = presentingViewController, isPresented.wrappedValue {
 
             context.coordinator.isPresented = isPresented
@@ -171,7 +154,7 @@ private struct PresentationLinkAdapterBody<
                 case (.sheet(let oldValue), .sheet(let newValue)):
                     adapter.transition = .sheet(newValue)
 
-                    guard #available(iOS 15.0, *), let presentationController = adapter.viewController.presentationController as? UISheetPresentationController
+                    guard #available(iOS 15.0, *), let presentationController = adapter.viewController.presentationController as? SheetPresentationController
                     else {
                         break
                     }
@@ -192,7 +175,7 @@ private struct PresentationLinkAdapterBody<
                         presentationController.backgroundColor = newValue.options.preferredPresentationBackgroundUIColor
                     } else if #available(iOS 15.0, *) {
                         if let newValue = newValue.adaptiveTransition,
-                            let presentationController = adapter.viewController.presentationController as? UISheetPresentationController
+                            let presentationController = adapter.viewController.presentationController as? SheetPresentationController
                         {
                             PresentationLinkTransition.SheetTransitionOptions.update(
                                 presentationController: presentationController,
@@ -222,11 +205,19 @@ private struct PresentationLinkAdapterBody<
                     destination: destination,
                     isPresented: isPresented,
                     sourceView: uiView,
-                    host: host,
                     context: context
                 )
             } else {
                 let adapter: PresentationLinkDestinationViewControllerAdapter<Destination>
+                let isPresented: Binding<Bool> = Binding(
+                    get: { self.isPresented.wrappedValue },
+                    set: { newValue, transaction in
+                        self.isPresented.transaction(transaction).wrappedValue = newValue
+                        if let hostingView = presentingViewController.view as? AnyHostingView {
+                            hostingView.render()
+                        }
+                    }
+                )
                 if let oldValue = context.coordinator.adapter {
                     adapter = oldValue
                     adapter.transition = transition.value
@@ -234,7 +225,6 @@ private struct PresentationLinkAdapterBody<
                         destination: destination,
                         isPresented: isPresented,
                         sourceView: uiView,
-                        host: host,
                         context: context
                     )
                     context.coordinator.isBeingReused = false
@@ -243,7 +233,6 @@ private struct PresentationLinkAdapterBody<
                         destination: destination,
                         isPresented: isPresented,
                         sourceView: uiView,
-                        host: host,
                         transition: transition.value,
                         context: context
                     )
@@ -269,11 +258,9 @@ private struct PresentationLinkAdapterBody<
 
                 case .fullscreen, .sheet, .popover, .`default`:
                     switch adapter.transition {
-                    case .sheet, .popover:
+                    case .sheet, .popover, .fullscreen:
                         adapter.viewController.modalPresentationStyle = .custom
 
-                    case .fullscreen:
-                        adapter.viewController.modalPresentationStyle = .fullScreen
                     default:
                         break
                     }
@@ -462,7 +449,7 @@ private struct PresentationLinkAdapterBody<
             case .popover(let options):
                 if #available(iOS 15.0, *) {
                     if let options = options.adaptiveTransition,
-                        let presentationController = adaptivePresentationController as? UISheetPresentationController
+                        let presentationController = adaptivePresentationController as? SheetPresentationController
                     {
                         PresentationLinkTransition.SheetTransitionOptions.update(
                             presentationController: presentationController,
@@ -489,6 +476,24 @@ private struct PresentationLinkAdapterBody<
             source: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
             switch adapter?.transition {
+            case .sheet(let options):
+                #if targetEnvironment(macCatalyst)
+                let transition = SlideTransition(
+                    isPresenting: true,
+                    options: .init(
+                        edge: .bottom,
+                        prefersScaleEffect: false,
+                        preferredCornerRadius: options.preferredCornerRadius,
+                        isInteractive: options.isInteractive,
+                        options: options.options
+                    )
+                )
+                transition.wantsInteractiveStart = false
+                return transition
+                #else
+                return nil
+                #endif
+
             case .slide(let options):
                 let transition = SlideTransition(
                     isPresenting: true,
@@ -512,6 +517,27 @@ private struct PresentationLinkAdapterBody<
             forDismissed dismissed: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
             switch adapter?.transition {
+            case .sheet(let options):
+                #if targetEnvironment(macCatalyst)
+                guard let presentationController = dismissed.presentationController as? MacSheetPresentationController else {
+                    return nil
+                }
+                let transition = SlideTransition(
+                    isPresenting: false,
+                    options: .init(
+                        edge: .bottom,
+                        prefersScaleEffect: false,
+                        preferredCornerRadius: options.preferredCornerRadius,
+                        isInteractive: options.isInteractive,
+                        options: options.options
+                    )
+                )
+                presentationController.begin(transition: transition, isInteractive: options.isInteractive)
+                return transition
+                #else
+                return nil
+                #endif
+
             case .slide(let options):
                 guard let presentationController = dismissed.presentationController as? SlidePresentationController else {
                     return nil
@@ -520,8 +546,7 @@ private struct PresentationLinkAdapterBody<
                     isPresenting: false,
                     options: options
                 )
-                transition.wantsInteractiveStart = options.isInteractive
-                presentationController.transition = transition
+                presentationController.begin(transition: transition, isInteractive: options.isInteractive)
                 return transition
 
             case .custom(_, let transition):
@@ -548,6 +573,13 @@ private struct PresentationLinkAdapterBody<
             using animator: UIViewControllerAnimatedTransitioning
         ) -> UIViewControllerInteractiveTransitioning? {
             switch adapter?.transition {
+            case .sheet:
+                #if targetEnvironment(macCatalyst)
+                return animator as? SlideTransition
+                #else
+                return nil
+                #endif
+
             case .slide:
                 return animator as? SlideTransition
 
@@ -566,8 +598,18 @@ private struct PresentationLinkAdapterBody<
         ) -> UIPresentationController? {
             switch adapter?.transition {
             case .sheet(let configuration):
+                #if targetEnvironment(macCatalyst)
+                let presentationController = MacSheetPresentationController(
+                    presentedViewController: presented,
+                    presenting: presenting
+                )
+                presentationController.detents = configuration.detents
+                presentationController.selected = configuration.selected
+                presentationController.largestUndimmedDetentIdentifier = configuration.largestUndimmedDetentIdentifier
+                return presentationController
+                #else
                 if #available(iOS 15.0, *) {
-                    let presentationController = SheetPresentationController(
+                    let presentationController = PhoneSheetPresentationController(
                         presentedViewController: presented,
                         presenting: presenting
                     )
@@ -590,6 +632,7 @@ private struct PresentationLinkAdapterBody<
                     presentationController.delegate = self
                     return presentationController
                 }
+                #endif
 
             case .popover(let options):
                 let presentationController = PopoverPresentationController(
@@ -612,6 +655,14 @@ private struct PresentationLinkAdapterBody<
                 presentationController.delegate = self
                 return presentationController
 
+            case .fullscreen:
+                let presentationController = FullscreenPresentationController(
+                    presentedViewController: presented,
+                    presenting: presenting
+                )
+                presentationController.delegate = self
+                return presentationController
+
             case .custom(_, let adapter):
                 let presentationController = adapter.presentationController(
                     sourceView: sourceView,
@@ -631,13 +682,15 @@ private struct PresentationLinkAdapterBody<
             willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
             transitionCoordinator: UIViewControllerTransitionCoordinator?
         ) {
+            #if !targetEnvironment(macCatalyst)
             if #available(iOS 15.0, *) {
-                if let sheetPresentationController = presentationController as? UISheetPresentationController {
+                if let sheetPresentationController = presentationController as? SheetPresentationController {
                     transitionCoordinator?.animate(alongsideTransition: { _ in
                         self.sheetPresentationControllerDidChangeSelectedDetentIdentifier(sheetPresentationController)
                     })
                 }
             }
+            #endif
         }
 
         // MARK: - UISheetPresentationControllerDelegate
@@ -686,36 +739,300 @@ private struct PresentationLinkAdapterBody<
 }
 
 private class PresentationController: UIPresentationController {
+    override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        containerView?.addSubview(presentedViewController.view)
+        presentedViewController.view.frame = frameOfPresentedViewInContainerView
+    }
 
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate { _ in
+            self.presentedViewController.view.frame = self.frameOfPresentedViewInContainerView
+        }
+    }
 }
+
+#if targetEnvironment(macCatalyst)
+@available(iOS 15.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+private typealias SheetPresentationController = MacSheetPresentationController
+
+@available(iOS 14.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+private class MacSheetPresentationController: SlidePresentationController {
+
+    private var depth = 0
+    private var overlayView: UIView?
+    private var dimmingView = UIView()
+
+    private(set) var detent: PresentationLinkTransition.SheetTransitionOptions.Detent?
+    private var largeHeightAnchor: NSLayoutConstraint?
+    private var constantHeightAnchor: NSLayoutConstraint?
+
+    var detents: [PresentationLinkTransition.SheetTransitionOptions.Detent] = []
+    var selected: Binding<PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier?>?
+    var largestUndimmedDetentIdentifier: PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier?
+
+    func updateDetent() {
+        if let identifier = selected?.wrappedValue {
+            detent = detents.first(where: { $0.identifier == identifier }) ?? detents.first
+        } else {
+            detent = detents.first
+        }
+        dimmingView.isHidden = largestUndimmedDetentIdentifier == detent?.identifier
+        updateHeightAnchorForDetent()
+    }
+
+    private func updateHeightAnchorForDetent() {
+        if #available(iOS 15.0, *), let detent = detent {
+
+            switch detent.identifier {
+            case .large, .medium:
+                largeHeightAnchor?.isActive = true
+                constantHeightAnchor?.isActive = false
+
+            case .ideal:
+                largeHeightAnchor?.isActive = false
+                constantHeightAnchor?.isActive = false
+
+            default:
+                var constant: CGFloat?
+                if let height = detent.height {
+                    constant = height
+                } else if let resolution = detent.resolution {
+                    let maximumDetentValue = containerView.map {
+                        ($0.frame.height - $0.safeAreaInsets.top - $0.safeAreaInsets.bottom) * 0.85
+                    } ?? 0
+                    constant = resolution(
+                        .init(
+                            containerTraitCollection: traitCollection,
+                            maximumDetentValue: maximumDetentValue
+                        )
+                    )
+                }
+                if let constant = constant {
+                    largeHeightAnchor?.isActive = false
+                    constantHeightAnchor?.constant = constant
+                    constantHeightAnchor?.isActive = true
+                } else {
+                    largeHeightAnchor?.isActive = true
+                    constantHeightAnchor?.isActive = false
+                }
+            }
+
+        } else {
+            largeHeightAnchor?.isActive = true
+            constantHeightAnchor?.isActive = false
+        }
+
+        containerView?.layoutIfNeeded()
+    }
+
+    override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+
+        selected?.wrappedValue = detent?.identifier
+
+        if let transitionCoordinator = presentedViewController.transitionCoordinator {
+            transitionCoordinator.animate(alongsideTransition: { [unowned self] _ in
+                self.dimmingView.alpha = 1
+                self.overlayView?.alpha = 1
+                self.transformPresentedViewIfNeeded(isPresented: true)
+            }, completion: { ctx in
+                self.dimmingView.alpha = ctx.isCancelled ? 0 : 1
+                self.overlayView?.alpha = ctx.isCancelled ? 0 : 1
+                if self.depth > 0, ctx.isCancelled {
+                    self.presentingViewController.view.transform = .identity
+                }
+            })
+        }
+    }
+
+    override func presentationTransitionDidEnd(_ completed: Bool) {
+        super.presentationTransitionDidEnd(completed)
+
+        if !completed {
+            selected?.wrappedValue = nil
+        }
+    }
+
+    override func dismissalTransitionWillBegin() {
+        super.dismissalTransitionWillBegin()
+
+        if let transitionCoordinator = presentedViewController.transitionCoordinator {
+            transitionCoordinator.animate(alongsideTransition: { [unowned self] _ in
+                self.dimmingView.alpha = 0
+                self.overlayView?.alpha = 0
+                self.transformPresentedViewIfNeeded(isPresented: false)
+            }, completion: { ctx in
+                self.dimmingView.alpha = ctx.isCancelled ? 1 : 0
+                self.overlayView?.alpha = ctx.isCancelled ? 1 : 0
+                if !ctx.isCancelled {
+                    self.overlayView?.removeFromSuperview()
+                    self.overlayView = nil
+                }
+            })
+        }
+    }
+
+    override func addPresentedView(to containerView: UIView) {
+        if let presentingPresentingViewController = presentingViewController.presentingViewController,
+            presentingViewController.presentationController is MacSheetPresentationController
+        {
+            depth = 1
+            if presentingPresentingViewController.presentingViewController != nil,
+               presentingPresentingViewController.presentationController is MacSheetPresentationController
+            {
+                depth = 2
+            }
+
+            dimmingView.backgroundColor = nil
+
+            let overlayView = UIView()
+            overlayView.backgroundColor = UIColor.black.withAlphaComponent(0.1)
+            overlayView.alpha = 0
+            overlayView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(dismissPresentedViewController)))
+            self.overlayView = overlayView
+
+        } else {
+            dimmingView.backgroundColor = UIColor.black.withAlphaComponent(0.3)
+        }
+
+        dimmingView.alpha = 0
+        dimmingView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(dismissPresentedViewController)))
+
+        containerView.addSubview(presentedViewController.view)
+        containerView.insertSubview(dimmingView, belowSubview: presentedViewController.view)
+
+        if let overlayView = overlayView {
+            presentingViewController.view.addSubview(overlayView)
+            overlayView.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                overlayView.topAnchor.constraint(equalTo: presentingViewController.view.topAnchor),
+                overlayView.bottomAnchor.constraint(equalTo: presentingViewController.view.bottomAnchor),
+                overlayView.leftAnchor.constraint(equalTo: presentingViewController.view.leftAnchor),
+                overlayView.rightAnchor.constraint(equalTo: presentingViewController.view.rightAnchor),
+            ])
+        }
+
+        dimmingView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            dimmingView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            dimmingView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            dimmingView.leftAnchor.constraint(equalTo: containerView.leftAnchor),
+            dimmingView.rightAnchor.constraint(equalTo: containerView.rightAnchor),
+        ])
+
+        presentedViewController.view.layer.masksToBounds = true
+        presentedViewController.view.layer.cornerCurve = .continuous
+
+        presentedViewController.view.translatesAutoresizingMaskIntoConstraints = false
+        largeHeightAnchor = presentedViewController.view.heightAnchor.constraint(equalTo: containerView.safeAreaLayoutGuide.heightAnchor, multiplier: 0.85)
+        let heightAnchor = presentedViewController.view.heightAnchor.constraint(equalToConstant: 100)
+        heightAnchor.priority = .defaultLow
+        constantHeightAnchor = heightAnchor
+        NSLayoutConstraint.activate([
+            presentedViewController.view.widthAnchor.constraint(equalTo: containerView.widthAnchor, multiplier: 0.85),
+            presentedViewController.view.heightAnchor.constraint(lessThanOrEqualTo: containerView.safeAreaLayoutGuide.heightAnchor, multiplier: 0.85),
+            presentedViewController.view.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            presentedViewController.view.centerYAnchor.constraint(equalTo: containerView.safeAreaLayoutGuide.centerYAnchor),
+        ])
+        updateDetent()
+    }
+
+    override func containerViewDidLayoutSubviews() {
+        super.containerViewDidLayoutSubviews()
+        if !presentedViewController.isBeingPresented,
+            !presentedViewController.isBeingDismissed,
+            presentedViewController.presentedViewController == nil
+        {
+            transformPresentedViewIfNeeded(isPresented: true)
+        }
+    }
+
+    private func transformPresentedViewIfNeeded(isPresented: Bool) {
+        if depth > 0 {
+            func makeTransform(scale: CGFloat, frame: CGRect) -> CGAffineTransform {
+                CGAffineTransform(scaleX: scale, y: scale)
+                    .translatedBy(x: 0, y: (frame.height * -(1 - scale) / 2) - 20)
+            }
+
+            var scale: CGFloat = 0.92
+            if isPresented {
+                let frame = presentingViewController.view.frame.applying(presentingViewController.view.transform.inverted())
+                presentingViewController.view.transform = makeTransform(
+                    scale: scale,
+                    frame: frame
+                )
+            } else {
+                presentingViewController.view.transform = .identity
+            }
+
+            if depth > 1, let presentingPresentingViewController = presentingViewController.presentingViewController {
+                if isPresented {
+                    scale *= scale
+                }
+                let frame = presentingPresentingViewController.view.frame.applying(presentingPresentingViewController.view.transform.inverted())
+                presentingPresentingViewController.view.transform = makeTransform(
+                    scale: scale,
+                    frame: frame
+                )
+            }
+        }
+    }
+
+    @objc
+    private func dismissPresentedViewController() {
+        presentedViewController.dismiss(animated: true)
+    }
+}
+#else
+@available(iOS 15.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+private typealias SheetPresentationController = UISheetPresentationController
 
 @available(iOS 15.0, *)
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-private class SheetPresentationController: UISheetPresentationController {
+private class PhoneSheetPresentationController: UISheetPresentationController {
 
 }
+#endif
 
 private class PopoverPresentationController: UIPopoverPresentationController {
 
 }
 
+private class FullscreenPresentationController: PresentationController {
+    override var presentationStyle: UIModalPresentationStyle { .fullScreen }
+}
+
 @available(iOS 15.0, *)
 extension PresentationLinkTransition.SheetTransitionOptions {
-    static func update(
-        presentationController: UISheetPresentationController,
+    fileprivate static func update(
+        presentationController: SheetPresentationController,
         animated isAnimated: Bool,
         from oldValue: Self,
         to newValue: Self
     ) {
-        let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
-        let detents = newValue.detents.map { $0.resolve(in: presentationController) }
+        lazy var detents = newValue.detents.map { $0.resolve(in: presentationController) }
+        #if targetEnvironment(macCatalyst)
+        let cornerRadius = newValue.preferredCornerRadius ?? SlideTransition.displayCornerRadius
         let hasChanges: Bool = {
-            if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {
+            if presentationController.presentedViewController.view.layer.cornerRadius != cornerRadius {
                 return true
-            } else if let selected = selectedDetentIdentifier,
-                      presentationController.selectedDetentIdentifier != selected
+            } else if oldValue.largestUndimmedDetentIdentifier != newValue.largestUndimmedDetentIdentifier {
+                return true
+            } else if let selected = newValue.selected,
+                presentationController.detent?.identifier != selected.wrappedValue
             {
                 return true
             } else if oldValue.detents != detents {
@@ -723,20 +1040,51 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             }
             return false
         }()
+        #else
+        let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
+        let hasChanges: Bool = {
+            if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {
+                return true
+            } else if oldValue.largestUndimmedDetentIdentifier != newValue.largestUndimmedDetentIdentifier {
+                return true
+            } else if let selected = selectedDetentIdentifier,
+                presentationController.selectedDetentIdentifier != selected
+            {
+                return true
+            } else if oldValue.detents != detents {
+                return true
+            }
+            return false
+        }()
+        #endif
         if hasChanges {
             func applyConfiguration() {
+                #if targetEnvironment(macCatalyst)
+                presentationController.presentedViewController.view.layer.cornerRadius = cornerRadius
+                presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetentIdentifier
+                presentationController.selected = newValue.selected
+                presentationController.detents = detents
+                presentationController.updateDetent()
+                #else
                 presentationController.detents = detents.map { $0.toUIKit() }
                 presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetentIdentifier?.toUIKit()
                 if let selected = newValue.selected {
                     presentationController.selectedDetentIdentifier = selected.wrappedValue?.toUIKit()
                 }
                 presentationController.preferredCornerRadius = newValue.preferredCornerRadius
+                #endif
             }
             if isAnimated {
                 withCATransaction {
+                    #if targetEnvironment(macCatalyst)
+                    UIView.animate(withDuration: 0.35) {
+                        applyConfiguration()
+                    }
+                    #else
                     presentationController.animateChanges {
                         applyConfiguration()
                     }
+                    #endif
                 }
             } else {
                 applyConfiguration()
@@ -757,8 +1105,13 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
     var animator: UIViewPropertyAnimator?
 
     static let displayCornerRadius: CGFloat = {
+        #if targetEnvironment(macCatalyst)
+        return 12
+        #else
         let key = String("suidaRrenroCyalpsid_".reversed())
-        return UIScreen.main.value(forKey: key) as? CGFloat ?? 0
+        let value = UIScreen.main.value(forKey: key) as? CGFloat ?? 0
+        return max(value, 12)
+        #endif
     }()
 
     init(
@@ -823,6 +1176,9 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
             return animator
         }
 
+        #if targetEnvironment(macCatalyst)
+        let isScaleEnabled = false
+        #else
         let isTranslucentBackground = options.options.preferredPresentationBackgroundUIColor.map { color in
             var alpha: CGFloat = 0
             if color.getWhite(nil, alpha: &alpha) {
@@ -831,6 +1187,7 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
             return false
         } ?? false
         let isScaleEnabled = options.prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0
+        #endif
         let safeAreaInsets = transitionContext.containerView.safeAreaInsets
         let cornerRadius = options.preferredCornerRadius ?? Self.displayCornerRadius
 
@@ -893,7 +1250,10 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
         }
         animator.addCompletion { animatingPosition in
 
-            presented.view.layer.cornerRadius = 0
+            if presented.view.frame.origin.y == 0 {
+                presented.view.layer.cornerRadius = 0
+            }
+
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = 0
                 presenting.view.transform = .identity
@@ -916,22 +1276,22 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
     ) -> CGAffineTransform {
         switch options.edge {
         case .top:
-            return CGAffineTransform(translationX: 0, y: -frame.height)
+            return CGAffineTransform(translationX: 0, y: -frame.maxY)
         case .bottom:
-            return CGAffineTransform(translationX: 0, y: frame.height)
+            return CGAffineTransform(translationX: 0, y: frame.maxY)
         case .leading:
             switch presented.traitCollection.layoutDirection {
             case .rightToLeft:
-                return CGAffineTransform(translationX: frame.width, y: 0)
+                return CGAffineTransform(translationX: frame.maxX, y: 0)
             default:
-                return CGAffineTransform(translationX: -frame.width, y: 0)
+                return CGAffineTransform(translationX: -frame.maxX, y: 0)
             }
         case .trailing:
             switch presented.traitCollection.layoutDirection {
             case .leftToRight:
-                return CGAffineTransform(translationX: frame.width, y: 0)
+                return CGAffineTransform(translationX: frame.maxX, y: 0)
             default:
-                return CGAffineTransform(translationX: -frame.width, y: 0)
+                return CGAffineTransform(translationX: -frame.maxX, y: 0)
             }
         }
     }
@@ -943,7 +1303,7 @@ private class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewContr
 @available(watchOS, unavailable)
 private class SlidePresentationController: UIPresentationController, UIGestureRecognizerDelegate {
 
-    weak var transition: SlideTransition?
+    private weak var transition: SlideTransition?
     var edge: Edge = .bottom
 
     lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
@@ -953,33 +1313,28 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
 
     override var presentationStyle: UIModalPresentationStyle { .fullScreen }
 
+    func begin(transition: SlideTransition, isInteractive: Bool) {
+        self.transition = transition
+        transition.wantsInteractiveStart = isInteractive && isPanGestureActive
+    }
+
     override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
 
         guard let containerView = containerView else {
             return
         }
-
-        containerView.addSubview(presentedViewController.view)
-        presentedViewController.view.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            presentedViewController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
-            presentedViewController.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-            presentedViewController.view.leftAnchor.constraint(equalTo: containerView.leftAnchor),
-            presentedViewController.view.rightAnchor.constraint(equalTo: containerView.rightAnchor),
-        ])
+        addPresentedView(to: containerView)
     }
 
     override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
 
-        guard completed else {
-            return
+        if completed {
+            panGesture.delegate = self
+            panGesture.allowedScrollTypesMask = .all
+            containerView?.addGestureRecognizer(panGesture)
         }
-
-        panGesture.delegate = self
-        panGesture.allowedScrollTypesMask = .all
-        containerView?.addGestureRecognizer(panGesture)
     }
 
     override func dismissalTransitionWillBegin() {
@@ -996,6 +1351,17 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
         } else {
             delegate?.presentationControllerDidAttemptToDismiss?(self)
         }
+    }
+
+    func addPresentedView(to containerView: UIView) {
+        containerView.addSubview(presentedViewController.view)
+        presentedViewController.view.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            presentedViewController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
+            presentedViewController.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            presentedViewController.view.leftAnchor.constraint(equalTo: containerView.leftAnchor),
+            presentedViewController.view.rightAnchor.constraint(equalTo: containerView.rightAnchor),
+        ])
     }
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
@@ -1020,7 +1386,6 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
         case .top:
             if let scrollView {
                 translation = max(0, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.bounds.height) + offset.height
-                print(translation)
             } else {
                 translation = offset.height
             }
@@ -1055,7 +1420,7 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
                 #if targetEnvironment(macCatalyst)
                 let canStart = true
                 #else
-                var views = presentedViewController.view.map { [$0] } ?? []
+                var views = gestureRecognizer.view.map { [$0] } ?? []
                 var firstResponder: UIView?
                 var index = 0
                 repeat {
@@ -1069,7 +1434,7 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
                 } while index < views.count && firstResponder == nil
                 let canStart = firstResponder?.resignFirstResponder() ?? true
                 #endif
-                if canStart {
+                if canStart, gestureRecognizerShouldBegin(gestureRecognizer) {
                     isPanGestureActive = true
                     presentedViewController.dismiss(animated: true)
                 }
@@ -1111,16 +1476,22 @@ private class SlidePresentationController: UIPresentationController, UIGestureRe
             // - Large enough down vector
             let velocity: CGFloat
             switch edge {
-            case .top, .bottom:
-                velocity = abs(gestureRecognizer.velocity(in: containerView).y)
-            case .leading, .trailing:
-                velocity = abs(gestureRecognizer.velocity(in: containerView).x)
+            case .top:
+                velocity = -gestureRecognizer.velocity(in: containerView).y
+            case .bottom:
+                velocity = gestureRecognizer.velocity(in: containerView).y
+            case .leading:
+                velocity = -gestureRecognizer.velocity(in: containerView).x
+            case .trailing:
+                velocity = gestureRecognizer.velocity(in: containerView).x
             }
-            let shouldDismiss = abs(percentage) > 0.5 && velocity > 0 || velocity > 1000
+            let shouldDismiss = (abs(percentage) > 0.5 && velocity > 0) || velocity >= 1000
             if shouldDismiss {
                 transition?.finish()
             } else {
-                transition?.completionSpeed = 0.5
+                if abs(velocity) < 1000 {
+                    transition?.completionSpeed = 0.5
+                }
                 transition?.cancel()
             }
             isPanGestureActive = false
@@ -1208,7 +1579,6 @@ private class PresentationLinkDestinationViewControllerAdapter<
         destination: Destination,
         isPresented: Binding<Bool>,
         sourceView: UIView,
-        host: UIView?,
         transition: PresentationLinkTransition.Value,
         context: PresentationLinkAdapterBody<Destination>.Context
     ) {
@@ -1219,15 +1589,13 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 destination: destination,
                 isPresented: isPresented,
                 sourceView: sourceView,
-                host: host,
                 context: context
             )
         } else {
             let viewController = DestinationController(
                 content: destination.modifier(
                     PresentationBridgeAdapter(
-                        isPresented: isPresented,
-                        host: host
+                        isPresented: isPresented
                     )
                 )
             )
@@ -1261,7 +1629,6 @@ private class PresentationLinkDestinationViewControllerAdapter<
         destination: Destination,
         isPresented: Binding<Bool>,
         sourceView: UIView,
-        host: UIView?,
         context: PresentationLinkAdapterBody<Destination>.Context
     ) {
         if let conformance = conformance {
@@ -1280,8 +1647,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             let viewController = viewController as! DestinationController
             viewController.content = destination.modifier(
                 PresentationBridgeAdapter(
-                    isPresented: isPresented,
-                    host: host
+                    isPresented: isPresented
                 )
             )
             transition.update(viewController)

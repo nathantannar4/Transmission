@@ -31,6 +31,7 @@ public struct WindowLink<
     var transition: WindowLinkTransition
     var label: Label
     var destination: Destination
+
     @StateOrBinding var isPresented: Bool
 
     public init(
