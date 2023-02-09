@@ -17,7 +17,7 @@ extension View {
     /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
     ///
     public func preferredStatusBarStyle(_ style: UIStatusBarStyle) -> some View {
-        modifier(PreferredStatusBarSyleModifier(style: style))
+        modifier(PreferredStatusBarStyleModifier(style: style))
     }
 
     /// Sets the preferred status bar visibility of the hosting views `UIViewController`
@@ -37,7 +37,8 @@ extension View {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-public struct PreferredStatusBarSyleModifier: ViewModifier {
+@frozen
+public struct PreferredStatusBarStyleModifier: ViewModifier {
     var style: UIStatusBarStyle
 
     public init(style: UIStatusBarStyle) {

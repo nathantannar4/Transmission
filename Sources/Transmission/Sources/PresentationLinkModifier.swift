@@ -36,7 +36,7 @@ import Turbocharger
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 @frozen
-public struct PresentationLinkAdapter<
+public struct PresentationLinkModifier<
     Destination: View
 >: ViewModifier {
 
@@ -56,7 +56,7 @@ public struct PresentationLinkAdapter<
 
     public func body(content: Content) -> some View {
         content.background(
-            PresentationLinkAdapterBody(
+            PresentationLinkModifierBody(
                 transition: transition,
                 isPresented: isPresented,
                 destination: destination
@@ -73,7 +73,7 @@ extension View {
     /// A modifier that presents a destination view in a new `UIViewController`.
     ///
     /// See Also:
-    ///  - ``PresentationLinkAdapter``
+    ///  - ``PresentationLinkModifier``
     ///
     public func presentation<Destination: View>(
         transition: PresentationLinkTransition = .default,
@@ -81,7 +81,7 @@ extension View {
         @ViewBuilder destination: () -> Destination
     ) -> some View {
         modifier(
-            PresentationLinkAdapter(
+            PresentationLinkModifier(
                 transition: transition,
                 isPresented: isPresented,
                 destination: destination()
@@ -92,7 +92,7 @@ extension View {
     /// A modifier that presents a destination view in a new `UIViewController`.
     ///
     /// See Also:
-    ///  - ``PresentationLinkAdapter``
+    ///  - ``PresentationLinkModifier``
     ///  
     public func presentation<T, Destination: View>(
         _ value: Binding<T?>,
@@ -109,7 +109,7 @@ extension View {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-private struct PresentationLinkAdapterBody<
+private struct PresentationLinkModifierBody<
     Destination: View
 >: UIViewRepresentable {
 
@@ -209,15 +209,6 @@ private struct PresentationLinkAdapterBody<
                 )
             } else {
                 let adapter: PresentationLinkDestinationViewControllerAdapter<Destination>
-                let isPresented: Binding<Bool> = Binding(
-                    get: { self.isPresented.wrappedValue },
-                    set: { newValue, transaction in
-                        self.isPresented.transaction(transaction).wrappedValue = newValue
-                        if let hostingView = presentingViewController.view as? AnyHostingView {
-                            hostingView.render()
-                        }
-                    }
-                )
                 if let oldValue = context.coordinator.adapter {
                     adapter = oldValue
                     adapter.transition = transition.value
@@ -239,15 +230,11 @@ private struct PresentationLinkAdapterBody<
                     context.coordinator.adapter = adapter
                 }
 
-                if adapter.viewController.transitioningDelegate == nil {
+                switch adapter.transition {
+                case .`default`:
+                    break
+                case .fullscreen, .currentContext, .sheet, .popover, .slide, .custom:
                     adapter.viewController.transitioningDelegate = context.coordinator
-                } else if case .default = adapter.transition {
-                    switch adapter.transition {
-                    case .`default`:
-                        break
-                    default:
-                        adapter.viewController.transitioningDelegate = context.coordinator
-                    }
                 }
 
                 switch adapter.transition {
@@ -258,7 +245,10 @@ private struct PresentationLinkAdapterBody<
 
                 case .fullscreen, .sheet, .popover, .`default`:
                     switch adapter.transition {
-                    case .sheet, .popover, .fullscreen:
+                    case .fullscreen:
+                        adapter.viewController.modalPresentationStyle = .overFullScreen
+
+                    case .sheet, .popover:
                         adapter.viewController.modalPresentationStyle = .custom
 
                     default:
@@ -294,8 +284,8 @@ private struct PresentationLinkAdapterBody<
                 case .slide:
                     adapter.viewController.modalPresentationStyle = .custom
 
-                case .custom(_, let delegate):
-                    assert(!isClassType(delegate), "PresentationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
+                case .custom(_, let transition):
+                    assert(!isClassType(transition), "PresentationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
                     adapter.viewController.modalPresentationStyle = .custom
                     adapter.viewController.presentationController?.overrideTraitCollection = traits
@@ -303,12 +293,13 @@ private struct PresentationLinkAdapterBody<
 
                 // Swizzle to hook up for programatic dismissal
                 adapter.viewController.presentationDelegate = context.coordinator
+
                 if let presentedViewController = presentingViewController.presentedViewController {
                     let shouldDismiss = presentedViewController.presentationController.map {
                         $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
                     } ?? true
                     if shouldDismiss {
-                        presentedViewController.dismiss(animated: isAnimated) {
+                        presentingViewController.dismiss(animated: isAnimated) {
                             presentingViewController.present(adapter.viewController, animated: isAnimated)
                         }
                     } else {
@@ -326,11 +317,9 @@ private struct PresentationLinkAdapterBody<
         {
             let isAnimated = context.transaction.isAnimated || PresentationCoordinator.transaction.isAnimated
             let viewController = adapter.viewController!
-            if let presented = adapter.viewController.presentedViewController {
-                presented.dismiss(animated: isAnimated) {
-                    viewController.dismiss(animated: isAnimated) {
-                        PresentationCoordinator.transaction = nil
-                    }
+            if viewController.presentedViewController != nil {
+                (viewController.presentingViewController ?? viewController).dismiss(animated: isAnimated) {
+                    PresentationCoordinator.transaction = nil
                 }
             } else {
                 viewController.dismiss(animated: isAnimated) {
@@ -655,16 +644,8 @@ private struct PresentationLinkAdapterBody<
                 presentationController.delegate = self
                 return presentationController
 
-            case .fullscreen:
-                let presentationController = FullscreenPresentationController(
-                    presentedViewController: presented,
-                    presenting: presenting
-                )
-                presentationController.delegate = self
-                return presentationController
-
-            case .custom(_, let adapter):
-                let presentationController = adapter.presentationController(
+            case .custom(_, let transition):
+                let presentationController = transition.presentationController(
                     sourceView: sourceView,
                     presented: presented,
                     presenting: presenting
@@ -1009,10 +990,6 @@ private class PhoneSheetPresentationController: UISheetPresentationController {
 
 private class PopoverPresentationController: UIPopoverPresentationController {
 
-}
-
-private class FullscreenPresentationController: PresentationController {
-    override var presentationStyle: UIModalPresentationStyle { .fullScreen }
 }
 
 @available(iOS 15.0, *)
@@ -1580,7 +1557,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
         isPresented: Binding<Bool>,
         sourceView: UIView,
         transition: PresentationLinkTransition.Value,
-        context: PresentationLinkAdapterBody<Destination>.Context
+        context: PresentationLinkModifierBody<Destination>.Context
     ) {
         self.transition = transition
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
@@ -1629,7 +1606,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
         destination: Destination,
         isPresented: Binding<Bool>,
         sourceView: UIView,
-        context: PresentationLinkAdapterBody<Destination>.Context
+        context: PresentationLinkModifierBody<Destination>.Context
     ) {
         if let conformance = conformance {
             var visitor = Visitor(
@@ -1665,7 +1642,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
         var destination: Destination?
         var isPresented: Binding<Bool>
         var sourceView: UIView?
-        var context: PresentationLinkAdapterBody<Destination>.Context?
+        var context: PresentationLinkModifierBody<Destination>.Context?
         var adapter: PresentationLinkDestinationViewControllerAdapter<Destination>
 
         mutating func visit<Content>(type: Content.Type) where Content: UIViewControllerRepresentable {
@@ -1685,7 +1662,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             if adapter.context == nil {
                 let preferenceBridge = unsafeBitCast(
                     context,
-                    to: Context<PresentationLinkAdapterBody<Destination>.Coordinator>.self
+                    to: Context<PresentationLinkModifierBody<Destination>.Coordinator>.self
                 ).preferenceBridge
                 let context = Context(
                     coordinator: destination.makeCoordinator(),
@@ -1726,31 +1703,19 @@ extension PresentationLinkTransition.Value {
 
     func update<Content: View>(_ viewController: HostingController<Content>) {
 
+        viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
         viewController.view.backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
 
         switch self {
-        case .custom(let options, _):
-            viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
-
         case .sheet(let options):
             if #available(iOS 15.0, *) {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal })
             } else {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
             }
-            viewController.modalPresentationCapturesStatusBarAppearance = options.options.modalPresentationCapturesStatusBarAppearance
-
-        case .currentContext(let options):
-            viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
-
-        case .fullscreen(let options):
-            viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
 
         case .popover:
             viewController.tracksContentSize = true
-
-        case .slide(let options):
-            viewController.modalPresentationCapturesStatusBarAppearance = options.options.modalPresentationCapturesStatusBarAppearance
 
         default:
             break

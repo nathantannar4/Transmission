@@ -95,7 +95,7 @@ public struct ShareSheetLink<
             label
         }
         .modifier(
-            ShareSheetLinkAdapter(
+            ShareSheetLinkModifier(
                 items: items,
                 action: action,
                 isPresented: $isPresented
@@ -112,7 +112,7 @@ extension View {
     /// A modifier that presents a `UIActivityViewController`
     ///
     /// See Also:
-    ///  - ``ShareSheetLinkAdapter``
+    ///  - ``ShareSheetLinkModifier``
     ///  
     public func share(
         items: [ShareSheetItemProvider],
@@ -120,7 +120,7 @@ extension View {
         action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil
     ) -> some View {
         modifier(
-            ShareSheetLinkAdapter(
+            ShareSheetLinkModifier(
                 items: items,
                 action: action,
                 isPresented: isPresented
@@ -135,7 +135,7 @@ extension View {
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 @frozen
-public struct ShareSheetLinkAdapter: ViewModifier {
+public struct ShareSheetLinkModifier: ViewModifier {
 
     var items: [ShareSheetItemProvider]
     var action: ((Result<UIActivity.ActivityType?, Error>) -> Void)?
@@ -154,7 +154,7 @@ public struct ShareSheetLinkAdapter: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .modifier(
-                PresentationLinkAdapter(
+                PresentationLinkModifier(
                     transition: .default,
                     isPresented: isPresented,
                     destination: Destination(

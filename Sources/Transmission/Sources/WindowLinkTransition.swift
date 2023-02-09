@@ -37,7 +37,7 @@ public struct WindowLinkLevel {
     }
 }
 
-/// The transition style for a ``WindowLink`` and ``WindowLinkAdapter``.
+/// The transition style for a ``WindowLink`` and ``WindowLinkModifier``.
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
 @available(tvOS, unavailable)

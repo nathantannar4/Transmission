@@ -9,6 +9,10 @@ import Engine
 import Turbocharger
 
 /// A coordinator that can be used to programatically dismiss a view.
+///
+/// See Also:
+///  - ``PresentationLink``
+///
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
 @available(tvOS, unavailable)

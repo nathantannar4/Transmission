@@ -158,7 +158,7 @@ struct ContentView: View {
                     VStack(alignment: .leading) {
                         Text("PresentationLink")
                             .font(.headline)
-                        Text("via PresentationLinkAdapter")
+                        Text("via PresentationLinkModifier")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
@@ -217,7 +217,7 @@ struct ContentView: View {
                     VStack(alignment: .leading) {
                         Text("WindowLink")
                             .font(.headline)
-                        Text("via WindowLinkAdapter")
+                        Text("via WindowLinkModifier")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
@@ -258,7 +258,7 @@ struct ContentView: View {
                     VStack(alignment: .leading) {
                         Text("ShareSheetLink")
                             .font(.headline)
-                        Text("via ShareSheetLinkAdapter")
+                        Text("via ShareSheetLinkModifier")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }

@@ -208,7 +208,7 @@ extension PresentationLink {
 }
 
 @available(iOS 14.0, *)
-extension PresentationLinkAdapter {
+extension PresentationLinkModifier {
     public init(
         transition: PresentationLinkTransition = .default,
         isPresented: Binding<Bool>,

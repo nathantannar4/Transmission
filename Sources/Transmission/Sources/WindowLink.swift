@@ -70,7 +70,7 @@ public struct WindowLink<
             label
         }
         .modifier(
-            WindowLinkAdapter(
+            WindowLinkModifier(
                 level: level,
                 transition: transition,
                 isPresented: $isPresented,

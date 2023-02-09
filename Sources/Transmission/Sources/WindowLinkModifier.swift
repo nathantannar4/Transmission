@@ -31,7 +31,7 @@ import Turbocharger
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 @frozen
-public struct WindowLinkAdapter<
+public struct WindowLinkModifier<
     Destination: View
 >: ViewModifier {
 
@@ -55,7 +55,7 @@ public struct WindowLinkAdapter<
     public func body(content: Content) -> some View {
         content
             .background(
-                WindowLinkAdapterBody(
+                WindowLinkModifierBody(
                     isPresented: isPresented,
                     destination: destination,
                     level: level,
@@ -74,7 +74,7 @@ extension View {
     /// A modifier that presents a destination view in a new `UIWindow`
     ///
     /// See Also:
-    ///  - ``WindowLinkAdapter``
+    ///  - ``WindowLinkModifier``
     ///
     public func window<Destination: View>(
         level: WindowLinkLevel = .default,
@@ -83,7 +83,7 @@ extension View {
         @ViewBuilder destination: () -> Destination
     ) -> some View {
         modifier(
-            WindowLinkAdapter(
+            WindowLinkModifier(
                 level: level,
                 transition: transition,
                 isPresented: isPresented,
@@ -95,7 +95,7 @@ extension View {
     /// A modifier that presents a destination view in a new `UIWindow`
     ///
     /// See Also:
-    ///  - ``WindowLinkAdapter``
+    ///  - ``WindowLinkModifier``
     ///
     public func window<T, D: View>(
         _ value: Binding<T?>,
@@ -113,7 +113,7 @@ extension View {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-private struct WindowLinkAdapterBody<
+private struct WindowLinkModifierBody<
     Destination: View
 >: UIViewRepresentable {
 

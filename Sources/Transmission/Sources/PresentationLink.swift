@@ -67,7 +67,7 @@ public struct PresentationLink<
             label
         }
         .modifier(
-            PresentationLinkAdapter(
+            PresentationLinkModifier(
                 transition: transition,
                 isPresented: $isPresented,
                 destination: destination
