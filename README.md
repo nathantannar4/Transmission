@@ -51,7 +51,7 @@ For some sample code to get started with `Transmission`, build and run the inclu
 
 ### PresentationLink
 
-```
+```swift
 @available(iOS 14.0, *)
 public struct PresentationLinkTransition {
 
@@ -237,7 +237,7 @@ extension View {
 
 ### TransitionReader
 
-```
+```swift
 /// A container view that defines its content as a function of its hosting view's
 /// `UIViewControllerTransitionCoordinator` transition progress.
 ///
@@ -256,7 +256,7 @@ public struct TransitionReader<Content: View>: View {
 
 ### StatusBar Style/Hidden
 
-```
+```swift
 @available(iOS 14.0, *)
 extension View {
 
@@ -271,7 +271,7 @@ extension View {
 
 ### WindowLink
 
-```
+```swift
 @available(iOS 14.0, *)
 public struct WindowLinkLevel {
 
@@ -349,7 +349,7 @@ extension View {
 
 ### ShareSheetLink
 
-```
+```swift
 /// A protocol that defines an interface for creating activities for a `UIActivityViewController`
 @available(iOS 14.0, *)
 public protocol ShareSheetItemProvider {
