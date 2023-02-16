@@ -8,14 +8,17 @@ import UIKit
 
 extension UIViewController {
 
-    func _popViewController(animated: Bool) {
+    func _popViewController(animated: Bool, completion: (() -> Void)? = nil) {
         guard let navigationController = navigationController,
             let index = navigationController.viewControllers.firstIndex(of: self),
             index > 0
         else {
             return
         }
+        CATransaction.begin()
+        CATransaction.setCompletionBlock(completion)
         navigationController.popToViewController(navigationController.viewControllers[index - 1], animated: animated)
+        CATransaction.commit()
     }
 
     var _transitionCoordinator: UIViewControllerTransitionCoordinator? {

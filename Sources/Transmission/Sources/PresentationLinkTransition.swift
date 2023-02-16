@@ -38,7 +38,7 @@ public struct PresentationLinkTransition {
     }
     var value: Value
 
-    /// The default presentation style of the system.
+    /// The default presentation style of the `UIViewController`.
     public static var `default` = PresentationLinkTransition(value: .default)
 
     /// The sheet presentation style.

@@ -12,18 +12,18 @@ protocol UIViewControllerPresentationDelegate: NSObject {
 
 extension UIViewController {
 
-    private static var dismissViewControllerKey: Bool = false
+    private static var presentationDelegateKey: Bool = false
 
     var presentationDelegate: UIViewControllerPresentationDelegate? {
         get {
-            guard let obj = objc_getAssociatedObject(self, &Self.dismissViewControllerKey) as? ObjCWeakBox<NSObject> else {
+            guard let obj = objc_getAssociatedObject(self, &Self.presentationDelegateKey) as? ObjCWeakBox<NSObject> else {
                 return nil
             }
             return obj.value as? UIViewControllerPresentationDelegate
         }
         set {
-            if !Self.dismissViewControllerKey {
-                Self.dismissViewControllerKey = true
+            if !Self.presentationDelegateKey {
+                Self.presentationDelegateKey = true
 
                 let original = #selector(UIViewController.dismiss(animated:completion:))
                 let swizzled = #selector(UIViewController.swizzled_dismiss(animated:completion:))
@@ -34,11 +34,11 @@ extension UIViewController {
                 }
             }
 
-            if let box = objc_getAssociatedObject(self, &Self.dismissViewControllerKey) as? ObjCWeakBox<NSObject> {
+            if let box = objc_getAssociatedObject(self, &Self.presentationDelegateKey) as? ObjCWeakBox<NSObject> {
                 box.value = newValue
             } else {
                 let box = ObjCWeakBox<NSObject>(value: newValue)
-                objc_setAssociatedObject(self, &Self.dismissViewControllerKey, box, .OBJC_ASSOCIATION_RETAIN)
+                objc_setAssociatedObject(self, &Self.presentationDelegateKey, box, .OBJC_ASSOCIATION_RETAIN)
             }
         }
     }
