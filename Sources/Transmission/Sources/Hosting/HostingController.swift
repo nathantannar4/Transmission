@@ -51,7 +51,7 @@ open class HostingController<
                 return
             }
 
-            func performTransition() {
+            func performTransition(completion: (() -> Void)? = nil) {
                 UIView.transition(
                     with: containerView,
                     duration: 0.35,
@@ -63,12 +63,16 @@ open class HostingController<
                         sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
                     }
                     (containerView.superview ?? containerView).layoutIfNeeded()
+                } completion: { _ in
+                    completion?()
                 }
             }
 
             if #available(iOS 16.0, *) {
                 try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
-                performTransition()
+                performTransition {
+                    try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", false, self.view)
+                }
             } else {
                 withCATransaction {
                     performTransition()

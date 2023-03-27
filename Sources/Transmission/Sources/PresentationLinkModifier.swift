@@ -562,9 +562,7 @@ private struct PresentationLinkModifierBody<
             switch adapter?.transition {
             case .sheet(let options):
                 #if targetEnvironment(macCatalyst)
-                if #available(iOS 15.0, *),
-                    let presentationController = dismissed.presentationController as? MacSheetPresentationController
-                {
+                if #available(iOS 15.0, *) {
                     let transition = SlideTransition(
                         isPresenting: false,
                         options: .init(
@@ -575,22 +573,18 @@ private struct PresentationLinkModifierBody<
                             options: options.options
                         )
                     )
-                    presentationController.begin(transition: transition, isInteractive: options.isInteractive)
+                    transition.wantsInteractiveStart = options.isInteractive
                     return transition
                 }
                 #endif
                 return nil
 
             case .slide(let options):
-                guard let presentationController = dismissed.presentationController as? SlidePresentationController else {
-                    return nil
-                }
                 let transition = SlideTransition(
                     isPresenting: false,
                     options: options
                 )
                 transition.wantsInteractiveStart = options.isInteractive
-//                presentationController.begin(transition: transition, isInteractive: options.isInteractive)
                 return transition
 
             case .custom(_, let transition):

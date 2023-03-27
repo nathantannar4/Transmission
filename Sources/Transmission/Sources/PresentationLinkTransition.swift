@@ -249,7 +249,7 @@ extension PresentationLinkTransition {
                 switch identifier {
                 case .ideal:
                     var copy = self
-                    let resolution: () -> CGFloat? = { [unowned presentationController] in
+                    let resolution: (UIPresentationController) -> CGFloat? = { presentationController in
                         guard let containerView = presentationController.containerView else {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
                             return idealHeight
@@ -268,9 +268,14 @@ extension PresentationLinkTransition {
                         return min(idealHeight, containerView.frame.height)
                     }
                     if #available(iOS 16.0, *) {
-                        copy.resolution = { _ in resolution() }
+                        copy.resolution = { [weak presentationController] ctx in
+                            guard let presentationController = presentationController else {
+                                return ctx.maximumDetentValue
+                            }
+                            return resolution(presentationController)
+                        }
                     } else {
-                        copy.height = resolution()
+                        copy.height = resolution(presentationController)
                     }
                     return copy
 

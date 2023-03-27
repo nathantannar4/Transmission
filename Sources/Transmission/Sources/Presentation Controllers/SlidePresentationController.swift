@@ -25,11 +25,6 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
 
     override var presentationStyle: UIModalPresentationStyle { .overFullScreen }
 
-    func begin(transition: SlideTransition, isInteractive: Bool) {
-        self.transition = transition
-        transition.wantsInteractiveStart = isInteractive && isPanGestureActive
-    }
-
     override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
 
