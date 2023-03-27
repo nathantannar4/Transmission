@@ -6,22 +6,34 @@
 
 import SwiftUI
 
+@frozen
+public struct TransitionReaderProxy {
+    /// The progress state of the transition from 0 to 1 where 1 is fully presented.
+    public var progress: CGFloat
+
+    @usableFromInline
+    init(progress: CGFloat) {
+        self.progress = 0
+    }
+}
+
 /// A container view that defines its content as a function of its hosting view's
 /// `UIViewControllerTransitionCoordinator` transition progress.
 ///
 /// > Tip: Use a ``TransitionReader`` to build interactive presentation and dismissal
 /// transitions
-/// 
+///
+@frozen
 public struct TransitionReader<Content: View>: View {
-    public struct Proxy {
-        /// The progress state of the transition from 0 to 1 where 1 is fully presented.
-        public var progress: CGFloat
-    }
 
+    public typealias Proxy = TransitionReaderProxy
+
+    @usableFromInline
     var content: (Proxy) -> Content
 
     @State var proxy = Proxy(progress: 0)
 
+    @inlinable
     public init(@ViewBuilder content: @escaping (Proxy) -> Content) {
         self.content = content
     }

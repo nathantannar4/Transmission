@@ -589,7 +589,8 @@ private struct PresentationLinkModifierBody<
                     isPresenting: false,
                     options: options
                 )
-                presentationController.begin(transition: transition, isInteractive: options.isInteractive)
+                transition.wantsInteractiveStart = options.isInteractive
+//                presentationController.begin(transition: transition, isInteractive: options.isInteractive)
                 return transition
 
             case .custom(_, let transition):

@@ -53,6 +53,7 @@ open class HostingView<
     public init(content: Content) {
         super.init(rootView: content)
         backgroundColor = nil
+        clipsToBounds = false
     }
 
     public convenience init(@ViewBuilder content: () -> Content) {
