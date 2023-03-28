@@ -217,7 +217,7 @@ final class MacSheetPresentationController: SlidePresentationController {
         presentedView?.transform = .identity
         super.layoutPresentedView(frame: frame)
         if depth > 0 {
-            let scale = powl(0.92, Double(depth))
+            let scale: CGFloat = pow(0.92, CGFloat(depth))
             presentedView?.transform = CGAffineTransform(scaleX: scale, y: scale)
                 .translatedBy(x: 0, y: (frame.height * -0.08))
         } else {
