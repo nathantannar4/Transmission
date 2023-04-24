@@ -43,7 +43,8 @@ public protocol DestinationLinkCustomTransition {
         _ navigationController: UINavigationController,
         animationControllerFor operation: UINavigationController.Operation,
         from fromVC: UIViewController,
-        to toVC: UIViewController
+        to toVC: UIViewController,
+        sourceView: UIView
     ) -> UIViewControllerAnimatedTransitioning
 }
 

@@ -9,7 +9,15 @@ import UIKit
 import Engine
 import Turbocharger
 
+@available(iOS 14.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
 open class PresentationController: UIPresentationController {
+
+    open var shouldAutoLayoutPresentedView: Bool {
+        !presentedViewController.isBeingPresented && !presentedViewController.isBeingDismissed
+    }
 
     open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
@@ -29,7 +37,7 @@ open class PresentationController: UIPresentationController {
 
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
-        if !presentedViewController.isBeingPresented, !presentedViewController.isBeingDismissed {
+        if shouldAutoLayoutPresentedView {
             layoutPresentedView(frame: frameOfPresentedViewInContainerView)
         }
     }

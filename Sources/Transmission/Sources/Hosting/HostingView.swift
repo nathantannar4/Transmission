@@ -43,11 +43,19 @@ open class HostingView<
 
     public var disablesSafeArea: Bool = false
 
+    public var additionalSafeAreaInsets: UIEdgeInsets = .zero
+
     public override var safeAreaInsets: UIEdgeInsets {
         if disablesSafeArea {
-            return .zero
+            return additionalSafeAreaInsets
         }
-        return super.safeAreaInsets
+        let safeAreaInsets = super.safeAreaInsets
+        return UIEdgeInsets(
+            top: safeAreaInsets.top + additionalSafeAreaInsets.top,
+            left: safeAreaInsets.left + additionalSafeAreaInsets.left,
+            bottom: safeAreaInsets.bottom + additionalSafeAreaInsets.bottom,
+            right: safeAreaInsets.right + additionalSafeAreaInsets.right
+        )
     }
 
     public init(content: Content) {

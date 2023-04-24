@@ -7,7 +7,7 @@
 import SwiftUI
 
 extension UIEdgeInsets {
-    public init(_ edgeInsets: EdgeInsets, layoutDirection: LayoutDirection) {
+    init(_ edgeInsets: EdgeInsets, layoutDirection: LayoutDirection) {
         self = UIEdgeInsets(
             top: edgeInsets.top,
             left: layoutDirection == .leftToRight ? edgeInsets.leading : edgeInsets.trailing,
@@ -18,7 +18,7 @@ extension UIEdgeInsets {
 }
 
 extension UIView.AnimationCurve {
-    public func toSwiftUI(duration: TimeInterval) -> Animation {
+    func toSwiftUI(duration: TimeInterval) -> Animation {
         switch self {
         case .linear:
             return .linear(duration: duration)

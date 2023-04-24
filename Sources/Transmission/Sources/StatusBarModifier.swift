@@ -185,7 +185,7 @@ extension UIViewController {
         if let child = swizzled_childForStatusBar {
             return child
         }
-        if let host = self as? AnyHostingController, host.parent == nil {
+        if let host = self as? AnyHostingController {
             return host.children.first
         }
         return nil

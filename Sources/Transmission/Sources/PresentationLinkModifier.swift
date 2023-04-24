@@ -374,7 +374,7 @@ private struct PresentationLinkModifierBody<
                 (viewController.presentingViewController ?? viewController).dismiss(animated: isAnimated) {
                     PresentationCoordinator.transaction = nil
                 }
-            } else {
+            } else if viewController.presentingViewController != nil {
                 viewController.dismiss(animated: isAnimated) {
                     PresentationCoordinator.transaction = nil
                 }
@@ -410,12 +410,10 @@ private struct PresentationLinkModifierBody<
         // MARK: - UIViewControllerPresentationDelegate
 
         func viewControllerDidDismiss() {
-            withCATransaction {
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    self.isPresented.wrappedValue = false
-                }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                self.isPresented.wrappedValue = false
             }
         }
 
@@ -565,7 +563,7 @@ private struct PresentationLinkModifierBody<
                 if #available(iOS 15.0, *),
                     let presentationController = dismissed.presentationController as? MacSheetPresentationController
                 {
-                    let transition = SlideTransition(
+                    let transition = MacSheetTransition(
                         isPresenting: false,
                         options: .init(
                             edge: .bottom,
@@ -575,7 +573,8 @@ private struct PresentationLinkModifierBody<
                             options: options.options
                         )
                     )
-                    presentationController.begin(transition: transition, isInteractive: options.isInteractive)
+                    transition.wantsInteractiveStart = options.isInteractive
+                    presentationController.dismiss(with: transition)
                     return transition
                 }
                 #endif
@@ -589,7 +588,8 @@ private struct PresentationLinkModifierBody<
                     isPresenting: false,
                     options: options
                 )
-                presentationController.begin(transition: transition, isInteractive: options.isInteractive)
+                transition.wantsInteractiveStart = options.isInteractive
+                presentationController.dismiss(with: transition)
                 return transition
 
             case .custom(_, let transition):
@@ -619,7 +619,7 @@ private struct PresentationLinkModifierBody<
             case .sheet:
                 #if targetEnvironment(macCatalyst)
                 if #available(iOS 15.0, *) {
-                    return animator as? SlideTransition
+                    return animator as? MacSheetTransition
                 }
                 #endif
                 return nil
@@ -645,6 +645,7 @@ private struct PresentationLinkModifierBody<
                 if #available(iOS 15.0, *) {
                     #if targetEnvironment(macCatalyst)
                     let presentationController = MacSheetPresentationController(
+                        edge: .bottom,
                         presentedViewController: presented,
                         presenting: presenting
                     )
@@ -667,6 +668,7 @@ private struct PresentationLinkModifierBody<
                     presentationController.prefersScrollingExpandsWhenScrolledToEdge = configuration.prefersScrollingExpandsWhenScrolledToEdge
                     presentationController.prefersEdgeAttachedInCompactHeight = configuration.prefersEdgeAttachedInCompactHeight
                     presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = configuration.widthFollowsPreferredContentSizeWhenEdgeAttached
+                    presentationController.preferredBackgroundColor = configuration.options.preferredPresentationBackgroundUIColor
                     presentationController.delegate = self
                     return presentationController
                     #endif

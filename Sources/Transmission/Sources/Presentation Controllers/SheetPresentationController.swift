@@ -20,6 +20,14 @@ typealias SheetPresentationController = MacSheetPresentationController
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
+final class MacSheetTransition: SlideTransition {
+
+}
+
+@available(iOS 15.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
 final class MacSheetPresentationController: SlidePresentationController {
 
     var preferredCornerRadius: CGFloat? {
@@ -235,7 +243,18 @@ final class MacSheetPresentationController: SlidePresentationController {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-typealias SheetPresentationController = UISheetPresentationController
+final class SheetPresentationController: UISheetPresentationController {
+
+    var preferredBackgroundColor: UIColor?
+
+    override func dismissalTransitionWillBegin() {
+        super.dismissalTransitionWillBegin()
+        if let preferredBackgroundColor {
+            containerView?.subviews.last?.layer.shadowColor = preferredBackgroundColor.cgColor
+        }
+    }
+}
+
 #endif
 
 @available(iOS 15.0, *)
@@ -264,6 +283,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             return false
         }()
         #else
+        presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
         let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
         let hasChanges: Bool = {
             if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {

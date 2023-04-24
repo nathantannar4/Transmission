@@ -305,7 +305,6 @@ extension PresentationLinkTransition {
                             return min(resolution(ctx) ?? max, max)
                         }
                     }
-                    // https://github.com/pookjw/CustomSPCDetent/blob/main/CustomSPCDetent/UISheetPresentationControllerDetent%2BPrivate.h
                     let sel = NSSelectorFromString(String(":tnatsnoc:reifitnedIhtiWtneted_".reversed()))
                     guard let height = height, UISheetPresentationController.Detent.responds(to: sel) else {
                         return .large()

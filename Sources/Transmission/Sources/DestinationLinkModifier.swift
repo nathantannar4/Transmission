@@ -179,6 +179,7 @@ private struct DestinationLinkModifierBody<
 
                 case .custom(let transition):
                     assert(!isClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
+                    context.coordinator.sourceView = uiView
                     context.coordinator.transition = .custom(transition)
                 }
 
@@ -214,6 +215,7 @@ private struct DestinationLinkModifierBody<
         var isPresented: Binding<Bool>
         var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, DestinationBridgeAdapter>?
         var transition: DestinationLinkTransition.Value = .default
+        unowned var sourceView: UIView!
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
@@ -270,7 +272,8 @@ private struct DestinationLinkModifierBody<
                     navigationController,
                     animationControllerFor: operation,
                     from: fromVC,
-                    to: toVC
+                    to: toVC,
+                    sourceView: sourceView
                 )
             }
         }

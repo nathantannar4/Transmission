@@ -15,10 +15,17 @@ extension UIViewController {
         else {
             return
         }
-        CATransaction.begin()
-        CATransaction.setCompletionBlock(completion)
+
+        if animated {
+            CATransaction.begin()
+            CATransaction.setCompletionBlock(completion)
+        }
         navigationController.popToViewController(navigationController.viewControllers[index - 1], animated: animated)
-        CATransaction.commit()
+        if animated {
+            CATransaction.commit()
+        } else {
+            completion?()
+        }
     }
 
     var _transitionCoordinator: UIViewControllerTransitionCoordinator? {

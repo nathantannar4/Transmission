@@ -49,6 +49,16 @@ public struct ShareSheetItemProviderContext {
 }
 
 /// A button that presents a `UIActivityViewController`
+///
+/// To present the share sheet with an animation, `isPresented` should
+/// be updated with a transaction that has an animation. For example:
+///
+/// ```
+/// withAnimation {
+///     isPresented = true
+/// }
+/// ```
+///
 @available(iOS 14.0, *)
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
@@ -86,6 +96,23 @@ public struct ShareSheetLink<
         self._isPresented = .init(isPresented)
     }
 
+    public init(
+        items: ShareSheetItemProvider...,
+        action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
+        @ViewBuilder label: () -> Label
+    ) {
+        self.init(items: items, action: action, label: label)
+    }
+
+    public init(
+        items: ShareSheetItemProvider...,
+        action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
+        isPresented: Binding<Bool>,
+        @ViewBuilder label: () -> Label
+    ) {
+        self.init(items: items, action: action, isPresented: isPresented, label: label)
+    }
+
     public var body: some View {
         Button {
             withAnimation {
@@ -109,7 +136,17 @@ public struct ShareSheetLink<
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 extension View {
+    
     /// A modifier that presents a `UIActivityViewController`
+    ///
+    /// To present the share sheet with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
     ///
     /// See Also:
     ///  - ``ShareSheetLinkModifier``
@@ -126,6 +163,27 @@ extension View {
                 isPresented: isPresented
             )
         )
+    }
+
+    /// A modifier that presents a `UIActivityViewController`
+    ///
+    /// To present the share sheet with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``ShareSheetLinkModifier``
+    ///
+    public func share(
+        item: Binding<ShareSheetItemProvider?>,
+        action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil
+    ) -> some View {
+        self.share(items: item.wrappedValue.map { [$0] } ?? [], isPresented: item.isNotNil(), action: action)
     }
 }
 
