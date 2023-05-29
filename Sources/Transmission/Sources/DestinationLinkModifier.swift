@@ -159,6 +159,21 @@ private struct DestinationLinkModifierBody<
 
             context.coordinator.isPresented = isPresented
 
+            let isPresented = Binding<Bool>(
+                get: { true },
+                set: { newValue, transaction in
+                    if !newValue {
+                        let isAnimated = transaction.isAnimated || DestinationCoordinator.transaction.isAnimated
+                        context.coordinator.adapter?.viewController._popViewController(animated: isAnimated) {
+                            DestinationCoordinator.transaction = nil
+                        }
+                    }
+                }
+            )
+
+            let isAnimated = context.transaction.isAnimated || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
+            context.coordinator.isAnimated = isAnimated
+
             if let adapter = context.coordinator.adapter {
                 adapter.update(
                     destination: destination,
@@ -170,25 +185,25 @@ private struct DestinationLinkModifierBody<
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
                     modifier: DestinationBridgeAdapter(isPresented: isPresented),
+                    transition: transition.value,
                     context: context
                 )
                 context.coordinator.adapter = adapter
-                switch transition.value {
+                switch adapter.transition {
                 case .`default`:
-                    context.coordinator.transition = .`default`
+                    break
 
-                case .custom(let transition):
+                case .custom(_, let transition):
                     assert(!isClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
-                    context.coordinator.transition = .custom(transition)
                 }
-
-                let isAnimated = context.transaction.isAnimated || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
 
                 navigationController.delegates.add(delegate: context.coordinator, for: adapter.viewController)
                 navigationController.pushViewController(adapter.viewController, animated: isAnimated)
             }
-        } else if let adapter = context.coordinator.adapter, !isPresented.wrappedValue {
+        } else if let adapter = context.coordinator.adapter,
+            !isPresented.wrappedValue
+        {
             let isAnimated = context.transaction.isAnimated || DestinationCoordinator.transaction.isAnimated
             let viewController = adapter.viewController!
             if let presented = viewController.presentedViewController {
@@ -214,7 +229,7 @@ private struct DestinationLinkModifierBody<
     {
         var isPresented: Binding<Bool>
         var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, DestinationBridgeAdapter>?
-        var transition: DestinationLinkTransition.Value = .default
+        var isAnimated = false
         unowned var sourceView: UIView!
 
         init(isPresented: Binding<Bool>) {
@@ -245,15 +260,15 @@ private struct DestinationLinkModifierBody<
             _ navigationController: UINavigationController,
             interactionControllerFor animationController: UIViewControllerAnimatedTransitioning
         ) -> UIViewControllerInteractiveTransitioning? {
-            switch transition {
-            case .`default`:
-                return nil
-
-            case .custom(let transition):
+            switch adapter?.transition {
+            case .custom(_, let transition):
                 return transition.navigationController(
                     navigationController,
                     interactionControllerFor: animationController
                 )
+
+            default:
+                return nil
             }
         }
 
@@ -263,11 +278,8 @@ private struct DestinationLinkModifierBody<
             from fromVC: UIViewController,
             to toVC: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
-            switch transition {
-            case .`default`:
-                return nil
-
-            case .custom(let transition):
+            switch adapter?.transition {
+            case .custom(_, let transition):
                 return transition.navigationController(
                     navigationController,
                     animationControllerFor: operation,
@@ -275,13 +287,22 @@ private struct DestinationLinkModifierBody<
                     to: toVC,
                     sourceView: sourceView
                 )
+
+            default:
+                return nil
             }
         }
     }
 
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
-        coordinator.adapter?.viewController.dismiss(animated: false)
-        coordinator.adapter = nil
+        if let adapter = coordinator.adapter {
+            if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                withCATransaction {
+                    adapter.viewController._popViewController(animated: coordinator.isAnimated)
+                }
+            }
+            coordinator.adapter = nil
+        }
     }
 }
 
@@ -456,13 +477,16 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View,
     var viewController: UIViewController!
     var context: Any!
 
+    var transition: DestinationLinkTransition.Value
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
 
     init(
         destination: Destination,
         modifier: Modifier,
+        transition: DestinationLinkTransition.Value,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
+        self.transition = transition
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
             update(destination: destination, modifier: modifier, context: context)

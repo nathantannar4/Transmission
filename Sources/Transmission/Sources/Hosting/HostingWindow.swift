@@ -51,10 +51,10 @@ open class HostingWindow<Content: View>: UIWindow {
         override var childForStatusBarStyle: UIViewController? {
             guard let window = view.window,
                 let parent = window.parent,
-                window.windowLevel.rawValue == parent.windowLevel.rawValue,
+                window.windowLevel.rawValue <= parent.windowLevel.rawValue,
                 let parentViewController = parent.presentedViewController
             else {
-                return nil
+                return super.childForStatusBarStyle
             }
             return parentViewController
         }
@@ -65,14 +65,9 @@ open class HostingWindow<Content: View>: UIWindow {
                 window.windowLevel.rawValue <= parent.windowLevel.rawValue,
                 let parentViewController = parent.presentedViewController
             else {
-                return nil
+                return super.childForStatusBarHidden
             }
             return parentViewController
-        }
-
-        override func viewDidLoad() {
-            super.viewDidLoad()
-            view.backgroundColor = nil
         }
     }
 }

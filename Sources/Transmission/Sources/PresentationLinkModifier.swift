@@ -194,14 +194,18 @@ private struct PresentationLinkModifierBody<
                 set: { newValue, transaction in
                     if !newValue {
                         let isAnimated = transaction.isAnimated || PresentationCoordinator.transaction.isAnimated
-                        context.coordinator.adapter?.viewController?.dismiss(animated: isAnimated)
+                        context.coordinator.adapter?.viewController?.dismiss(animated: isAnimated) {
+                            PresentationCoordinator.transaction = nil
+                        }
                     }
                 }
             )
 
             let isAnimated = context.transaction.isAnimated || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
-            if let adapter = context.coordinator.adapter, !context.coordinator.isBeingReused {
-
+            context.coordinator.isAnimated = isAnimated
+            if let adapter = context.coordinator.adapter,
+                !context.coordinator.isBeingReused
+            {
                 
                 switch (adapter.transition, transition.value) {
                 case (.sheet(let oldValue), .sheet(let newValue)):
@@ -401,6 +405,7 @@ private struct PresentationLinkModifierBody<
         var isPresented: Binding<Bool>
         var adapter: PresentationLinkDestinationViewControllerAdapter<Destination>?
         var isBeingReused = false
+        var isAnimated = false
         unowned var sourceView: UIView!
 
         init(isPresented: Binding<Bool>) {
@@ -419,7 +424,9 @@ private struct PresentationLinkModifierBody<
 
         // MARK: - UIAdaptivePresentationControllerDelegate
 
-        func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        func presentationControllerDidDismiss(
+            _ presentationController: UIPresentationController
+        ) {
             if let toView = presentationController.presentingViewController.viewIfLoaded {
                 // This fixes SwiftUI's gesture handling that can get messed up when applying
                 // transforms and/or frame changes during an interactive presentation. This resets
@@ -430,7 +437,9 @@ private struct PresentationLinkModifierBody<
             }
         }
 
-        func presentationControllerShouldDismiss(_ presentationController: UIPresentationController) -> Bool {
+        func presentationControllerShouldDismiss(
+            _ presentationController: UIPresentationController
+        ) -> Bool {
             switch adapter?.transition {
             case .sheet(let options):
                 return options.isInteractive
@@ -767,14 +776,22 @@ private struct PresentationLinkModifierBody<
 
         // MARK: - UIPopoverPresentationControllerDelegate
 
-        func prepareForPopoverPresentation(_ popoverPresentationController: UIPopoverPresentationController) {
+        func prepareForPopoverPresentation(
+            _ popoverPresentationController: UIPopoverPresentationController
+        ) {
             popoverPresentationController.presentedViewController.view.layoutIfNeeded()
         }
     }
 
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
-        coordinator.adapter?.viewController.dismiss(animated: false)
-        coordinator.adapter = nil
+        if let adapter = coordinator.adapter {
+            if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                withCATransaction {
+                    adapter.viewController.dismiss(animated: coordinator.isAnimated)
+                }
+            }
+            coordinator.adapter = nil
+        }
     }
 }
 

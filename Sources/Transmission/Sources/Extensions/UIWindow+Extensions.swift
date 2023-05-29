@@ -10,7 +10,7 @@ extension UIWindow {
     func present(
         _ window: UIWindow,
         animated: Bool,
-        transition: (() -> Void)? = nil,
+        transition: ((Bool) -> Void)? = nil,
         completion: (() -> Void)? = nil
     ) {
         window.parent = self
@@ -19,14 +19,13 @@ extension UIWindow {
         } else {
             window.isHidden = false
         }
-        window.alpha = min(window.alpha, window.alpha)
+        transition?(false)
         UIView.transition(
-            with: self,
+            with: window,
             duration: animated ? 0.35 : 0,
-            options: [.curveEaseInOut]
+            options: [.curveEaseInOut, .layoutSubviews, .allowAnimatedContent]
         ) {
-            window.alpha = 1
-            transition?()
+            transition?(true)
         } completion: { _ in
             completion?()
         }
@@ -38,13 +37,11 @@ extension UIWindow {
         completion: (() -> Void)? = nil
     ) {
         self.resignKey()
-        self.alpha = 1
         UIView.transition(
             with: self,
             duration: animated ? 0.35 : 0,
-            options: [.curveEaseInOut]
+            options: [.curveEaseInOut, .layoutSubviews, .allowAnimatedContent]
         ) {
-            self.alpha = 0.999
             transition?()
         } completion: { _ in
             self.isHidden = true

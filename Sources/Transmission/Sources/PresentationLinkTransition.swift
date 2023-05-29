@@ -13,7 +13,7 @@ import SwiftUI
 @available(watchOS, unavailable)
 public struct PresentationLinkTransition {
     enum Value {
-        case `default`
+        case `default`(Options)
         case sheet(SheetTransitionOptions)
         case currentContext(Options)
         case fullscreen(Options)
@@ -23,8 +23,8 @@ public struct PresentationLinkTransition {
 
         var options: Options {
             switch self {
-            case .default:
-                return Options()
+            case .default(let options):
+                return options
             case .sheet(let options):
                 return options.options
             case .popover(let options):
@@ -39,7 +39,7 @@ public struct PresentationLinkTransition {
     var value: Value
 
     /// The default presentation style of the `UIViewController`.
-    public static var `default` = PresentationLinkTransition(value: .default)
+    public static var `default` = PresentationLinkTransition(value: .default(.init()))
 
     /// The sheet presentation style.
     public static let sheet = PresentationLinkTransition(value: .sheet(.init()))
@@ -72,15 +72,19 @@ extension PresentationLinkTransition {
     public struct Options {
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
+        /// When `true`, the destination will be dismissed when the presentation source is dismantled
+        public var shouldAutomaticallyDismissDestination: Bool
         public var modalPresentationCapturesStatusBarAppearance: Bool
         public var preferredPresentationBackgroundColor: Color?
 
         public init(
             isDestinationReusable: Bool = false,
+            shouldAutomaticallyDismissDestination: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
             preferredPresentationBackgroundColor: Color? = nil
         ) {
             self.isDestinationReusable = isDestinationReusable
+            self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
         }
@@ -440,6 +444,13 @@ extension PresentationLinkTransition {
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 extension PresentationLinkTransition {
+    /// The default presentation style of the `UIViewController`.
+    public static func `default`(
+        options: PresentationLinkTransition.Options
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .default(options))
+    }
+
     /// The sheet presentation style.
     public static func sheet(
         selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,

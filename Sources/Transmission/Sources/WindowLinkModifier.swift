@@ -124,8 +124,6 @@ private struct WindowLinkModifierBody<
 
     @WeakState var presentingWindow: UIWindow?
 
-    typealias DestinationContent = ModifiedContent<Destination, WindowBridgeAdapter>
-
     func makeUIView(context: Context) -> WindowReader {
         let uiView = WindowReader(
             presentingWindow: $presentingWindow
@@ -140,55 +138,108 @@ private struct WindowLinkModifierBody<
         {
             context.coordinator.isPresented = isPresented
 
+            let isPresented = Binding<Bool>(
+                get: { true },
+                set: { newValue, transaction in
+                    if !newValue, let adapter = context.coordinator.adapter {
+                        let isAnimated = transaction.isAnimated || PresentationCoordinator.transaction.isAnimated
+                        adapter.window.dismiss(
+                            animated: isAnimated,
+                            transition: {
+                                let transition = transition.value.toUIKit(
+                                    isPresented: false
+                                )
+                                adapter.window.alpha = transition.alpha ?? 1
+                                adapter.window.transform = transition.t
+                            },
+                            completion: {
+                                withCATransaction {
+                                    self.isPresented.wrappedValue = false
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+
             let isAnimated = context.transaction.isAnimated
                 || uiView.viewController?.transitionCoordinator?.isAnimated == true
-            let destination = destination.modifier(
-                WindowBridgeAdapter(
+            context.coordinator.isAnimated = isAnimated
+
+            if let adapter = context.coordinator.adapter,
+                !context.coordinator.isBeingReused
+            {
+                adapter.transition = transition
+                adapter.update(
+                    destination: destination,
                     isPresented: isPresented,
-                    transition: transition,
-                    animation: isAnimated ? context.transaction.animation ?? .default : nil
+                    context: context
                 )
-            )
-            if let window = context.coordinator.window, !context.coordinator.isBeingReused {
-                window.content = destination
             } else {
-                let window: HostingWindow<DestinationContent>
-                if let oldValue = context.coordinator.window {
-                    window = oldValue
+                let adapter: WindowLinkDestinationWindowAdapter<Destination>
+                if let oldValue = context.coordinator.adapter {
+                    adapter = oldValue
+                    adapter.transition = transition
+                    adapter.update(
+                        destination: destination,
+                        isPresented: isPresented,
+                        context: context
+                    )
                     context.coordinator.isBeingReused = false
-                    window.content = destination
                 } else {
-                    window = HostingWindow(windowScene: windowScene, content: destination)
-                    context.coordinator.window = window
+                    adapter = WindowLinkDestinationWindowAdapter(
+                        windowScene: windowScene,
+                        destination: destination,
+                        isPresented: isPresented,
+                        transition: transition
+                    )
+                    context.coordinator.adapter = adapter
                 }
                 switch level.rawValue {
                 case .relative(let offset):
-                    window.windowLevel = .init(rawValue: presentingWindow.windowLevel.rawValue + CGFloat(offset))
+                    adapter.window.windowLevel = .init(rawValue: presentingWindow.windowLevel.rawValue + CGFloat(offset))
                 case .fixed(let level):
-                    window.windowLevel = .init(rawValue: CGFloat(level))
+                    adapter.window.windowLevel = .init(rawValue: CGFloat(level))
                 }
 
-                if transition.value != .identity,
-                    uiView.viewController?._transitionCoordinator?.isAnimated == true
-                {
-                    window.alpha = 0
-                }
-
-                presentingWindow.present(window, animated: isAnimated)
+                let fromTransition = transition.value.toUIKit(
+                    isPresented: false
+                )
+                let toTransition = transition.value.toUIKit(
+                    isPresented: true
+                )
+                presentingWindow.present(
+                    adapter.window,
+                    animated: isAnimated,
+                    transition: { isPresented in
+                        if isPresented {
+                            adapter.window.alpha = toTransition.alpha ?? 1
+                            adapter.window.transform = toTransition.t
+                        } else {
+                            adapter.window.alpha = fromTransition.alpha ?? 1
+                            adapter.window.transform = fromTransition.t
+                        }
+                    }
+                )
             }
-        } else if let window = context.coordinator.window, !isPresented.wrappedValue {
-            let isAnimated = context.transaction.isAnimated
-                || (presentingWindow?.presentedViewController?._transitionCoordinator?.isAnimated ?? false)
-            window.content.modifier = WindowBridgeAdapter(
-                isPresented: isPresented,
-                transition: transition,
-                animation: isAnimated ? context.transaction.animation ?? .default : nil
+        } else if let adapter = context.coordinator.adapter,
+            !isPresented.wrappedValue
+        {
+            let isAnimated = context.transaction.isAnimated || PresentationCoordinator.transaction.isAnimated
+            adapter.window.dismiss(
+                animated: isAnimated,
+                transition: {
+                    let transition = transition.value.toUIKit(
+                        isPresented: false
+                    )
+                    adapter.window.alpha = transition.alpha ?? 1
+                    adapter.window.transform = transition.t
+                }
             )
-            window.dismiss(animated: isAnimated)
             if transition.options.isDestinationReusable {
                 context.coordinator.isBeingReused = true
             } else {
-                context.coordinator.window = nil
+                context.coordinator.adapter = nil
             }
         }
     }
@@ -199,7 +250,8 @@ private struct WindowLinkModifierBody<
 
     final class Coordinator: NSObject {
         var isPresented: Binding<Bool>
-        var window: HostingWindow<DestinationContent>?
+        var adapter: WindowLinkDestinationWindowAdapter<Destination>?
+        var isAnimated = false
         var isBeingReused = false
 
         init(isPresented: Binding<Bool>) {
@@ -208,16 +260,73 @@ private struct WindowLinkModifierBody<
     }
 
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
-        let transition = coordinator.window?.content.modifier.transition.value
-        coordinator.window?.dismiss(animated: true, transition: {
-            withCATransaction {
-                coordinator.isPresented.wrappedValue = false
+        if let adapter = coordinator.adapter {
+            if adapter.transition.options.shouldAutomaticallyDismissDestination != false {
+                withCATransaction {
+                    adapter.window.dismiss(
+                        animated: coordinator.isAnimated,
+                        transition: {
+                            let transition = adapter.transition.value.toUIKit(
+                                isPresented: false
+                            )
+                            adapter.window.alpha = transition.alpha ?? 1
+                            adapter.window.transform = transition.t
+                        },
+                        completion: {
+                            withCATransaction {
+                                coordinator.isPresented.wrappedValue = false
+                            }
+                        }
+                    )
+                }
             }
-            if transition != .identity {
-                coordinator.window?.alpha = 0
-            }
-        })
-        coordinator.window = nil
+            coordinator.adapter = nil
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+private class WindowLinkDestinationWindowAdapter<
+    Destination: View
+> {
+
+    typealias DestinationWindow = HostingWindow<ModifiedContent<Destination, WindowBridgeAdapter>>
+
+    var window: DestinationWindow
+    var transition: WindowLinkTransition
+
+    init(
+        windowScene: UIWindowScene,
+        destination: Destination,
+        isPresented: Binding<Bool>,
+        transition: WindowLinkTransition
+    ) {
+        self.transition = transition
+        self.window = DestinationWindow(
+            windowScene: windowScene,
+            content: destination.modifier(
+                WindowBridgeAdapter(
+                    isPresented: isPresented,
+                    transition: transition.value
+                )
+            )
+        )
+    }
+
+    func update(
+        destination: Destination,
+        isPresented: Binding<Bool>,
+        context: WindowLinkModifierBody<Destination>.Context
+    ) {
+        window.content = destination.modifier(
+            WindowBridgeAdapter(
+                isPresented: isPresented,
+                transition: transition.value
+            )
+        )
     }
 }
 

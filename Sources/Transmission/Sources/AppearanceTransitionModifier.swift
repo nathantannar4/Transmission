@@ -5,6 +5,7 @@
 import SwiftUI
 import Engine
 
+@available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *)
 public struct AppearanceTransitionModifier: ViewModifier {
     var transition: AnyTransition
     var animation: Animation?
@@ -34,6 +35,7 @@ public struct AppearanceTransitionModifier: ViewModifier {
     }
 }
 
+@available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *)
 extension View {
     public func appearanceTransition(
         _ transition: AnyTransition,

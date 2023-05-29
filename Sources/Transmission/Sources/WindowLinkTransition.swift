@@ -127,21 +127,16 @@ extension WindowLinkTransition {
     public struct Options {
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
+        /// When `true`, the destination will be dismissed when the presentation source is dismantled
+        public var shouldAutomaticallyDismissDestination: Bool
 
-        public init(isDestinationReusable: Bool = false) {
+        public init(
+            isDestinationReusable: Bool = false,
+            shouldAutomaticallyDismissDestination: Bool = true
+        ) {
             self.isDestinationReusable = isDestinationReusable
+            self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
         }
-    }
-}
-
-@available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
-extension WindowLinkTransition {
-    struct AnimatedValue {
-        var value: Value
-        var animation: Animation?
     }
 }
 
@@ -150,21 +145,6 @@ extension WindowLinkTransition {
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 extension WindowLinkTransition.Value {
-    func toSwiftUITransition() -> AnyTransition {
-        switch self {
-        case .identity:
-            return .identity
-        case .opacity:
-            return .opacity
-        case .move(let edge):
-            return .move(edge: edge)
-        case .scale(let multiplier):
-            return .modifier(active: ScaleModifier(multiplier: multiplier), identity: ScaleModifier(multiplier: 1))
-        case .union(let first, let second):
-            return first.toSwiftUITransition().combined(with: second.toSwiftUITransition())
-        }
-    }
-
     func toSwiftUIAlignment() -> Alignment {
         switch self {
         case .identity, .opacity, .scale:
@@ -185,13 +165,48 @@ extension WindowLinkTransition.Value {
         }
     }
 
-    struct ScaleModifier: ViewModifier {
-        var multiplier: CGFloat
-
-        func body(content: Content) -> some View {
-            content
-                .scaleEffect(multiplier)
-                .ignoresSafeArea()
+    func toUIKit(isPresented: Bool) -> (alpha: CGFloat?, t: CGAffineTransform) {
+        switch self {
+        case .identity:
+            return (nil, .identity)
+        case .opacity:
+            return (isPresented ? 1 : 0, .identity)
+        case .move(let edge):
+            let result: CGAffineTransform = {
+                if !isPresented {
+                    let size = UIScreen.main.bounds.size
+                    switch edge {
+                    case .top:
+                        return CGAffineTransform(translationX: 0, y: -size.height)
+                    case .bottom:
+                        return CGAffineTransform(translationX: 0, y: size.height)
+                    case .leading:
+                        return CGAffineTransform(translationX: -size.width, y: 0)
+                    case .trailing:
+                        return CGAffineTransform(translationX: size.width, y: 0)
+                    }
+                } else {
+                    return .identity
+                }
+            }()
+            return (nil, result)
+        case .scale(let multiplier):
+            let result: CGAffineTransform = {
+                if !isPresented {
+                    return CGAffineTransform(scaleX: multiplier, y: multiplier)
+                } else {
+                    return .identity
+                }
+            }()
+            return (nil, result)
+        case .union(let first, let second):
+            let first = first.toUIKit(
+                isPresented: isPresented
+            )
+            let second = second.toUIKit(
+                isPresented: isPresented
+            )
+            return (first.alpha ?? second.alpha, first.t.concatenating(second.t))
         }
     }
 }
@@ -202,34 +217,20 @@ extension WindowLinkTransition.Value {
 @available(watchOS, unavailable)
 struct WindowBridgeAdapter: ViewModifier {
     var isPresented: Binding<Bool>
-    var transition: WindowLinkTransition.AnimatedValue
+    var transition: WindowLinkTransition.Value
 
     init(
         isPresented: Binding<Bool>,
-        transition: WindowLinkTransition,
-        animation: Animation?
+        transition: WindowLinkTransition.Value
     ) {
         self.isPresented = isPresented
-        self.transition = WindowLinkTransition.AnimatedValue(value: transition.value, animation: animation)
+        self.transition = transition
     }
 
     func body(content: Content) -> some View {
         content
-            .modifier(
-                AppearanceTransitionModifier(
-                    transition: transition.value.toSwiftUITransition(),
-                    animation: transition.animation,
-                    isPresented: isPresented
-                )
-            )
-            .modifier(
-                AppearanceTransitionModifier(
-                    transition: transition.value.toSwiftUITransition(),
-                    animation: transition.animation
-                )
-            )
             .modifier(PresentationBridgeAdapter(isPresented: isPresented))
-            .frame(maxHeight: .infinity, alignment: transition.value.toSwiftUIAlignment())
+            .frame(maxHeight: .infinity, alignment: transition.toSwiftUIAlignment())
     }
 }
 
