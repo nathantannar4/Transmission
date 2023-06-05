@@ -356,7 +356,7 @@ private struct PresentationLinkModifierBody<
                         $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
                     } ?? true
                     if shouldDismiss {
-                        presentingViewController.dismiss(animated: isAnimated) {
+                        presentedViewController.dismiss(animated: isAnimated) {
                             presentingViewController.present(adapter.viewController, animated: isAnimated)
                         }
                     } else {
