@@ -654,7 +654,6 @@ private struct PresentationLinkModifierBody<
                 if #available(iOS 15.0, *) {
                     #if targetEnvironment(macCatalyst)
                     let presentationController = MacSheetPresentationController(
-                        edge: .bottom,
                         presentedViewController: presented,
                         presenting: presenting
                     )
