@@ -398,7 +398,7 @@ extension ShareSheetItem: ShareSheetItemProvider {
         Source(item: self)
     }
 
-    private class Source<T: NSItemProviderWriting>: NSObject, UIActivityItemSource {
+    private class Source: NSObject, UIActivityItemSource {
         let item: ShareSheetItem<T>
 
         init(item: ShareSheetItem<T>) {
@@ -463,7 +463,7 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
         Source(label: label.resolve(in: context.environment), content: content)
     }
 
-    private class Source<Content: View>: NSObject, UIActivityItemSource {
+    private class Source: NSObject, UIActivityItemSource {
         private let label: String
         private let provider: SnapshotRenderProvider
 

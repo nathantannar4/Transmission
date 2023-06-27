@@ -295,23 +295,7 @@ private struct PresentationLinkModifierBody<
                 }
 
                 switch adapter.transition {
-                case .currentContext:
-                    // transitioningDelegate + .custom breaks .overCurrentContext
-                    adapter.viewController.modalPresentationStyle = .overCurrentContext
-                    adapter.viewController.presentationController?.overrideTraitCollection = traits
-
-                case .fullscreen, .sheet, .popover, .`default`:
-                    switch adapter.transition {
-                    case .fullscreen:
-                        adapter.viewController.modalPresentationStyle = .overFullScreen
-
-                    case .`default`:
-                        break
-
-                    default:
-                        adapter.viewController.modalPresentationStyle = .custom
-                    }
-
+                case .`default`:
                     if let presentationController = adapter.viewController.presentationController {
                         presentationController.delegate = context.coordinator
                         presentationController.overrideTraitCollection = traits
@@ -333,19 +317,32 @@ private struct PresentationLinkModifierBody<
                                     layoutDirection: traits.layoutDirection
                                 )
                                 popoverPresentationController.permittedArrowDirections = permittedArrowDirections
+                                #if !os(xrOS)
                                 popoverPresentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
+                                #endif
                             }
                         }
                     }
 
-                case .slide:
+                case .currentContext:
+                    // transitioningDelegate + .custom breaks .overCurrentContext
+                    adapter.viewController.modalPresentationStyle = .overCurrentContext
+                    adapter.viewController.presentationController?.overrideTraitCollection = traits
+
+                case .fullscreen:
+                    adapter.viewController.modalPresentationStyle = .overFullScreen
+                    adapter.viewController.presentationController?.overrideTraitCollection = traits
+
+                case .sheet, .popover, .slide:
+                    context.coordinator.sourceView = uiView
+                    context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
                 case .custom(_, let transition):
                     assert(!isClassType(transition), "PresentationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
+                    context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
-                    adapter.viewController.presentationController?.overrideTraitCollection = traits
                 }
 
                 // Swizzle to hook up for programatic dismissal
@@ -407,6 +404,7 @@ private struct PresentationLinkModifierBody<
         var isBeingReused = false
         var isAnimated = false
         unowned var sourceView: UIView!
+        var overrideTraitCollection: UITraitCollection?
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
@@ -676,7 +674,11 @@ private struct PresentationLinkModifierBody<
                     presentationController.prefersScrollingExpandsWhenScrolledToEdge = configuration.prefersScrollingExpandsWhenScrolledToEdge
                     presentationController.prefersEdgeAttachedInCompactHeight = configuration.prefersEdgeAttachedInCompactHeight
                     presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = configuration.widthFollowsPreferredContentSizeWhenEdgeAttached
+                    if configuration.prefersSourceViewAlignment {
+                        presentationController.sourceView = sourceView
+                    }
                     presentationController.preferredBackgroundColor = configuration.options.preferredPresentationBackgroundUIColor
+                    presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
                     return presentationController
                     #endif
@@ -686,6 +688,7 @@ private struct PresentationLinkModifierBody<
                         presentedViewController: presented,
                         presenting: presenting
                     )
+                    presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
                     return presentationController
                 }
@@ -699,6 +702,8 @@ private struct PresentationLinkModifierBody<
                 presentationController.permittedArrowDirections = options.permittedArrowDirections(
                     layoutDirection: presentationController.traitCollection.layoutDirection
                 )
+                presentationController.sourceView = sourceView
+                presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
 
@@ -708,6 +713,7 @@ private struct PresentationLinkModifierBody<
                     presenting: presenting
                 )
                 presentationController.edge = options.edge
+                presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
 
@@ -717,6 +723,7 @@ private struct PresentationLinkModifierBody<
                     presented: presented,
                     presenting: presenting
                 )
+                presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
 

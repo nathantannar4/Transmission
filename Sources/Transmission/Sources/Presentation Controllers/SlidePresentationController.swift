@@ -52,7 +52,6 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
             x: gestureTranslation.x - translationOffset.x,
             y: gestureTranslation.y - translationOffset.y
         )
-        let velocity = gestureRecognizer.velocity(in: containerView)
         let translation: CGFloat
         let percentage: CGFloat
         switch edge {
@@ -129,54 +128,50 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
 
         switch gestureRecognizer.state {
         case .began, .changed:
-            scrollView.map { scrollToTop(scrollView: $0) }
-            transition.update(percentage)
+            if let scrollView = scrollView {
+                switch edge {
+                case .top:
+                    scrollView.contentOffset.y = max(-scrollView.adjustedContentInset.top, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.frame.height)
+
+                case .bottom:
+                    scrollView.contentOffset.y = -scrollView.adjustedContentInset.top
+
+                case .leading:
+                    scrollView.contentOffset.x = max(-scrollView.adjustedContentInset.left, scrollView.contentSize.width + scrollView.adjustedContentInset.left - scrollView.frame.width)
+
+                case .trailing:
+                    scrollView.contentOffset.x = -scrollView.adjustedContentInset.right
+                }
+            }
+
+            transition.update(abs(percentage))
 
         case .ended, .cancelled:
-            isTransitioning = false
-            translationOffset = .zero
             // Dismiss if:
             // - Drag over 50% and not moving up
             // - Large enough down vector
-            let dyx: CGFloat
+            let velocity: CGFloat
             switch edge {
             case .top:
-                dyx = -velocity.y
+                velocity = -gestureRecognizer.velocity(in: containerView).y
             case .bottom:
-                dyx = velocity.y
+                velocity = gestureRecognizer.velocity(in: containerView).y
             case .leading:
-                dyx = -velocity.x
+                velocity = -gestureRecognizer.velocity(in: containerView).x
             case .trailing:
-                dyx = velocity.x
+                velocity = gestureRecognizer.velocity(in: containerView).x
             }
-            if abs(dyx) < 1000 {
-                transition.completionSpeed = 0.5
-            }
-            let shouldDismiss = (percentage > 0.5 && dyx > 0) || dyx >= 1000
+            let shouldDismiss = (abs(percentage) > 0.5 && velocity > 0) || velocity >= 1000
             if shouldDismiss {
                 transition.finish()
             } else {
                 transition.cancel()
             }
+            isTransitioning = false
+            translationOffset = .zero
 
         default:
-            return
-        }
-    }
-
-    private func scrollToTop(scrollView: UIScrollView) {
-        switch edge {
-        case .top:
-            scrollView.contentOffset.y = max(-scrollView.adjustedContentInset.top, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.frame.height)
-
-        case .bottom:
-            scrollView.contentOffset.y = -scrollView.adjustedContentInset.top
-
-        case .leading:
-            scrollView.contentOffset.x = max(-scrollView.adjustedContentInset.left, scrollView.contentSize.width + scrollView.adjustedContentInset.left - scrollView.frame.width)
-
-        case .trailing:
-            scrollView.contentOffset.x = -scrollView.adjustedContentInset.right
+            break
         }
     }
 
