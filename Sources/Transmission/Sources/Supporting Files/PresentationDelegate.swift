@@ -61,6 +61,7 @@ extension UIViewController {
             }
             next = current.presentedViewController
         }
+        let presentingViewController = presentingViewController
         swizzled_dismiss(animated: flag) {
             if self.transitionCoordinator?.isCancelled != true {
                 for delegate in presentedDelegates.reversed() {
@@ -74,8 +75,21 @@ extension UIViewController {
                 for delegate in parentDelegates.reversed() {
                     delegate.viewControllerDidDismiss()
                 }
+
+                presentingViewController?.fixSwiftUIHitTesting()
             }
             completion?()
+        }
+    }
+
+    func fixSwiftUIHitTesting() {
+        if let view = viewIfLoaded {
+            // This fixes SwiftUI's gesture handling that can get messed up when applying
+            // transforms and/or frame changes during an interactive presentation. This resets
+            // SwiftUI's geometry in a clean way, fixing hit testing.
+            let frame = view.frame
+            view.frame = .zero
+            view.frame = frame
         }
     }
 }

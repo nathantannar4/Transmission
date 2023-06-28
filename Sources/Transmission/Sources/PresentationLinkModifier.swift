@@ -425,14 +425,7 @@ private struct PresentationLinkModifierBody<
         func presentationControllerDidDismiss(
             _ presentationController: UIPresentationController
         ) {
-            if let toView = presentationController.presentingViewController.viewIfLoaded {
-                // This fixes SwiftUI's gesture handling that can get messed up when applying
-                // transforms and/or frame changes during an interactive presentation. This resets
-                // SwiftUI's geometry in a clean way, fixing hit testing.
-                let frame = toView.frame
-                toView.frame = .zero
-                toView.frame = frame
-            }
+            presentationController.presentingViewController.fixSwiftUIHitTesting()
         }
 
         func presentationControllerShouldDismiss(
@@ -456,14 +449,7 @@ private struct PresentationLinkModifierBody<
         func presentationControllerDidAttemptToDismiss(
             _ presentationController: UIPresentationController
         ) {
-            if let fromView = presentationController.presentedViewController.viewIfLoaded {
-                // This fixes SwiftUI's gesture handling that can get messed up when applying
-                // transforms and/or frame changes during an interactive presentation. This resets
-                // SwiftUI's geometry in a clean way, fixing hit testing.
-                let frame = fromView.frame
-                fromView.frame = .zero
-                fromView.frame = frame
-            }
+            presentationController.presentedViewController.fixSwiftUIHitTesting()
         }
 
         func adaptivePresentationStyle(
