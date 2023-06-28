@@ -123,6 +123,7 @@ struct PresentationLink_Previews: PreviewProvider {
                     Text("Default")
                 }
 
+                #if !os(xrOS)
                 PresentationLink(
                     transition: .sheet(detents: [.medium])
                 ) {
@@ -130,6 +131,7 @@ struct PresentationLink_Previews: PreviewProvider {
                 } label: {
                     Text("Present Partial Sheet")
                 }
+                #endif
 
                 PresentationLink(
                     transition: .fullscreen

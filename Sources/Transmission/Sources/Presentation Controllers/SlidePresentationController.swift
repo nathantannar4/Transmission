@@ -254,6 +254,8 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
     static let displayCornerRadius: CGFloat = {
         #if targetEnvironment(macCatalyst)
         return 12
+        #elseif os(xrOS)
+        return 0
         #else
         let key = String("suidaRrenroCyalpsid_".reversed())
         let value = UIScreen.main.value(forKey: key) as? CGFloat ?? 0

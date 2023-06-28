@@ -229,7 +229,9 @@ private struct PresentationLinkModifierBody<
                         presentationController.permittedArrowDirections = newValue.permittedArrowDirections(
                             layoutDirection: traits.layoutDirection
                         )
+                        #if !os(xrOS)
                         presentationController.backgroundColor = newValue.options.preferredPresentationBackgroundUIColor
+                        #endif
                     } else if #available(iOS 15.0, *) {
                         if let newValue = newValue.adaptiveTransition,
                             let presentationController = adapter.viewController.presentationController as? SheetPresentationController
@@ -305,7 +307,7 @@ private struct PresentationLinkModifierBody<
                         {
                             sheetPresentationController.delegate = context.coordinator
                             if case .sheet(let options) = adapter.transition,
-                                options.prefersSourceViewAlignment
+                               options.prefersSourceViewAlignment
                             {
                                 sheetPresentationController.sourceView = uiView
                             }
@@ -652,6 +654,7 @@ private struct PresentationLinkModifierBody<
                         presentedViewController: presented,
                         presenting: presenting
                     )
+                    #if !os(xrOS)
                     presentationController.detents = configuration.detents.map { $0.resolve(in: presentationController).toUIKit() }
                     presentationController.selectedDetentIdentifier = (configuration.selected?.wrappedValue ?? configuration.detents.first?.identifier)?.toUIKit()
                     presentationController.largestUndimmedDetentIdentifier = configuration.largestUndimmedDetentIdentifier?.toUIKit()
@@ -660,6 +663,7 @@ private struct PresentationLinkModifierBody<
                     presentationController.prefersScrollingExpandsWhenScrolledToEdge = configuration.prefersScrollingExpandsWhenScrolledToEdge
                     presentationController.prefersEdgeAttachedInCompactHeight = configuration.prefersEdgeAttachedInCompactHeight
                     presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = configuration.widthFollowsPreferredContentSizeWhenEdgeAttached
+                    #endif
                     if configuration.prefersSourceViewAlignment {
                         presentationController.sourceView = sourceView
                     }
@@ -718,12 +722,12 @@ private struct PresentationLinkModifierBody<
             }
         }
 
+        #if !targetEnvironment(macCatalyst) && !os(xrOS)
         func presentationController(
             _ presentationController: UIPresentationController,
             willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
             transitionCoordinator: UIViewControllerTransitionCoordinator?
         ) {
-            #if !targetEnvironment(macCatalyst)
             if #available(iOS 15.0, *) {
                 if let sheetPresentationController = presentationController as? SheetPresentationController {
                     transitionCoordinator?.animate(alongsideTransition: { _ in
@@ -731,15 +735,13 @@ private struct PresentationLinkModifierBody<
                     })
                 }
             }
-            #endif
         }
+        #endif
 
         // MARK: - UISheetPresentationControllerDelegate
 
+        #if os(iOS) && !os(xrOS)
         @available(iOS 15.0, *)
-        @available(macOS, unavailable)
-        @available(tvOS, unavailable)
-        @available(watchOS, unavailable)
         func sheetPresentationControllerDidChangeSelectedDetentIdentifier(
             _ sheetPresentationController: UISheetPresentationController
         ) {
@@ -765,7 +767,7 @@ private struct PresentationLinkModifierBody<
                 }
             }
         }
-
+        #endif
         // MARK: - UIPopoverPresentationControllerDelegate
 
         func prepareForPopoverPresentation(
@@ -960,7 +962,11 @@ extension PresentationLinkTransition.Value {
         switch self {
         case .sheet(let options):
             if #available(iOS 15.0, *) {
-                viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal })
+                var tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
+                #if !os(xrOS)
+                tracksContentSize = tracksContentSize || options.detents.contains(where: { $0.identifier == .ideal })
+                #endif
+                viewController.tracksContentSize = tracksContentSize
             } else {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
             }

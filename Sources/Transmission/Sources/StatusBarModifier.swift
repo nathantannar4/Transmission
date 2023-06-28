@@ -2,7 +2,7 @@
 // Copyright (c) Nathan Tannar
 //
 
-#if os(iOS)
+#if os(iOS) && !os(xrOS)
 
 import SwiftUI
 import Engine
@@ -11,6 +11,7 @@ import Engine
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
+@available(xrOS, unavailable)
 extension View {
     /// Sets the preferred status bar style of the hosting views `UIViewController`
     ///
@@ -37,6 +38,7 @@ extension View {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
+@available(xrOS, unavailable)
 @frozen
 public struct PreferredStatusBarStyleModifier: ViewModifier {
     var style: UIStatusBarStyle
@@ -57,6 +59,7 @@ public struct PreferredStatusBarStyleModifier: ViewModifier {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
+@available(xrOS, unavailable)
 private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
     var style: UIStatusBarStyle
 
@@ -106,6 +109,7 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
+@available(xrOS, unavailable)
 public struct PrefersStatusBarHiddenModifier: ViewModifier {
     var isHidden: Bool
 
@@ -125,6 +129,7 @@ public struct PrefersStatusBarHiddenModifier: ViewModifier {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
+@available(xrOS, unavailable)
 private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
     var isHidden: Bool
 

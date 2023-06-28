@@ -39,6 +39,7 @@ open class HostingController<
             return
         }
 
+        #if !os(xrOS)
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,
             let sheetPresentationController = presentationController as? UISheetPresentationController,
@@ -51,7 +52,7 @@ open class HostingController<
             else {
                 return
             }
-
+            
             func performTransition(completion: (() -> Void)? = nil) {
                 UIView.transition(
                     with: containerView,
@@ -68,7 +69,7 @@ open class HostingController<
                     completion?()
                 }
             }
-
+            
             if #available(iOS 16.0, *) {
                 try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
                 performTransition {
@@ -79,8 +80,11 @@ open class HostingController<
                     performTransition()
                 }
             }
+            return
+        }
+        #endif
 
-        } else if tracksContentSize {
+        if tracksContentSize {
             if #available(iOS 16.0, *) {
                 try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
                 if presentingViewController != nil,
@@ -128,9 +132,24 @@ open class _HostingController<
     Content: View
 >: UIHostingController<Content> {
 
+    @available(iOS, introduced: 13.0, deprecated: 100000.0, message: "Please use UIHostingController/safeAreaRegions")
+    @available(tvOS, introduced: 13.0, deprecated: 100000.0, message: "Please use UIHostingController/safeAreaRegions")
+    @available(xrOS, introduced: 0.0, deprecated: 100000.0, message: "Please use UIHostingController/safeAreaRegions")
     public var disablesSafeArea: Bool {
-        get { _disableSafeArea }
-        set { _disableSafeArea = newValue }
+        get {
+            #if os(xrOS)
+            safeAreaRegions.isEmpty
+            #else
+            _disableSafeArea
+            #endif
+        }
+        set {
+            #if os(xrOS)
+            safeAreaRegions = newValue ? [] : .all
+            #else
+            _disableSafeArea = newValue
+            #endif
+        }
     }
 
     public init(content: Content) {

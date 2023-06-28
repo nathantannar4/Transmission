@@ -60,6 +60,7 @@ public struct WindowLinkTransition {
     public static let opacity = WindowLinkTransition(value: .opacity, options: .init())
 
     /// The move transition.
+    @available(xrOS, unavailable)
     public static func move(edge: Edge) -> WindowLinkTransition {
         WindowLinkTransition(value: .move(edge: edge), options: .init())
     }
@@ -91,6 +92,7 @@ extension WindowLinkTransition {
     }
 
     /// The move transition.
+    @available(xrOS, unavailable)
     public static func move(
         edge: Edge,
         options: Options
@@ -173,6 +175,9 @@ extension WindowLinkTransition.Value {
             return (isPresented ? 1 : 0, .identity)
         case .move(let edge):
             let result: CGAffineTransform = {
+                #if os(xrOS)
+                return .identity
+                #else
                 if !isPresented {
                     let size = UIScreen.main.bounds.size
                     switch edge {
@@ -188,6 +193,7 @@ extension WindowLinkTransition.Value {
                 } else {
                     return .identity
                 }
+                #endif
             }()
             return (nil, result)
         case .scale(let multiplier):

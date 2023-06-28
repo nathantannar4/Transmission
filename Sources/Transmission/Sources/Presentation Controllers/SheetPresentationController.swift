@@ -265,6 +265,8 @@ extension PresentationLinkTransition.SheetTransitionOptions {
         from oldValue: Self,
         to newValue: Self
     ) {
+        presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
+        #if !os(xrOS)
         lazy var detents = newValue.detents.map { $0.resolve(in: presentationController) }
         #if targetEnvironment(macCatalyst)
         let cornerRadius = newValue.preferredCornerRadius
@@ -283,7 +285,6 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             return false
         }()
         #else
-        presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
         let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
         let hasChanges: Bool = {
             if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {
@@ -333,6 +334,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
                 applyConfiguration()
             }
         }
+        #endif
     }
 }
 

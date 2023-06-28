@@ -7,6 +7,7 @@
 import UIKit
 
 @available(iOS 15.0, *)
+@available(xrOS, unavailable)
 extension UISheetPresentationController.Detent {
     var id: String? {
         if #available(iOS 16.0, *) {

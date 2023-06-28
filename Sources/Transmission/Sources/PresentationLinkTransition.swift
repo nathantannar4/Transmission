@@ -54,6 +54,7 @@ public struct PresentationLinkTransition {
     public static let popover = PresentationLinkTransition(value: .popover(.init()))
 
     /// The slide presentation style.
+    @available(xrOS, unavailable)
     public static let slide = PresentationLinkTransition(value: .slide(.init()))
 
     /// A custom presentation style.
@@ -112,6 +113,9 @@ extension PresentationLinkTransition {
     @frozen
     public struct SheetTransitionOptions {
         /// The detent of the sheet transition
+        @available(macOS, unavailable)
+        @available(tvOS, unavailable)
+        @available(watchOS, unavailable)
         @frozen
         public struct Detent: Equatable {
             /// The identifier of a detent
@@ -132,6 +136,9 @@ extension PresentationLinkTransition {
                 }
 
                 public var debugDescription: String {
+                    #if os(xrOS)
+                    return rawValue
+                    #else
                     if #available(iOS 15.0, *) {
                         switch self {
                         case .large:
@@ -143,30 +150,23 @@ extension PresentationLinkTransition {
                         }
                     }
                     return rawValue
+                    #endif
                 }
 
                 @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
+                @available(xrOS, unavailable)
                 public static let large = Identifier(UISheetPresentationController.Detent.Identifier.large.rawValue)
 
                 @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
+                @available(xrOS, unavailable)
                 public static let medium = Identifier(UISheetPresentationController.Detent.Identifier.medium.rawValue)
 
                 @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
+                @available(xrOS, unavailable)
                 public static let ideal = Identifier("ideal")
 
                 @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
+                @available(xrOS, unavailable)
                 func toUIKit() -> UISheetPresentationController.Detent.Identifier {
                     .init(rawValue: rawValue)
                 }
@@ -205,39 +205,29 @@ extension PresentationLinkTransition {
 
             /// Creates a large detent.
             @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
+            @available(xrOS, unavailable)
             public static let large = Detent(identifier: .large)
 
             /// Creates a medium detent.
             @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
+            @available(xrOS, unavailable)
             public static let medium = Detent(identifier: .medium)
 
             /// Creates a detent with an auto-resolved height of the views ideal size.
             @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
+            @available(xrOS, unavailable)
             public static let ideal = Detent(identifier: .ideal)
 
             /// Creates a detent with a constant height.
             @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
+            @available(xrOS, unavailable)
             public static func constant(_ identifier: Identifier, height: CGFloat) -> Detent {
                 Detent(identifier: identifier, height: height)
             }
 
             /// Creates a detent that's height is lazily resolved.
             @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
+            @available(xrOS, unavailable)
             public static func custom(
                 _ identifier: Identifier,
                 resolver: @escaping (ResolutionContext) -> CGFloat?
@@ -246,9 +236,7 @@ extension PresentationLinkTransition {
             }
 
             @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
+            @available(xrOS, unavailable)
             func resolve(in presentationController: UIPresentationController) -> Detent {
                 switch identifier {
                 case .ideal:
@@ -289,9 +277,7 @@ extension PresentationLinkTransition {
             }
 
             @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
+            @available(xrOS, unavailable)
             func toUIKit() -> UISheetPresentationController.Detent {
                 switch identifier {
                 case .large:
@@ -349,11 +335,15 @@ extension PresentationLinkTransition {
         ) {
             self.options = options
             self.selected = selected
+            #if os(xrOS)
+            self.detents = []
+            #else
             if #available(iOS 15.0, *) {
                 self.detents = detents ?? [.large]
             } else {
                 self.detents = []
             }
+            #endif
             self.largestUndimmedDetentIdentifier = largestUndimmedDetentIdentifier
             self.isInteractive = isInteractive
             self.prefersGrabberVisible = prefersGrabberVisible
@@ -503,6 +493,7 @@ extension PresentationLinkTransition {
     }
 
     /// The slide presentation style.
+    @available(xrOS, unavailable)
     public static func slide(
         edge: Edge
     ) -> PresentationLinkTransition {
@@ -510,6 +501,7 @@ extension PresentationLinkTransition {
     }
 
     /// The slide presentation style.
+    @available(xrOS, unavailable)
     public static func slide(
         options: SlideTransitionOptions
     ) -> PresentationLinkTransition {
