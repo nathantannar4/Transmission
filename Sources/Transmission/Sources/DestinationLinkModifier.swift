@@ -177,14 +177,14 @@ private struct DestinationLinkModifierBody<
             if let adapter = context.coordinator.adapter {
                 adapter.update(
                     destination: destination,
-                    modifier: DestinationBridgeAdapter(isPresented: isPresented),
+                    isPresented: isPresented,
                     context: context
                 )
             } else if let navigationController = presentingViewController.navigationController {
 
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
-                    modifier: DestinationBridgeAdapter(isPresented: isPresented),
+                    isPresented: isPresented,
                     transition: transition.value,
                     context: context
                 )
@@ -228,7 +228,7 @@ private struct DestinationLinkModifierBody<
         UINavigationControllerDelegate
     {
         var isPresented: Binding<Bool>
-        var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, DestinationBridgeAdapter>?
+        var adapter: DestinationLinkDestinationViewControllerAdapter<Destination>?
         var isAnimated = false
         unowned var sourceView: UIView!
 
@@ -473,25 +473,37 @@ extension UINavigationController {
 @available(macOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
-private class DestinationLinkDestinationViewControllerAdapter<Destination: View, Modifier: ViewModifier> {
+private class DestinationLinkDestinationViewControllerAdapter<Destination: View> {
     var viewController: UIViewController!
     var context: Any!
+
+    typealias DestinationController = HostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
     var transition: DestinationLinkTransition.Value
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
 
     init(
         destination: Destination,
-        modifier: Modifier,
+        isPresented: Binding<Bool>,
         transition: DestinationLinkTransition.Value,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
         self.transition = transition
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
-            update(destination: destination, modifier: modifier, context: context)
+            update(
+                destination: destination,
+                isPresented: isPresented,
+                context: context
+            )
         } else {
-            self.viewController = HostingController(content: destination.modifier(modifier))
+            self.viewController = DestinationController(
+                content: destination.modifier(
+                    DestinationBridgeAdapter(
+                        isPresented: isPresented
+                    )
+                )
+            )
         }
     }
 
@@ -499,6 +511,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View,
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: nil,
+                isPresented: .constant(false),
                 context: nil,
                 adapter: self
             )
@@ -508,33 +521,71 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View,
 
     func update(
         destination: Destination,
-        modifier: Modifier,
+        isPresented: Binding<Bool>,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
+                isPresented: isPresented,
                 context: context,
                 adapter: self
             )
             conformance.visit(visitor: &visitor)
         } else {
-            let viewController = viewController as! HostingController<ModifiedContent<Destination, Modifier>>
-            viewController.content = destination.modifier(modifier)
+            let viewController = viewController as! DestinationController
+            viewController.content = destination.modifier(
+                DestinationBridgeAdapter(
+                    isPresented: isPresented
+                )
+            )
         }
     }
 
     private struct Context<Coordinator> {
-        var coordinator: Coordinator
-        var transaction: Transaction
-        var environment: EnvironmentValues
-        var preferenceBridge: AnyObject?
+        // Only `UIViewRepresentable` uses V4
+        struct V4 {
+            struct RepresentableContextValues {
+                enum EnvironmentStorage {
+                    case eager(EnvironmentValues)
+                    case lazy(() -> EnvironmentValues)
+                }
+                var preferenceBridge: AnyObject?
+                var transaction: Transaction
+                var environmentStorage: EnvironmentStorage
+            }
+
+            var values: RepresentableContextValues
+            var coordinator: Coordinator
+
+            var environment: EnvironmentValues {
+                get {
+                    switch values.environmentStorage {
+                    case .eager(let environment):
+                        return environment
+                    case .lazy(let block):
+                        return block()
+                    }
+                }
+                set {
+                    values.environmentStorage = .eager(newValue)
+                }
+            }
+        }
+
+        struct V1 {
+            var coordinator: Coordinator
+            var transaction: Transaction
+            var environment: EnvironmentValues
+            var preferenceBridge: AnyObject?
+        }
     }
 
     private struct Visitor: ViewVisitor {
         var destination: Destination?
+        var isPresented: Binding<Bool>
         var context: DestinationLinkModifierBody<Destination>.Context?
-        var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, Modifier>
+        var adapter: DestinationLinkDestinationViewControllerAdapter<Destination>
 
         mutating func visit<Content>(type: Content.Type) where Content: UIViewControllerRepresentable {
             guard
@@ -551,12 +602,21 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View,
                 return
             }
             if adapter.context == nil {
-                let preferenceBridge = unsafeBitCast(
-                    context,
-                    to: Context<DestinationLinkModifierBody<Destination>.Coordinator>.self
-                ).preferenceBridge
-                let context = Context(
-                    coordinator: destination.makeCoordinator(),
+                let coordinator = destination.makeCoordinator()
+                let preferenceBridge: AnyObject?
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+                    preferenceBridge = unsafeBitCast(
+                        context,
+                        to: Context<DestinationLinkModifierBody<Destination>.Coordinator>.V4.self
+                    ).values.preferenceBridge
+                } else {
+                    preferenceBridge = unsafeBitCast(
+                        context,
+                        to: Context<DestinationLinkModifierBody<Destination>.Coordinator>.V1.self
+                    ).preferenceBridge
+                }
+                let context = Context<Content.Coordinator>.V1(
+                    coordinator: coordinator,
                     transaction: context.transaction,
                     environment: context.environment,
                     preferenceBridge: preferenceBridge
@@ -564,15 +624,23 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View,
                 adapter.context = unsafeBitCast(context, to: Content.Context.self)
             }
             func project<T>(_ value: T) -> Content.Context {
-                unsafeBitCast(value, to: Content.Context.self)
+                let isPresented = self.isPresented
+                let destinationCoordinator = DestinationCoordinator(
+                    isPresented: isPresented.wrappedValue,
+                    dismissBlock: {
+                        isPresented.wrappedValue = false
+                    }
+                )
+                var ctx = unsafeBitCast(value, to: Context<Content.Coordinator>.V1.self)
+                ctx.environment.destinationCoordinator = destinationCoordinator
+                return unsafeBitCast(ctx, to: Content.Context.self)
             }
             let ctx = _openExistential(adapter.context!, do: project)
             if adapter.viewController == nil {
                 adapter.viewController = destination.makeUIViewController(context: ctx)
-            } else {
-                let viewController = adapter.viewController as! Content.UIViewControllerType
-                destination.updateUIViewController(viewController, context: ctx)
             }
+            let viewController = adapter.viewController as! Content.UIViewControllerType
+            destination.updateUIViewController(viewController, context: ctx)
         }
     }
 }

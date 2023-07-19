@@ -883,10 +883,42 @@ private class PresentationLinkDestinationViewControllerAdapter<
     }
 
     private struct Context<Coordinator> {
-        var coordinator: Coordinator
-        var transaction: Transaction
-        var environment: EnvironmentValues
-        var preferenceBridge: AnyObject?
+        // Only `UIViewRepresentable` uses V4
+        struct V4 {
+            struct RepresentableContextValues {
+                enum EnvironmentStorage {
+                    case eager(EnvironmentValues)
+                    case lazy(() -> EnvironmentValues)
+                }
+                var preferenceBridge: AnyObject?
+                var transaction: Transaction
+                var environmentStorage: EnvironmentStorage
+            }
+
+            var values: RepresentableContextValues
+            var coordinator: Coordinator
+
+            var environment: EnvironmentValues {
+                get {
+                    switch values.environmentStorage {
+                    case .eager(let environment):
+                        return environment
+                    case .lazy(let block):
+                        return block()
+                    }
+                }
+                set {
+                    values.environmentStorage = .eager(newValue)
+                }
+            }
+        }
+
+        struct V1 {
+            var coordinator: Coordinator
+            var transaction: Transaction
+            var environment: EnvironmentValues
+            var preferenceBridge: AnyObject?
+        }
     }
 
     private struct Visitor: ViewVisitor {
@@ -911,12 +943,21 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 return
             }
             if adapter.context == nil {
-                let preferenceBridge = unsafeBitCast(
-                    context,
-                    to: Context<PresentationLinkModifierBody<Destination>.Coordinator>.self
-                ).preferenceBridge
-                let context = Context(
-                    coordinator: destination.makeCoordinator(),
+                let coordinator = destination.makeCoordinator()
+                let preferenceBridge: AnyObject?
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+                    preferenceBridge = unsafeBitCast(
+                        context,
+                        to: Context<PresentationLinkModifierBody<Destination>.Coordinator>.V4.self
+                    ).values.preferenceBridge
+                } else {
+                    preferenceBridge = unsafeBitCast(
+                        context,
+                        to: Context<PresentationLinkModifierBody<Destination>.Coordinator>.V1.self
+                    ).preferenceBridge
+                }
+                let context = Context<Content.Coordinator>.V1(
+                    coordinator: coordinator,
                     transaction: context.transaction,
                     environment: context.environment,
                     preferenceBridge: preferenceBridge
@@ -924,24 +965,24 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 adapter.context = unsafeBitCast(context, to: Content.Context.self)
             }
             func project<T>(_ value: T) -> Content.Context {
-                var ctx = unsafeBitCast(value, to: Context<Content.Coordinator>.self)
                 let isPresented = self.isPresented
-                ctx.environment.presentationCoordinator = PresentationCoordinator(
+                let presentationCoordinator = PresentationCoordinator(
                     isPresented: isPresented.wrappedValue,
                     sourceView: sourceView,
                     dismissBlock: {
                         isPresented.wrappedValue = false
                     }
                 )
+                var ctx = unsafeBitCast(value, to: Context<Content.Coordinator>.V1.self)
+                ctx.environment.presentationCoordinator = presentationCoordinator
                 return unsafeBitCast(ctx, to: Content.Context.self)
             }
             let ctx = _openExistential(adapter.context!, do: project)
             if adapter.viewController == nil {
                 adapter.viewController = destination.makeUIViewController(context: ctx)
-            } else {
-                let viewController = adapter.viewController as! Content.UIViewControllerType
-                destination.updateUIViewController(viewController, context: ctx)
             }
+            let viewController = adapter.viewController as! Content.UIViewControllerType
+            destination.updateUIViewController(viewController, context: ctx)
         }
     }
 }
