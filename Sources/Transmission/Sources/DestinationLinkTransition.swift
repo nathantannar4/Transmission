@@ -46,11 +46,26 @@ extension DestinationLinkTransition {
     public struct Options {
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
+        public var preferredPresentationBackgroundColor: Color?
 
         public init(
-            shouldAutomaticallyDismissDestination: Bool = true
+            shouldAutomaticallyDismissDestination: Bool = true,
+            preferredPresentationBackgroundColor: Color? = nil
         ) {
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
+            self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
+        }
+
+        var preferredPresentationBackgroundUIColor: UIColor? {
+            guard let color = preferredPresentationBackgroundColor else {
+                return nil
+            }
+            // Need to extract the UIColor since because SwiftUI's UIColor init
+            // from a Color does not work for dynamic colors when set on UIView's
+            let uiColor = Mirror(reflecting: color).children.lazy.compactMap({ child in
+                Mirror(reflecting: child.value).children.first?.value as? UIColor
+            }).first
+            return uiColor ?? UIColor(color)
         }
     }
 }

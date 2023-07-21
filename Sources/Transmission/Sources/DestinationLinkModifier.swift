@@ -159,18 +159,6 @@ private struct DestinationLinkModifierBody<
 
             context.coordinator.isPresented = isPresented
 
-            let isPresented = Binding<Bool>(
-                get: { true },
-                set: { newValue, transaction in
-                    if !newValue {
-                        let isAnimated = transaction.isAnimated || DestinationCoordinator.transaction.isAnimated
-                        context.coordinator.adapter?.viewController._popViewController(animated: isAnimated) {
-                            DestinationCoordinator.transaction = nil
-                        }
-                    }
-                }
-            )
-
             let isAnimated = context.transaction.isAnimated || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
             context.coordinator.isAnimated = isAnimated
 
@@ -497,13 +485,15 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
                 context: context
             )
         } else {
-            self.viewController = DestinationController(
+            let viewController = DestinationController(
                 content: destination.modifier(
                     DestinationBridgeAdapter(
                         isPresented: isPresented
                     )
                 )
             )
+            transition.update(viewController)
+            self.viewController = viewController
         }
     }
 
@@ -524,6 +514,21 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
         isPresented: Binding<Bool>,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
+        let transaction = context.transaction
+        let isPresented = Binding<Bool>(
+            get: { true },
+            set: { [weak viewController] newValue, transaction in
+                if !newValue, let viewController = viewController {
+                    let isAnimated = transaction.isAnimated
+                        || viewController.transitionCoordinator?.isAnimated == true
+                        || DestinationCoordinator.transaction.isAnimated
+                    viewController._popViewController(animated: isAnimated) {
+                        DestinationCoordinator.transaction = nil
+                    }
+                }
+            }
+        )
+
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
@@ -539,6 +544,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
                     isPresented: isPresented
                 )
             )
+            transition.update(viewController)
         }
     }
 
@@ -644,5 +650,18 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
         }
     }
 }
+
+@available(iOS 14.0, *)
+@available(macOS, unavailable)
+@available(tvOS, unavailable)
+@available(watchOS, unavailable)
+extension DestinationLinkTransition.Value {
+
+    func update<Content: View>(_ viewController: HostingController<Content>) {
+
+        viewController.view.backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
+    }
+}
+
 
 #endif

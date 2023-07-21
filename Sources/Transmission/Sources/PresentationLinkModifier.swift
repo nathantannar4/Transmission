@@ -189,18 +189,6 @@ private struct PresentationLinkModifierBody<
                 UITraitCollection(userInterfaceLevel: .elevated)
             ])
 
-            let isPresented = Binding<Bool>(
-                get: { true },
-                set: { newValue, transaction in
-                    if !newValue {
-                        let isAnimated = transaction.isAnimated || PresentationCoordinator.transaction.isAnimated
-                        context.coordinator.adapter?.viewController?.dismiss(animated: isAnimated) {
-                            PresentationCoordinator.transaction = nil
-                        }
-                    }
-                }
-            )
-
             let isAnimated = context.transaction.isAnimated || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
             context.coordinator.isAnimated = isAnimated
             if let adapter = context.coordinator.adapter,
@@ -859,6 +847,20 @@ private class PresentationLinkDestinationViewControllerAdapter<
         sourceView: UIView,
         context: PresentationLinkModifierBody<Destination>.Context
     ) {
+        let transaction = context.transaction
+        let isPresented = Binding<Bool>(
+            get: { true },
+            set: { [weak viewController] newValue, transaction in
+                if !newValue, let viewController = viewController {
+                    let isAnimated = transaction.isAnimated
+                        || viewController.transitionCoordinator?.isAnimated == true
+                        || PresentationCoordinator.transaction.isAnimated
+                    viewController.dismiss(animated: isAnimated) {
+                        PresentationCoordinator.transaction = nil
+                    }
+                }
+            }
+        )
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
