@@ -265,6 +265,11 @@ extension PresentationLinkTransition {
                         var height = presentationController.presentedViewController.view
                             .systemLayoutSizeFitting(CGSize(width: width, height: .infinity))
                             .height
+                        if height == .infinity {
+                            height = presentationController.presentedViewController.view
+                                .sizeThatFits(CGSize(width: width, height: .infinity))
+                                .height
+                        }
                         if height == 0 || height > containerView.frame.height {
                             height = presentationController.presentedViewController.view.intrinsicContentSize.height
                         }

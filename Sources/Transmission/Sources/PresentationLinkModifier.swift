@@ -305,9 +305,9 @@ private struct PresentationLinkModifierBody<
                                     layoutDirection: traits.layoutDirection
                                 )
                                 popoverPresentationController.permittedArrowDirections = permittedArrowDirections
-                                #if !os(xrOS)
+                                //#if !os(xrOS)
                                 popoverPresentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
-                                #endif
+                                //#endif
                             }
                         }
                     }
@@ -847,7 +847,6 @@ private class PresentationLinkDestinationViewControllerAdapter<
         sourceView: UIView,
         context: PresentationLinkModifierBody<Destination>.Context
     ) {
-        let transaction = context.transaction
         let isPresented = Binding<Bool>(
             get: { true },
             set: { [weak viewController] newValue, transaction in

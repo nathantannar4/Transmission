@@ -514,7 +514,6 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
         isPresented: Binding<Bool>,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
-        let transaction = context.transaction
         let isPresented = Binding<Bool>(
             get: { true },
             set: { [weak viewController] newValue, transaction in
