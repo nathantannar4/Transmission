@@ -640,7 +640,9 @@ private struct PresentationLinkModifierBody<
                         presentedViewController: presented,
                         presenting: presenting
                     )
-                    presentationController.detents = configuration.detents.map { $0.resolve(in: presentationController).toUIKit() }
+                    presentationController.detents = configuration.detents.map {
+                        $0.resolve(in: presentationController).toUIKit(in: presentationController)
+                    }
                     presentationController.selectedDetentIdentifier = (configuration.selected?.wrappedValue ?? configuration.detents.first?.identifier)?.toUIKit()
                     presentationController.largestUndimmedDetentIdentifier = configuration.largestUndimmedDetentIdentifier?.toUIKit()
                     presentationController.prefersGrabberVisible = configuration.prefersGrabberVisible
@@ -743,7 +745,9 @@ private struct PresentationLinkModifierBody<
                         sheetPresentationController.invalidateDetents()
                         applySelection()
                     } else {
-                        sheetPresentationController.detents = configuration.detents.map { $0.resolve(in: sheetPresentationController).toUIKit() }
+                        sheetPresentationController.detents = configuration.detents.map {
+                            $0.resolve(in: sheetPresentationController).toUIKit(in: sheetPresentationController)
+                        }
                         withCATransaction {
                             applySelection()
                         }
@@ -1002,7 +1006,7 @@ extension PresentationLinkTransition.Value {
         switch self {
         case .sheet(let options):
             if #available(iOS 15.0, *) {
-                viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal })
+                viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal || $0.resolution != nil })
             } else {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
             }

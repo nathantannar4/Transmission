@@ -309,7 +309,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
                 let selected = newValue.selected?.wrappedValue
                 presentationController.detent = detents.first(where: { $0.identifier == selected }) ?? detents.first ?? .large
                 #else
-                presentationController.detents = detents.map { $0.toUIKit() }
+                presentationController.detents = detents.map { $0.toUIKit(in: presentationController) }
                 presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetentIdentifier?.toUIKit()
                 if let selected = newValue.selected {
                     presentationController.selectedDetentIdentifier = selected.wrappedValue?.toUIKit()

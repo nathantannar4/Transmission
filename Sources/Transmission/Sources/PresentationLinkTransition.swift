@@ -250,8 +250,7 @@ extension PresentationLinkTransition {
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
             func resolve(in presentationController: UIPresentationController) -> Detent {
-                switch identifier {
-                case .ideal:
+                if identifier == .ideal {
                     var copy = self
                     let resolution: (UIPresentationController) -> CGFloat? = { presentationController in
                         guard let containerView = presentationController.containerView else {
@@ -276,28 +275,22 @@ extension PresentationLinkTransition {
                         let idealHeight = (height - presentationController.presentedViewController.view.safeAreaInsets.bottom).rounded(.up)
                         return min(idealHeight, containerView.frame.height)
                     }
-                    if #available(iOS 16.0, *) {
-                        copy.resolution = { [weak presentationController] ctx in
-                            guard let presentationController = presentationController else {
-                                return ctx.maximumDetentValue
-                            }
-                            return resolution(presentationController)
+                    copy.resolution = { [weak presentationController] ctx in
+                        guard let presentationController = presentationController else {
+                            return ctx.maximumDetentValue
                         }
-                    } else {
-                        copy.height = resolution(presentationController)
+                        return resolution(presentationController)
                     }
                     return copy
-
-                default:
-                    return self
                 }
+                return self
             }
 
             @available(iOS 15.0, *)
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            func toUIKit() -> UISheetPresentationController.Detent {
+            func toUIKit(in presentationController: UISheetPresentationController) -> UISheetPresentationController.Detent {
                 switch identifier {
                 case .large:
                     return .large()
@@ -315,12 +308,31 @@ extension PresentationLinkTransition {
                         }
                     }
                     let sel = NSSelectorFromString(String(":tnatsnoc:reifitnedIhtiWtneted_".reversed()))
-                    guard let height = height, UISheetPresentationController.Detent.responds(to: sel) else {
+                    var constant: CGFloat?
+                    if let resolution {
+                        let ctx = ResolutionContext(
+                            containerTraitCollection: presentationController.traitCollection,
+                            maximumDetentValue: presentationController.containerView?.frame.height ?? UIView.layoutFittingExpandedSize.height
+                        )
+                        constant = resolution(ctx)
+                    } else {
+                        constant = height
+                    }
+                    guard let constant, UISheetPresentationController.Detent.responds(to: sel) else {
                         return .large()
                     }
-                    let result = UISheetPresentationController.Detent.perform(sel, with: identifier.rawValue, with: height)
+                    let result = UISheetPresentationController.Detent.perform(sel, with: identifier.rawValue, with: constant)
                     guard let detent = result?.takeUnretainedValue() as? UISheetPresentationController.Detent else {
                         return .large()
+                    }
+                    if let resolution {
+                        detent.resolution = { containerTraitCollection, maximumDetentValue in
+                            let ctx = ResolutionContext(
+                                containerTraitCollection: containerTraitCollection,
+                                maximumDetentValue: maximumDetentValue
+                            )
+                            return resolution(ctx)
+                        }
                     }
                     return detent
                 }

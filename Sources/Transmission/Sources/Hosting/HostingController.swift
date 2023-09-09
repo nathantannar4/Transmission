@@ -35,9 +35,11 @@ open class HostingController<
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
-        guard view.superview != nil else {
+        guard view.superview != nil, !isBeingDismissed else {
             return
         }
+
+        let isAnimated = isBeingPresented ? false : transitionCoordinator?.isAnimated ?? true
 
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,
@@ -47,36 +49,51 @@ open class HostingController<
         {
             guard
                 let selectedIdentifier = sheetPresentationController.selectedDetentIdentifier,
-                sheetPresentationController.detents.contains(where: { $0.id == selectedIdentifier.rawValue && $0.isDynamic })
+                let detent = sheetPresentationController.detents.first(where: { $0.id == selectedIdentifier.rawValue && $0.isDynamic })
             else {
                 return
             }
 
-            func performTransition(completion: (() -> Void)? = nil) {
-                UIView.transition(
-                    with: containerView,
-                    duration: 0.35,
-                    options: [.beginFromCurrentState, .curveEaseInOut]
-                ) {
-                    if #available(iOS 16.0, *) {
-                        sheetPresentationController.invalidateDetents()
-                    } else {
-                        sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
+            let resolvedDetentHeight = detent.resolvedValue(
+                containerTraitCollection: sheetPresentationController.traitCollection,
+                maximumDetentValue: containerView.frame.height
+            )
+            guard let resolvedDetentHeight,
+                resolvedDetentHeight != view.frame.height - (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
+            else {
+                return
+            }
+
+            func performTransition(animated: Bool, completion: (() -> Void)? = nil) {
+                if #available(iOS 16.0, *) {
+                    sheetPresentationController.invalidateDetents()
+                } else {
+                    sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
+                }
+                if animated {
+                    UIView.transition(
+                        with: containerView,
+                        duration: 0.35,
+                        options: [.beginFromCurrentState, .curveEaseInOut]
+                    ) {
+                        containerView.layoutIfNeeded()
+                    } completion: { _ in
+                        completion?()
                     }
-                    (containerView.superview ?? containerView).layoutIfNeeded()
-                } completion: { _ in
+                } else {
+                    containerView.layoutIfNeeded()
                     completion?()
                 }
             }
 
             if #available(iOS 16.0, *) {
                 try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
-                performTransition {
+                performTransition(animated: isAnimated) {
                     try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", false, self.view)
                 }
             } else {
                 withCATransaction {
-                    performTransition()
+                    performTransition(animated: isAnimated)
                 }
             }
 
@@ -101,7 +118,7 @@ open class HostingController<
                         break
                     }
                     let oldSize = preferredContentSize
-                    if oldSize == .zero {
+                    if oldSize == .zero || !isAnimated {
                         preferredContentSize = newSize
                     } else if oldSize != newSize {
                         let dz = (newSize.width * newSize.height) - (oldSize.width * oldSize.height)
