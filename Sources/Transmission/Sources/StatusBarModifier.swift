@@ -71,21 +71,7 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
         if let presentingViewController = presentingViewController {
             let isAnimated = context.transaction.isAnimated
             presentingViewController.swizzled_preferredStatusBarStyle = style
-
-            func setNeedsStatusBarAppearanceUpdate() {
-                presentingViewController.setNeedsStatusBarAppearanceUpdate()
-                for window in UIApplication.shared.windows where window.windowLevel == presentingViewController.view.window?.windowLevel {
-                    window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
-                }
-            }
-
-            if isAnimated {
-                UIView.animate(withDuration: 0.15) {
-                    setNeedsStatusBarAppearanceUpdate()
-                }
-            } else {
-                setNeedsStatusBarAppearanceUpdate()
-            }
+            presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
         }
     }
 
@@ -139,21 +125,7 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
         if let presentingViewController = presentingViewController {
             let isAnimated = context.transaction.isAnimated
             presentingViewController.swizzled_prefersStatusBarHidden = isHidden
-
-            func setNeedsStatusBarAppearanceUpdate() {
-                presentingViewController.setNeedsStatusBarAppearanceUpdate()
-                for window in UIApplication.shared.windows where window.windowLevel == presentingViewController.view.window?.windowLevel {
-                    window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
-                }
-            }
-
-            if isAnimated {
-                UIView.animate(withDuration: 0.15) {
-                    setNeedsStatusBarAppearanceUpdate()
-                }
-            } else {
-                setNeedsStatusBarAppearanceUpdate()
-            }
+            presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
         }
     }
 
@@ -167,6 +139,22 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
 }
 
 extension UIViewController {
+
+    func setNeedsStatusBarAppearanceUpdate(animated: Bool) {
+        let update: () -> Void = {
+            self.setNeedsStatusBarAppearanceUpdate()
+            let presentingWindow = self.view.window
+            for window in UIApplication.shared.windows where window.windowLevel == presentingWindow?.windowLevel && window != presentingWindow {
+                window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
+            }
+        }
+
+        if animated {
+            UIView.animate(withDuration: 0.15, animations: update)
+        } else {
+            update()
+        }
+    }
 
     private var swizzled_childForStatusBar: UIViewController? {
         if let navigationController = self as? UINavigationController {

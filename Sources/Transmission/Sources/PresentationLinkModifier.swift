@@ -342,7 +342,13 @@ private struct PresentationLinkModifierBody<
                     } ?? true
                     if shouldDismiss {
                         presentedViewController.dismiss(animated: isAnimated) {
-                            presentingViewController.present(adapter.viewController, animated: isAnimated)
+                            presentingViewController.present(
+                                adapter.viewController,
+                                animated: isAnimated
+                            ) {
+                                adapter.viewController
+                                    .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+                            }
                         }
                     } else {
                         withCATransaction {
@@ -350,7 +356,13 @@ private struct PresentationLinkModifierBody<
                         }
                     }
                 } else {
-                    presentingViewController.present(adapter.viewController, animated: isAnimated)
+                    presentingViewController.present(
+                        adapter.viewController,
+                        animated: isAnimated
+                    ) {
+                        adapter.viewController
+                            .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+                    }
                 }
             }
         } else if let adapter = context.coordinator.adapter,
@@ -400,11 +412,20 @@ private struct PresentationLinkModifierBody<
 
         // MARK: - UIViewControllerPresentationDelegate
 
-        func viewControllerDidDismiss() {
+        func viewControllerDidDismiss(
+            _ presentingViewController: UIViewController?,
+            animated: Bool
+        ) {
             var transaction = Transaction()
             transaction.disablesAnimations = true
             withTransaction(transaction) {
                 self.isPresented.wrappedValue = false
+            }
+
+            // Dismiss already handled by the presentation controller below
+            if let presentingViewController {
+                presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: animated)
+                presentingViewController.fixSwiftUIHitTesting()
             }
         }
 
@@ -413,6 +434,7 @@ private struct PresentationLinkModifierBody<
         func presentationControllerDidDismiss(
             _ presentationController: UIPresentationController
         ) {
+            presentationController.presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: true)
             presentationController.presentingViewController.fixSwiftUIHitTesting()
         }
 

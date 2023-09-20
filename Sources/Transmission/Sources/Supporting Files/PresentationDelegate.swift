@@ -7,7 +7,7 @@
 import SwiftUI
 
 protocol UIViewControllerPresentationDelegate: NSObject {
-    func viewControllerDidDismiss()
+    func viewControllerDidDismiss(_ presentingViewController: UIViewController?, animated: Bool)
 }
 
 extension UIViewController {
@@ -65,18 +65,16 @@ extension UIViewController {
         swizzled_dismiss(animated: flag) {
             if self.transitionCoordinator?.isCancelled != true {
                 for delegate in presentedDelegates.reversed() {
-                    delegate.viewControllerDidDismiss()
+                    delegate.viewControllerDidDismiss(presentingViewController, animated: flag)
                 }
 
                 if self.presentingViewController == nil, let delegate = self.presentationDelegate {
-                    delegate.viewControllerDidDismiss()
+                    delegate.viewControllerDidDismiss(presentingViewController, animated: flag)
                 }
 
                 for delegate in parentDelegates.reversed() {
-                    delegate.viewControllerDidDismiss()
+                    delegate.viewControllerDidDismiss(presentingViewController, animated: flag)
                 }
-
-                presentingViewController?.fixSwiftUIHitTesting()
             }
             completion?()
         }

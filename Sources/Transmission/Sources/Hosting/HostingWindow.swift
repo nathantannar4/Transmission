@@ -48,24 +48,51 @@ open class HostingWindow<Content: View>: UIWindow {
     }
 
     private class HostingWindowController: _HostingController<Content> {
-        override var childForStatusBarStyle: UIViewController? {
-            guard let window = view.window,
-                let parent = window.parent,
-                window.windowLevel.rawValue <= parent.windowLevel.rawValue,
-                let parentViewController = parent.presentedViewController
-            else {
-                return super.childForStatusBarStyle
+        override var preferredStatusBarStyle: UIStatusBarStyle {
+            guard let proxy = viewControllerForStatusBarAppearance else {
+                return super.preferredStatusBarStyle
             }
-            return parentViewController
+            if proxy.modalPresentationCapturesStatusBarAppearance {
+                return proxy.preferredStatusBarStyle
+            } else if let presentingViewController = proxy.presentingViewController {
+                if proxy.presentationController is UISheetPresentationController {
+                    return .lightContent
+                }
+                return presentingViewController.preferredStatusBarStyle
+            }
+            return super.preferredStatusBarStyle
+        }
+
+        override var childForStatusBarStyle: UIViewController? {
+            viewControllerForStatusBarAppearance ?? super.childForStatusBarStyle
+        }
+
+        override var prefersStatusBarHidden: Bool {
+            guard let proxy = viewControllerForStatusBarAppearance else {
+                return super.prefersStatusBarHidden
+            }
+            if proxy.modalPresentationCapturesStatusBarAppearance {
+                return proxy.prefersStatusBarHidden
+            } else if let presentingViewController = proxy.presentingViewController {
+                if proxy.presentationController is UISheetPresentationController {
+                    return false
+                }
+                return presentingViewController.prefersStatusBarHidden
+            }
+            return super.prefersStatusBarHidden
         }
 
         override var childForStatusBarHidden: UIViewController? {
+            viewControllerForStatusBarAppearance ?? super.childForStatusBarHidden
+        }
+
+        var viewControllerForStatusBarAppearance: UIViewController? {
             guard let window = view.window,
                 let parent = window.parent,
                 window.windowLevel.rawValue <= parent.windowLevel.rawValue,
                 let parentViewController = parent.presentedViewController
             else {
-                return super.childForStatusBarHidden
+                return nil
             }
             return parentViewController
         }
