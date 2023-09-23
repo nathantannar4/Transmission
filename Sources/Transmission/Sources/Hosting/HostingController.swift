@@ -87,7 +87,7 @@ open class HostingController<
             }
 
             if #available(iOS 16.0, *) {
-                try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
+                try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", isAnimated, view)
                 performTransition(animated: isAnimated) {
                     try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", false, self.view)
                 }
@@ -99,7 +99,6 @@ open class HostingController<
 
         } else if tracksContentSize {
             if #available(iOS 16.0, *) {
-                try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", true, view)
                 if presentingViewController != nil,
                     let popoverPresentationController = presentationController as? UIPopoverPresentationController,
                     popoverPresentationController.presentedViewController == self,
@@ -122,16 +121,18 @@ open class HostingController<
                         preferredContentSize = newSize
                     } else if oldSize != newSize {
                         let dz = (newSize.width * newSize.height) - (oldSize.width * oldSize.height)
+                        try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", isAnimated, view)
                         UIView.transition(
                             with: containerView,
                             duration: 0.35 + (dz > 0 ? 0.15 : -0.05),
                             options: [.beginFromCurrentState, .curveEaseInOut]
                         ) {
                             self.preferredContentSize = newSize
+                        } completion: { _ in
+                            try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", false, self.view)
                         }
                     }
                 }
-
             } else {
                 preferredContentSize = view.systemLayoutSizeFitting(
                     UIView.layoutFittingExpandedSize

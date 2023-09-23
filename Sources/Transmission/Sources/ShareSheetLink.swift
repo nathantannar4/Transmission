@@ -531,7 +531,11 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
             ) -> Progress? {
                 DispatchQueue.main.async {
                     let renderer = SnapshotRenderer(content: self.content)
-                    renderer.snapshot().loadData(withTypeIdentifier: typeIdentifier) { data, error in
+                    guard let image = renderer.uiImage else {
+                        completionHandler(nil, nil)
+                        return
+                    }
+                    image.loadData(withTypeIdentifier: typeIdentifier) { data, error in
                         self.data = data
                         completionHandler(data, error)
                     }

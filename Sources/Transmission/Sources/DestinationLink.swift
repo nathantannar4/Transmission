@@ -76,9 +76,9 @@ extension DestinationLink {
         transition: DestinationLinkTransition = .default,
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
-    ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
         self.init(transition: transition) {
-            _ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(makeUIViewController: destination)
         } label: {
             label()
         }
@@ -89,9 +89,9 @@ extension DestinationLink {
         isPresented: Binding<Bool>,
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
-    ) where Destination == _ViewControllerRepresentableAdapter<ViewController> {
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
         self.init(transition: transition, isPresented: isPresented) {
-            _ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(makeUIViewController: destination)
         } label: {
             label()
         }

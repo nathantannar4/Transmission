@@ -140,10 +140,10 @@ extension View {
     public func presentation<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
         isPresented: Binding<Bool>,
-        destination: @escaping (_ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
         presentation(transition: transition, isPresented: isPresented) {
-            _ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(makeUIViewController: destination)
         }
     }
 }

@@ -7,7 +7,7 @@
 import SwiftUI
 
 /// A wrapper for a `UIViewController`
-public struct _ViewControllerRepresentableAdapter<
+public struct ViewControllerRepresentableAdapter<
     Content: UIViewController
 >: UIViewControllerRepresentable {
 

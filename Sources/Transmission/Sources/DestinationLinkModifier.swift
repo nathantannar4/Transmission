@@ -123,10 +123,10 @@ extension View {
     public func destination<ViewController: UIViewController>(
         transition: DestinationLinkTransition = .default,
         isPresented: Binding<Bool>,
-        destination: @escaping (_ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
         self.destination(transition: transition, isPresented: isPresented) {
-            _ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(makeUIViewController: destination)
         }
     }
 }

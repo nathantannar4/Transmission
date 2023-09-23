@@ -27,17 +27,4 @@ extension UIHostingController: AnyHostingController {
     }
 }
 
-extension UIView {
-    var hostingView: AnyHostingView? {
-        var view = superview
-        while view != nil {
-            if let host = view as? AnyHostingView {
-                return host
-            }
-            view = view?.superview
-        }
-        return nil
-    }
-}
-
 #endif

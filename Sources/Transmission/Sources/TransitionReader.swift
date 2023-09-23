@@ -50,8 +50,8 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 
     var progress: Binding<CGFloat>
 
-    func makeUIView(context: Context) -> HostingViewReader {
-        let uiView = HostingViewReader(
+    func makeUIView(context: Context) -> ViewControllerReader {
+        let uiView = ViewControllerReader(
             presentingViewController: Binding(
                 get: { context.coordinator.presentingViewController },
                 set: { context.coordinator.presentingViewController = $0 }
@@ -60,7 +60,7 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
         return uiView
     }
 
-    func updateUIView(_ uiView: HostingViewReader, context: Context) { }
+    func updateUIView(_ uiView: ViewControllerReader, context: Context) { }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(progress: progress)

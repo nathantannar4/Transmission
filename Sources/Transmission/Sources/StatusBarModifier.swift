@@ -62,12 +62,12 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
 
     @WeakState var presentingViewController: UIViewController?
 
-    func makeUIView(context: Context) -> HostingViewReader {
-        let uiView = HostingViewReader(presentingViewController: $presentingViewController)
+    func makeUIView(context: Context) -> ViewControllerReader {
+        let uiView = ViewControllerReader(presentingViewController: $presentingViewController)
         return uiView
     }
 
-    func updateUIView(_ uiView: HostingViewReader, context: Context) {
+    func updateUIView(_ uiView: ViewControllerReader, context: Context) {
         if let presentingViewController = presentingViewController {
             let isAnimated = context.transaction.isAnimated
             presentingViewController.swizzled_preferredStatusBarStyle = style
@@ -75,7 +75,7 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
         }
     }
 
-    static func dismantleUIView(_ uiView: HostingViewReader, coordinator: Void) {
+    static func dismantleUIView(_ uiView: ViewControllerReader, coordinator: Void) {
         for window in UIApplication.shared.windows where window.isKeyWindow {
             UIView.animate(withDuration: 0.15) {
                 window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
@@ -116,12 +116,12 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
 
     @WeakState var presentingViewController: UIViewController?
 
-    func makeUIView(context: Context) -> HostingViewReader {
-        let uiView = HostingViewReader(presentingViewController: $presentingViewController)
+    func makeUIView(context: Context) -> ViewControllerReader {
+        let uiView = ViewControllerReader(presentingViewController: $presentingViewController)
         return uiView
     }
 
-    func updateUIView(_ uiView: HostingViewReader, context: Context) {
+    func updateUIView(_ uiView: ViewControllerReader, context: Context) {
         if let presentingViewController = presentingViewController {
             let isAnimated = context.transaction.isAnimated
             presentingViewController.swizzled_prefersStatusBarHidden = isHidden
@@ -129,7 +129,7 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
         }
     }
 
-    static func dismantleUIView(_ uiView: HostingViewReader, coordinator: Void) {
+    static func dismantleUIView(_ uiView: ViewControllerReader, coordinator: Void) {
         for window in UIApplication.shared.windows where window.isKeyWindow {
             UIView.animate(withDuration: 0.15) {
                 window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
