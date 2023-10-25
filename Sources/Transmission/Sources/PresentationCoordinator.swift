@@ -26,6 +26,12 @@ public struct PresentationCoordinator {
     @usableFromInline
     var dismissBlock: () -> Void
 
+    public init(isPresented: Bool, sourceView: UIView? = nil, dismissBlock: @escaping () -> Void) {
+        self.isPresented = isPresented
+        self.sourceView = sourceView
+        self.dismissBlock = dismissBlock
+    }
+
     /// Dismisses the presented view with an optional animation
     @inlinable
     public func dismiss(animation: Animation? = .default) {
