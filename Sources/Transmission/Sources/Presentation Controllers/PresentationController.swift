@@ -16,7 +16,9 @@ import Turbocharger
 open class PresentationController: UIPresentationController {
 
     open var shouldAutoLayoutPresentedView: Bool {
-        !presentedViewController.isBeingPresented && !presentedViewController.isBeingDismissed
+        presentedView?.transform == .identity
+            && !presentedViewController.isBeingPresented
+            && !presentedViewController.isBeingDismissed
     }
 
     open override func dismissalTransitionWillBegin() {
