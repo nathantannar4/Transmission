@@ -972,7 +972,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             if adapter.context == nil {
                 let coordinator = destination.makeCoordinator()
                 let preferenceBridge: AnyObject?
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) {
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, xrOS 1.0, *) {
                     preferenceBridge = unsafeBitCast(
                         context,
                         to: Context<PresentationLinkModifierBody<Destination>.Coordinator>.V4.self

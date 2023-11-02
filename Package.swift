@@ -1,4 +1,4 @@
-// swift-tools-version: 5.7
+// swift-tools-version: 5.9
 
 import PackageDescription
 
@@ -7,6 +7,7 @@ let package = Package(
     platforms: [
         .iOS(.v13),
         .macCatalyst(.v13),
+//        .visionOS(.v1),
     ],
     products: [
         .library(
@@ -15,8 +16,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "0.1.13"),
-        .package(url: "https://github.com/nathantannar4/Turbocharger", from: "0.1.9"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "1.0.0"),
+        .package(url: "https://github.com/nathantannar4/Turbocharger", from: "1.0.0"),
     ],
     targets: [
         .target(
