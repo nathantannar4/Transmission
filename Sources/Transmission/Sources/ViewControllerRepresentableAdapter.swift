@@ -7,13 +7,21 @@
 import SwiftUI
 
 /// A wrapper for a `UIViewController`
+@frozen
 public struct ViewControllerRepresentableAdapter<
     Content: UIViewController
 >: UIViewControllerRepresentable {
 
+    @usableFromInline
     var _makeUIViewController: (Context) -> Content
 
-    public init(makeUIViewController: @escaping (Context) -> Content) {
+    @inlinable
+    public init(_ makeUIViewController: @escaping () -> Content) {
+        self._makeUIViewController = { _ in makeUIViewController() }
+    }
+
+    @inlinable
+    public init(_ makeUIViewController: @escaping (Context) -> Content) {
         self._makeUIViewController = makeUIViewController
     }
 

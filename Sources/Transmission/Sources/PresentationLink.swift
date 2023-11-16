@@ -81,13 +81,40 @@ public struct PresentationLink<
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
 extension PresentationLink {
+    @_disfavoredOverload
+    public init<ViewController: UIViewController>(
+        transition: PresentationLinkTransition = .default,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(transition: transition) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
         self.init(transition: transition) {
-            ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
+    @_disfavoredOverload
+    public init<ViewController: UIViewController>(
+        transition: PresentationLinkTransition = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(transition: transition, isPresented: isPresented) {
+            ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
         }
@@ -100,7 +127,7 @@ extension PresentationLink {
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
         self.init(transition: transition, isPresented: isPresented) {
-            ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
         }

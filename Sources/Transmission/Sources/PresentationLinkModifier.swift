@@ -143,7 +143,7 @@ extension View {
         destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
         presentation(transition: transition, isPresented: isPresented) {
-            ViewControllerRepresentableAdapter(makeUIViewController: destination)
+            ViewControllerRepresentableAdapter(destination)
         }
     }
 }
@@ -248,7 +248,6 @@ private struct PresentationLinkModifierBody<
 
                 adapter.update(
                     destination: destination,
-                    isPresented: isPresented,
                     sourceView: uiView,
                     context: context
                 )
@@ -259,7 +258,6 @@ private struct PresentationLinkModifierBody<
                     adapter.transition = transition.value
                     adapter.update(
                         destination: destination,
-                        isPresented: isPresented,
                         sourceView: uiView,
                         context: context
                     )
@@ -267,7 +265,6 @@ private struct PresentationLinkModifierBody<
                 } else {
                     adapter = PresentationLinkDestinationViewControllerAdapter(
                         destination: destination,
-                        isPresented: isPresented,
                         sourceView: uiView,
                         transition: transition.value,
                         context: context
@@ -817,9 +814,24 @@ private class PresentationLinkDestinationViewControllerAdapter<
     var transition: PresentationLinkTransition.Value
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
 
+    var isPresented: Binding<Bool> {
+        Binding<Bool>(
+            get: { true },
+            set: { [weak self] newValue, transaction in
+                if !newValue, let viewController = self?.viewController {
+                    let isAnimated = transaction.isAnimated
+                        || viewController.transitionCoordinator?.isAnimated == true
+                        || PresentationCoordinator.transaction.isAnimated
+                    viewController.dismiss(animated: isAnimated) {
+                        PresentationCoordinator.transaction = nil
+                    }
+                }
+            }
+        )
+    }
+
     init(
         destination: Destination,
-        isPresented: Binding<Bool>,
         sourceView: UIView,
         transition: PresentationLinkTransition.Value,
         context: PresentationLinkModifierBody<Destination>.Context
@@ -829,7 +841,6 @@ private class PresentationLinkDestinationViewControllerAdapter<
             self.conformance = conformance
             update(
                 destination: destination,
-                isPresented: isPresented,
                 sourceView: sourceView,
                 context: context
             )
@@ -869,23 +880,9 @@ private class PresentationLinkDestinationViewControllerAdapter<
 
     func update(
         destination: Destination,
-        isPresented: Binding<Bool>,
         sourceView: UIView,
         context: PresentationLinkModifierBody<Destination>.Context
     ) {
-        let isPresented = Binding<Bool>(
-            get: { true },
-            set: { [weak viewController] newValue, transaction in
-                if !newValue, let viewController = viewController {
-                    let isAnimated = transaction.isAnimated
-                        || viewController.transitionCoordinator?.isAnimated == true
-                        || PresentationCoordinator.transaction.isAnimated
-                    viewController.dismiss(animated: isAnimated) {
-                        PresentationCoordinator.transaction = nil
-                    }
-                }
-            }
-        )
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,

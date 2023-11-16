@@ -73,6 +73,15 @@ extension View {
 
     /// A modifier that presents a destination view in a new `UIWindow`
     ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
     /// See Also:
     ///  - ``WindowLinkModifier``
     ///
@@ -94,6 +103,15 @@ extension View {
 
     /// A modifier that presents a destination view in a new `UIWindow`
     ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
     /// See Also:
     ///  - ``WindowLinkModifier``
     ///
@@ -105,6 +123,32 @@ extension View {
     ) -> some View {
         window(level: level, transition: transition, isPresented: value.isNotNil()) {
             OptionalAdapter(value, content: destination)
+        }
+    }
+
+    /// A modifier that presents a destination `UIViewController` in a new `UIWindow`
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``WindowLinkModifier``
+    ///
+    @_disfavoredOverload
+    public func window<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        isPresented: Binding<Bool>,
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+    ) -> some View {
+        window(level: level, transition: transition, isPresented: isPresented) {
+            ViewControllerRepresentableAdapter(destination)
         }
     }
 }
