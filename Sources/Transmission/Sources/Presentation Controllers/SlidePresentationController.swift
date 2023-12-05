@@ -225,6 +225,11 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if let scrollView = otherGestureRecognizer.view as? UIScrollView {
+            guard otherGestureRecognizer.isScrollViewPanGesture else {
+                // Cancel
+                gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
+                return true
+            }
             scrollView.panGestureRecognizer.addTarget(self, action: #selector(onPanGesture(_:)))
             switch edge {
             case .bottom, .trailing:
@@ -241,6 +246,17 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
             return false
         }
         return false
+    }
+}
+
+extension UIGestureRecognizer {
+
+    private static let UIScrollViewPanGestureRecognizer: AnyClass? = NSClassFromString("UIScrollViewPanGestureRecognizer")
+    var isScrollViewPanGesture: Bool {
+        guard let aClass = Self.UIScrollViewPanGestureRecognizer else {
+            return false
+        }
+        return isKind(of: aClass)
     }
 }
 

@@ -50,6 +50,10 @@ let package = Package(
 )
 ```
 
+### Xcode Cloud / Github Actions / Fastlane / CI
+
+[Engine](https://github.com/nathantannar4/Engine) includes a Swift macro, which requires user validation to enable or the build will fail. When configuring your CI, pass the flag `-skipMacroValidation` to `xcodebuild` to fix this.
+
 ## Introduction to Transmission
 
 For some sample code to get started with `Transmission`, build and run the included "Example" project.
