@@ -404,12 +404,18 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
         if let interactionController {
             return interactionController
         } else if let id = topDelegate, let delegate = delegates[id]?.value {
-            return delegate.navigationController?(
+            let interactionController = delegate.navigationController?(
                 navigationController,
                 interactionControllerFor: animationController
             )
+            if let interactionController {
+                return interactionController
+            }
         }
-        return nil
+        return delegate?.navigationController?(
+            navigationController,
+            interactionControllerFor: animationController
+        )
     }
 
     func navigationController(
@@ -428,14 +434,22 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
         topDelegate = id
 
         if let delegate = delegates[id]?.value {
-            return delegate.navigationController?(
+            let animationController = delegate.navigationController?(
                 navigationController,
                 animationControllerFor: operation,
                 from: fromVC,
                 to: toVC
             )
+            if let animationController {
+                return animationController
+            }
         }
-        return nil
+        return delegate?.navigationController?(
+            navigationController,
+            animationControllerFor: operation,
+            from: fromVC,
+            to: toVC
+        )
     }
 }
 
