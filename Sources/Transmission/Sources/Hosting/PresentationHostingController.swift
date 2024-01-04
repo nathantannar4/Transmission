@@ -6,17 +6,11 @@
 
 import SwiftUI
 import Engine
-import EngineCore
 import Turbocharger
 
-open class HostingController<
+open class PresentationHostingController<
     Content: View
->: _HostingController<Content> {
-
-    public var content: Content {
-        get { rootView }
-        set { rootView = newValue }
-    }
+>: HostingController<Content> {
 
     public var tracksContentSize: Bool = false {
         didSet {
@@ -24,12 +18,9 @@ open class HostingController<
         }
     }
 
-    public override init(content: Content) {
-        super.init(content: content)
-    }
-
-    public required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+    open override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = nil
     }
 
     open override func viewDidLayoutSubviews() {
@@ -139,34 +130,6 @@ open class HostingController<
                 )
             }
         }
-    }
-}
-
-open class _HostingController<
-    Content: View
->: UIHostingController<Content> {
-
-    public var disablesSafeArea: Bool {
-        get { _disableSafeArea }
-        set { _disableSafeArea = newValue }
-    }
-
-    public init(content: Content) {
-        super.init(rootView: content)
-    }
-
-    @available(iOS, obsoleted: 13.0, renamed: "init(content:)")
-    override init(rootView: Content) {
-        fatalError("init(rootView:) has not been implemented")
-    }
-
-    public required init?(coder aDecoder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    open override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = nil
     }
 }
 

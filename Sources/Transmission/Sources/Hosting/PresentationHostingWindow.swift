@@ -6,17 +6,17 @@
 
 import SwiftUI
 
-open class HostingWindow<Content: View>: UIWindow {
+open class PresentationHostingWindow<Content: View>: UIWindow {
 
     public var content: Content {
         get { host.rootView }
         set { host.rootView = newValue }
     }
 
-    private let host: HostingWindowController
+    private let host: PresentationHostingWindowController
 
     public init(windowScene: UIWindowScene, content: Content) {
-        self.host = HostingWindowController(content: content)
+        self.host = PresentationHostingWindowController(content: content)
         super.init(windowScene: windowScene)
         rootViewController = host
     }
@@ -47,7 +47,7 @@ open class HostingWindow<Content: View>: UIWindow {
         return result
     }
 
-    private class HostingWindowController: _HostingController<Content> {
+    private class PresentationHostingWindowController: HostingController<Content> {
         override var preferredStatusBarStyle: UIStatusBarStyle {
             guard let proxy = viewControllerForStatusBarAppearance else {
                 return super.preferredStatusBarStyle

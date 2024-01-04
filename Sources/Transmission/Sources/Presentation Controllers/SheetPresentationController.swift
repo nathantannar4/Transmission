@@ -245,10 +245,24 @@ final class MacSheetPresentationController: SlidePresentationController {
 @available(watchOS, unavailable)
 final class SheetPresentationController: UISheetPresentationController {
 
-    var preferredBackgroundColor: UIColor?
+    var preferredBackgroundColor: UIColor? {
+        didSet {
+            updateBackgroundColor()
+        }
+    }
+
+    override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        updateBackgroundColor()
+    }
 
     override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
+        updateBackgroundColor()
+    }
+
+    private func updateBackgroundColor() {
+        presentedView?.backgroundColor = preferredBackgroundColor
         if let preferredBackgroundColor {
             containerView?.subviews.last?.layer.shadowColor = preferredBackgroundColor.cgColor
         }

@@ -162,7 +162,7 @@ private struct PresentationLinkModifierBody<
 
     @WeakState var presentingViewController: UIViewController?
 
-    typealias DestinationViewController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
+    typealias DestinationViewController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
@@ -302,9 +302,7 @@ private struct PresentationLinkModifierBody<
                                     layoutDirection: traits.layoutDirection
                                 )
                                 popoverPresentationController.permittedArrowDirections = permittedArrowDirections
-                                //#if !os(xrOS)
                                 popoverPresentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
-                                //#endif
                             }
                         }
                     }
@@ -806,7 +804,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
     Destination: View
 > {
 
-    typealias DestinationController = HostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
+    typealias DestinationController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
     var viewController: UIViewController!
     var context: Any!
@@ -969,7 +967,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             if adapter.context == nil {
                 let coordinator = destination.makeCoordinator()
                 let preferenceBridge: AnyObject?
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, xrOS 1.0, *) {
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
                     preferenceBridge = unsafeBitCast(
                         context,
                         to: Context<PresentationLinkModifierBody<Destination>.Coordinator>.V4.self
@@ -1017,10 +1015,12 @@ private class PresentationLinkDestinationViewControllerAdapter<
 @available(watchOS, unavailable)
 extension PresentationLinkTransition.Value {
 
-    func update<Content: View>(_ viewController: HostingController<Content>) {
+    func update<Content: View>(_ viewController: PresentationHostingController<Content>) {
 
         viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
-        viewController.view.backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
+        if let preferredPresentationBackgroundUIColor = options.preferredPresentationBackgroundUIColor {
+            viewController.view.backgroundColor = preferredPresentationBackgroundUIColor
+        }
 
         switch self {
         case .sheet(let options):

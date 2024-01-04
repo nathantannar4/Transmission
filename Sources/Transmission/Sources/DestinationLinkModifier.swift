@@ -145,7 +145,7 @@ private struct DestinationLinkModifierBody<
 
     @WeakState var presentingViewController: UIViewController?
 
-    typealias DestinationViewController = HostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
+    typealias DestinationViewController = DestinationHostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
@@ -477,7 +477,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
     var viewController: UIViewController!
     var context: Any!
 
-    typealias DestinationController = HostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
+    typealias DestinationController = DestinationHostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
     var transition: DestinationLinkTransition.Value
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
@@ -620,7 +620,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
             if adapter.context == nil {
                 let coordinator = destination.makeCoordinator()
                 let preferenceBridge: AnyObject?
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, xrOS 1.0, *) {
+                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
                     preferenceBridge = unsafeBitCast(
                         context,
                         to: Context<DestinationLinkModifierBody<Destination>.Coordinator>.V4.self
@@ -669,7 +669,9 @@ extension DestinationLinkTransition.Value {
 
     func update<Content: View>(_ viewController: HostingController<Content>) {
 
-        viewController.view.backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
+        if let preferredPresentationBackgroundUIColor = options.preferredPresentationBackgroundUIColor {
+            viewController.view.backgroundColor = preferredPresentationBackgroundUIColor
+        }
     }
 }
 

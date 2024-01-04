@@ -337,7 +337,7 @@ private class WindowLinkDestinationWindowAdapter<
     Destination: View
 > {
 
-    typealias DestinationWindow = HostingWindow<ModifiedContent<Destination, WindowBridgeAdapter>>
+    typealias DestinationWindow = PresentationHostingWindow<ModifiedContent<Destination, WindowBridgeAdapter>>
 
     var window: DestinationWindow
     var transition: WindowLinkTransition
