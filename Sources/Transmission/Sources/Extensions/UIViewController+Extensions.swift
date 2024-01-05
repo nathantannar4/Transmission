@@ -13,6 +13,7 @@ extension UIViewController {
             let index = navigationController.viewControllers.firstIndex(of: self),
             index > 0
         else {
+            completion?()
             return
         }
 

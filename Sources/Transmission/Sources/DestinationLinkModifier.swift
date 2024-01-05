@@ -48,11 +48,15 @@ public struct DestinationLinkModifier<
 
     public func body(content: Content) -> some View {
         content.background(
-            DestinationLinkModifierBody(
-                transition: transition,
-                isPresented: isPresented,
-                destination: destination
-            )
+            ViewGraphBridgeAdapter {
+                destination
+            } content: { destination in
+                DestinationLinkModifierBody(
+                    transition: transition,
+                    isPresented: isPresented,
+                    destination: destination
+                )
+            }
         )
     }
 }
@@ -190,16 +194,20 @@ private struct DestinationLinkModifierBody<
         } else if let adapter = context.coordinator.adapter,
             !isPresented.wrappedValue
         {
-            let isAnimated = context.transaction.isAnimated || DestinationCoordinator.transaction.isAnimated
             let viewController = adapter.viewController!
+            let isAnimated = context.transaction.isAnimated
+                || viewController.transitionCoordinator?.isAnimated == true
+                || DestinationCoordinator.transaction.isAnimated
             if let presented = viewController.presentedViewController {
                 presented.dismiss(animated: isAnimated) {
-                    viewController._popViewController(animated: isAnimated)
-                    DestinationCoordinator.transaction = nil
+                    viewController._popViewController(animated: isAnimated) {
+                        DestinationCoordinator.transaction = nil
+                    }
                 }
             } else {
-                viewController._popViewController(animated: isAnimated)
-                DestinationCoordinator.transaction = nil
+                viewController._popViewController(animated: isAnimated) {
+                    DestinationCoordinator.transaction = nil
+                }
             }
             context.coordinator.adapter = nil
         }
@@ -301,11 +309,13 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
     private var topDelegate: ObjectIdentifier?
     private var animationController: UIViewControllerAnimatedTransitioning?
     private var interactionController: UIViewControllerInteractiveTransitioning?
+    private weak var popGestureDelegate: UIGestureRecognizerDelegate?
 
     init(for navigationController: UINavigationController) {
         super.init()
         self.delegate = navigationController.delegate
         self.navigationController = navigationController
+        popGestureDelegate = navigationController.interactivePopGestureRecognizer?.delegate
         navigationController.delegate = self
         navigationController.interactivePopGestureRecognizer?.delegate = self
     }
@@ -323,8 +333,43 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
         interactionController = nil
     }
 
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        let shouldRequireFailureOf = popGestureDelegate?.gestureRecognizer?(
+            gestureRecognizer,
+            shouldRequireFailureOf: otherGestureRecognizer
+        )
+        return shouldRequireFailureOf ?? false
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
+            gestureRecognizer,
+            shouldRecognizeSimultaneouslyWith: otherGestureRecognizer
+        )
+        return shouldRecognizeSimultaneouslyWith ?? false
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        let shouldBeRequiredToFailBy = popGestureDelegate?.gestureRecognizer?(
+            gestureRecognizer,
+            shouldBeRequiredToFailBy: otherGestureRecognizer
+        )
+        return shouldBeRequiredToFailBy ?? true
+    }
+
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        let canBegin = popGestureDelegate?.gestureRecognizerShouldBegin?(gestureRecognizer) ?? true
         guard
+            canBegin,
             let navigationController = navigationController,
             navigationController.transitionCoordinator == nil,
             navigationController.viewControllers.count > 1
