@@ -20,7 +20,7 @@ open class PresentationHostingController<
 
     open override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .clear
+        view.backgroundColor = nil
     }
 
     open override func viewDidLayoutSubviews() {
