@@ -256,7 +256,6 @@ private struct WindowLinkModifierBody<
                     adapter.window,
                     animated: isAnimated,
                     transition: { isPresented in
-                        adapter.window.backgroundColor = .clear
                         if isPresented {
                             adapter.window.alpha = toTransition.alpha ?? 1
                             adapter.window.transform = toTransition.t
