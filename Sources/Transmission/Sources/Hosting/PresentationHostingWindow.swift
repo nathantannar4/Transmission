@@ -18,6 +18,7 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
     public init(windowScene: UIWindowScene, content: Content) {
         self.host = PresentationHostingWindowController(content: content)
         super.init(windowScene: windowScene)
+        host.view.backgroundColor = .clear
         rootViewController = host
     }
 
@@ -34,7 +35,7 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
     public override init(windowScene: UIWindowScene) {
         fatalError("init(windowScene:) has not been implemented")
     }
-    
+
     public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
