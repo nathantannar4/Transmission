@@ -18,7 +18,7 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
     public init(windowScene: UIWindowScene, content: Content) {
         self.host = PresentationHostingWindowController(content: content)
         super.init(windowScene: windowScene)
-        host.view.backgroundColor = .clear
+        host.rootView.backgroundColor = .clear
         rootViewController = host
     }
 
