@@ -358,6 +358,7 @@ private class WindowLinkDestinationWindowAdapter<
                 )
             )
         )
+        self.window.backgroundColor = .clear
     }
 
     func update(
