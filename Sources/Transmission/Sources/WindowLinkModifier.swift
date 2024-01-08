@@ -358,6 +358,7 @@ private class WindowLinkDestinationWindowAdapter<
                 )
             )
         )
+        self.window.isOpaque = true
         self.window.backgroundColor = .clear
     }
 
