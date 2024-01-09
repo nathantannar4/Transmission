@@ -96,6 +96,11 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
             }
             return parentViewController
         }
+
+        override func viewDidLoad() {
+            super.viewDidLoad()
+            view.backgroundColor = nil
+        }
     }
 }
 

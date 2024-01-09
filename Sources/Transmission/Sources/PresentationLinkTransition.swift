@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import SwiftUI
+import EngineCore
 
 /// The transition and presentation style for a ``PresentationLink`` or ``PresentationLinkModifier``.
 @available(iOS 14.0, *)
@@ -95,10 +96,31 @@ extension PresentationLinkTransition {
             }
             // Need to extract the UIColor since because SwiftUI's UIColor init
             // from a Color does not work for dynamic colors when set on UIView's
-            let uiColor = Mirror(reflecting: color).children.lazy.compactMap({ child in
-                Mirror(reflecting: child.value).children.first?.value as? UIColor
-            }).first
-            return uiColor ?? UIColor(color)
+            guard
+                let provider = Mirror(reflecting: color).children
+                    .first(where: { $0.label == "provider" })?
+                    .value,
+                let base = Mirror(reflecting: provider).children
+                    .first(where: { $0.label == "base" })?
+                    .value
+            else {
+                return UIColor(color)
+            }
+            let className = String(describing: type(of: base))
+            switch className {
+            case "NamedColor":
+                guard
+                    let name = try? swift_getFieldValue("name", String.self, base)
+                else {
+                    return UIColor(color)
+                }
+                let bundle = try? swift_getFieldValue("bundle", Bundle.self, base)
+                return UIColor { traits in
+                    UIColor(named: name, in: bundle, compatibleWith: traits) ?? UIColor(color)
+                }
+            default:
+                return base as? UIColor ?? UIColor(color)
+            }
         }
     }
 }
