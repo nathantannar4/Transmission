@@ -48,15 +48,11 @@ public struct DestinationLinkModifier<
 
     public func body(content: Content) -> some View {
         content.background(
-            ViewGraphBridgeAdapter {
-                destination
-            } content: { destination in
-                DestinationLinkModifierBody(
-                    transition: transition,
-                    isPresented: isPresented,
-                    destination: destination
-                )
-            }
+            DestinationLinkModifierBody(
+                transition: transition,
+                isPresented: isPresented,
+                destination: destination
+            )
         )
     }
 }
