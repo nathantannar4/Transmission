@@ -232,7 +232,7 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if let scrollView = otherGestureRecognizer.view as? UIScrollView {
-            guard otherGestureRecognizer.isScrollViewPanGesture else {
+            guard otherGestureRecognizer.isSimultaneousWithSlideTransition else {
                 // Cancel
                 gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
                 return true
@@ -257,6 +257,12 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
 }
 
 extension UIGestureRecognizer {
+
+    var isSimultaneousWithSlideTransition: Bool {
+        isScrollViewPanGesture
+            || delaysTouchesBegan
+            || isKind(of: UIPinchGestureRecognizer.self)
+    }
 
     private static let UIScrollViewPanGestureRecognizer: AnyClass? = NSClassFromString("UIScrollViewPanGestureRecognizer")
     var isScrollViewPanGesture: Bool {
