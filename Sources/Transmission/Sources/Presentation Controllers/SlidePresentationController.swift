@@ -259,7 +259,7 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
 extension UIGestureRecognizer {
 
     var isSimultaneousWithSlideTransition: Bool {
-        isScrollViewPanGesture
+        isScrollViewPanGesture || isWebViewPanGesture
             || delaysTouchesBegan
             || isKind(of: UIPinchGestureRecognizer.self)
     }
@@ -270,6 +270,14 @@ extension UIGestureRecognizer {
             return false
         }
         return isKind(of: aClass)
+    }
+
+    private static let WKScrollView: AnyClass? = NSClassFromString("WKScrollView")
+    var isWebViewPanGesture: Bool {
+        guard let view, let aClass = Self.WKScrollView else {
+            return false
+        }
+        return view.isKind(of: aClass)
     }
 }
 
