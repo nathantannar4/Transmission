@@ -8,9 +8,6 @@ import SwiftUI
 
 /// The transition and presentation style for a ``DestinationLink`` or ``DestinationLinkModifier``.
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 public struct DestinationLinkTransition {
     enum Value {
         case `default`(Options)
@@ -37,9 +34,6 @@ public struct DestinationLinkTransition {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension DestinationLinkTransition {
     /// The transition options.
     @frozen
@@ -57,23 +51,12 @@ extension DestinationLinkTransition {
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {
-            guard let color = preferredPresentationBackgroundColor else {
-                return nil
-            }
-            // Need to extract the UIColor since because SwiftUI's UIColor init
-            // from a Color does not work for dynamic colors when set on UIView's
-            let uiColor = Mirror(reflecting: color).children.lazy.compactMap({ child in
-                Mirror(reflecting: child.value).children.first?.value as? UIColor
-            }).first
-            return uiColor ?? UIColor(color)
+            preferredPresentationBackgroundColor?.toUIColor()
         }
     }
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension DestinationLinkTransition {
     /// The default presentation style of the `UINavigationController`.
     public static func `default`(

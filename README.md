@@ -76,7 +76,11 @@ public struct PresentationLinkTransition {
     public static let fullscreen: PresentationLinkTransition
     public static let popover: PresentationLinkTransition
     public static let slide: PresentationLinkTransition
-
+    public static let card: PresentationLinkTransition
+    
+    public static func custom<T: PresentationLinkTransitionRepresentable>(_ transition: T) -> PresentationLinkTransition
+    
+    @available(*, deprecated)
     public static func custom<T: PresentationLinkCustomTransition>(_ transition: T) -> PresentationLinkTransition
 }
 
@@ -103,31 +107,26 @@ extension SheetTransitionOptions.Detent {
 }
 
 /// A protocol that defines a custom transition for a ``PresentationLinkTransition``
+///
+/// > Tip: Use ``PresentationController`` or ``InteractivePresentationController``
+///
 @available(iOS 14.0, *)
-public protocol PresentationLinkCustomTransition {
+public protocol PresentationLinkTransitionRepresentable {
 
-    func presentationController(
-        sourceView: UIView,
+    typealias Context = PresentationLinkTransitionRepresentableContext
+    associatedtype UIPresentationControllerType: UIPresentationController
+
+    /// The presentation controller to use for the transition.
+    func makeUIPresentationController(
+        context: Context,
         presented: UIViewController,
         presenting: UIViewController?
-    ) -> UIPresentationController
+    ) -> UIPresentationControllerType
 
-    func animationController(
-        forPresented presented: UIViewController,
-        presenting: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning?
-
-    func animationController(
-        forDismissed dismissed: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning?
-
-    func interactionControllerForPresentation(
-        using animator: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning?
-
-    func interactionControllerForDismissal(
-        using animator: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning?
+    func updateUIPresentationController(
+        presentationController: UIPresentationControllerType,
+        context: Context
+    )
 }
 
 @available(iOS 14.0, *)
@@ -385,10 +384,7 @@ extension URL: ShareSheetItemProvider {
 @frozen
 public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
 
-    public init(label: LocalizedStringKey, content: Content) {
-        self.label = Text(label)
-        self.content = content
-    }
+    public init(label: LocalizedStringKey, content: Content)
 }
 
 /// A button that presents a `UIActivityViewController`
@@ -421,6 +417,90 @@ extension View {
         isPresented: Binding<Bool>,
         action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil
     ) -> some View
+}
+
+/// A modifier that presents a `UIActivityViewController`
+@available(iOS 14.0, *)
+@frozen
+public struct ShareSheetLinkModifier: ViewModifier {
+
+    public init(
+        items: [ShareSheetItemProvider],
+        action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
+        isPresented: Binding<Bool>
+    )
+}
+```
+
+### QuickLookPreviewLink
+
+```swift
+/// A quick look preview provider.
+@available(iOS 14.0, *)
+@frozen
+public struct QuickLookPreviewItem: Equatable {
+
+    public var url: URL
+    public var label: Text?
+
+    public init(url: URL, label: Text? = nil)
+}
+
+/// A button that presents a `QLPreviewController`
+@available(iOS 14.0, *)
+@frozen
+public struct QuickLookPreviewLink<
+    Label: View
+>: View {
+
+    public init(
+        items: [QuickLookPreviewItem],
+        transition: QuickLookPreviewTransition = .default,
+        @ViewBuilder label: () -> Label
+    )
+
+    public init(
+        items: [QuickLookPreviewItem],
+        transition: QuickLookPreviewTransition = .default,
+        isPresented: Binding<Bool>,
+        @ViewBuilder label: () -> Label
+    )
+
+    public init(
+        url: URL,
+        transition: QuickLookPreviewTransition = .default,
+        @ViewBuilder label: () -> Label
+    )
+}
+
+@available(iOS 14.0, *)
+extension View {
+
+    /// A modifier that presents a `QLPreviewController`
+    public func quickLookPreview(
+        items: [QuickLookPreviewItem],
+        transition: QuickLookPreviewTransition = .default,
+        isPresented: Binding<Bool>
+    ) -> some View
+
+    /// A modifier that presents a `QLPreviewController`
+    public func quickLookPreview(
+        url: URL,
+        transition: QuickLookPreviewTransition = .default,
+        isPresented: Binding<Bool>
+    ) -> some View
+}
+
+/// A modifier that presents a `QLPreviewController`
+@available(iOS 14.0, *)
+@frozen
+public struct QuickLookPreviewLinkModifier: ViewModifier {
+
+    public init(
+        items: [QuickLookPreviewItem],
+        transition: QuickLookPreviewTransition = .default,
+        isPresented: Binding<Bool>
+    )
 }
 ```
 

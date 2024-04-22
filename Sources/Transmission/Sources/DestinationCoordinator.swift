@@ -14,9 +14,6 @@ import Turbocharger
 ///  - ``DestinationLink``
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct DestinationCoordinator {
     public var isPresented: Bool
@@ -42,17 +39,11 @@ public struct DestinationCoordinator {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 enum DestinationCoordinatorKey: EnvironmentKey {
     static let defaultValue: DestinationCoordinator? = nil
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension EnvironmentValues {
 
     /// A coordinator that can be used to programatically dismiss a view
@@ -84,9 +75,6 @@ extension EnvironmentValues {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 struct DestinationBridgeAdapter: ViewModifier {
     var isPresented: Binding<Bool>
 

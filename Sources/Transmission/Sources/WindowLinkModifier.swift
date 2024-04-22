@@ -27,9 +27,6 @@ import Turbocharger
 ///  - ``WindowLinkLevel``
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct WindowLinkModifier<
     Destination: View
@@ -66,9 +63,6 @@ public struct WindowLinkModifier<
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension View {
 
     /// A modifier that presents a destination view in a new `UIWindow`
@@ -154,9 +148,6 @@ extension View {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 private struct WindowLinkModifierBody<
     Destination: View
 >: UIViewRepresentable {
@@ -330,9 +321,6 @@ private struct WindowLinkModifierBody<
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 private class WindowLinkDestinationWindowAdapter<
     Destination: View
 > {

@@ -21,9 +21,6 @@ import Engine
 ///  transition.
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct PresentationLink<
     Label: View,
@@ -77,9 +74,6 @@ public struct PresentationLink<
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension PresentationLink {
     @_disfavoredOverload
     public init<ViewController: UIViewController>(
@@ -137,9 +131,6 @@ extension PresentationLink {
 // MARK: - Previews
 
 @available(iOS 15.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 struct PresentationLink_Previews: PreviewProvider {
     struct Preview: View {
         var body: some View {

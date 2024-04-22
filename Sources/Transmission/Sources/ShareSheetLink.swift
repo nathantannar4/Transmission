@@ -14,9 +14,6 @@ import LinkPresentation
 /// > Important: Conforming types should be a struct or an enum
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 public protocol ShareSheetItemProvider {
     /// The `UIActivityItemSource` representation of the provider
     func makeUIActivityItemSource(context: Context) -> UIActivityItemSource
@@ -31,18 +28,12 @@ public protocol ShareSheetItemProvider {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension ShareSheetItemProvider {
     public func makeUIActivity(context: Context) -> UIActivity? { nil }
 }
 
 /// The resolution context for a ``ShareSheetItemProvider``
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct ShareSheetItemProviderContext {
     public var environment: EnvironmentValues
@@ -60,9 +51,6 @@ public struct ShareSheetItemProviderContext {
 /// ```
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct ShareSheetLink<
     Label: View
@@ -132,9 +120,6 @@ public struct ShareSheetLink<
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension View {
     
     /// A modifier that presents a `UIActivityViewController`
@@ -189,9 +174,6 @@ extension View {
 
 /// A modifier that presents a `UIActivityViewController`
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct ShareSheetLinkModifier: ViewModifier {
 
@@ -229,7 +211,9 @@ public struct ShareSheetLinkModifier: ViewModifier {
         var action: ((Result<UIActivity.ActivityType?, Error>) -> Void)?
         var isPresented: Binding<Bool>
 
-        func makeUIViewController(context: Context) -> UIActivityViewController {
+        func makeUIViewController(
+            context: Context
+        ) -> UIActivityViewController {
             assert(items.allSatisfy({ !isClassType($0) }), "ShareSheetItemProvider must be value types (either a struct or an enum); it was a class")
             let ctx = ShareSheetItemProviderContext(environment: context.environment)
             let activityItems = items.map { $0.makeUIActivityItemSource(context: ctx) }
@@ -246,17 +230,19 @@ public struct ShareSheetLinkModifier: ViewModifier {
             return uiViewController
         }
 
-        func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) { }
+        func updateUIViewController(
+            _ uiViewController: UIActivityViewController,
+            context: Context
+        ) { }
     }
 }
 
 /// A share sheet provider for a string.
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension String: ShareSheetItemProvider {
-    public func makeUIActivityItemSource(context: Context) -> UIActivityItemSource {
+    public func makeUIActivityItemSource(
+        context: ShareSheetItemProviderContext
+    ) -> UIActivityItemSource {
         Source(content: self)
     }
 
@@ -299,11 +285,10 @@ extension String: ShareSheetItemProvider {
 
 /// A share sheet provider for a url.
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension URL: ShareSheetItemProvider {
-    public func makeUIActivityItemSource(context: Context) -> UIActivityItemSource {
+    public func makeUIActivityItemSource(
+        context: ShareSheetItemProviderContext
+    ) -> UIActivityItemSource {
         Source(url: self)
     }
 
@@ -318,7 +303,9 @@ extension URL: ShareSheetItemProvider {
         override var item: Any { url }
     }
 
-    public func makeUIActivity(context: Context) -> UIActivity? {
+    public func makeUIActivity(
+        context: ShareSheetItemProviderContext
+    ) -> UIActivity? {
         let title = Text("Safari").resolve(in: context.environment)
         return Activity(title: title)
     }
@@ -431,9 +418,6 @@ extension ShareSheetItem: ShareSheetItemProvider {
 
 /// A share sheet provider for generating an image from a view.
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
     var label: Text

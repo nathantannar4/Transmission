@@ -18,9 +18,6 @@ import Engine
 ///  - ``WindowLinkLevel``
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct WindowLink<
     Label: View,

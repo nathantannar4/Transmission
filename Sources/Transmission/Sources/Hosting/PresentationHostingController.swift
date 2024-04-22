@@ -1,4 +1,4 @@
-//
+    //
 // Copyright (c) Nathan Tannar
 //
 
@@ -16,11 +16,6 @@ open class PresentationHostingController<
         didSet {
             view.setNeedsLayout()
         }
-    }
-
-    open override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = nil
     }
 
     open override func viewDidLayoutSubviews() {
@@ -78,9 +73,9 @@ open class PresentationHostingController<
             }
 
             if #available(iOS 16.0, *) {
-                try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", isAnimated, view)
+                allowUIKitAnimationsForNextUpdate = true
                 performTransition(animated: isAnimated) {
-                    try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", false, self.view)
+                    self.allowUIKitAnimationsForNextUpdate = false
                 }
             } else {
                 withCATransaction {
@@ -112,7 +107,7 @@ open class PresentationHostingController<
                         preferredContentSize = newSize
                     } else if oldSize != newSize {
                         let dz = (newSize.width * newSize.height) - (oldSize.width * oldSize.height)
-                        try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", isAnimated, view)
+                        allowUIKitAnimationsForNextUpdate = isAnimated
                         UIView.transition(
                             with: containerView,
                             duration: 0.35 + (dz > 0 ? 0.15 : -0.05),
@@ -120,7 +115,7 @@ open class PresentationHostingController<
                         ) {
                             self.preferredContentSize = newSize
                         } completion: { _ in
-                            try? swift_setFieldValue("allowUIKitAnimationsForNextUpdate", false, self.view)
+                            self.allowUIKitAnimationsForNextUpdate = false
                         }
                     }
                 }

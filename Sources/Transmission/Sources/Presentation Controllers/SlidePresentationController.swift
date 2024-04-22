@@ -4,37 +4,43 @@
 
 #if os(iOS)
 
-import SwiftUI
 import UIKit
-import Engine
-import Turbocharger
+import SwiftUI
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 class SlidePresentationController: PresentationController, UIGestureRecognizerDelegate {
 
+    var edge: Edge
+
     private weak var transition: UIPercentDrivenInteractiveTransition?
-    open var edge: Edge = .bottom
-
-    lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
-
+    private lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
     private var isTransitioning = false
     private var translationOffset: CGPoint = .zero
 
-    open override var presentationStyle: UIModalPresentationStyle { .overFullScreen }
+    override var presentationStyle: UIModalPresentationStyle { .overFullScreen }
 
     override var shouldAutoLayoutPresentedView: Bool {
         super.shouldAutoLayoutPresentedView && transition == nil
     }
 
-    public func dismiss(with transition: UIPercentDrivenInteractiveTransition) {
+    init(
+        edge: Edge = .bottom,
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?
+    ) {
+        self.edge = edge
+        super.init(
+            presentedViewController: presentedViewController,
+            presenting: presentingViewController
+        )
+    }
+
+    func dismiss(with transition: UIPercentDrivenInteractiveTransition) {
         self.transition = transition
         transition.wantsInteractiveStart = transition.wantsInteractiveStart && isTransitioning
     }
 
-    open override func presentationTransitionDidEnd(_ completed: Bool) {
+    override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
 
         if completed {
@@ -169,6 +175,7 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
             if shouldDismiss {
                 transition.finish()
             } else {
+                transition.completionSpeed = 1 - percentage
                 transition.cancel()
             }
             isTransitioning = false
@@ -232,7 +239,7 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if let scrollView = otherGestureRecognizer.view as? UIScrollView {
-            guard otherGestureRecognizer.isSimultaneousWithSlideTransition else {
+            guard otherGestureRecognizer.isSimultaneousWithTransition else {
                 // Cancel
                 gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
                 return true
@@ -256,35 +263,7 @@ class SlidePresentationController: PresentationController, UIGestureRecognizerDe
     }
 }
 
-extension UIGestureRecognizer {
-
-    var isSimultaneousWithSlideTransition: Bool {
-        isScrollViewPanGesture || isWebViewPanGesture
-            || delaysTouchesBegan
-            || isKind(of: UIPinchGestureRecognizer.self)
-    }
-
-    private static let UIScrollViewPanGestureRecognizer: AnyClass? = NSClassFromString("UIScrollViewPanGestureRecognizer")
-    var isScrollViewPanGesture: Bool {
-        guard let aClass = Self.UIScrollViewPanGestureRecognizer else {
-            return false
-        }
-        return isKind(of: aClass)
-    }
-
-    private static let WKScrollView: AnyClass? = NSClassFromString("WKScrollView")
-    var isWebViewPanGesture: Bool {
-        guard let view, let aClass = Self.WKScrollView else {
-            return false
-        }
-        return view.isKind(of: aClass)
-    }
-}
-
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
 
     let isPresenting: Bool
@@ -296,9 +275,7 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
         #if targetEnvironment(macCatalyst)
         return 12
         #else
-        let key = String("suidaRrenroCyalpsid_".reversed())
-        let value = UIScreen.main.value(forKey: key) as? CGFloat ?? 0
-        return max(value, 12)
+        return max(UIScreen.main.displayCornerRadius, 12)
         #endif
     }()
 
@@ -355,6 +332,7 @@ class SlideTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAni
             duration: duration,
             curve: completionCurve
         )
+        self.animator = animator
 
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),

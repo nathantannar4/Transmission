@@ -5,8 +5,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/nathantannar4/Engine",
       "state" : {
-        "revision" : "71cf6da72f6cae7be6b2eccecfd6b629fbe30e94",
-        "version" : "0.1.11"
+        "revision" : "c7fc37a68f14f6c27df56630f92cc37e698143e8",
+        "version" : "1.7.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-syntax.git",
+      "state" : {
+        "revision" : "64889f0c732f210a935a0ad7cda38f77f876262d",
+        "version" : "509.1.1"
       }
     },
     {
@@ -14,8 +23,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/nathantannar4/Turbocharger",
       "state" : {
-        "revision" : "dc4984aa167bbe0cac779e9ef5fa65e51c699a2a",
-        "version" : "0.1.8"
+        "revision" : "52f22b97dcefed06e274d66ccba0f659f8eefbd5",
+        "version" : "1.2.0"
       }
     }
   ],

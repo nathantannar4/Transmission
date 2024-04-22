@@ -14,9 +14,6 @@ import Turbocharger
 ///  - ``PresentationLink``
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct PresentationCoordinator {
     public var isPresented: Bool
@@ -44,17 +41,11 @@ public struct PresentationCoordinator {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 enum PresentationCoordinatorKey: EnvironmentKey {
     static let defaultValue: PresentationCoordinator? = nil
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension EnvironmentValues {
 
     /// A coordinator that can be used to programatically dismiss a view
@@ -86,9 +77,6 @@ extension EnvironmentValues {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 struct PresentationBridgeAdapter: ViewModifier {
     var isPresented: Binding<Bool>
 

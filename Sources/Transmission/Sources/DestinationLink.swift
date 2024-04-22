@@ -13,9 +13,6 @@ import Engine
 ///  - ``TransitionReader``
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct DestinationLink<
     Label: View,
@@ -68,9 +65,6 @@ public struct DestinationLink<
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension DestinationLink {
     @_disfavoredOverload
     public init<ViewController: UIViewController>(

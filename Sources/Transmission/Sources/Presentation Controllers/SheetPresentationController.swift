@@ -4,30 +4,19 @@
 
 #if os(iOS)
 
-import SwiftUI
 import UIKit
-import Engine
 import Turbocharger
 
 #if targetEnvironment(macCatalyst)
 @available(iOS 15.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 typealias SheetPresentationController = MacSheetPresentationController
 
 @available(iOS 15.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 final class MacSheetTransition: SlideTransition {
 
 }
 
 @available(iOS 15.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 final class MacSheetPresentationController: SlidePresentationController {
 
     var preferredCornerRadius: CGFloat? {
@@ -240,9 +229,6 @@ final class MacSheetPresentationController: SlidePresentationController {
 }
 #else
 @available(iOS 15.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 final class SheetPresentationController: UISheetPresentationController {
 
     var preferredBackgroundColor: UIColor? {

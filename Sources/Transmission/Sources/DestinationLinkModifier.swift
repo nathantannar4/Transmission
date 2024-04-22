@@ -24,9 +24,6 @@ import Turbocharger
 ///  - ``TransitionReader``
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct DestinationLinkModifier<
     Destination: View
@@ -58,9 +55,6 @@ public struct DestinationLinkModifier<
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension View {
     /// A modifier that pushes a destination view in a new `UIViewController`.
     ///
@@ -132,9 +126,6 @@ extension View {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 private struct DestinationLinkModifierBody<
     Destination: View
 >: UIViewRepresentable {
@@ -511,9 +502,6 @@ extension UINavigationController {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 private class DestinationLinkDestinationViewControllerAdapter<Destination: View> {
     var viewController: UIViewController!
     var context: Any!
@@ -703,9 +691,6 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension DestinationLinkTransition.Value {
 
     func update<Content: View>(_ viewController: HostingController<Content>) {

@@ -8,9 +8,6 @@ import SwiftUI
 import Engine
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension View {
     /// Sets the preferred status bar style of the hosting views `UIViewController`
     ///
@@ -34,9 +31,6 @@ extension View {
 /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct PreferredStatusBarStyleModifier: ViewModifier {
     var style: UIStatusBarStyle
@@ -54,9 +48,6 @@ public struct PreferredStatusBarStyleModifier: ViewModifier {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
     var style: UIStatusBarStyle
 
@@ -89,9 +80,6 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
 /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 public struct PrefersStatusBarHiddenModifier: ViewModifier {
     var isHidden: Bool
 
@@ -108,9 +96,6 @@ public struct PrefersStatusBarHiddenModifier: ViewModifier {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
     var isHidden: Bool
 

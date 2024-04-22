@@ -118,6 +118,26 @@ struct ContentView: View {
                     }
 
                     Section {
+                        PresentationLink(transition: .card) {
+                            Text("Hello, World")
+                        } label: {
+                            Text("Card")
+                        }
+
+                        PresentationLink(
+                            transition: .card(
+                                options: .init(preferredEdgeInset: 0, preferredCornerRadius: 0)
+                            )
+                        ) {
+                            Text("Hello, World")
+                        } label: {
+                            Text("Card (custom insets)")
+                        }
+                    } header: {
+                        Text("Card Transitions")
+                    }
+
+                    Section {
                         Button {
                             withAnimation {
                                 isHeroPresented = true
@@ -139,6 +159,23 @@ struct ContentView: View {
                                 Text("Hero Move")
                             }
                         }
+
+                        PresentationLink(
+                            transition: .toast
+                        ) {
+                            DismissPresentationLink {
+                                Text("Hello, World")
+                                    .padding()
+                                    .background {
+                                        Capsule()
+                                            .fill(.background)
+                                            .shadow(radius: 10)
+                                    }
+                            }
+                        } label: {
+                            Text("Toast")
+                        }
+
 
                         NavigationLink {
                             ScrollView {

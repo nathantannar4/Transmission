@@ -9,9 +9,6 @@ import Turbocharger
 
 /// The window level for a presented ``WindowLink`` destination
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 public struct WindowLinkLevel {
     enum Value {
         case relative(Int)
@@ -39,9 +36,6 @@ public struct WindowLinkLevel {
 
 /// The transition style for a ``WindowLink`` and ``WindowLinkModifier``.
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 public struct WindowLinkTransition {
     indirect enum Value: Equatable {
         case identity
@@ -71,9 +65,6 @@ public struct WindowLinkTransition {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension WindowLinkTransition {
 
     /// The identity transition.
@@ -108,9 +99,6 @@ extension WindowLinkTransition {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension WindowLinkTransition {
     public func combined(with other: WindowLinkTransition) -> WindowLinkTransition {
         WindowLinkTransition(value: .union(value, other.value), options: options)
@@ -118,9 +106,6 @@ extension WindowLinkTransition {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension WindowLinkTransition {
     /// The transition options.
     @frozen
@@ -141,9 +126,6 @@ extension WindowLinkTransition {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension WindowLinkTransition.Value {
     func toSwiftUIAlignment() -> Alignment {
         switch self {
@@ -212,9 +194,6 @@ extension WindowLinkTransition.Value {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 struct WindowBridgeAdapter: ViewModifier {
     var isPresented: Binding<Bool>
     var transition: WindowLinkTransition.Value

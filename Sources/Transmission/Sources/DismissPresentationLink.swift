@@ -11,9 +11,6 @@ import SwiftUI
 /// > Note: The button is disabled if there is no presented view
 /// 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 @frozen
 public struct DismissPresentationLink<Label: View>: View {
 

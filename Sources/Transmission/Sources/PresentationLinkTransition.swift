@@ -9,9 +9,6 @@ import EngineCore
 
 /// The transition and presentation style for a ``PresentationLink`` or ``PresentationLinkModifier``.
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 public struct PresentationLinkTransition {
     enum Value {
         case `default`(Options)
@@ -20,6 +17,10 @@ public struct PresentationLinkTransition {
         case fullscreen(Options)
         case popover(PopoverTransitionOptions)
         case slide(SlideTransitionOptions)
+        case card(CardTransitionOptions)
+        case representable(Options, any PresentationLinkTransitionRepresentable)
+
+        @available(*, deprecated)
         case custom(Options, PresentationLinkCustomTransition)
 
         var options: Options {
@@ -32,7 +33,12 @@ public struct PresentationLinkTransition {
                 return options.options
             case .slide(let options):
                 return options.options
-            case .currentContext(let options), .fullscreen(let options), .custom(let options, _):
+            case .card(let options):
+                return options.options
+            case .currentContext(let options),
+                .fullscreen(let options),
+                .representable(let options, _),
+                .custom(let options, _):
                 return options
             }
         }
@@ -57,20 +63,36 @@ public struct PresentationLinkTransition {
     /// The slide presentation style.
     public static let slide = PresentationLinkTransition(value: .slide(.init()))
 
+    /// The card presentation style.
+    public static let card = PresentationLinkTransition(value: .card(.init()))
+
     /// A custom presentation style.
-    public static func custom<T: PresentationLinkCustomTransition>(_ transition: T) -> PresentationLinkTransition {
+    public static func custom<
+        T: PresentationLinkTransitionRepresentable
+    >(
+        _ transition: T
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .representable(.init(), transition))
+    }
+
+    /// A custom presentation style.
+    @available(*, deprecated)
+    public static func custom<
+        T: PresentationLinkCustomTransition
+    >(
+        _ transition: T
+    ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .custom(.init(), transition))
     }
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension PresentationLinkTransition {
     /// The transition options.
     @frozen
     public struct Options {
+        /// Used when the presentation delegate asks if it should dismiss
+        public var isInteractive: Bool
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
@@ -79,11 +101,13 @@ extension PresentationLinkTransition {
         public var preferredPresentationBackgroundColor: Color?
 
         public init(
+            isInteractive: Bool = true,
             isDestinationReusable: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
             preferredPresentationBackgroundColor: Color? = nil
         ) {
+            self.isInteractive = isInteractive
             self.isDestinationReusable = isDestinationReusable
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
@@ -91,44 +115,12 @@ extension PresentationLinkTransition {
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {
-            guard let color = preferredPresentationBackgroundColor else {
-                return nil
-            }
-            // Need to extract the UIColor since because SwiftUI's UIColor init
-            // from a Color does not work for dynamic colors when set on UIView's
-            guard
-                let provider = Mirror(reflecting: color).children
-                    .first(where: { $0.label == "provider" })?
-                    .value,
-                let base = Mirror(reflecting: provider).children
-                    .first(where: { $0.label == "base" })?
-                    .value
-            else {
-                return UIColor(color)
-            }
-            let className = String(describing: type(of: base))
-            switch className {
-            case "NamedColor":
-                guard
-                    let name = try? swift_getFieldValue("name", String.self, base)
-                else {
-                    return UIColor(color)
-                }
-                let bundle = try? swift_getFieldValue("bundle", Bundle.self, base)
-                return UIColor { traits in
-                    UIColor(named: name, in: bundle, compatibleWith: traits) ?? UIColor(color)
-                }
-            default:
-                return base as? UIColor ?? UIColor(color)
-            }
+            preferredPresentationBackgroundColor?.toUIColor()
         }
     }
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension PresentationLinkTransition {
     /// The transition options for a sheet transition.
     @frozen
@@ -365,7 +357,6 @@ extension PresentationLinkTransition {
         public var selected: Binding<Detent.Identifier?>?
         public var detents: [Detent]
         public var largestUndimmedDetentIdentifier: Detent.Identifier?
-        public var isInteractive: Bool
         public var prefersGrabberVisible: Bool
         public var preferredCornerRadius: CGFloat?
         public var prefersSourceViewAlignment: Bool
@@ -387,6 +378,7 @@ extension PresentationLinkTransition {
             options: Options = .init()
         ) {
             self.options = options
+            self.options.isInteractive = isInteractive
             self.selected = selected
             if #available(iOS 15.0, *) {
                 self.detents = detents ?? [.large]
@@ -394,7 +386,6 @@ extension PresentationLinkTransition {
                 self.detents = []
             }
             self.largestUndimmedDetentIdentifier = largestUndimmedDetentIdentifier
-            self.isInteractive = isInteractive
             self.prefersGrabberVisible = prefersGrabberVisible
             self.preferredCornerRadius = preferredCornerRadius
             self.prefersSourceViewAlignment = prefersSourceViewAlignment
@@ -412,7 +403,6 @@ extension PresentationLinkTransition {
         public var permittedArrowDirections: PermittedArrowDirections
         public var canOverlapSourceViewRect: Bool
         public var adaptiveTransition: SheetTransitionOptions?
-        public var isInteractive: Bool
 
         public init(
             permittedArrowDirections: PermittedArrowDirections = .all,
@@ -422,10 +412,10 @@ extension PresentationLinkTransition {
             options: PresentationLinkTransition.Options = .init()
         ) {
             self.options = options
+            self.options.isInteractive = isInteractive
             self.permittedArrowDirections = permittedArrowDirections
             self.canOverlapSourceViewRect = canOverlapSourceViewRect
             self.adaptiveTransition = adaptiveTransition
-            self.isInteractive = isInteractive
         }
 
         func permittedArrowDirections(layoutDirection: UITraitEnvironmentLayoutDirection) -> UIPopoverArrowDirection {
@@ -448,19 +438,15 @@ extension PresentationLinkTransition {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
 extension PresentationLinkTransition {
     /// The transition options for a slide transition.
     @frozen
     public struct SlideTransitionOptions {
 
+        public var options: Options
         public var edge: Edge
         public var prefersScaleEffect: Bool
         public var preferredCornerRadius: CGFloat?
-        public var isInteractive: Bool
-        public var options: Options
 
         public init(
             edge: Edge = .bottom,
@@ -469,19 +455,40 @@ extension PresentationLinkTransition {
             isInteractive: Bool = true,
             options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
         ) {
+            self.options = options
+            self.options.isInteractive = isInteractive
             self.edge = edge
             self.prefersScaleEffect = prefersScaleEffect
             self.preferredCornerRadius = preferredCornerRadius
-            self.isInteractive = isInteractive
-            self.options = options
         }
     }
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
+extension PresentationLinkTransition {
+    /// The transition options for a card transition.
+    @frozen
+    public struct CardTransitionOptions {
+
+        public var options: Options
+        public var preferredEdgeInset: CGFloat?
+        public var preferredCornerRadius: CGFloat?
+
+        public init(
+            preferredEdgeInset: CGFloat? = nil,
+            preferredCornerRadius: CGFloat? = nil,
+            isInteractive: Bool = true,
+            options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
+        ) {
+            self.options = options
+            self.options.isInteractive = isInteractive
+            self.preferredEdgeInset = preferredEdgeInset
+            self.preferredCornerRadius = preferredCornerRadius
+        }
+    }
+}
+
+@available(iOS 14.0, *)
 extension PresentationLinkTransition {
     /// The default presentation style of the `UIViewController`.
     public static func `default`(
@@ -555,8 +562,28 @@ extension PresentationLinkTransition {
         PresentationLinkTransition(value: .slide(options))
     }
 
+    /// The card presentation style.
+    public static func card(
+        options: CardTransitionOptions
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .card(options))
+    }
+
     /// A custom presentation style.
-    public static func custom<T: PresentationLinkCustomTransition>(
+    public static func custom<
+        T: PresentationLinkTransitionRepresentable
+    >(
+        options: PresentationLinkTransition.Options,
+        _ transition: T
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .representable(options, transition))
+    }
+
+    /// A custom presentation style.
+    @available(*, deprecated)
+    public static func custom<
+        T: PresentationLinkCustomTransition
+    >(
         options: PresentationLinkTransition.Options,
         _ transition: T
     ) -> PresentationLinkTransition {
@@ -571,9 +598,7 @@ extension PresentationLinkTransition {
 /// > Important: Conforming types should be a struct or an enum
 ///
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
+@available(*, deprecated, renamed: "PresentationLinkTransitionRepresentable")
 public protocol PresentationLinkCustomTransition {
 
     /// The presentation controller to use for the transition.
@@ -636,9 +661,7 @@ public protocol PresentationLinkCustomTransition {
 }
 
 @available(iOS 14.0, *)
-@available(macOS, unavailable)
-@available(tvOS, unavailable)
-@available(watchOS, unavailable)
+@available(*, deprecated, renamed: "PresentationLinkTransitionRepresentable")
 extension PresentationLinkCustomTransition {
     public func animationController(
         forPresented presented: UIViewController,

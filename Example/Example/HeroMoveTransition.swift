@@ -13,18 +13,25 @@ extension PresentationLinkTransition {
     static let heroMove: PresentationLinkTransition = .custom(HeroMoveTransition())
 }
 
-struct HeroMoveTransition: PresentationLinkCustomTransition {
+struct HeroMoveTransition: PresentationLinkTransitionRepresentable {
 
-    func presentationController(
-        sourceView: UIView,
+    func makeUIPresentationController(
+        context: Context,
         presented: UIViewController,
         presenting: UIViewController?
-    ) -> UIPresentationController {
+    ) -> HeroMovePresentationController {
         HeroMovePresentationController(
-            sourceView: sourceView,
+            sourceView: context.sourceView,
             presentedViewController: presented,
             presenting: presenting
         )
+    }
+
+    func updateUIPresentationController(
+        presentationController: HeroMovePresentationController,
+        context: Context
+    ) {
+
     }
 
     func animationController(
