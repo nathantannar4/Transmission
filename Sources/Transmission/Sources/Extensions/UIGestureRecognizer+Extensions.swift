@@ -6,7 +6,7 @@
 
 import UIKit
 
-func frictionCurve(
+public func frictionCurve(
     _ value: CGFloat,
     distance: CGFloat = 200,
     coefficient: CGFloat = 0.3
@@ -17,7 +17,7 @@ func frictionCurve(
 }
 
 extension CGFloat {
-    func rounded(scale: CGFloat) -> CGFloat {
+    public func rounded(scale: CGFloat) -> CGFloat {
         (self * scale).rounded() / scale
     }
 }

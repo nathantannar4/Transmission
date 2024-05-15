@@ -18,6 +18,7 @@ public struct PresentationLinkTransition {
         case popover(PopoverTransitionOptions)
         case slide(SlideTransitionOptions)
         case card(CardTransitionOptions)
+        case matchedGeometry(Options)
         case representable(Options, any PresentationLinkTransitionRepresentable)
 
         @available(*, deprecated)
@@ -37,6 +38,7 @@ public struct PresentationLinkTransition {
                 return options.options
             case .currentContext(let options),
                 .fullscreen(let options),
+                .matchedGeometry(let options),
                 .representable(let options, _),
                 .custom(let options, _):
                 return options
@@ -65,6 +67,9 @@ public struct PresentationLinkTransition {
 
     /// The card presentation style.
     public static let card = PresentationLinkTransition(value: .card(.init()))
+
+    /// The matched geometry presentation style.
+    public static let matchedGeometry = PresentationLinkTransition(value: .matchedGeometry(.init()))
 
     /// A custom presentation style.
     public static func custom<
@@ -368,7 +373,7 @@ extension PresentationLinkTransition {
             selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
             detents: [SheetTransitionOptions.Detent]? = nil,
             largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
-            isInteractive: Bool = true,
+            isInteractive: Bool? = nil,
             prefersGrabberVisible: Bool = false,
             preferredCornerRadius: CGFloat? = nil,
             prefersSourceViewAlignment: Bool = false,
@@ -378,7 +383,9 @@ extension PresentationLinkTransition {
             options: Options = .init()
         ) {
             self.options = options
-            self.options.isInteractive = isInteractive
+            if let isInteractive {
+                self.options.isInteractive = isInteractive
+            }
             self.selected = selected
             if #available(iOS 15.0, *) {
                 self.detents = detents ?? [.large]
@@ -408,11 +415,13 @@ extension PresentationLinkTransition {
             permittedArrowDirections: PermittedArrowDirections = .all,
             canOverlapSourceViewRect: Bool = false,
             adaptiveTransition: SheetTransitionOptions? = nil,
-            isInteractive: Bool = true,
+            isInteractive: Bool? = nil,
             options: PresentationLinkTransition.Options = .init()
         ) {
             self.options = options
-            self.options.isInteractive = isInteractive
+            if let isInteractive {
+                self.options.isInteractive = isInteractive
+            }
             self.permittedArrowDirections = permittedArrowDirections
             self.canOverlapSourceViewRect = canOverlapSourceViewRect
             self.adaptiveTransition = adaptiveTransition
@@ -452,11 +461,13 @@ extension PresentationLinkTransition {
             edge: Edge = .bottom,
             prefersScaleEffect: Bool = true,
             preferredCornerRadius: CGFloat? = nil,
-            isInteractive: Bool = true,
+            isInteractive: Bool? = nil,
             options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
         ) {
             self.options = options
-            self.options.isInteractive = isInteractive
+            if let isInteractive {
+                self.options.isInteractive = isInteractive
+            }
             self.edge = edge
             self.prefersScaleEffect = prefersScaleEffect
             self.preferredCornerRadius = preferredCornerRadius
@@ -477,11 +488,13 @@ extension PresentationLinkTransition {
         public init(
             preferredEdgeInset: CGFloat? = nil,
             preferredCornerRadius: CGFloat? = nil,
-            isInteractive: Bool = true,
+            isInteractive: Bool? = nil,
             options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
         ) {
             self.options = options
-            self.options.isInteractive = isInteractive
+            if let isInteractive {
+                self.options.isInteractive = isInteractive
+            }
             self.preferredEdgeInset = preferredEdgeInset
             self.preferredCornerRadius = preferredCornerRadius
         }
@@ -567,6 +580,13 @@ extension PresentationLinkTransition {
         options: CardTransitionOptions
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .card(options))
+    }
+
+    /// The matched geometry presentation style.
+    public static func matchedGeometry(
+        options: Options
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .matchedGeometry(options))
     }
 
     /// A custom presentation style.

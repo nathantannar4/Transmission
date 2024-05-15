@@ -18,10 +18,16 @@ extension _UIHostingView: AnyHostingView {
 }
 
 public protocol AnyHostingController: UIViewController {
+    var disableSafeArea: Bool { get set }
     func render()
 }
 
 extension UIHostingController: AnyHostingController {
+    public var disableSafeArea: Bool {
+        get { _disableSafeArea }
+        set { _disableSafeArea = newValue }
+    }
+    
     public func render() {
         (view as! AnyHostingView).render()
     }

@@ -13,7 +13,7 @@ public struct TransitionReaderProxy {
 
     @usableFromInline
     init(progress: CGFloat) {
-        self.progress = 0
+        self.progress = progress
     }
 }
 
@@ -89,6 +89,9 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                 presentingViewController.swizzle_beginAppearanceTransition { [unowned self] in
                     self.transitionCoordinatorDidChange()
                 }
+                presentingViewController.swizzle_endAppearanceTransition { [unowned self] in
+                    self.transitionCoordinatorDidChange()
+                }
             }
             transitionCoordinatorDidChange()
         }
@@ -108,9 +111,11 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                     transitionCoordinator.notifyWhenInteractionChanges { [unowned self] ctx in
                         self.transitionDidChange(ctx)
                     }
-                } else {
-                    withAnimation(.interactiveSpring()) {
-                        self.progress.wrappedValue = 1
+                } else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
+                    let isPresented = presentingViewController.isBeingPresented
+                    let transaction = Transaction(animation: nil)
+                    withTransaction(transaction) {
+                        self.progress.wrappedValue = isPresented ? 1 : 0
                     }
                 }
             } else {
@@ -133,19 +138,19 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
         ) {
             let from = transitionCoordinator.viewController(forKey: .from)
             let isPresenting = from !== presentingViewController
-            let percentComplete = isPresenting ? transitionCoordinator.percentComplete : 1 - transitionCoordinator.percentComplete
 
             if transitionCoordinator.isInteractive {
+                let percentComplete = isPresenting ? transitionCoordinator.percentComplete : 1 - transitionCoordinator.percentComplete
                 var transaction = Transaction()
                 transaction.isContinuous = true
                 withTransaction(transaction) {
                     progress.wrappedValue = percentComplete
                 }
             } else {
-                let newValue: CGFloat = transitionCoordinator.isCancelled ? isPresenting ? 0 : 1 : isPresenting ? 1 : 0
+                let newValue: CGFloat = transitionCoordinator.isCancelled ? isPresenting ? 0 : 1 : isPresenting ? 0.9999 : 0.0001
                 var transaction = Transaction(animation: nil)
                 if transitionCoordinator.isAnimated {
-                    let duration = transitionCoordinator.transitionDuration * percentComplete
+                    let duration = transitionCoordinator.transitionDuration == 0 ? 0.35 : transitionCoordinator.transitionDuration
                     let animation = transitionCoordinator.completionCurve.toSwiftUI(duration: duration)
                     transaction.animation = animation
                 }
@@ -212,6 +217,41 @@ extension UIViewController {
         typealias BeginAppearanceTransitionMethod = @convention(c) (NSObject, Selector, Bool, Bool) -> Void
         let swizzled = #selector(UIViewController.swizzled_beginAppearanceTransition(_:animated:))
         unsafeBitCast(method(for: swizzled), to: BeginAppearanceTransitionMethod.self)(self, swizzled, isAppearing, animated)
+    }
+
+    private static var endAppearanceTransitionKey: Bool = false
+
+    struct EndAppearanceTransition {
+        var value: () -> Void
+    }
+
+    func swizzle_endAppearanceTransition(_ transition: @escaping () -> Void) {
+        let original = #selector(UIViewController.endAppearanceTransition)
+        let swizzled = #selector(UIViewController.swizzled_endAppearanceTransition)
+
+        if !Self.endAppearanceTransitionKey {
+            Self.endAppearanceTransitionKey = true
+
+            if let originalMethod = class_getInstanceMethod(Self.self, original),
+               let swizzledMethod = class_getInstanceMethod(UIViewController.self, swizzled)
+            {
+                method_exchangeImplementations(originalMethod, swizzledMethod)
+            }
+        }
+
+        let box = ObjCBox(value: EndAppearanceTransition(value: transition))
+        objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+    }
+
+    @objc
+    func swizzled_endAppearanceTransition() {
+        if let box = objc_getAssociatedObject(self, &Self.endAppearanceTransitionKey) as? ObjCBox<EndAppearanceTransition> {
+            box.value.value()
+        }
+
+        typealias EndAppearanceTransitionMethod = @convention(c) (NSObject, Selector) -> Void
+        let swizzled = #selector(UIViewController.swizzled_endAppearanceTransition)
+        unsafeBitCast(method(for: swizzled), to: EndAppearanceTransitionMethod.self)(self, swizzled)
     }
 }
 

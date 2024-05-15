@@ -26,10 +26,20 @@ class CardPresentationController: InteractivePresentationController {
 
     override var frameOfPresentedViewInContainerView: CGRect {
         var frame = super.frameOfPresentedViewInContainerView
+        guard let presentedView else { return frame }
         let isCompact = traitCollection.verticalSizeClass == .compact
         let keyboardOverlap = keyboardOverlapInContainerView(of: frame)
-        let height = isCompact ? frame.height - keyboardOverlap : min(frame.height, 400)
-        let width = isCompact ? frame.height : min(frame.width, height)
+        let width = isCompact ? frame.height : frame.width
+        let fittingSize = CGSize(
+            width: width,
+            height: UIView.layoutFittingCompressedSize.height
+        )
+        let sizeThatFits = presentedView.systemLayoutSizeFitting(
+            fittingSize,
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .defaultLow
+        )
+        let height = isCompact ? frame.height - keyboardOverlap : min(frame.height, max(sizeThatFits.height - presentedView.safeAreaInsets.top - presentedView.safeAreaInsets.bottom, frame.width))
         frame = CGRect(
             x: frame.origin.x + (frame.width - width) / 2,
             y: frame.origin.y + (frame.height - height),
@@ -77,8 +87,6 @@ class CardPresentationController: InteractivePresentationController {
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-
-        shouldAutomaticallyAdjustFrameForKeyboard = false
     }
 
     override func presentationTransitionWillBegin() {
@@ -88,7 +96,6 @@ class CardPresentationController: InteractivePresentationController {
             UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
         )
 
-        presentedViewController.view.layer.masksToBounds = true
         updatePresentedView()
     }
 
@@ -100,7 +107,9 @@ class CardPresentationController: InteractivePresentationController {
     override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
         dimmingView.frame = containerView?.bounds ?? .zero
-        updatePresentedView()
+        if shouldAutoLayoutPresentedView {
+            updatePresentedView()
+        }
     }
 
     override func transformPresentedView(transform: CGAffineTransform) {
@@ -109,6 +118,7 @@ class CardPresentationController: InteractivePresentationController {
     }
 
     private func updatePresentedView() {
+        presentedViewController.view.layer.masksToBounds = cornerRadius > 0
         presentedViewController.view.layer.cornerRadius = cornerRadius
         updatePresentedViewSafeArea(transform: presentedViewController.view.transform)
     }

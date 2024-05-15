@@ -10,7 +10,7 @@ import SwiftUI
 import Transmission
 
 extension PresentationLinkTransition {
-    static let heroMove: PresentationLinkTransition = .custom(HeroMoveTransition())
+    static let heroMove: PresentationLinkTransition = .matchedGeometry
 }
 
 struct HeroMoveTransition: PresentationLinkTransitionRepresentable {

@@ -25,6 +25,8 @@ public protocol PresentationLinkTransitionRepresentable {
 
     typealias Context = PresentationLinkTransitionRepresentableContext
     associatedtype UIPresentationControllerType: UIPresentationController
+    associatedtype UIAnimationControllerType: UIViewControllerAnimatedTransitioning
+    associatedtype UIInteractionControllerType: UIViewControllerInteractiveTransitioning
 
     /// The presentation controller to use for the transition.
     func makeUIPresentationController(
@@ -46,7 +48,7 @@ public protocol PresentationLinkTransitionRepresentable {
     func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning?
+    ) -> UIAnimationControllerType?
 
     /// The animation controller to use for the transition dismissal.
     ///
@@ -54,7 +56,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     func animationController(
         forDismissed dismissed: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning?
+    ) -> UIAnimationControllerType?
 
     /// The interaction controller to use for the transition presentation.
     ///
@@ -62,7 +64,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     func interactionControllerForPresentation(
         using animator: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning?
+    ) -> UIInteractionControllerType?
 
     /// The interaction controller to use for the transition dismissal.
     ///
@@ -70,7 +72,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     func interactionControllerForDismissal(
         using animator: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning?
+    ) -> UIInteractionControllerType?
 
     /// The presentation style to use for an adaptive presentation.
     ///
@@ -143,13 +145,18 @@ extension PresentationLinkTransitionRepresentable
         guard let presentationController = dismissed.presentationController as? UIPresentationControllerType else {
             return nil
         }
-        return presentationController.animationController(isPresenting: false)
+        let transition = PresentationControllerTransition(
+            isPresenting: false
+        )
+        transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
+        presentationController.transition(with: transition)
+        return transition
     }
 
     public func interactionControllerForDismissal(
         using animator: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning? {
-        return animator as? InteractivePresentationControllerTransition
+        return animator as? PresentationControllerTransition
     }
 }
 

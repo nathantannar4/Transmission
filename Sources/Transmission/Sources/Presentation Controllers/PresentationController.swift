@@ -14,12 +14,16 @@ open class PresentationController: UIPresentationController {
 
     open var shouldAutoLayoutPresentedView: Bool {
         !isTransitioningSize
-            && presentedView?.transform == .identity
             && !presentedViewController.isBeingPresented
             && !presentedViewController.isBeingDismissed
     }
 
-    open var shouldAutomaticallyAdjustFrameForKeyboard: Bool = true {
+    open var shouldIgnoreContainerViewTouches: Bool {
+        get { containerView?.value(forKey: "ignoreDirectTouchEvents") as? Bool ?? false }
+        set { containerView?.setValue(true, forKey: "ignoreDirectTouchEvents") }
+    }
+
+    open var shouldAutomaticallyAdjustFrameForKeyboard: Bool = false {
         didSet {
             guard oldValue != shouldAutomaticallyAdjustFrameForKeyboard else { return }
             containerView?.setNeedsLayout()
@@ -42,6 +46,8 @@ open class PresentationController: UIPresentationController {
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
+
+        shouldIgnoreContainerViewTouches = true
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
             transitionCoordinator.animate { _ in

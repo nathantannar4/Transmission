@@ -64,4 +64,15 @@ class ToastPresentationController: InteractivePresentationController {
         frame.size = sizeThatFits
         return frame
     }
+
+    override init(
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?
+    ) {
+        super.init(
+            presentedViewController: presentedViewController,
+            presenting: presentingViewController
+        )
+        edges = .all
+    }
 }

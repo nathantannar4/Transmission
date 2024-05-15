@@ -11,13 +11,26 @@ import Engine
 @available(iOS 14.0, *)
 open class InteractivePresentationController: PresentationController {
 
+    /// The edges the presented view can be interactively dismissed towards.
+    open var edges: Edge.Set = [.bottom]
+
+    public private(set) weak var transition: UIPercentDrivenInteractiveTransition?
     public private(set) lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
 
     private var translationOffset: CGPoint = .zero
-    private var transition: InteractivePresentationControllerTransition?
+    private var lastTranslation: CGPoint = .zero
+
+    open var wantsInteractiveTransition: Bool {
+        let isInteracting = panGesture.state != .possible
+        return isInteracting
+    }
 
     open override var shouldAutoLayoutPresentedView: Bool {
-        transition == nil && super.shouldAutoLayoutPresentedView
+        transition == nil && panGesture.state == .possible && super.shouldAutoLayoutPresentedView
+    }
+
+    public func transition(with transition: UIPercentDrivenInteractiveTransition) {
+        self.transition = transition
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -30,50 +43,105 @@ open class InteractivePresentationController: PresentationController {
         }
     }
 
-    public func animationController(
-        isPresenting: Bool
-    ) -> InteractivePresentationControllerTransition? {
-        let isInteracting = panGesture.state == .began || panGesture.state == .changed
-        if isInteracting {
-            let transition = InteractivePresentationControllerTransition(
-                isPresenting: isPresenting
-            )
-            transition.wantsInteractiveStart = true
-            self.transition = transition
-            return transition
+    open func dismissalTransitionShouldBegin(
+        translation: CGPoint,
+        delta: CGPoint
+    ) -> Bool {
+        if edges.contains(.bottom), translation.y > 0 {
+            return true
         }
-        return nil
+        return false
+    }
+
+    open func dismissalTransitionShouldCancel(
+        translation: CGPoint,
+        delta: CGPoint
+    ) -> Bool {
+        if edges.contains(.bottom), translation.y >= 0 {
+            return false
+        }
+        return true
+    }
+
+    open func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
+        let dy = frictionCurve(translation.y)
+        return CGAffineTransform(
+            translationX: 0,
+            y: dy
+        )
     }
 
     open func transformPresentedView(transform: CGAffineTransform) {
-        presentedView?.transform = transform
+        let frame = frameOfPresentedViewInContainerView.applying(transform)
+        layoutPresentedView(frame: frame)
     }
 
     @objc
     private func onPanGesture(_ gestureRecognizer: UIPanGestureRecognizer) {
+        guard let presentedView else { return }
         let scrollView = gestureRecognizer.view as? UIScrollView
-        guard let presentedView else {
-            return
-        }
-
         let gestureTranslation = gestureRecognizer.translation(in: presentedView)
-        let offset = CGPoint(
+        let delta = CGPoint(
+            x: gestureTranslation.x - lastTranslation.x,
+            y: gestureTranslation.y - lastTranslation.y
+        )
+        lastTranslation = gestureTranslation
+        var translation = CGPoint(
             x: gestureTranslation.x - translationOffset.x,
             y: gestureTranslation.y - translationOffset.y
         )
-        let translation = offset.y
+
+        if transition != nil {
+            let shouldCancel = dismissalTransitionShouldCancel(
+                translation: gestureTranslation,
+                delta: delta
+            )
+            if shouldCancel {
+                transition?.cancel()
+                transition = nil
+            }
+        }
 
         if let transition {
-            guard translation >= 0 else {
-                transition.cancel()
-                self.transition = nil
-                return
+            let frameOfPresentedView = frameOfPresentedViewInContainerView
+            var percentage: CGFloat = 0
+            if edges.contains(.top) {
+                if let scrollView {
+                    translation.y += max(0, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.bounds.height)
+                }
+                percentage = max(percentage, abs(translation.y) / frameOfPresentedView.height)
             }
-            let percentage = abs(translation / presentedView.bounds.height)
+            if edges.contains(.bottom) {
+                percentage = max(percentage, abs(translation.y) / frameOfPresentedView.height)
+            }
+            if edges.contains(.leading) {
+                if let scrollView {
+                    translation.x += max(0, scrollView.contentSize.width + scrollView.adjustedContentInset.left - scrollView.bounds.width)
+                }
+                percentage = max(percentage, abs(translation.x) / frameOfPresentedView.width)
+            }
+            if edges.contains(.trailing) {
+                percentage = max(percentage, abs(translation.x) / frameOfPresentedView.width)
+            }
+
             switch gestureRecognizer.state {
             case .began, .changed:
                 if let scrollView {
-                    scrollView.contentOffset.y = -scrollView.adjustedContentInset.top
+                    if edges.contains(.top), translation.y < 0 {
+                        scrollView.contentOffset.y = max(-scrollView.adjustedContentInset.top, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.frame.height)
+                    }
+
+                    if edges.contains(.bottom), translation.y > 0 {
+                        scrollView.contentOffset.y = -scrollView.adjustedContentInset.top
+                    }
+
+                    if edges.contains(.leading), translation.x < 0 {
+                        scrollView.contentOffset.x = max(-scrollView.adjustedContentInset.left, scrollView.contentSize.width + scrollView.adjustedContentInset.left - scrollView.frame.width)
+                    }
+
+                    if edges.contains(.trailing), translation.x > 0 {
+                        scrollView.contentOffset.x = -scrollView.adjustedContentInset.right
+                    }
                 }
                 transition.update(percentage)
 
@@ -81,9 +149,17 @@ open class InteractivePresentationController: PresentationController {
                 // Dismiss if:
                 // - Drag over 50% and not moving up
                 // - Large enough down vector
-                let velocity = gestureRecognizer.velocity(in: presentedView).y
-                let shouldFinish = (percentage > 0.5 && velocity > 0) || velocity >= 1000
-                if shouldFinish, gestureRecognizer.state != .failed {
+                let gestureVelocity = gestureRecognizer.velocity(in: presentedView)
+                var velocity: CGPoint = .zero
+                if edges.contains(.top) || edges.contains(.bottom) {
+                    velocity.y = abs(gestureVelocity.y)
+                }
+                if edges.contains(.leading) || edges.contains(.trailing) {
+                    velocity.x = abs(gestureVelocity.x)
+                }
+                let magnitude = sqrt(pow(velocity.x, 2) + pow(velocity.y, 2))
+                let shouldFinish = (percentage > 0.5 && magnitude > 0) || magnitude >= 1000
+                if shouldFinish, gestureRecognizer.state == .ended {
                     transition.finish()
                 } else {
                     transition.completionSpeed = 1 - percentage
@@ -91,6 +167,7 @@ open class InteractivePresentationController: PresentationController {
                 }
                 self.transition = nil
                 translationOffset = .zero
+                lastTranslation = .zero
 
             default:
                 break
@@ -118,16 +195,6 @@ open class InteractivePresentationController: PresentationController {
                 } while index < views.count && firstResponder == nil
                 if let firstResponder {
                     canStart = firstResponder.resignFirstResponder()
-                    if canStart {
-                        let point = gestureRecognizer.location(in: presentedView)
-                        gestureRecognizer.setTranslation(
-                            CGPoint(
-                                x: gestureTranslation.x,
-                                y: gestureTranslation.y + point.y
-                            ),
-                            in: gestureRecognizer.view
-                        )
-                    }
                 } else {
                     canStart = true
                 }
@@ -137,17 +204,14 @@ open class InteractivePresentationController: PresentationController {
             #endif
             guard canStart else { return }
 
-            let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? false
-            if shouldDismiss, translation >= 0 {
+            let shouldDismiss = (delegate?.presentationControllerShouldDismiss?(self) ?? false)
+                && dismissalTransitionShouldBegin(translation: translation, delta: delta)
+            if shouldDismiss {
                 presentedViewController.dismiss(animated: true)
             } else {
-                let dy = frictionCurve(translation)
-                let transform = CGAffineTransform(
-                    translationX: 0,
-                    y: dy
-                )
-                switch gestureRecognizer.state {
+                switch panGesture.state {
                 case .began, .changed:
+                    let transform = presentedViewTransform(for: translation)
                     transformPresentedView(transform: transform)
 
                 case .ended:
@@ -158,11 +222,13 @@ open class InteractivePresentationController: PresentationController {
                         initialSpringVelocity: 0
                     ) {
                         self.transformPresentedView(transform: .identity)
-                        presentedView.layoutIfNeeded()
+                        self.presentedView?.layoutIfNeeded()
                     }
+                    lastTranslation = .zero
 
                 default:
                     transformPresentedView(transform: .identity)
+                    lastTranslation = .zero
                 }
             }
         }
@@ -174,11 +240,39 @@ open class InteractivePresentationController: PresentationController {
         let canScrollVertically = size.height > frame.size.height
         let canScrollHorizontally = size.width > frame.size.width
 
-        if canScrollHorizontally && !canScrollVertically {
-            return false
-        }
-        let dy = scrollView.contentOffset.y + scrollView.contentInset.top
-        return dy <= 0
+        let isAtVerticalTop = {
+            if edges.contains(.top) || edges.contains(.bottom) {
+                if canScrollHorizontally && !canScrollVertically {
+                    return false
+                }
+
+                let dy = scrollView.contentOffset.y + scrollView.contentInset.top
+                if edges.contains(.bottom) {
+                    return dy <= 0
+                } else {
+                    return dy >= size.height - frame.height
+                }
+            }
+            return true
+        }()
+
+        let isAtHorizontalTop = {
+            if edges.contains(.leading) || edges.contains(.trailing) {
+                if canScrollVertically && !canScrollHorizontally {
+                    return false
+                }
+
+                let dx = scrollView.contentOffset.x + scrollView.contentInset.left
+                if edges.contains(.trailing) {
+                    return dx <= 0
+                } else {
+                    return dx >= size.width - frame.width
+                }
+            }
+            return true
+        }()
+
+        return isAtVerticalTop && isAtHorizontalTop
     }
 }
 
@@ -205,111 +299,22 @@ extension InteractivePresentationController: UIGestureRecognizerDelegate {
                 return true
             }
             scrollView.panGestureRecognizer.addTarget(self, action: #selector(onPanGesture(_:)))
-            translationOffset = CGPoint(
-                x: scrollView.contentOffset.x + scrollView.adjustedContentInset.left,
-                y: scrollView.contentOffset.y + scrollView.adjustedContentInset.top
-            )
+            translationOffset = scrollView.contentOffset
+            if edges.contains(.bottom) || edges.contains(.top) {
+                translationOffset.y += scrollView.adjustedContentInset.top
+            }
+            if edges.contains(.top) {
+                translationOffset.y -= scrollView.adjustedContentInset.bottom
+            }
+            if edges.contains(.leading) || edges.contains(.trailing) {
+                translationOffset.x += scrollView.adjustedContentInset.left
+            }
+            if edges.contains(.trailing) {
+                translationOffset.x += scrollView.adjustedContentInset.right
+            }
             return false
         }
         return false
-    }
-}
-
-@available(iOS 14.0, *)
-public class InteractivePresentationControllerTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
-
-    private let isPresenting: Bool
-    private var animator: UIViewPropertyAnimator?
-
-    init(isPresenting: Bool) {
-        self.isPresenting = isPresenting
-        super.init()
-    }
-
-    // MARK: - UIViewControllerAnimatedTransitioning
-
-    public func transitionDuration(
-        using transitionContext: UIViewControllerContextTransitioning?
-    ) -> TimeInterval {
-        transitionContext?.isAnimated == true ? 0.35 : 0
-    }
-
-    public func animateTransition(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) {
-        let animator = makeAnimatorIfNeeded(using: transitionContext)
-        animator.startAnimation()
-
-        if !transitionContext.isAnimated {
-            animator.stopAnimation(false)
-            animator.finishAnimation(at: .end)
-        }
-    }
-
-    public func animationEnded(_ transitionCompleted: Bool) {
-        wantsInteractiveStart = false
-        animator = nil
-    }
-
-    public func interruptibleAnimator(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewImplicitlyAnimating {
-        let animator = makeAnimatorIfNeeded(using: transitionContext)
-        return animator
-    }
-
-    private func makeAnimatorIfNeeded(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewPropertyAnimator {
-        if let animator = animator {
-            return animator
-        }
-
-        let animator = UIViewPropertyAnimator(
-            duration: duration,
-            curve: completionCurve
-        )
-        self.animator = animator
-
-        guard
-            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
-        else {
-            transitionContext.completeTransition(false)
-            return animator
-        }
-
-        if isPresenting {
-            let frame = transitionContext.finalFrame(for: presented)
-            transitionContext.containerView.addSubview(presented.view)
-            presented.view.frame = frame
-            let transform = CGAffineTransform(
-                translationX: 0,
-                y: frame.size.height
-            )
-            presented.view.transform = transform
-            animator.addAnimations {
-                presented.view.transform = .identity
-            }
-        } else {
-            let frame = transitionContext.finalFrame(for: presented)
-            let dy = transitionContext.containerView.frame.height - frame.origin.y
-            let transform = CGAffineTransform(
-                translationX: 0,
-                y: dy
-            )
-            animator.addAnimations {
-                presented.view.transform = transform
-            }
-        }
-        animator.addCompletion { animatingPosition in
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
-            }
-        }
-        return animator
     }
 }
 

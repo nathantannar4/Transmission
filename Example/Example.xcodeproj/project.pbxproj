@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		38C26C4B2BFDA89F007E4297 /* DynamicIslandTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C26C4A2BFDA89F007E4297 /* DynamicIslandTransition.swift */; };
 		38D91FA72BE35B9800F11547 /* ToastTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D91FA62BE35B9800F11547 /* ToastTransition.swift */; };
 		38DC6EA9293FD48F006276F8 /* ExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DC6EA8293FD48F006276F8 /* ExampleApp.swift */; };
 		38DC6EAB293FD48F006276F8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DC6EAA293FD48F006276F8 /* ContentView.swift */; };
@@ -17,6 +18,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		38C26C4A2BFDA89F007E4297 /* DynamicIslandTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandTransition.swift; sourceTree = "<group>"; };
 		38D91FA62BE35B9800F11547 /* ToastTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastTransition.swift; sourceTree = "<group>"; };
 		38DC6EA5293FD48F006276F8 /* Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		38DC6EA8293FD48F006276F8 /* ExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleApp.swift; sourceTree = "<group>"; };
@@ -65,6 +67,7 @@
 				38DC6EA8293FD48F006276F8 /* ExampleApp.swift */,
 				38DC6EAA293FD48F006276F8 /* ContentView.swift */,
 				38DC6EBF293FDA39006276F8 /* HeroMoveTransition.swift */,
+				38C26C4A2BFDA89F007E4297 /* DynamicIslandTransition.swift */,
 				38D91FA62BE35B9800F11547 /* ToastTransition.swift */,
 				38DC6EAC293FD490006276F8 /* Assets.xcassets */,
 				38DC6EAE293FD490006276F8 /* Preview Content */,
@@ -170,6 +173,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				38C26C4B2BFDA89F007E4297 /* DynamicIslandTransition.swift in Sources */,
 				38DC6EAB293FD48F006276F8 /* ContentView.swift in Sources */,
 				38DC6EA9293FD48F006276F8 /* ExampleApp.swift in Sources */,
 				38D91FA72BE35B9800F11547 /* ToastTransition.swift in Sources */,

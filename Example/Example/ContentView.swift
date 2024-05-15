@@ -176,6 +176,50 @@ struct ContentView: View {
                             Text("Toast")
                         }
 
+                        PresentationLink(
+                            transition: .dynamicIsland
+                        ) {
+                            HStack {
+                                Circle()
+                                    .frame(width: 48, height: 48)
+
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text("Title")
+                                    Text("Subtitle")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .fixedSize(horizontal: true, vertical: false)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .lineLimit(1)
+
+                                DismissPresentationLink {
+                                    ZStack {
+                                        Circle()
+                                            .fill(.red)
+
+                                        Image(systemName: "phone.down.fill")
+                                    }
+                                }
+                                .frame(width: 48, height: 48)
+
+                                DismissPresentationLink {
+                                    ZStack {
+                                        Circle()
+                                            .fill(.green)
+
+                                        Image(systemName: "phone.fill")
+                                    }
+                                }
+                                .frame(width: 48, height: 48)
+                            }
+                            .buttonStyle(.plain)
+                            .prefersStatusBarHidden()
+                            .environment(\.colorScheme, .dark)
+                            .padding(12)
+                            .ignoresSafeArea(edges: .vertical)
+                        } label: {
+                            Text("Dynamic Island")
+                        }
 
                         NavigationLink {
                             ScrollView {

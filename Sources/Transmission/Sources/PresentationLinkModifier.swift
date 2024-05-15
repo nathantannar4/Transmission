@@ -332,7 +332,7 @@ private struct PresentationLinkModifierBody<
                     adapter.viewController.modalPresentationStyle = .overFullScreen
                     adapter.viewController.presentationController?.overrideTraitCollection = traits
 
-                case .sheet, .popover, .slide, .card:
+                case .sheet, .popover, .slide, .card, .matchedGeometry:
                     context.coordinator.sourceView = uiView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
@@ -580,6 +580,14 @@ private struct PresentationLinkModifierBody<
                 transition.wantsInteractiveStart = false
                 return transition
 
+            case .matchedGeometry:
+                let transition = MatchedGeometryTransition(
+                    sourceView: sourceView,
+                    isPresenting: true
+                )
+                transition.wantsInteractiveStart = false
+                return transition
+
             case .representable(_, let transition):
                 return transition.animationController(
                     forPresented: presented,
@@ -617,7 +625,7 @@ private struct PresentationLinkModifierBody<
                         )
                     )
                     transition.wantsInteractiveStart = options.isInteractive
-                    presentationController.dismiss(with: transition)
+                    presentationController.transition(with: transition)
                     return transition
                 }
                 #endif
@@ -632,14 +640,31 @@ private struct PresentationLinkModifierBody<
                     options: options
                 )
                 transition.wantsInteractiveStart = options.options.isInteractive
-                presentationController.dismiss(with: transition)
+                presentationController.transition(with: transition)
                 return transition
 
-            case .card:
+            case .card(let options):
                 guard let presentationController = dismissed.presentationController as? CardPresentationController else {
                     return nil
                 }
-                return presentationController.animationController(isPresenting: false)
+                let transition = PresentationControllerTransition(
+                    isPresenting: false
+                )
+                transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
+                presentationController.transition(with: transition)
+                return transition
+
+            case .matchedGeometry(let options):
+                guard let presentationController = dismissed.presentationController as? MatchedGeometryPresentationController else {
+                    return nil
+                }
+                let transition = MatchedGeometryTransition(
+                    sourceView: sourceView,
+                    isPresenting: false
+                )
+                transition.wantsInteractiveStart = options.isInteractive && presentationController.wantsInteractiveTransition
+                presentationController.transition(with: transition)
+                return transition
 
             case .representable(_, let transition):
                 return transition.animationController(forDismissed: dismissed)
@@ -683,7 +708,10 @@ private struct PresentationLinkModifierBody<
                 return animator as? SlideTransition
 
             case .card:
-                return animator as? InteractivePresentationControllerTransition
+                return animator as? PresentationControllerTransition
+
+            case .matchedGeometry:
+                return animator as? MatchedGeometryTransition
 
             case .representable(_, let transition):
                 return transition.interactionControllerForDismissal(using: animator)
@@ -778,6 +806,15 @@ private struct PresentationLinkModifierBody<
                 let presentationController = CardPresentationController(
                     preferredEdgeInset: options.preferredEdgeInset,
                     preferredCornerRadius: options.preferredCornerRadius,
+                    presentedViewController: presented,
+                    presenting: presenting
+                )
+                presentationController.overrideTraitCollection = overrideTraitCollection
+                presentationController.delegate = self
+                return presentationController
+
+            case .matchedGeometry:
+                let presentationController = MatchedGeometryPresentationController(
                     presentedViewController: presented,
                     presenting: presenting
                 )
