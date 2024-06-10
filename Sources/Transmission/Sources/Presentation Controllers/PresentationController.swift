@@ -147,7 +147,14 @@ open class PresentationController: UIPresentationController {
     }
 
     open func layoutPresentedView(frame: CGRect) {
-        presentedView?.frame = frame
+        guard let presentedView else { return }
+        // Set frame preserving transform
+        let anchor = presentedView.layer.anchorPoint
+        presentedView.bounds = CGRect(origin: .zero, size: frame.size)
+        presentedView.center = CGPoint(
+            x: frame.minX + (frame.width * anchor.x),
+            y: frame.minY + (frame.height * anchor.y)
+        )
     }
 
     open func keyboardOverlapInContainerView(of frame: CGRect) -> CGFloat {

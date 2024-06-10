@@ -72,6 +72,12 @@ class SlidePresentationController: InteractivePresentationController {
     override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         return .identity
     }
+
+    override func containerViewDidLayoutSubviews() {
+        super.containerViewDidLayoutSubviews()
+
+        presentingViewController.view.isHidden = presentedViewController.presentedViewController != nil
+    }
 }
 
 @available(iOS 14.0, *)
