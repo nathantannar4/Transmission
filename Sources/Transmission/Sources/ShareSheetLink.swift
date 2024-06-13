@@ -292,7 +292,7 @@ extension URL: ShareSheetItemProvider {
         Source(url: self)
     }
 
-    private class Source: UIActivityItemProvider {
+    private class Source: UIActivityItemProvider, @unchecked Sendable {
         let url: URL
 
         init(url: URL) {

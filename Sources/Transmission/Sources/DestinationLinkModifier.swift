@@ -514,7 +514,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
     var isPresented: Binding<Bool> {
         Binding<Bool>(
             get: { true },
-            set: { [weak self] newValue, transaction in
+            set: { @MainActor [weak self] newValue, transaction in
                 if !newValue, let viewController = self?.viewController {
                     let isAnimated = transaction.isAnimated
                         || viewController.transitionCoordinator?.isAnimated == true

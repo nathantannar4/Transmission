@@ -624,7 +624,7 @@ private struct PresentationLinkModifierBody<
                             options: options.options
                         )
                     )
-                    transition.wantsInteractiveStart = options.isInteractive
+                    transition.wantsInteractiveStart = options.isInteractive && presentationController.wantsInteractiveTransition
                     presentationController.transition(with: transition)
                     return transition
                 }
@@ -639,7 +639,7 @@ private struct PresentationLinkModifierBody<
                     isPresenting: false,
                     options: options
                 )
-                transition.wantsInteractiveStart = options.options.isInteractive
+                transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
                 presentationController.transition(with: transition)
                 return transition
 
@@ -940,7 +940,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
     var isPresented: Binding<Bool> {
         Binding<Bool>(
             get: { true },
-            set: { [weak self] newValue, transaction in
+            set: { @MainActor [weak self] newValue, transaction in
                 if !newValue, let viewController = self?.viewController {
                     let isAnimated = transaction.isAnimated
                         || viewController.transitionCoordinator?.isAnimated == true
