@@ -940,13 +940,15 @@ private class PresentationLinkDestinationViewControllerAdapter<
     var isPresented: Binding<Bool> {
         Binding<Bool>(
             get: { true },
-            set: { @MainActor [weak self] newValue, transaction in
-                if !newValue, let viewController = self?.viewController {
-                    let isAnimated = transaction.isAnimated
-                        || viewController.transitionCoordinator?.isAnimated == true
-                        || PresentationCoordinator.transaction.isAnimated
-                    viewController.dismiss(animated: isAnimated) {
-                        PresentationCoordinator.transaction = nil
+            set: { [weak self] newValue, transaction in
+                MainActor.assumeIsolated {
+                    if !newValue, let viewController = self?.viewController {
+                        let isAnimated = transaction.isAnimated
+                            || viewController.transitionCoordinator?.isAnimated == true
+                            || PresentationCoordinator.transaction.isAnimated
+                        viewController.dismiss(animated: isAnimated) {
+                            PresentationCoordinator.transaction = nil
+                        }
                     }
                 }
             }

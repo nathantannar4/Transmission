@@ -9,8 +9,8 @@ import EngineCore
 
 /// The transition and presentation style for a ``PresentationLink`` or ``PresentationLinkModifier``.
 @available(iOS 14.0, *)
-public struct PresentationLinkTransition {
-    enum Value {
+public struct PresentationLinkTransition: Sendable {
+    enum Value: @unchecked Sendable {
         case `default`(Options)
         case sheet(SheetTransitionOptions)
         case currentContext(Options)
@@ -48,7 +48,7 @@ public struct PresentationLinkTransition {
     var value: Value
 
     /// The default presentation style of the `UIViewController`.
-    public static var `default` = PresentationLinkTransition(value: .default(.init()))
+    public static let `default` = PresentationLinkTransition(value: .default(.init()))
 
     /// The sheet presentation style.
     public static let sheet = PresentationLinkTransition(value: .sheet(.init()))
@@ -95,7 +95,7 @@ public struct PresentationLinkTransition {
 extension PresentationLinkTransition {
     /// The transition options.
     @frozen
-    public struct Options {
+    public struct Options: Sendable {
         /// Used when the presentation delegate asks if it should dismiss
         public var isInteractive: Bool
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
@@ -204,7 +204,7 @@ extension PresentationLinkTransition {
             public var identifier: Identifier
 
             var height: CGFloat?
-            var resolution: ((ResolutionContext) -> CGFloat?)?
+            var resolution: (@Sendable (ResolutionContext) -> CGFloat?)?
 
             public static func == (
                 lhs: PresentationLinkTransition.SheetTransitionOptions.Detent,
@@ -259,7 +259,7 @@ extension PresentationLinkTransition {
             @available(watchOS, unavailable)
             public static func custom(
                 _ identifier: Identifier,
-                resolver: @escaping (ResolutionContext) -> CGFloat?
+                resolver: @Sendable @escaping (ResolutionContext) -> CGFloat?
             ) -> Detent {
                 Detent(identifier: identifier, resolution: resolver)
             }
@@ -619,10 +619,11 @@ extension PresentationLinkTransition {
 ///
 @available(iOS 14.0, *)
 @available(*, deprecated, renamed: "PresentationLinkTransitionRepresentable")
+@MainActor @preconcurrency
 public protocol PresentationLinkCustomTransition {
 
     /// The presentation controller to use for the transition.
-    func presentationController(
+    @MainActor @preconcurrency func presentationController(
         sourceView: UIView,
         presented: UIViewController,
         presenting: UIViewController?
@@ -632,7 +633,7 @@ public protocol PresentationLinkCustomTransition {
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    func animationController(
+    @MainActor @preconcurrency func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController
     ) -> UIViewControllerAnimatedTransitioning?
@@ -641,7 +642,7 @@ public protocol PresentationLinkCustomTransition {
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    func animationController(
+    @MainActor @preconcurrency func animationController(
         forDismissed dismissed: UIViewController
     ) -> UIViewControllerAnimatedTransitioning?
 
@@ -649,7 +650,7 @@ public protocol PresentationLinkCustomTransition {
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    func interactionControllerForPresentation(
+    @MainActor @preconcurrency func interactionControllerForPresentation(
         using animator: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning?
 
@@ -657,7 +658,7 @@ public protocol PresentationLinkCustomTransition {
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     /// 
-    func interactionControllerForDismissal(
+    @MainActor @preconcurrency func interactionControllerForDismissal(
         using animator: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning?
 
@@ -665,7 +666,7 @@ public protocol PresentationLinkCustomTransition {
     ///
     /// > Note: This protocol implementation is optional and defaults to `.none`
     ///
-    func adaptivePresentationStyle(
+    @MainActor @preconcurrency func adaptivePresentationStyle(
         for controller: UIPresentationController,
         traitCollection: UITraitCollection
     ) -> UIModalPresentationStyle
@@ -674,7 +675,7 @@ public protocol PresentationLinkCustomTransition {
     ///
     /// > Note: This protocol implementation is optional
     ///
-    func presentationController(
+    @MainActor @preconcurrency func presentationController(
         _ presentationController: UIPresentationController,
         prepare adaptivePresentationController: UIPresentationController
     )

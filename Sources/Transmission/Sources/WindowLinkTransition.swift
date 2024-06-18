@@ -9,7 +9,7 @@ import Turbocharger
 
 /// The window level for a presented ``WindowLink`` destination
 @available(iOS 14.0, *)
-public struct WindowLinkLevel {
+public struct WindowLinkLevel: Sendable {
     enum Value {
         case relative(Int)
         case fixed(CGFloat)
@@ -36,8 +36,8 @@ public struct WindowLinkLevel {
 
 /// The transition style for a ``WindowLink`` and ``WindowLinkModifier``.
 @available(iOS 14.0, *)
-public struct WindowLinkTransition {
-    indirect enum Value: Equatable {
+public struct WindowLinkTransition: Sendable {
+    indirect enum Value: Equatable, Sendable {
         case identity
         case opacity
         case move(edge: Edge)
@@ -109,7 +109,7 @@ extension WindowLinkTransition {
 extension WindowLinkTransition {
     /// The transition options.
     @frozen
-    public struct Options {
+    public struct Options: Sendable {
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled

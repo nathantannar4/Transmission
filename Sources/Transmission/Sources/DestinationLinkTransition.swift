@@ -8,8 +8,8 @@ import SwiftUI
 
 /// The transition and presentation style for a ``DestinationLink`` or ``DestinationLinkModifier``.
 @available(iOS 14.0, *)
-public struct DestinationLinkTransition {
-    enum Value {
+public struct DestinationLinkTransition: Sendable {
+    enum Value: @unchecked Sendable {
         case `default`(Options)
         case custom(Options, DestinationLinkCustomTransition)
 
@@ -74,19 +74,20 @@ extension DestinationLinkTransition {
     }
 }
 
+@MainActor @preconcurrency
 public protocol DestinationLinkCustomTransition {
 
     /// The interaction controller to use for the transition presentation.
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    func navigationController(
+    @MainActor @preconcurrency func navigationController(
         _ navigationController: UINavigationController,
         interactionControllerFor animationController: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning?
 
     /// The animation controller to use for the transition presentation.
-    func navigationController(
+    @MainActor @preconcurrency func navigationController(
         _ navigationController: UINavigationController,
         animationControllerFor operation: UINavigationController.Operation,
         from fromVC: UIViewController,

@@ -21,6 +21,7 @@ public struct PresentationLinkTransitionRepresentableContext {
 /// > Tip: Use ``PresentationController`` or ``InteractivePresentationController``
 ///
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 public protocol PresentationLinkTransitionRepresentable {
 
     typealias Context = PresentationLinkTransitionRepresentableContext
@@ -29,14 +30,14 @@ public protocol PresentationLinkTransitionRepresentable {
     associatedtype UIInteractionControllerType: UIViewControllerInteractiveTransitioning
 
     /// The presentation controller to use for the transition.
-    func makeUIPresentationController(
+    @MainActor @preconcurrency func makeUIPresentationController(
         context: Context,
         presented: UIViewController,
         presenting: UIViewController?
     ) -> UIPresentationControllerType
 
     /// Updates the presentation controller for the transition
-    func updateUIPresentationController(
+    @MainActor @preconcurrency func updateUIPresentationController(
         presentationController: UIPresentationControllerType,
         context: Context
     )
@@ -45,7 +46,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    func animationController(
+    @MainActor @preconcurrency func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController
     ) -> UIAnimationControllerType?
@@ -54,7 +55,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    func animationController(
+    @MainActor @preconcurrency func animationController(
         forDismissed dismissed: UIViewController
     ) -> UIAnimationControllerType?
 
@@ -62,7 +63,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    func interactionControllerForPresentation(
+    @MainActor @preconcurrency func interactionControllerForPresentation(
         using animator: UIViewControllerAnimatedTransitioning
     ) -> UIInteractionControllerType?
 
@@ -70,7 +71,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    func interactionControllerForDismissal(
+    @MainActor @preconcurrency func interactionControllerForDismissal(
         using animator: UIViewControllerAnimatedTransitioning
     ) -> UIInteractionControllerType?
 
@@ -78,7 +79,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     /// > Note: This protocol implementation is optional and defaults to `.none`
     ///
-    func adaptivePresentationStyle(
+    @MainActor @preconcurrency func adaptivePresentationStyle(
         for controller: UIPresentationController,
         traitCollection: UITraitCollection
     ) -> UIModalPresentationStyle
@@ -87,7 +88,7 @@ public protocol PresentationLinkTransitionRepresentable {
     ///
     /// > Note: This protocol implementation is optional
     ///
-    func updateAdaptivePresentationController(
+    @MainActor @preconcurrency func updateAdaptivePresentationController(
         adaptivePresentationController: UIPresentationController,
         context: Context
     )
