@@ -21,7 +21,7 @@ open class InteractivePresentationController: PresentationController {
     private var lastTranslation: CGPoint = .zero
 
     open var wantsInteractiveTransition: Bool {
-        let isInteracting = panGesture.state != .possible
+        let isInteracting = panGesture.state == .began || panGesture.state == .changed
         return isInteracting
     }
 
