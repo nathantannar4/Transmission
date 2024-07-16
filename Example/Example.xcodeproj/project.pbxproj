@@ -8,18 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		38C26C4B2BFDA89F007E4297 /* DynamicIslandTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C26C4A2BFDA89F007E4297 /* DynamicIslandTransition.swift */; };
-		38D91FA72BE35B9800F11547 /* ToastTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D91FA62BE35B9800F11547 /* ToastTransition.swift */; };
 		38DC6EA9293FD48F006276F8 /* ExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DC6EA8293FD48F006276F8 /* ExampleApp.swift */; };
 		38DC6EAB293FD48F006276F8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DC6EAA293FD48F006276F8 /* ContentView.swift */; };
 		38DC6EAD293FD490006276F8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 38DC6EAC293FD490006276F8 /* Assets.xcassets */; };
 		38DC6EB0293FD490006276F8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 38DC6EAF293FD490006276F8 /* Preview Assets.xcassets */; };
 		38DC6EBA293FD4DD006276F8 /* Transmission in Frameworks */ = {isa = PBXBuildFile; productRef = 38DC6EB9293FD4DD006276F8 /* Transmission */; };
 		38DC6EC0293FDA39006276F8 /* HeroMoveTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DC6EBF293FDA39006276F8 /* HeroMoveTransition.swift */; };
+		38EBF15C2C45D2E8004ACABC /* Logo.png in Resources */ = {isa = PBXBuildFile; fileRef = 38EBF15B2C45D2E8004ACABC /* Logo.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		38C26C4A2BFDA89F007E4297 /* DynamicIslandTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicIslandTransition.swift; sourceTree = "<group>"; };
-		38D91FA62BE35B9800F11547 /* ToastTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastTransition.swift; sourceTree = "<group>"; };
 		38DC6EA5293FD48F006276F8 /* Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		38DC6EA8293FD48F006276F8 /* ExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExampleApp.swift; sourceTree = "<group>"; };
 		38DC6EAA293FD48F006276F8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -28,6 +27,7 @@
 		38DC6EB7293FD4A4006276F8 /* Transmission */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Transmission; path = ..; sourceTree = "<group>"; };
 		38DC6EBF293FDA39006276F8 /* HeroMoveTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroMoveTransition.swift; sourceTree = "<group>"; };
 		38DC6EC1293FF784006276F8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		38EBF15B2C45D2E8004ACABC /* Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = Logo.png; path = ../../Logo.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,7 +68,7 @@
 				38DC6EAA293FD48F006276F8 /* ContentView.swift */,
 				38DC6EBF293FDA39006276F8 /* HeroMoveTransition.swift */,
 				38C26C4A2BFDA89F007E4297 /* DynamicIslandTransition.swift */,
-				38D91FA62BE35B9800F11547 /* ToastTransition.swift */,
+				38EBF15B2C45D2E8004ACABC /* Logo.png */,
 				38DC6EAC293FD490006276F8 /* Assets.xcassets */,
 				38DC6EAE293FD490006276F8 /* Preview Content */,
 			);
@@ -161,6 +161,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				38EBF15C2C45D2E8004ACABC /* Logo.png in Resources */,
 				38DC6EB0293FD490006276F8 /* Preview Assets.xcassets in Resources */,
 				38DC6EAD293FD490006276F8 /* Assets.xcassets in Resources */,
 			);
@@ -176,7 +177,6 @@
 				38C26C4B2BFDA89F007E4297 /* DynamicIslandTransition.swift in Sources */,
 				38DC6EAB293FD48F006276F8 /* ContentView.swift in Sources */,
 				38DC6EA9293FD48F006276F8 /* ExampleApp.swift in Sources */,
-				38D91FA72BE35B9800F11547 /* ToastTransition.swift in Sources */,
 				38DC6EC0293FDA39006276F8 /* HeroMoveTransition.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

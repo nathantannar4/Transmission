@@ -31,44 +31,6 @@ class SlidePresentationController: InteractivePresentationController {
         )
     }
 
-    open override func dismissalTransitionShouldBegin(
-        translation: CGPoint,
-        delta: CGPoint
-    ) -> Bool {
-        if edges.contains(.bottom), translation.y > 0 {
-            return true
-        }
-        if edges.contains(.top), translation.y < 0 {
-            return true
-        }
-        if edges.contains(.leading), translation.x < 0 {
-            return true
-        }
-        if edges.contains(.trailing), translation.x > 0 {
-            return true
-        }
-        return false
-    }
-
-    open override func dismissalTransitionShouldCancel(
-        translation: CGPoint,
-        delta: CGPoint
-    ) -> Bool {
-        if edges.contains(.bottom), translation.y >= 0 {
-            return false
-        }
-        if edges.contains(.top), translation.y <= 0 {
-            return false
-        }
-        if edges.contains(.leading), translation.x <= 0 {
-            return false
-        }
-        if edges.contains(.trailing), translation.x >= 0 {
-            return false
-        }
-        return true
-    }
-
     override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         return .identity
     }
@@ -95,10 +57,11 @@ class SlideTransition: PresentationControllerTransition {
 
     init(
         isPresenting: Bool,
-        options: PresentationLinkTransition.SlideTransitionOptions
+        options: PresentationLinkTransition.SlideTransitionOptions,
+        animation: Animation?
     ) {
         self.options = options
-        super.init(isPresenting: isPresenting)
+        super.init(isPresenting: isPresenting, animation: animation)
     }
 
     override func transitionAnimator(
@@ -106,10 +69,7 @@ class SlideTransition: PresentationControllerTransition {
     ) -> UIViewPropertyAnimator {
 
         let isPresenting = isPresenting
-        let animator = UIViewPropertyAnimator(
-            duration: duration,
-            curve: completionCurve
-        )
+        let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
 
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),

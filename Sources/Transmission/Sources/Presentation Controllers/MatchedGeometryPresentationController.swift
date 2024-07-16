@@ -5,28 +5,95 @@
 #if os(iOS)
 
 import UIKit
+import SwiftUI
 
 @available(iOS 14.0, *)
 class MatchedGeometryPresentationController: InteractivePresentationController {
 
-    override init(
+    var preferredCornerRadius: CGFloat?
+
+    open override var wantsInteractiveDismissal: Bool {
+        return true
+    }
+
+    init(
+        edges: Edge.Set,
+        preferredCornerRadius: CGFloat?,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
+        self.preferredCornerRadius = preferredCornerRadius
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
+        )
+        self.edges = edges
+    }
+
+    override func dismissalTransitionShouldBegin(
+        translation: CGPoint,
+        delta: CGPoint,
+        velocity: CGPoint
+    ) -> Bool {
+        let dz = sqrt(pow(translation.y, 2) + pow(translation.x, 2))
+        let magnitude = sqrt(pow(velocity.y, 2) + pow(velocity.x, 2))
+        let canFinish = (dz >= 200 && magnitude > 0) || magnitude >= 1000
+        guard canFinish else { return false }
+        return super.dismissalTransitionShouldBegin(
+            translation: translation,
+            delta: delta,
+            velocity: velocity
         )
     }
 
     override func transformPresentedView(transform: CGAffineTransform) {
         super.transformPresentedView(transform: transform)
 
-        let bottomSafeArea = containerView?.safeAreaInsets.bottom ?? 0
-        let scale = presentedViewController.view.window?.screen.scale ?? 1
-        let dy = transform.ty.rounded(scale: scale)
-        let bottomInset = min(-min(0, dy), bottomSafeArea)
-        presentedViewController.additionalSafeAreaInsets.bottom = bottomInset
+        let cornerRadius = transform.d * UIScreen.main.displayCornerRadius
+        presentedViewController.view.layer.cornerRadius = max(preferredCornerRadius ?? 0, cornerRadius)
+    }
+
+    override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
+        let frame = frameOfPresentedViewInContainerView
+        let distance = frame.height
+        let dx = frictionCurve(translation.x, distance: distance)
+        let dy = frictionCurve(translation.y, distance: distance)
+        let scale = min(1 - (abs(dx) / distance), 1 - (abs(dy) / distance))
+        return CGAffineTransform(translationX: dx, y: dy)
+            .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * distance)
+            .scaledBy(x: scale, y: scale)
+    }
+
+    override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        presentedViewController.view.clipsToBounds = true
+        if let preferredCornerRadius {
+            presentedViewController.view.layer.cornerRadius = preferredCornerRadius
+        }
+    }
+
+    override func presentationTransitionDidEnd(_ completed: Bool) {
+        super.presentationTransitionDidEnd(completed)
+        if completed {
+            presentedViewController.view.layer.cornerRadius = 0
+        }
+    }
+
+    override func dismissalTransitionWillBegin() {
+        super.dismissalTransitionWillBegin()
+        presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius
+    }
+
+    override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+        if completed {
+            presentedViewController.view.layer.cornerRadius = 0
+        }
+    }
+
+    override func transitionAlongsidePresentation(isPresented: Bool) {
+        super.transitionAlongsidePresentation(isPresented: isPresented)
+        presentedViewController.view.layer.cornerRadius = isPresented ? UIScreen.main.displayCornerRadius : (preferredCornerRadius ?? 0)
     }
 }
 
@@ -35,8 +102,12 @@ class MatchedGeometryTransition: PresentationControllerTransition {
 
     weak var sourceView: UIView?
 
-    init(sourceView: UIView, isPresenting: Bool) {
-        super.init(isPresenting: isPresenting)
+    init(
+        sourceView: UIView,
+        isPresenting: Bool,
+        animation: Animation?
+    ) {
+        super.init(isPresenting: isPresenting, animation: animation)
         self.sourceView = sourceView
     }
 
@@ -44,10 +115,7 @@ class MatchedGeometryTransition: PresentationControllerTransition {
         using transitionContext: UIViewControllerContextTransitioning
     ) -> UIViewPropertyAnimator {
 
-        let animator = UIViewPropertyAnimator(
-            duration: duration,
-            curve: .easeInOut
-        )
+        let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
 
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)

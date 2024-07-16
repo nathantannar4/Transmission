@@ -24,44 +24,49 @@ public struct WindowLink<
     Destination: View
 >: View {
 
-    var level: WindowLinkLevel
-    var transition: WindowLinkTransition
     var label: Label
     var destination: Destination
+    var level: WindowLinkLevel
+    var transition: WindowLinkTransition
+    var animation: Animation?
 
     @StateOrBinding var isPresented: Bool
 
     public init(
         level: WindowLinkLevel = .default,
         transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder label: () -> Label
     ) {
-        self.level = level
-        self.transition = transition
         self.label = label()
         self.destination = destination()
+        self.level = level
+        self.transition = transition
+        self.animation = animation
         self._isPresented = .init(false)
     }
 
     public init(
         level: WindowLinkLevel = .default,
         transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder label: () -> Label
     ) {
-        self.level = level
-        self.transition = transition
         self.label = label()
         self.destination = destination()
+        self.level = level
+        self.transition = transition
+        self.animation = animation
         self._isPresented = .init(isPresented)
     }
 
     public var body: some View {
         Button {
-            withAnimation {
-                isPresented = true
+            withAnimation(animation) {
+                isPresented.toggle()
             }
         } label: {
             label

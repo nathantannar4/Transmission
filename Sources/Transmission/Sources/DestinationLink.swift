@@ -21,21 +21,25 @@ public struct DestinationLink<
     var label: Label
     var destination: Destination
     var transition: DestinationLinkTransition
+    var animation: Animation?
     @StateOrBinding var isPresented: Bool
 
     public init(
         transition: DestinationLinkTransition = .default,
+        animation: Animation? = .default,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder label: () -> Label
     ) {
         self.label = label()
         self.destination = destination()
         self.transition = transition
+        self.animation = animation
         self._isPresented = .init(false)
     }
 
     public init(
         transition: DestinationLinkTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder label: () -> Label
@@ -43,13 +47,14 @@ public struct DestinationLink<
         self.label = label()
         self.destination = destination()
         self.transition = transition
+        self.animation = animation
         self._isPresented = .init(isPresented)
     }
 
     public var body: some View {
         Button {
-            withAnimation {
-                isPresented = true
+            withAnimation(animation) {
+                isPresented.toggle()
             }
         } label: {
             label

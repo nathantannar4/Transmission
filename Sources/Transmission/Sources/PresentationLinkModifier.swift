@@ -180,8 +180,11 @@ private struct PresentationLinkModifierBody<
                 UITraitCollection(userInterfaceLevel: .elevated)
             ])
 
-            let isAnimated = context.transaction.isAnimated || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
-            context.coordinator.isAnimated = isAnimated
+            let isAnimated = context.transaction.isAnimated
+                || presentingViewController.transitionCoordinator?.isAnimated == true
+            let animation = context.transaction.animation
+                ?? (isAnimated ? .default : nil)
+            context.coordinator.animation = animation
             if let adapter = context.coordinator.adapter,
                 !context.coordinator.isBeingReused
             {
@@ -231,6 +234,17 @@ private struct PresentationLinkModifierBody<
                         presentationController.preferredCornerRadius = newValue.preferredCornerRadius
                     }
 
+                case (.matchedGeometry, .matchedGeometry(let newValue)):
+                    if let presentationController = adapter.viewController.presentationController as? MatchedGeometryPresentationController {
+                        presentationController.edges = newValue.edges
+                        presentationController.preferredCornerRadius = newValue.preferredCornerRadius
+                    }
+
+                case (.toast, .toast(let newValue)):
+                    if let presentationController = adapter.viewController.presentationController as? ToastPresentationController {
+                        presentationController.edge = newValue.edge
+                    }
+
                 case (.representable, .representable(let options, let transition)):
                     if let presentationController = adapter.viewController.presentationController {
                         func project<T: PresentationLinkTransitionRepresentable>(
@@ -239,7 +253,8 @@ private struct PresentationLinkModifierBody<
                             let context = PresentationLinkTransitionRepresentableContext(
                                 sourceView: uiView,
                                 options: options,
-                                environment: context.environment
+                                environment: context.environment,
+                                transaction: Transaction(animation: animation)
                             )
                             if let presentationController = presentationController as? T.UIPresentationControllerType {
                                 transition.updateUIPresentationController(
@@ -332,7 +347,7 @@ private struct PresentationLinkModifierBody<
                     adapter.viewController.modalPresentationStyle = .overFullScreen
                     adapter.viewController.presentationController?.overrideTraitCollection = traits
 
-                case .sheet, .popover, .slide, .card, .matchedGeometry:
+                case .sheet, .popover, .slide, .card, .matchedGeometry, .toast:
                     context.coordinator.sourceView = uiView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
@@ -353,30 +368,7 @@ private struct PresentationLinkModifierBody<
                 // Swizzle to hook up for programatic dismissal
                 adapter.viewController.presentationDelegate = context.coordinator
 
-                if let presentedViewController = presentingViewController.presentedViewController {
-                    let shouldDismiss = presentedViewController.presentationController.map {
-                        $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
-                    } ?? true
-                    if shouldDismiss {
-                        presentedViewController.dismiss(animated: isAnimated) {
-                            presentingViewController.present(
-                                adapter.viewController,
-                                animated: isAnimated
-                            ) {
-                                adapter.viewController
-                                    .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
-                            }
-                        }
-                    } else {
-                        presentedViewController.present(
-                            adapter.viewController,
-                            animated: isAnimated
-                        ) {
-                            adapter.viewController
-                                .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
-                        }
-                    }
-                } else {
+                let present: () -> Void = {
                     presentingViewController.present(
                         adapter.viewController,
                         animated: isAnimated
@@ -384,6 +376,18 @@ private struct PresentationLinkModifierBody<
                         adapter.viewController
                             .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
                     }
+                }
+                if let presentedViewController = presentingViewController.presentedViewController {
+                    let shouldDismiss = presentedViewController.presentationController.map {
+                        $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
+                    } ?? true
+                    if shouldDismiss {
+                        presentedViewController.dismiss(animated: isAnimated, completion: present)
+                    } else {
+                        present()
+                    }
+                } else {
+                    present()
                 }
             }
         } else if let adapter = context.coordinator.adapter,
@@ -423,12 +427,23 @@ private struct PresentationLinkModifierBody<
         var isPresented: Binding<Bool>
         var adapter: PresentationLinkDestinationViewControllerAdapter<Destination>?
         var isBeingReused = false
-        var isAnimated = false
+        var animation: Animation?
         unowned var sourceView: UIView!
         var overrideTraitCollection: UITraitCollection?
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
+        }
+
+        private func makeContext(
+            options: PresentationLinkTransition.Options
+        ) -> PresentationLinkTransitionRepresentableContext {
+            PresentationLinkTransitionRepresentableContext(
+                sourceView: sourceView,
+                options: options,
+                environment: adapter?.environment ?? .init(),
+                transaction: Transaction(animation: animation)
+            )
         }
 
         // MARK: - UIViewControllerPresentationDelegate
@@ -530,7 +545,8 @@ private struct PresentationLinkModifierBody<
                 let context = PresentationLinkTransitionRepresentableContext(
                     sourceView: sourceView,
                     options: options,
-                    environment: adapter.environment
+                    environment: adapter.environment,
+                    transaction: Transaction(animation: animation)
                 )
                 transition.updateAdaptivePresentationController(
                     adaptivePresentationController: adaptivePresentationController,
@@ -575,7 +591,16 @@ private struct PresentationLinkModifierBody<
             case .slide(let options):
                 let transition = SlideTransition(
                     isPresenting: true,
-                    options: options
+                    options: options,
+                    animation: animation
+                )
+                transition.wantsInteractiveStart = false
+                return transition
+
+            case .card:
+                let transition = PresentationControllerTransition(
+                    isPresenting: true,
+                    animation: animation
                 )
                 transition.wantsInteractiveStart = false
                 return transition
@@ -583,15 +608,26 @@ private struct PresentationLinkModifierBody<
             case .matchedGeometry:
                 let transition = MatchedGeometryTransition(
                     sourceView: sourceView,
-                    isPresenting: true
+                    isPresenting: true,
+                    animation: animation
                 )
                 transition.wantsInteractiveStart = false
                 return transition
 
-            case .representable(_, let transition):
+            case .toast(let options):
+                let transition = ToastTransition(
+                    isPresenting: true,
+                    animation: animation,
+                    edge: options.edge
+                )
+                transition.wantsInteractiveStart = false
+                return transition
+
+            case .representable(let options, let transition):
                 return transition.animationController(
                     forPresented: presented,
-                    presenting: presenting
+                    presenting: presenting,
+                    context: makeContext(options: options)
                 )
 
             case .custom(_, let transition):
@@ -637,7 +673,8 @@ private struct PresentationLinkModifierBody<
                 }
                 let transition = SlideTransition(
                     isPresenting: false,
-                    options: options
+                    options: options,
+                    animation: animation
                 )
                 transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
                 presentationController.transition(with: transition)
@@ -648,7 +685,8 @@ private struct PresentationLinkModifierBody<
                     return nil
                 }
                 let transition = PresentationControllerTransition(
-                    isPresenting: false
+                    isPresenting: false,
+                    animation: animation
                 )
                 transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
                 presentationController.transition(with: transition)
@@ -660,14 +698,31 @@ private struct PresentationLinkModifierBody<
                 }
                 let transition = MatchedGeometryTransition(
                     sourceView: sourceView,
-                    isPresenting: false
+                    isPresenting: false,
+                    animation: animation
                 )
-                transition.wantsInteractiveStart = options.isInteractive && presentationController.wantsInteractiveTransition
+                transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
                 presentationController.transition(with: transition)
                 return transition
 
-            case .representable(_, let transition):
-                return transition.animationController(forDismissed: dismissed)
+            case .toast(let options):
+                guard let presentationController = dismissed.presentationController as? ToastPresentationController else {
+                    return nil
+                }
+                let transition = ToastTransition(
+                    isPresenting: false,
+                    animation: animation,
+                    edge: options.edge
+                )
+                transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
+                presentationController.transition(with: transition)
+                return transition
+
+            case .representable(let options, let transition):
+                return transition.animationController(
+                    forDismissed: dismissed,
+                    context: makeContext(options: options)
+                )
 
             case .custom(_, let transition):
                 return transition.animationController(forDismissed: dismissed)
@@ -681,8 +736,11 @@ private struct PresentationLinkModifierBody<
             using animator: UIViewControllerAnimatedTransitioning
         ) -> UIViewControllerInteractiveTransitioning? {
             switch adapter?.transition {
-            case .representable(_, let transition):
-                return transition.interactionControllerForPresentation(using: animator)
+            case .representable(let options, let transition):
+                return transition.interactionControllerForPresentation(
+                    using: animator,
+                    context: makeContext(options: options)
+                )
 
             case .custom(_, let transition):
                 return transition.interactionControllerForPresentation(using: animator)
@@ -713,8 +771,14 @@ private struct PresentationLinkModifierBody<
             case .matchedGeometry:
                 return animator as? MatchedGeometryTransition
 
-            case .representable(_, let transition):
-                return transition.interactionControllerForDismissal(using: animator)
+            case .toast:
+                return animator as? ToastTransition
+
+            case .representable(let options, let transition):
+                return transition.interactionControllerForDismissal(
+                    using: animator,
+                    context: makeContext(options: options)
+                )
 
             case .custom(_, let transition):
                 return transition.interactionControllerForDismissal(using: animator)
@@ -813,8 +877,20 @@ private struct PresentationLinkModifierBody<
                 presentationController.delegate = self
                 return presentationController
 
-            case .matchedGeometry:
+            case .matchedGeometry(let options):
                 let presentationController = MatchedGeometryPresentationController(
+                    edges: options.edges,
+                    preferredCornerRadius: options.preferredCornerRadius,
+                    presentedViewController: presented,
+                    presenting: presenting
+                )
+                presentationController.overrideTraitCollection = overrideTraitCollection
+                presentationController.delegate = self
+                return presentationController
+
+            case .toast(let options):
+                let presentationController = ToastPresentationController(
+                    edge: options.edge,
                     presentedViewController: presented,
                     presenting: presenting
                 )
@@ -823,15 +899,10 @@ private struct PresentationLinkModifierBody<
                 return presentationController
 
             case .representable(let options, let transition):
-                let context = PresentationLinkTransitionRepresentableContext(
-                    sourceView: sourceView,
-                    options: options,
-                    environment: adapter.environment
-                )
                 let presentationController = transition.makeUIPresentationController(
-                    context: context,
                     presented: presented,
-                    presenting: presenting
+                    presenting: presenting,
+                    context: makeContext(options: options)
                 )
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
@@ -914,8 +985,9 @@ private struct PresentationLinkModifierBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                let isAnimated = coordinator.animation != nil
                 withCATransaction {
-                    adapter.viewController.dismiss(animated: coordinator.isAnimated)
+                    adapter.viewController.dismiss(animated: isAnimated)
                 }
             }
             coordinator.adapter = nil

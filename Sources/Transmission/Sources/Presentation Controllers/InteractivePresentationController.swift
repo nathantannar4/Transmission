@@ -16,21 +16,37 @@ open class InteractivePresentationController: PresentationController {
 
     public private(set) weak var transition: UIPercentDrivenInteractiveTransition?
     public private(set) lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
+    private weak var scrollViewPanGestureRecognizer: UIPanGestureRecognizer?
 
     private var translationOffset: CGPoint = .zero
     private var lastTranslation: CGPoint = .zero
+    var keyboardOffset: CGFloat = 0
 
+    /// When true, custom view controller presentation animators should be set to want an interactive start
     open var wantsInteractiveTransition: Bool {
-        let isInteracting = panGesture.state == .began || panGesture.state == .changed
+        let gesture = scrollViewPanGestureRecognizer ?? panGesture
+        let isInteracting = gesture.state == .began || gesture.state == .changed
         return isInteracting
+    }
+
+    /// When true, dismissal of the presented view controller will be deferred until the pan gesture ends
+    open var wantsInteractiveDismissal: Bool {
+        return keyboardOffset > 0
     }
 
     open override var shouldAutoLayoutPresentedView: Bool {
         transition == nil && panGesture.state == .possible && super.shouldAutoLayoutPresentedView
     }
 
+    /// Links an interactive transition to the pan gesture of the presentation controller
     public func transition(with transition: UIPercentDrivenInteractiveTransition) {
         self.transition = transition
+    }
+
+    open override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+
+        presentedViewController.additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -45,10 +61,20 @@ open class InteractivePresentationController: PresentationController {
 
     open func dismissalTransitionShouldBegin(
         translation: CGPoint,
-        delta: CGPoint
+        delta: CGPoint,
+        velocity: CGPoint
     ) -> Bool {
         if edges.contains(.bottom), translation.y > 0 {
-            return true
+            return abs(delta.y) >= abs(delta.x)
+        }
+        if edges.contains(.top), translation.y < 0 {
+            return abs(delta.y) >= abs(delta.x)
+        }
+        if edges.contains(.leading), translation.x < 0 {
+            return abs(delta.x) >= abs(delta.y)
+        }
+        if edges.contains(.trailing), translation.x > 0 {
+            return abs(delta.x) >= abs(delta.y)
         }
         return false
     }
@@ -60,20 +86,61 @@ open class InteractivePresentationController: PresentationController {
         if edges.contains(.bottom), translation.y >= 0 {
             return false
         }
+        if edges.contains(.top), translation.y <= 0 {
+            return false
+        }
+        if edges.contains(.leading), translation.x <= 0 {
+            return false
+        }
+        if edges.contains(.trailing), translation.x >= 0 {
+            return false
+        }
         return true
     }
 
     open func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
+        if wantsInteractiveDismissal, translation.y >= 0 {
+            return CGAffineTransform(translationX: 0, y: translation.y)
+        }
         let dy = frictionCurve(translation.y)
-        return CGAffineTransform(
-            translationX: 0,
-            y: dy
-        )
+        return CGAffineTransform(translationX: 0, y: dy)
     }
 
     open func transformPresentedView(transform: CGAffineTransform) {
-        let frame = frameOfPresentedViewInContainerView.applying(transform)
+        let scale = presentedViewController.view.window?.screen.scale ?? 1
+        var frame = frameOfPresentedViewInContainerView.applying(transform)
+        frame.origin.y -= keyboardOffset
+        frame.origin.x = frame.origin.x.rounded(scale: scale)
+        frame.origin.y = frame.origin.y.rounded(scale: scale)
+        frame.size.width = frame.size.width.rounded(scale: scale)
+        frame.size.height = frame.size.height.rounded(scale: scale)
         layoutPresentedView(frame: frame)
+    }
+
+    open func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
+        // SwiftUI automatically reduces safe area during a view transform,
+        // which causes layout changes. Add back the difference so it stays
+        // consistent.
+        guard let presentedView, presentedView.frame != .zero else { return .zero }
+        let frameOfPresentedViewInContainerView = frameOfPresentedViewInContainerView
+        let frame = presentedViewController.view.frame
+        let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
+        let dyTop = frame.origin.y - frameOfPresentedViewInContainerView.origin.y
+        let dyBottom = -dyTop + frameOfPresentedViewInContainerView.size.height - frame.size.height
+        let overlapsTopSafeArea = frameOfPresentedViewInContainerView.origin.y <= safeAreaInsets.top
+        let overlapsBottomSafeArea = (containerView?.frame.height ?? 0) - frameOfPresentedViewInContainerView.maxY <= safeAreaInsets.bottom
+        let additionalSafeAreaInsets = UIEdgeInsets(
+            top: overlapsTopSafeArea ? max(0, min(dyTop, safeAreaInsets.top)) : 0,
+            left: 0,
+            bottom: overlapsBottomSafeArea ? max(0, min(dyBottom, safeAreaInsets.bottom)) : 0,
+            right: 0
+        )
+        return additionalSafeAreaInsets
+    }
+
+    open override func layoutPresentedView(frame: CGRect) {
+        super.layoutPresentedView(frame: frame)
+        presentedViewController.additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
     }
 
     @objc
@@ -158,7 +225,7 @@ open class InteractivePresentationController: PresentationController {
                     velocity.x = abs(gestureVelocity.x)
                 }
                 let magnitude = sqrt(pow(velocity.x, 2) + pow(velocity.y, 2))
-                let shouldFinish = (percentage > 0.5 && magnitude > 0) || magnitude >= 1000
+                let shouldFinish = (percentage >= 0.5 && magnitude > 0) || magnitude >= 1000
                 if shouldFinish, gestureRecognizer.state == .ended {
                     transition.finish()
                 } else {
@@ -168,13 +235,17 @@ open class InteractivePresentationController: PresentationController {
                 self.transition = nil
                 translationOffset = .zero
                 lastTranslation = .zero
+                scrollViewPanGestureRecognizer = nil
+                keyboardOffset = 0
 
             default:
                 break
             }
         } else {
-            let isScrollViewAtTop = scrollView.map({ isAtTop(scrollView: $0) }) ?? true
-            guard isScrollViewAtTop else { return }
+            lazy var isScrollViewAtTop = scrollView.map({ isAtTop(scrollView: $0) }) ?? true
+            guard gestureRecognizer.state == .ended || isScrollViewAtTop else {
+                return
+            }
 
             #if targetEnvironment(macCatalyst)
             let canStart = true
@@ -194,7 +265,12 @@ open class InteractivePresentationController: PresentationController {
                     }
                 } while index < views.count && firstResponder == nil
                 if let firstResponder {
+                    let keyboardHeight = keyboardHeight
                     canStart = firstResponder.resignFirstResponder()
+                    keyboardOffset = keyboardOverlapInContainerView(
+                        of: frameOfPresentedViewInContainerView,
+                        keyboardHeight: keyboardHeight
+                    )
                 } else {
                     canStart = true
                 }
@@ -202,34 +278,57 @@ open class InteractivePresentationController: PresentationController {
                 canStart = true
             }
             #endif
-            guard canStart else { return }
+            guard canStart || gestureRecognizer.state == .ended else { return }
 
-            let shouldDismiss = (delegate?.presentationControllerShouldDismiss?(self) ?? false)
-                && dismissalTransitionShouldBegin(translation: translation, delta: delta)
-            if shouldDismiss {
-                presentedViewController.dismiss(animated: true)
-            } else {
-                switch panGesture.state {
-                case .began, .changed:
+            func dismissIfNeeded() -> Bool {
+                let shouldDismiss = (delegate?.presentationControllerShouldDismiss?(self) ?? false)
+                if shouldDismiss {
+                    presentedViewController.dismiss(animated: true)
+                }
+                return shouldDismiss
+            }
+
+            let gestureVelocity = gestureRecognizer.velocity(in: presentedView)
+
+            switch gestureRecognizer.state {
+            case .began, .changed:
+                if !wantsInteractiveDismissal, 
+                    dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
+                    dismissIfNeeded()
+                {
+                    lastTranslation = .zero
+                    keyboardOffset = 0
+                } else {
                     let transform = presentedViewTransform(for: translation)
                     transformPresentedView(transform: transform)
+                }
 
-                case .ended:
+            case .ended:
+                lastTranslation = .zero
+                keyboardOffset = 0
+                if wantsInteractiveDismissal,
+                    isScrollViewAtTop,
+                    dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
+                    dismissIfNeeded()
+                {
+                    break
+                } else {
                     UIView.animate(
                         withDuration: 0.35,
                         delay: 0,
                         usingSpringWithDamping: 1.0,
-                        initialSpringVelocity: 0
+                        initialSpringVelocity: gestureVelocity.y / 800
                     ) {
                         self.transformPresentedView(transform: .identity)
                         self.presentedView?.layoutIfNeeded()
                     }
-                    lastTranslation = .zero
-
-                default:
-                    transformPresentedView(transform: .identity)
-                    lastTranslation = .zero
                 }
+
+            default:
+                transformPresentedView(transform: .identity)
+                lastTranslation = .zero
+                scrollViewPanGestureRecognizer = nil
+                keyboardOffset = 0
             }
         }
     }
@@ -243,10 +342,10 @@ open class InteractivePresentationController: PresentationController {
         let isAtVerticalTop = {
             if edges.contains(.top) || edges.contains(.bottom) {
                 if canScrollHorizontally && !canScrollVertically {
-                    return false
+                    return true
                 }
 
-                let dy = scrollView.contentOffset.y + scrollView.contentInset.top
+                let dy = scrollView.contentOffset.y + scrollView.adjustedContentInset.top
                 if edges.contains(.bottom) {
                     return dy <= 0
                 } else {
@@ -259,10 +358,10 @@ open class InteractivePresentationController: PresentationController {
         let isAtHorizontalTop = {
             if edges.contains(.leading) || edges.contains(.trailing) {
                 if canScrollVertically && !canScrollHorizontally {
-                    return false
+                    return true
                 }
 
-                let dx = scrollView.contentOffset.x + scrollView.contentInset.left
+                let dx = scrollView.contentOffset.x + scrollView.adjustedContentInset.left
                 if edges.contains(.trailing) {
                     return dx <= 0
                 } else {
@@ -298,7 +397,13 @@ extension InteractivePresentationController: UIGestureRecognizerDelegate {
                 gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
                 return true
             }
+            guard !wantsInteractiveDismissal else {
+                // Cancel
+                otherGestureRecognizer.isEnabled = false; otherGestureRecognizer.isEnabled = true
+                return true
+            }
             scrollView.panGestureRecognizer.addTarget(self, action: #selector(onPanGesture(_:)))
+            scrollViewPanGestureRecognizer = scrollView.panGestureRecognizer
             translationOffset = scrollView.contentOffset
             if edges.contains(.bottom) || edges.contains(.top) {
                 translationOffset.y += scrollView.adjustedContentInset.top

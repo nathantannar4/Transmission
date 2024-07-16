@@ -18,7 +18,8 @@ public struct PresentationLinkTransition: Sendable {
         case popover(PopoverTransitionOptions)
         case slide(SlideTransitionOptions)
         case card(CardTransitionOptions)
-        case matchedGeometry(Options)
+        case matchedGeometry(MatchedGeometryTransitionOptions)
+        case toast(ToastTransitionOptions)
         case representable(Options, any PresentationLinkTransitionRepresentable)
 
         @available(*, deprecated)
@@ -36,9 +37,12 @@ public struct PresentationLinkTransition: Sendable {
                 return options.options
             case .card(let options):
                 return options.options
+            case .matchedGeometry(let options):
+                return options.options
+            case .toast(let options):
+                return options.options
             case .currentContext(let options),
                 .fullscreen(let options),
-                .matchedGeometry(let options),
                 .representable(let options, _),
                 .custom(let options, _):
                 return options
@@ -70,6 +74,9 @@ public struct PresentationLinkTransition: Sendable {
 
     /// The matched geometry presentation style.
     public static let matchedGeometry = PresentationLinkTransition(value: .matchedGeometry(.init()))
+
+    /// The toast presentation style.
+    public static let toast = PresentationLinkTransition(value: .toast(.init()))
 
     /// A custom presentation style.
     public static func custom<
@@ -503,6 +510,47 @@ extension PresentationLinkTransition {
 
 @available(iOS 14.0, *)
 extension PresentationLinkTransition {
+    /// The transition options for a matched geometry transition.
+    @frozen
+    public struct MatchedGeometryTransitionOptions {
+
+        public var options: Options
+        public var edges: Edge.Set
+        public var preferredCornerRadius: CGFloat?
+
+        public init(
+            edges: Edge.Set = .all,
+            preferredCornerRadius: CGFloat? = nil,
+            options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
+        ) {
+            self.options = options
+            self.edges = edges
+            self.preferredCornerRadius = preferredCornerRadius
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+extension PresentationLinkTransition {
+    /// The transition options for a matched geometry transition.
+    @frozen
+    public struct ToastTransitionOptions {
+
+        public var options: Options
+        public var edge: Edge
+
+        public init(
+            edge: Edge = .bottom,
+            options: Options = .init(preferredPresentationBackgroundColor: .clear)
+        ) {
+            self.options = options
+            self.edge = edge
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+extension PresentationLinkTransition {
     /// The default presentation style of the `UIViewController`.
     public static func `default`(
         options: PresentationLinkTransition.Options
@@ -584,9 +632,23 @@ extension PresentationLinkTransition {
 
     /// The matched geometry presentation style.
     public static func matchedGeometry(
-        options: Options
+        options: MatchedGeometryTransitionOptions
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .matchedGeometry(options))
+    }
+
+    /// The toast presentation style.
+    public static func toast(
+        edge: Edge
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .toast(.init(edge: edge)))
+    }
+
+    /// The toast presentation style.
+    public static func toast(
+        options: ToastTransitionOptions
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .toast(options))
     }
 
     /// A custom presentation style.

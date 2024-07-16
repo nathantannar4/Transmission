@@ -147,7 +147,10 @@ extension WindowLinkTransition.Value {
         }
     }
 
-    func toUIKit(isPresented: Bool) -> (alpha: CGFloat?, t: CGAffineTransform) {
+    func toUIKit(
+        isPresented: Bool,
+        window: UIWindow
+    ) -> (alpha: CGFloat?, t: CGAffineTransform) {
         switch self {
         case .identity:
             return (nil, .identity)
@@ -156,7 +159,10 @@ extension WindowLinkTransition.Value {
         case .move(let edge):
             let result: CGAffineTransform = {
                 if !isPresented {
-                    let size = UIScreen.main.bounds.size
+                    let size = window.rootViewController.map {
+                        let frame = CGRect(origin: .zero, size: $0.view.intrinsicContentSize)
+                        return frame.inset(by: $0.view.safeAreaInsets).size
+                    } ?? window.frame.size
                     switch edge {
                     case .top:
                         return CGAffineTransform(translationX: 0, y: -size.height)
@@ -183,10 +189,12 @@ extension WindowLinkTransition.Value {
             return (nil, result)
         case .union(let first, let second):
             let first = first.toUIKit(
-                isPresented: isPresented
+                isPresented: isPresented,
+                window: window
             )
             let second = second.toUIKit(
-                isPresented: isPresented
+                isPresented: isPresented,
+                window: window
             )
             return (first.alpha ?? second.alpha, first.t.concatenating(second.t))
         }

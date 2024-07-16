@@ -14,7 +14,15 @@ open class PresentationHostingController<
 
     public var tracksContentSize: Bool = false {
         didSet {
+            guard tracksContentSize != oldValue else { return }
             view.setNeedsLayout()
+            if tracksContentSize {
+                preferredContentSize = CGRect(
+                    origin: .zero,
+                    size: view.systemLayoutSizeFitting(UIView.layoutFittingExpandedSize)
+                )
+                .inset(by: view.safeAreaInsets).size
+            }
         }
     }
 
@@ -60,7 +68,10 @@ open class PresentationHostingController<
                     UIView.transition(
                         with: containerView,
                         duration: 0.35,
-                        options: [.beginFromCurrentState, .curveEaseInOut]
+                        options: [
+                            .beginFromCurrentState,
+                            .curveEaseInOut
+                        ]
                     ) {
                         containerView.layoutIfNeeded()
                     } completion: { _ in
@@ -84,45 +95,38 @@ open class PresentationHostingController<
             }
 
         } else if tracksContentSize {
+            let contentSize = CGRect(
+                origin: .zero,
+                size: view.systemLayoutSizeFitting(UIView.layoutFittingExpandedSize)
+            ).inset(by: view.safeAreaInsets).size
+            guard preferredContentSize != contentSize else { return }
             if #available(iOS 16.0, *) {
                 if presentingViewController != nil,
                     let popoverPresentationController = presentationController as? UIPopoverPresentationController,
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {
-                    var newSize = view.systemLayoutSizeFitting(
-                        UIView.layoutFittingExpandedSize
-                    )
-                    // Arrow Height
-                    switch popoverPresentationController.arrowDirection {
-                    case .up, .down:
-                        newSize.height += 6
-                    case .left, .right:
-                        newSize.width += 6
-                    default:
-                        break
-                    }
                     let oldSize = preferredContentSize
                     if oldSize == .zero || !isAnimated {
-                        preferredContentSize = newSize
-                    } else if oldSize != newSize {
-                        let dz = (newSize.width * newSize.height) - (oldSize.width * oldSize.height)
+                        preferredContentSize = contentSize
+                    } else {
                         allowUIKitAnimationsForNextUpdate = isAnimated
                         UIView.transition(
                             with: containerView,
-                            duration: 0.35 + (dz > 0 ? 0.15 : -0.05),
-                            options: [.beginFromCurrentState, .curveEaseInOut]
+                            duration: 0.35,
+                            options: [
+                                .beginFromCurrentState,
+                                .curveEaseInOut
+                            ]
                         ) {
-                            self.preferredContentSize = newSize
+                            self.preferredContentSize = contentSize
                         } completion: { _ in
                             self.allowUIKitAnimationsForNextUpdate = false
                         }
                     }
                 }
             } else {
-                preferredContentSize = view.systemLayoutSizeFitting(
-                    UIView.layoutFittingExpandedSize
-                )
+                preferredContentSize = contentSize
             }
         }
     }

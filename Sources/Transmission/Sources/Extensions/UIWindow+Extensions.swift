@@ -5,13 +5,14 @@
 #if os(iOS)
 
 import UIKit
+import SwiftUI
 
 extension UIWindow {
     func present(
         _ window: UIWindow,
-        animated: Bool,
+        animation: Animation?,
         transition: ((Bool) -> Void)? = nil,
-        completion: (() -> Void)? = nil
+        completion: ((Bool) -> Void)? = nil
     ) {
         window.parent = self
         if window.windowLevel.rawValue > windowLevel.rawValue {
@@ -20,33 +21,31 @@ extension UIWindow {
             window.isHidden = false
         }
         transition?(false)
-        UIView.transition(
-            with: window,
-            duration: animated ? 0.35 : 0,
-            options: [.curveEaseInOut, .layoutSubviews, .allowAnimatedContent]
+        UIView.animate(
+            with: animation
         ) {
             transition?(true)
-        } completion: { _ in
-            completion?()
+        } completion: { success in
+            completion?(success)
         }
     }
 
     func dismiss(
-        animated: Bool,
+        animation: Animation?,
         transition: (() -> Void)? = nil,
-        completion: (() -> Void)? = nil
+        completion: ((Bool) -> Void)? = nil
     ) {
         self.resignKey()
-        UIView.transition(
-            with: self,
-            duration: animated ? 0.35 : 0,
-            options: [.curveEaseInOut, .layoutSubviews, .allowAnimatedContent]
+        UIView.animate(
+            with: animation
         ) {
             transition?()
-        } completion: { _ in
-            self.isHidden = true
-            self.parent = nil
-            completion?()
+        } completion: { success in
+            if success {
+                self.isHidden = true
+                self.parent = nil
+            }
+            completion?(success)
         }
     }
 

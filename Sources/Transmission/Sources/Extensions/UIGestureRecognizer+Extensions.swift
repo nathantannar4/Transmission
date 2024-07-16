@@ -11,9 +11,10 @@ public func frictionCurve(
     distance: CGFloat = 200,
     coefficient: CGFloat = 0.3
 ) -> CGFloat {
-    guard value != 0 else { return value }
-    let multiplier: CGFloat = value > -10 ? 1 : -1
-    return multiplier * coefficient * distance * (1 + max(-1, log10(abs(value) / distance)))
+    if value < 0 {
+        return -frictionCurve(abs(value), distance: distance, coefficient: coefficient)
+    }
+    return (1.0 - (1.0 / ((value * coefficient / distance) + 1.0))) * distance
 }
 
 extension CGFloat {

@@ -28,7 +28,10 @@ class CardPresentationController: InteractivePresentationController {
         var frame = super.frameOfPresentedViewInContainerView
         guard let presentedView else { return frame }
         let isCompact = traitCollection.verticalSizeClass == .compact
-        let keyboardOverlap = keyboardOverlapInContainerView(of: frame)
+        let keyboardOverlap = keyboardOverlapInContainerView(
+            of: frame,
+            keyboardHeight: keyboardHeight
+        )
         let width = isCompact ? frame.height : frame.width
         let fittingSize = CGSize(
             width: width,
@@ -112,29 +115,34 @@ class CardPresentationController: InteractivePresentationController {
         }
     }
 
-    override func transformPresentedView(transform: CGAffineTransform) {
-        super.transformPresentedView(transform: transform)
-        updatePresentedViewSafeArea(transform: transform)
+    override func dismissalTransitionShouldBegin(
+        translation: CGPoint,
+        delta: CGPoint,
+        velocity: CGPoint
+    ) -> Bool {
+        if wantsInteractiveDismissal {
+            let percentage = translation.y / presentedViewController.view.frame.height
+            let magnitude = sqrt(pow(velocity.y, 2) + pow(velocity.x, 2))
+            return (percentage >= 0.5 && magnitude > 0) || (magnitude >= 1000 && velocity.y > 0)
+        } else {
+            return super.dismissalTransitionShouldBegin(
+                translation: translation,
+                delta: delta,
+                velocity: velocity
+            )
+        }
+    }
+
+    override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
+        var edgeInsets = super.presentedViewAdditionalSafeAreaInsets()
+        let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
+        edgeInsets.bottom = max(0, min(safeAreaInsets.bottom - edgeInset, edgeInsets.bottom))
+        return edgeInsets
     }
 
     private func updatePresentedView() {
         presentedViewController.view.layer.masksToBounds = cornerRadius > 0
         presentedViewController.view.layer.cornerRadius = cornerRadius
-        updatePresentedViewSafeArea(transform: presentedViewController.view.transform)
-    }
-
-    private func updatePresentedViewSafeArea(transform: CGAffineTransform) {
-        let inset = cornerRadius / 2
-        let bottomSafeArea = max(inset, (containerView?.safeAreaInsets.bottom ?? 0))
-        let scale = presentedViewController.view.window?.screen.scale ?? 1
-        let dy = transform.ty.rounded(scale: scale)
-        let bottomInset = max(min(-min(0, dy), bottomSafeArea - edgeInset), min(inset, keyboardHeight))
-        presentedViewController.additionalSafeAreaInsets = UIEdgeInsets(
-            top: inset,
-            left: inset,
-            bottom: bottomInset,
-            right: inset
-        )
     }
 
     @objc

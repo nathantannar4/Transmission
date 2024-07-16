@@ -177,29 +177,28 @@ private struct WindowLinkModifierBody<
                 get: { true },
                 set: { newValue, transaction in
                     if !newValue, let adapter = context.coordinator.adapter {
-                        let isAnimated = transaction.isAnimated || PresentationCoordinator.transaction.isAnimated
+                        let animation = transaction.animation ?? PresentationCoordinator.transaction?.animation
+                        let toTransition = adapter.transition.value.toUIKit(
+                            isPresented: false,
+                            window: adapter.window
+                        )
                         adapter.window.dismiss(
-                            animated: isAnimated,
+                            animation: animation,
                             transition: {
-                                let transition = transition.value.toUIKit(
-                                    isPresented: false
-                                )
-                                adapter.window.alpha = transition.alpha ?? 1
-                                adapter.window.transform = transition.t
+                                adapter.window.alpha = toTransition.alpha ?? 1
+                                adapter.window.transform = toTransition.t
                             },
-                            completion: {
-                                withCATransaction {
-                                    self.isPresented.wrappedValue = false
+                            completion: { success in
+                                if success {
+                                    withCATransaction {
+                                        self.isPresented.wrappedValue = false
+                                    }
                                 }
                             }
                         )
                     }
                 }
             )
-
-            let isAnimated = context.transaction.isAnimated
-                || uiView.viewController?.transitionCoordinator?.isAnimated == true
-            context.coordinator.isAnimated = isAnimated
 
             if let adapter = context.coordinator.adapter,
                 !context.coordinator.isBeingReused
@@ -238,14 +237,21 @@ private struct WindowLinkModifierBody<
                 }
 
                 let fromTransition = transition.value.toUIKit(
-                    isPresented: false
+                    isPresented: false,
+                    window: adapter.window
                 )
                 let toTransition = transition.value.toUIKit(
-                    isPresented: true
+                    isPresented: true,
+                    window: adapter.window
                 )
+                let isAnimated = context.transaction.isAnimated
+                    || uiView.viewController?.transitionCoordinator?.isAnimated == true
+                let animation = context.transaction.animation
+                    ?? (isAnimated ? .default : nil)
+                context.coordinator.animation = animation
                 presentingWindow.present(
                     adapter.window,
-                    animated: isAnimated,
+                    animation: animation,
                     transition: { isPresented in
                         if isPresented {
                             adapter.window.alpha = toTransition.alpha ?? 1
@@ -260,15 +266,16 @@ private struct WindowLinkModifierBody<
         } else if let adapter = context.coordinator.adapter,
             !isPresented.wrappedValue
         {
-            let isAnimated = context.transaction.isAnimated || PresentationCoordinator.transaction.isAnimated
+            let animation = context.transaction.animation ?? PresentationCoordinator.transaction?.animation
+            let toTransition = transition.value.toUIKit(
+                isPresented: false,
+                window: adapter.window
+            )
             adapter.window.dismiss(
-                animated: isAnimated,
+                animation: animation,
                 transition: {
-                    let transition = transition.value.toUIKit(
-                        isPresented: false
-                    )
-                    adapter.window.alpha = transition.alpha ?? 1
-                    adapter.window.transform = transition.t
+                    adapter.window.alpha = toTransition.alpha ?? 1
+                    adapter.window.transform = toTransition.t
                 }
             )
             if transition.options.isDestinationReusable {
@@ -286,7 +293,7 @@ private struct WindowLinkModifierBody<
     final class Coordinator: NSObject {
         var isPresented: Binding<Bool>
         var adapter: WindowLinkDestinationWindowAdapter<Destination>?
-        var isAnimated = false
+        var animation: Animation?
         var isBeingReused = false
 
         init(isPresented: Binding<Bool>) {
@@ -297,17 +304,18 @@ private struct WindowLinkModifierBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination != false {
+                let toTransition = adapter.transition.value.toUIKit(
+                    isPresented: false,
+                    window: adapter.window
+                )
                 withCATransaction {
                     adapter.window.dismiss(
-                        animated: coordinator.isAnimated,
+                        animation: coordinator.animation,
                         transition: {
-                            let transition = adapter.transition.value.toUIKit(
-                                isPresented: false
-                            )
-                            adapter.window.alpha = transition.alpha ?? 1
-                            adapter.window.transform = transition.t
+                            adapter.window.alpha = toTransition.alpha ?? 1
+                            adapter.window.transform = toTransition.t
                         },
-                        completion: {
+                        completion: { _ in
                             withCATransaction {
                                 coordinator.isPresented.wrappedValue = false
                             }

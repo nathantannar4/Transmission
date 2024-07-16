@@ -151,7 +151,9 @@ private struct DestinationLinkModifierBody<
             context.coordinator.isPresented = isPresented
 
             let isAnimated = context.transaction.isAnimated || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
-            context.coordinator.isAnimated = isAnimated
+            let animation = context.transaction.animation
+                ?? (isAnimated ? .default : nil)
+            context.coordinator.animation = animation
 
             if let adapter = context.coordinator.adapter {
                 adapter.update(
@@ -171,6 +173,10 @@ private struct DestinationLinkModifierBody<
                     break
 
                 case .custom(_, let transition):
+                    assert(!isClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
+                    context.coordinator.sourceView = uiView
+
+                case .representable(_, let transition):
                     assert(!isClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
                 }
@@ -210,11 +216,22 @@ private struct DestinationLinkModifierBody<
     {
         var isPresented: Binding<Bool>
         var adapter: DestinationLinkDestinationViewControllerAdapter<Destination>?
-        var isAnimated = false
+        var animation: Animation?
         unowned var sourceView: UIView!
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
+        }
+
+        private func makeContext(
+            options: DestinationLinkTransition.Options
+        ) -> DestinationLinkTransitionRepresentableContext {
+            DestinationLinkTransitionRepresentableContext(
+                sourceView: sourceView,
+                options: options,
+                environment: adapter?.environment ?? .init(),
+                transaction: Transaction(animation: animation)
+            )
         }
 
         // MARK: - UINavigationControllerDelegate
@@ -248,6 +265,13 @@ private struct DestinationLinkModifierBody<
                     interactionControllerFor: animationController
                 )
 
+            case .representable(let options, let transition):
+                return transition.navigationController(
+                    navigationController,
+                    interactionControllerFor: animationController,
+                    context: makeContext(options: options)
+                )
+
             default:
                 return nil
             }
@@ -269,6 +293,15 @@ private struct DestinationLinkModifierBody<
                     sourceView: sourceView
                 )
 
+            case .representable(let options, let transition):
+                return transition.navigationController(
+                    navigationController,
+                    animationControllerFor: operation,
+                    from: fromVC,
+                    to: toVC,
+                    context: makeContext(options: options)
+                )
+
             default:
                 return nil
             }
@@ -278,8 +311,9 @@ private struct DestinationLinkModifierBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                let isAnimated = coordinator.animation != nil
                 withCATransaction {
-                    adapter.viewController._popViewController(animated: coordinator.isAnimated)
+                    adapter.viewController._popViewController(animated: isAnimated)
                 }
             }
             coordinator.adapter = nil
@@ -509,6 +543,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
     typealias DestinationController = DestinationHostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
     var transition: DestinationLinkTransition.Value
+    var environment: EnvironmentValues
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
 
     var isPresented: Binding<Bool> {
@@ -535,6 +570,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
         self.transition = transition
+        self.environment = context.environment
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
             update(
@@ -570,6 +606,7 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
         destination: Destination,
         context: DestinationLinkModifierBody<Destination>.Context
     ) {
+        environment = context.environment
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,

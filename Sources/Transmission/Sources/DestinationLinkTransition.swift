@@ -11,6 +11,9 @@ import SwiftUI
 public struct DestinationLinkTransition: Sendable {
     enum Value: @unchecked Sendable {
         case `default`(Options)
+        case representable(Options, any DestinationLinkTransitionRepresentable)
+
+        @available(*, deprecated)
         case custom(Options, DestinationLinkCustomTransition)
 
         var options: Options {
@@ -18,6 +21,8 @@ public struct DestinationLinkTransition: Sendable {
             case .default(let options):
                 return options
             case .custom(let options, _):
+                return options
+            case .representable(let options, _):
                 return options
             }
         }
@@ -28,8 +33,14 @@ public struct DestinationLinkTransition: Sendable {
     public static let `default`: DestinationLinkTransition = DestinationLinkTransition(value: .default(.init()))
 
     /// A custom presentation style.
+    @available(*, deprecated)
     public static func custom<T: DestinationLinkCustomTransition>(_ transition: T) -> DestinationLinkTransition {
         DestinationLinkTransition(value: .custom(.init(), transition))
+    }
+
+    /// A custom presentation style.
+    public static func custom<T: DestinationLinkTransitionRepresentable>(_ transition: T) -> DestinationLinkTransition {
+        DestinationLinkTransition(value: .representable(.init(), transition))
     }
 }
 
@@ -66,14 +77,25 @@ extension DestinationLinkTransition {
     }
 
     /// A custom presentation style.
+    @available(*, deprecated)
     public static func custom<T: DestinationLinkCustomTransition>(
         options: DestinationLinkTransition.Options,
         _ transition: T
     ) -> DestinationLinkTransition {
         DestinationLinkTransition(value: .custom(options, transition))
     }
+
+    /// A custom presentation style.
+    public static func custom<T: DestinationLinkTransitionRepresentable>(
+        options: DestinationLinkTransition.Options,
+        _ transition: T
+    ) -> DestinationLinkTransition {
+        DestinationLinkTransition(value: .representable(options, transition))
+    }
 }
 
+@available(iOS 14.0, *)
+@available(*, deprecated, renamed: "DestinationLinkTransitionRepresentable")
 @MainActor @preconcurrency
 public protocol DestinationLinkCustomTransition {
 
@@ -96,6 +118,8 @@ public protocol DestinationLinkCustomTransition {
     ) -> UIViewControllerAnimatedTransitioning
 }
 
+@available(iOS 14.0, *)
+@available(*, deprecated, renamed: "DestinationLinkTransitionRepresentable")
 extension DestinationLinkCustomTransition {
 
     public func navigationController(

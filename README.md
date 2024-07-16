@@ -114,9 +114,9 @@ public protocol PresentationLinkTransitionRepresentable {
 
     /// The presentation controller to use for the transition.
     func makeUIPresentationController(
-        context: Context,
         presented: UIViewController,
-        presenting: UIViewController?
+        presenting: UIViewController?,
+        context: Context
     ) -> UIPresentationControllerType
 
     func updateUIPresentationController(

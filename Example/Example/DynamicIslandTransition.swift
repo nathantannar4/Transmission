@@ -21,9 +21,9 @@ extension PresentationLinkTransition {
 struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
 
     func makeUIPresentationController(
-        context: Context,
         presented: UIViewController,
-        presenting: UIViewController?
+        presenting: UIViewController?,
+        context: Context
     ) -> DynamicIslandPresentationController {
         DynamicIslandPresentationController(
             presentedViewController: presented,
@@ -40,15 +40,23 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
 
     func animationController(
         forPresented presented: UIViewController,
-        presenting: UIViewController
+        presenting: UIViewController,
+        context: Context
     ) -> DynamicIslandPresentationControllerTransition? {
-        DynamicIslandPresentationControllerTransition(isPresenting: true)
+        DynamicIslandPresentationControllerTransition(
+            isPresenting: true,
+            animation: context.transaction.animation
+        )
     }
 
     func animationController(
-        forDismissed dismissed: UIViewController
+        forDismissed dismissed: UIViewController,
+        context: Context
     ) -> DynamicIslandPresentationControllerTransition? {
-        let transition = DynamicIslandPresentationControllerTransition(isPresenting: false)
+        let transition = DynamicIslandPresentationControllerTransition(
+            isPresenting: false,
+            animation: context.transaction.animation
+        )
         transition.wantsInteractiveStart = false
         return transition
     }

@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import UIKit
+import SwiftUI
 import Turbocharger
 
 #if targetEnvironment(macCatalyst)
@@ -254,7 +255,6 @@ final class SheetPresentationController: UISheetPresentationController {
         }
     }
 }
-
 #endif
 
 @available(iOS 15.0, *)

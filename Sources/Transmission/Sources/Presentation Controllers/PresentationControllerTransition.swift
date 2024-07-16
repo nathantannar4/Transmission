@@ -5,11 +5,13 @@
 #if os(iOS)
 
 import UIKit
+import SwiftUI
 
 @available(iOS 14.0, *)
 open class PresentationControllerTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
 
     public let isPresenting: Bool
+    public let animation: Animation?
     private var animator: UIViewPropertyAnimator?
 
     private var transitionDuration: CGFloat = 0
@@ -17,8 +19,12 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         transitionDuration
     }
 
-    public init(isPresenting: Bool) {
+    public init(
+        isPresenting: Bool,
+        animation: Animation?
+    ) {
         self.isPresenting = isPresenting
+        self.animation = animation
         super.init()
     }
 
@@ -34,7 +40,8 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
     open func transitionDuration(
         using transitionContext: UIViewControllerContextTransitioning?
     ) -> TimeInterval {
-        transitionContext?.isAnimated == true ? 0.35 : 0
+        guard transitionContext?.isAnimated == true else { return 0 }
+        return animation?.duration ?? 0.35
     }
 
     public func animateTransition(
@@ -76,18 +83,7 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         using transitionContext: UIViewControllerContextTransitioning
     ) -> UIViewPropertyAnimator {
 
-        let animator: UIViewPropertyAnimator
-        if let timingCurve {
-            animator = UIViewPropertyAnimator(
-                duration: duration,
-                timingParameters: timingCurve
-            )
-        } else {
-            animator = UIViewPropertyAnimator(
-                duration: duration,
-                curve: completionCurve
-            )
-        }
+        let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
         else {
@@ -101,7 +97,7 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
             presented.view.frame = frame
             let transform = CGAffineTransform(
                 translationX: 0,
-                y: frame.size.height
+                y: frame.size.height + transitionContext.containerView.safeAreaInsets.bottom
             )
             presented.view.transform = transform
             animator.addAnimations {

@@ -16,9 +16,9 @@ extension PresentationLinkTransition {
 struct HeroMoveTransition: PresentationLinkTransitionRepresentable {
 
     func makeUIPresentationController(
-        context: Context,
         presented: UIViewController,
-        presenting: UIViewController?
+        presenting: UIViewController?,
+        context: Context
     ) -> HeroMovePresentationController {
         HeroMovePresentationController(
             sourceView: context.sourceView,
@@ -36,7 +36,8 @@ struct HeroMoveTransition: PresentationLinkTransitionRepresentable {
 
     func animationController(
         forPresented presented: UIViewController,
-        presenting: UIViewController
+        presenting: UIViewController,
+        context: Context
     ) -> UIViewControllerAnimatedTransitioning? {
         guard let presentationController = presented.presentationController as? HeroMovePresentationController else {
             return nil
@@ -48,7 +49,10 @@ struct HeroMoveTransition: PresentationLinkTransitionRepresentable {
         return transition
     }
 
-    func animationController(forDismissed dismissed: UIViewController) -> UIViewControllerAnimatedTransitioning? {
+    func animationController(
+        forDismissed dismissed: UIViewController,
+        context: Context
+    ) -> UIViewControllerAnimatedTransitioning? {
         guard let presentationController = dismissed.presentationController as? HeroMovePresentationController else {
             return nil
         }
@@ -60,7 +64,10 @@ struct HeroMoveTransition: PresentationLinkTransitionRepresentable {
         return transition
     }
 
-    func interactionControllerForDismissal(using animator: UIViewControllerAnimatedTransitioning) -> UIViewControllerInteractiveTransitioning? {
+    func interactionControllerForDismissal(
+        using animator: UIViewControllerAnimatedTransitioning,
+        context: Context
+    ) -> UIViewControllerInteractiveTransitioning? {
         // swiftlint:disable force_cast
         animator as! HeroMoveInteractiveTransition
     }

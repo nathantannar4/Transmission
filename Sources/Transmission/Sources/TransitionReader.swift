@@ -147,7 +147,7 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                     progress.wrappedValue = percentComplete
                 }
             } else {
-                let newValue: CGFloat = transitionCoordinator.isCancelled ? isPresenting ? 0 : 1 : isPresenting ? 0.9999 : 0.0001
+                let newValue: CGFloat = transitionCoordinator.isCancelled ? isPresenting ? 0 : 1 : isPresenting ? 1 : 0
                 var transaction = Transaction(animation: nil)
                 if transitionCoordinator.isAnimated {
                     let duration = transitionCoordinator.transitionDuration == 0 ? 0.35 : transitionCoordinator.transitionDuration

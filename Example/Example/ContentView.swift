@@ -31,48 +31,19 @@ struct ContentView: View {
     @State var isStatusBarHidden: Bool = false
     @State var statusBarStyle: StatusBarStyle = .default
     @State var isHeroPresented: Bool = false
+    @State var isMatchedGeometryPresented = false
     @State var progress: CGFloat = 0
+    @State var isExpanded: Bool = true
 
     var body: some View {
         NavigationView {
             List {
-                DisclosureGroup {
+                DisclosureGroup(isExpanded: $isExpanded) {
                     Section {
-                        PresentationLink(transition: .fullscreen) {
-                            VStack {
-                                Text("Hello, World")
-
-                                DismissPresentationLink {
-                                    Text("Dismiss")
-                                }
-                            }
-                        } label: {
-                            Text("Fullscreen")
-                        }
-
-                        PresentationLink(transition: .currentContext) {
-                            VStack {
-                                Text("Hello, World")
-
-                                DismissPresentationLink {
-                                    Text("Dismiss")
-                                }
-                            }
-                        } label: {
-                            Text("Current Context")
-                        }
-
-                        PresentationLink(transition: .popover) {
-                            Popover()
-                        } label: {
-                            Text("Popover")
-                        }
-                    } header: {
-                        Text("Default Transitions")
-                    }
-
-                    Section {
-                        PresentationLink(transition: .sheet) {
+                        PresentationLink(
+                            transition: .sheet,
+                            animation: .linear(duration: 1)
+                        ) {
                             ContentView()
                         } label: {
                             Text("Sheet (default Detent)")
@@ -80,24 +51,21 @@ struct ContentView: View {
 
                         PresentationLink(transition: .sheet(detents: [.ideal])) {
                             ScrollView {
-                                VStack {
-                                    Color.blue.aspectRatio(1, contentMode: .fit)
-
-                                    Text("Hello, World")
-                                }
+                                SafeAreaVisualizerView()
+                                    .aspectRatio(1, contentMode: .fit)
                             }
                         } label: {
                             Text("Sheet (ideal Detent)")
                         }
 
                         PresentationLink(transition: .sheet(detents: [.constant("constant", height: 100)])) {
-                            Text("Hello, World")
+                            SafeAreaVisualizerView()
                         } label: {
                             Text("Sheet (constant Detent)")
                         }
 
                         PresentationLink(transition: .sheet(detents: [.custom("custom", resolver: { context in return context.maximumDetentValue * 0.67 })])) {
-                            Text("Hello, World")
+                            SafeAreaVisualizerView()
                         } label: {
                             Text("Sheet (constant Detent)")
                         }
@@ -106,20 +74,53 @@ struct ContentView: View {
                     }
 
                     Section {
-                        ForEach(Edge.allCases, id: \.self) { edge in
-                            PresentationLink(transition: .slide(edge: edge)) {
-                                EdgeView(edge: edge)
-                            } label: {
-                                Text("Slide (\(String(describing: edge)))")
+                        PresentationLink(
+                            transition: .matchedGeometry(
+                                options: .init(
+                                    options: .init(preferredPresentationBackgroundColor: .clear)
+                                )
+                            )
+                        ) {
+                            TransitionReader { proxy in
+                                ScrollableCollectionView(edge: .bottom)
+                                    .opacity(proxy.progress)
+                            }
+                        } label: {
+                            Text("Matched Geometry")
+                        }
+
+                        Button {
+                            withAnimation {
+                                isMatchedGeometryPresented = true
+                            }
+                        } label: {
+                            HStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.blue)
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .frame(width: 44, height: 44)
+                                    .presentation(
+                                        transition: .matchedGeometry(
+                                            options: .init(preferredCornerRadius: 10)
+                                        ),
+                                        isPresented: $isMatchedGeometryPresented
+                                    ) {
+                                        SafeAreaVisualizerView()
+                                    }
+
+                                Text("Matched Geometry")
                             }
                         }
                     } header: {
-                        Text("Slide Transitions")
+                        Text("Matched Geometry Transitions")
                     }
 
                     Section {
-                        PresentationLink(transition: .card) {
-                            Text("Hello, World")
+                        PresentationLink(
+                            transition: .card,
+                            animation: .spring(duration: 0.5, bounce: 0.35)
+                        ) {
+                            CardView()
                         } label: {
                             Text("Card")
                         }
@@ -129,7 +130,7 @@ struct ContentView: View {
                                 options: .init(preferredEdgeInset: 0, preferredCornerRadius: 0)
                             )
                         ) {
-                            Text("Hello, World")
+                            CardView()
                         } label: {
                             Text("Card (custom insets)")
                         }
@@ -138,102 +139,73 @@ struct ContentView: View {
                     }
 
                     Section {
-                        Button {
-                            withAnimation {
-                                isHeroPresented = true
-                            }
+                        PresentationLink(
+                            transition: .toast(edge: .top),
+                            animation: .spring(duration: 0.5, bounce: 0.35)
+                        ) {
+                            ToastView()
                         } label: {
-                            HStack {
-                                // Hero Move picks up the source frame from where the modifier or PresentationLink was used
-                                Color.blue.frame(width: 44, height: 44)
-                                    .presentation(transition: .heroMove, isPresented: $isHeroPresented) {
-                                        ScrollView {
-                                            VStack {
-                                                Color.blue.aspectRatio(1, contentMode: .fit)
-
-                                                Text("Hello, World")
-                                            }
-                                        }
-                                    }
-
-                                Text("Hero Move")
-                            }
+                            Text("Toast (top)")
                         }
 
                         PresentationLink(
-                            transition: .toast
+                            transition: .toast(edge: .bottom),
+                            animation: .spring(duration: 0.5, bounce: 0.35)
                         ) {
-                            DismissPresentationLink {
-                                Text("Hello, World")
-                                    .padding()
-                                    .background {
-                                        Capsule()
-                                            .fill(.background)
-                                            .shadow(radius: 10)
-                                    }
-                            }
+                            ToastView()
                         } label: {
-                            Text("Toast")
+                            Text("Toast (bottom)")
                         }
+                    } header: {
+                        Text("Toast Transitions")
+                    }
 
+                    Section {
+                        ForEach(Edge.allCases, id: \.self) { edge in
+                            PresentationLink(
+                                transition: .slide(edge: edge)
+                            ) {
+                                ScrollableCollectionView(edge: edge)
+                            } label: {
+                                Text("Slide (\(String(describing: edge)))")
+                            }
+                        }
+                    } header: {
+                        Text("Slide Transitions")
+                    }
+
+                    Section {
                         PresentationLink(
                             transition: .dynamicIsland
                         ) {
-                            HStack {
-                                Circle()
-                                    .frame(width: 48, height: 48)
-
-                                VStack(alignment: .leading, spacing: 0) {
-                                    Text("Title")
-                                    Text("Subtitle")
-                                        .foregroundStyle(.secondary)
-                                }
-                                .fixedSize(horizontal: true, vertical: false)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .lineLimit(1)
-
-                                DismissPresentationLink {
-                                    ZStack {
-                                        Circle()
-                                            .fill(.red)
-
-                                        Image(systemName: "phone.down.fill")
-                                    }
-                                }
-                                .frame(width: 48, height: 48)
-
-                                DismissPresentationLink {
-                                    ZStack {
-                                        Circle()
-                                            .fill(.green)
-
-                                        Image(systemName: "phone.fill")
-                                    }
-                                }
-                                .frame(width: 48, height: 48)
-                            }
-                            .buttonStyle(.plain)
-                            .prefersStatusBarHidden()
-                            .environment(\.colorScheme, .dark)
-                            .padding(12)
-                            .ignoresSafeArea(edges: .vertical)
+                            DynamicIslandView()
                         } label: {
                             Text("Dynamic Island")
                         }
-
-                        NavigationLink {
-                            ScrollView {
-                                LazyVGrid(columns: [.init(.flexible(), spacing: 12), .init(.flexible(), spacing: 12)]) {
-                                    ForEach(["C", "B", "A", "D", "E"], id: \.self) { user in
-                                        ProfileCell(user: user)
-                                    }
-                                }
-                            }
-                        } label: {
-                            Text("View More Hero Move")
-                        }
                     } header: {
                         Text("Custom Transitions")
+                    }
+
+                    Section {
+                        PresentationLink(transition: .fullscreen) {
+                            SafeAreaVisualizerView()
+                        } label: {
+                            Text("Fullscreen")
+                        }
+
+                        PresentationLink(transition: .currentContext) {
+                            SafeAreaVisualizerView()
+                        } label: {
+                            Text("Current Context")
+                        }
+
+                        PresentationLink(transition: .popover) {
+                            PopoverView()
+                        } label: {
+                            Text("Popover")
+                        }
+                    } header: {
+                        Text("Default Transitions")
                     }
                 } label: {
                     VStack(alignment: .leading) {
@@ -247,15 +219,7 @@ struct ContentView: View {
 
                 DisclosureGroup {
                     WindowLink(level: .overlay, transition: .opacity) {
-                        NavigationView {
-                            VStack {
-                                Text("Hello, World")
-
-                                DismissPresentationLink {
-                                    Text("Dismiss")
-                                }
-                            }
-                        }
+                        SafeAreaVisualizerView()
                     } label: {
                         Text("Overlay")
                     }
@@ -269,9 +233,12 @@ struct ContentView: View {
                         Text("Background")
                     }
 
-
-                    WindowLink(level: .alert, transition: .move(edge: .top).combined(with: .opacity)) {
-                        Toast()
+                    WindowLink(
+                        level: .alert,
+                        transition: .move(edge: .top).combined(with: .opacity),
+                        animation: .spring
+                    ) {
+                        ToastView()
                     } label: {
                         Text("Toast")
                     }
@@ -345,6 +312,21 @@ struct ContentView: View {
                     }
                 }
 
+                if let url = Bundle.main.url(forResource: "Logo", withExtension: "png") {
+                    DisclosureGroup {
+                        QuickLookPreviewLink(url: url, transition: .default) {
+                            Text("Default")
+                        }
+
+                        QuickLookPreviewLink(url: url, transition: .scale) {
+                            Text("Scale")
+                        }
+                    } label: {
+                        Text("QuickLookPreviewLink")
+                            .font(.headline)
+                    }
+                }
+
                 DisclosureGroup {
                     PresentationLink {
                         TransitionReader { proxy in
@@ -404,7 +386,64 @@ struct ContentView: View {
     }
 }
 
-struct EdgeView: View {
+struct PopoverView: View {
+    @State var isExpanded: Bool = false
+
+    var body: some View {
+        SafeAreaVisualizerView {
+            Button {
+                withAnimation {
+                    isExpanded.toggle()
+                }
+            } label: {
+                Text("Toggle Size")
+            }
+        }
+        .frame(width: isExpanded ? 200 : 100, height: isExpanded ? 200 : 100)
+    }
+}
+
+struct SafeAreaVisualizerView<Content: View>: View {
+    var content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    init() where Content == EmptyView {
+        self.content = EmptyView()
+    }
+
+    var body: some View {
+        ZStack {
+            Color.blue
+                .opacity(0.3)
+                .ignoresSafeArea()
+
+            Color.blue
+                .opacity(0.3)
+
+            TransitionReader { proxy in
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.blue)
+
+                    VStack {
+                        content
+
+                        DismissPresentationLink {
+                            Text("Dismiss")
+                        }
+                    }
+                    .foregroundStyle(.white)
+                }
+                .padding(12)
+            }
+        }
+    }
+}
+
+struct ScrollableCollectionView: View {
     var edge: Edge
 
     var body: some View {
@@ -412,30 +451,57 @@ struct EdgeView: View {
         ScrollView(isHorizontal ? [.horizontal] : [.vertical]) {
             if isHorizontal {
                 HStack {
-                    Color.blue
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.blue)
                         .frame(width: 44)
 
                     ForEach(0...20, id: \.self) { _ in
-                        Color.red
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.3))
                             .frame(width: 44)
                     }
                 }
+                .padding(12)
             } else {
                 VStack {
-                    Color.blue
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.blue)
                         .frame(height: 44)
 
                     ForEach(0...20, id: \.self) { _ in
-                        Color.red
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.blue.opacity(0.3))
                             .frame(height: 44)
                     }
                 }
+                .padding(12)
             }
+        }
+        .background {
+            ZStack {
+                Rectangle()
+                    .fill(.ultraThickMaterial)
+
+                Color.blue
+                    .opacity(0.3)
+            }
+            .ignoresSafeArea()
         }
     }
 }
 
-struct Toast: View {
+struct CardView: View {
+    @State var text = ""
+
+    var body: some View {
+        SafeAreaVisualizerView {
+            TextField("Placeholder", text: $text)
+                .fixedSize()
+        }
+    }
+}
+
+struct ToastView: View {
     @Environment(\.presentationCoordinator) var presentationCoordinator
 
     var body: some View {
@@ -443,75 +509,80 @@ struct Toast: View {
             presentationCoordinator.dismiss()
         } label: {
             Text("Hello, World")
-                .foregroundColor(.white)
+                .fontWeight(.medium)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background {
                     Capsule(style: .continuous)
                         .fill(Color.blue)
                 }
+                .padding(8)
+                .background {
+                    ZStack {
+                        Rectangle()
+                            .fill(.thickMaterial)
+
+                        Color.blue.opacity(0.3)
+                    }
+                    .clipShape(Capsule(style: .continuous))
+                }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(ToastButtonStyle())
+    }
+
+    struct ToastButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.92 : 1)
+                .animation(.interactiveSpring, value: configuration.isPressed)
+        }
     }
 }
 
-struct Popover: View {
-    @State var isExpanded: Bool = false
-
+struct DynamicIslandView: View {
     var body: some View {
-        Text("Hello, World")
-            .frame(width: isExpanded ? 200 : 100, height: isExpanded ? 200 : 100)
-            .onTapGesture {
-                withAnimation {
-                    isExpanded.toggle()
+        HStack {
+            Circle()
+                .aspectRatio(1, contentMode: .fit)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Title")
+                Text("Subtitle")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .lineLimit(1)
+            .minimumScaleFactor(0.1)
+
+            DismissPresentationLink {
+                ZStack {
+                    Circle()
+                        .fill(.red)
+
+                    Image(systemName: "phone.down.fill")
                 }
             }
-    }
-}
+            .aspectRatio(1, contentMode: .fit)
 
-struct ProfileCell: View {
-    var user: String
+            DismissPresentationLink {
+                ZStack {
+                    Circle()
+                        .fill(.green)
 
-    var body: some View {
-        PresentationLink(transition: .heroMove) {
-            NavigationView {
-                ProfileView(user: user)
-                    .navigationTitle("Profile")
+                    Image(systemName: "phone.fill")
+                }
             }
-        } label: {
-            Image("Headshot\(user)")
-                .resizable()
-                .scaledToFill()
-                .aspectRatio(1, contentMode: .fit)
+            .aspectRatio(1, contentMode: .fit)
         }
+        .frame(minHeight: 48)
+        .buttonStyle(.plain)
+        .prefersStatusBarHidden()
+        .environment(\.colorScheme, .dark)
+        .padding(12)
+        .ignoresSafeArea(edges: .vertical)
     }
 }
-
-struct ProfileView: View {
-    var user: String
-    @Environment(\.presentationCoordinator) var presentationCoordinator
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading) {
-                Image("Headshot\(user)")
-                    .resizable()
-                    .scaledToFill()
-                    .aspectRatio(1, contentMode: .fit)
-                    .onTapGesture {
-                        presentationCoordinator.dismiss()
-                    }
-
-                Text("@username")
-                    .font(.headline)
-
-                Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris sit amet nunc bibendum, luctus metus vel, bibendum metus. Nam efficitur interdum leo sit amet aliquet. Sed nec placerat leo, non iaculis erat. Donec vulputate varius sapien eget sodales. Nunc faucibus, ipsum eu imperdiet convallis, diam lacus suscipit felis")
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-}
-
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {

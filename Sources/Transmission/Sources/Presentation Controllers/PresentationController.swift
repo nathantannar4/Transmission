@@ -33,7 +33,10 @@ open class PresentationController: UIPresentationController {
     open override var frameOfPresentedViewInContainerView: CGRect {
         let frame = super.frameOfPresentedViewInContainerView
         if shouldAutomaticallyAdjustFrameForKeyboard, keyboardHeight > 0 {
-            let dy = keyboardOverlapInContainerView(of: frame)
+            let dy = keyboardOverlapInContainerView(
+                of: frame,
+                keyboardHeight: keyboardHeight
+            )
             return CGRect(
                 x: frame.origin.x,
                 y: frame.origin.y,
@@ -157,7 +160,10 @@ open class PresentationController: UIPresentationController {
         )
     }
 
-    open func keyboardOverlapInContainerView(of frame: CGRect) -> CGFloat {
+    open func keyboardOverlapInContainerView(
+        of frame: CGRect,
+        keyboardHeight: CGFloat
+    ) -> CGFloat {
         guard let containerView, !isTransitioningSize else { return 0 }
         let maxHeight = containerView.frame.height
         let dy = maxHeight - keyboardHeight - frame.maxY
