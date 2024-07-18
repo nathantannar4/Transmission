@@ -17,7 +17,13 @@ class SlidePresentationController: InteractivePresentationController {
         set { }
     }
 
-    override var presentationStyle: UIModalPresentationStyle { .overFullScreen }
+    override var wantsInteractiveDismissal: Bool {
+        return false
+    }
+
+    override var presentationStyle: UIModalPresentationStyle {
+        .overFullScreen
+    }
 
     init(
         edge: Edge = .bottom,
