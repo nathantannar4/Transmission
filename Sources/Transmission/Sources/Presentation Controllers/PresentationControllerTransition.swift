@@ -49,7 +49,8 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
     ) {
         transitionDuration = transitionDuration(using: transitionContext)
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
-        animator.startAnimation()
+        let delay = animation?.delay ?? 0
+        animator.startAnimation(afterDelay: delay)
 
         if !transitionContext.isAnimated {
             animator.stopAnimation(false)
@@ -66,6 +67,14 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
     ) -> UIViewImplicitlyAnimating {
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
         return animator
+    }
+
+    open override func responds(to aSelector: Selector!) -> Bool {
+        let responds = super.responds(to: aSelector)
+        if aSelector == #selector(interruptibleAnimator(using:)) {
+            return responds && wantsInteractiveStart
+        }
+        return responds
     }
 
     private func makeTransitionAnimatorIfNeeded(
@@ -85,7 +94,8 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
 
         let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
         guard
-            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
+            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
         else {
             transitionContext.completeTransition(false)
             return animator
@@ -104,6 +114,11 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
                 presented.view.transform = .identity
             }
         } else {
+            if presenting.view.superview == nil {
+                transitionContext.containerView.insertSubview(presenting.view, at: 0)
+                presenting.view.frame = transitionContext.finalFrame(for: presenting)
+                presenting.view.layoutIfNeeded()
+            }
             let frame = transitionContext.finalFrame(for: presented)
             let dy = transitionContext.containerView.frame.height - frame.origin.y
             let transform = CGAffineTransform(

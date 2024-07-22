@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import WebKit
 
 import Transmission
 
@@ -365,6 +366,18 @@ struct ContentView: View {
                         .font(.headline)
                 }
 
+                PresentationLink(transition: .slide) {
+                    PageView()
+                } label: {
+                    Text("TabView")
+                }
+
+                PresentationLink(transition: .slide) {
+                    WebView()
+                } label: {
+                    Text("WebView")
+                }
+
                 Toggle(isOn: $isStatusBarHidden) {
                     Text("isStatusBarHidden")
                 }
@@ -581,6 +594,36 @@ struct DynamicIslandView: View {
         .environment(\.colorScheme, .dark)
         .padding(12)
         .ignoresSafeArea(edges: .vertical)
+    }
+}
+
+struct PageView: View {
+    var body: some View {
+        TabView {
+            ForEach(0..<10, id: \.self) { index in
+                Text(index.description)
+            }
+        }
+        .tabViewStyle(.page)
+    }
+}
+
+struct WebView: View {
+
+    var body: some View {
+        _Body()
+            .ignoresSafeArea()
+    }
+
+    struct _Body: UIViewRepresentable {
+        func makeUIView(context: Context) -> WKWebView {
+            let uiView = WKWebView(frame: .zero)
+            return uiView
+        }
+
+        func updateUIView(_ uiView: WKWebView, context: Context) {
+            uiView.load(URLRequest(url: URL(string: "https://github.com/nathantannar4")!))
+        }
     }
 }
 

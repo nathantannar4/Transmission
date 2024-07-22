@@ -517,15 +517,18 @@ extension PresentationLinkTransition {
         public var options: Options
         public var edges: Edge.Set
         public var preferredCornerRadius: CGFloat?
+        public var minimumScaleFactor: CGFloat
 
         public init(
             edges: Edge.Set = .all,
             preferredCornerRadius: CGFloat? = nil,
+            minimumScaleFactor: CGFloat = 0.8,
             options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
         ) {
             self.options = options
             self.edges = edges
             self.preferredCornerRadius = preferredCornerRadius
+            self.minimumScaleFactor = minimumScaleFactor
         }
     }
 }

@@ -12,6 +12,14 @@ open class PresentationController: UIPresentationController {
     public private(set) var isTransitioningSize = false
     public private(set) var keyboardHeight: CGFloat = 0
 
+    public let dimmingView: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.12)
+        view.alpha = 0
+        view.isHidden = true
+        return view
+    }()
+
     open var shouldAutoLayoutPresentedView: Bool {
         !isTransitioningSize
             && !presentedViewController.isBeingPresented
@@ -51,6 +59,11 @@ open class PresentationController: UIPresentationController {
         super.presentationTransitionWillBegin()
 
         shouldIgnoreContainerViewTouches = true
+
+        containerView?.addSubview(dimmingView)
+        dimmingView.addGestureRecognizer(
+            UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
+        )
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
             transitionCoordinator.animate { _ in
@@ -125,11 +138,12 @@ open class PresentationController: UIPresentationController {
     }
 
     open func transitionAlongsidePresentation(isPresented: Bool) {
-
+        dimmingView.alpha = isPresented ? 1 : 0
     }
 
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
+        dimmingView.frame = containerView?.bounds ?? .zero
         if shouldAutoLayoutPresentedView {
             layoutPresentedView(frame: frameOfPresentedViewInContainerView)
         }
@@ -206,6 +220,14 @@ open class PresentationController: UIPresentationController {
             ]
         ) { [weak self] in
             self?.containerView?.layoutIfNeeded()
+        }
+    }
+
+    @objc
+    private func didSelectBackground() {
+        let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
+        if shouldDismiss {
+            presentedViewController.dismiss(animated: true)
         }
     }
 }

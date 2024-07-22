@@ -238,6 +238,7 @@ private struct PresentationLinkModifierBody<
                     if let presentationController = adapter.viewController.presentationController as? MatchedGeometryPresentationController {
                         presentationController.edges = newValue.edges
                         presentationController.preferredCornerRadius = newValue.preferredCornerRadius
+                        presentationController.minimumScaleFactor = newValue.minimumScaleFactor
                     }
 
                 case (.toast, .toast(let newValue)):
@@ -881,6 +882,7 @@ private struct PresentationLinkModifierBody<
                 let presentationController = MatchedGeometryPresentationController(
                     edges: options.edges,
                     preferredCornerRadius: options.preferredCornerRadius,
+                    minimumScaleFactor: options.minimumScaleFactor,
                     presentedViewController: presented,
                     presenting: presenting
                 )

@@ -12,7 +12,7 @@ class CardPresentationController: InteractivePresentationController {
     var preferredEdgeInset: CGFloat? {
         didSet {
             guard oldValue != preferredEdgeInset else { return }
-            updatePresentedView()
+            cornerRadiusDidChange()
             containerView?.setNeedsLayout()
         }
     }
@@ -20,7 +20,7 @@ class CardPresentationController: InteractivePresentationController {
     var preferredCornerRadius: CGFloat? {
         didSet {
             guard oldValue != preferredCornerRadius else { return }
-            updatePresentedView()
+            cornerRadiusDidChange()
         }
     }
 
@@ -71,13 +71,6 @@ class CardPresentationController: InteractivePresentationController {
         preferredCornerRadius ?? max(12, UIScreen.main.displayCornerRadius - edgeInset)
     }
 
-    private let dimmingView: UIView = {
-        let view = UIView()
-        view.backgroundColor = UIColor.black.withAlphaComponent(0.12)
-        view.alpha = 0
-        return view
-    }()
-
     init(
         preferredEdgeInset: CGFloat?,
         preferredCornerRadius: CGFloat?,
@@ -94,25 +87,8 @@ class CardPresentationController: InteractivePresentationController {
 
     override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-        containerView?.addSubview(dimmingView)
-        dimmingView.addGestureRecognizer(
-            UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
-        )
-
-        updatePresentedView()
-    }
-
-    override func transitionAlongsidePresentation(isPresented: Bool) {
-        super.transitionAlongsidePresentation(isPresented: isPresented)
-        dimmingView.alpha = isPresented ? 1 : 0
-    }
-
-    override func containerViewDidLayoutSubviews() {
-        super.containerViewDidLayoutSubviews()
-        dimmingView.frame = containerView?.bounds ?? .zero
-        if shouldAutoLayoutPresentedView {
-            updatePresentedView()
-        }
+        cornerRadiusDidChange()
+        dimmingView.isHidden = false
     }
 
     override func dismissalTransitionShouldBegin(
@@ -140,17 +116,10 @@ class CardPresentationController: InteractivePresentationController {
         return edgeInsets
     }
 
-    private func updatePresentedView() {
+    private func cornerRadiusDidChange() {
+        let cornerRadius = cornerRadius
         presentedViewController.view.layer.masksToBounds = cornerRadius > 0
         presentedViewController.view.layer.cornerRadius = cornerRadius
-    }
-
-    @objc
-    private func didSelectBackground() {
-        let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
-        if shouldDismiss {
-            presentedViewController.dismiss(animated: true)
-        }
     }
 }
 

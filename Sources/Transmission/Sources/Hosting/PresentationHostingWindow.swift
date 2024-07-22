@@ -9,8 +9,8 @@ import SwiftUI
 open class PresentationHostingWindow<Content: View>: UIWindow {
 
     public var content: Content {
-        get { host.rootView }
-        set { host.rootView = newValue }
+        get { host.content }
+        set { host.content = newValue }
     }
 
     private let host: PresentationHostingWindowController

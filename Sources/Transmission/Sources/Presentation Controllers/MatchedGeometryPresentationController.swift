@@ -12,17 +12,21 @@ class MatchedGeometryPresentationController: InteractivePresentationController {
 
     var preferredCornerRadius: CGFloat?
 
-    open override var wantsInteractiveDismissal: Bool {
+    var minimumScaleFactor: CGFloat
+
+    override var wantsInteractiveDismissal: Bool {
         return true
     }
 
     init(
         edges: Edge.Set,
         preferredCornerRadius: CGFloat?,
+        minimumScaleFactor: CGFloat,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.preferredCornerRadius = preferredCornerRadius
+        self.minimumScaleFactor = minimumScaleFactor
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
@@ -58,7 +62,7 @@ class MatchedGeometryPresentationController: InteractivePresentationController {
         let distance = frame.height
         let dx = frictionCurve(translation.x, distance: distance)
         let dy = frictionCurve(translation.y, distance: distance)
-        let scale = min(1 - (abs(dx) / distance), 1 - (abs(dy) / distance))
+        let scale = max(minimumScaleFactor, min(1 - (abs(dx) / distance), 1 - (abs(dy) / distance)))
         return CGAffineTransform(translationX: dx, y: dy)
             .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * distance)
             .scaledBy(x: scale, y: scale)
@@ -70,6 +74,7 @@ class MatchedGeometryPresentationController: InteractivePresentationController {
         if let preferredCornerRadius {
             presentedViewController.view.layer.cornerRadius = preferredCornerRadius
         }
+        dimmingView.isHidden = false
     }
 
     override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -160,14 +165,6 @@ class MatchedGeometryTransition: PresentationControllerTransition {
             }
         }
         return animator
-    }
-}
-
-extension CGAffineTransform {
-    init(from source: CGRect, to destination: CGRect) {
-        self = CGAffineTransform.identity
-            .translatedBy(x: destination.midX - source.midX, y: destination.midY - source.midY)
-            .scaledBy(x: destination.width / source.width, y: destination.height / source.height)
     }
 }
 
