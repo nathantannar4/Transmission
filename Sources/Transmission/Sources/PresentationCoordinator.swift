@@ -79,6 +79,7 @@ extension EnvironmentValues {
 @available(iOS 14.0, *)
 struct PresentationBridgeAdapter: ViewModifier {
     var isPresented: Binding<Bool>
+    @State var didAppear = false
 
     func body(content: Content) -> some View {
         content
@@ -91,6 +92,12 @@ struct PresentationBridgeAdapter: ViewModifier {
                         isPresented.wrappedValue = false
                     })
             )
+            .onAppear {
+                // Need to trigger a render update during presentation to fix DatePicker
+                withCATransaction {
+                    didAppear = true
+                }
+            }
     }
 }
 

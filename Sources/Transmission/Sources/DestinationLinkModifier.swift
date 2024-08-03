@@ -441,6 +441,8 @@ final class DestinationLinkDelegateProxy: NSObject, UINavigationControllerDelega
                 animated: animated
             )
         }
+        // Bring up to date, so things like navigationTitle is ready during the push
+        (viewController.view as? AnyHostingView)?.render()
     }
 
     func navigationController(

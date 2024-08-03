@@ -255,45 +255,45 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 return
             }
 
-            #if targetEnvironment(macCatalyst)
-            let canStart = true
-            #else
-            let canStart: Bool
-            if keyboardHeight > 0 {
-                var views = gestureRecognizer.view.map { [$0] } ?? []
-                var firstResponder: UIView?
-                var index = 0
-                repeat {
-                    let view = views[index]
-                    if view.isFirstResponder {
-                        firstResponder = view
-                    } else {
-                        views.append(contentsOf: view.subviews)
-                        index += 1
-                    }
-                } while index < views.count && firstResponder == nil
-                if let firstResponder {
-                    let keyboardHeight = keyboardHeight
-                    canStart = firstResponder.resignFirstResponder()
-                    keyboardOffset = keyboardOverlapInContainerView(
-                        of: frameOfPresentedViewInContainerView,
-                        keyboardHeight: keyboardHeight
-                    )
-                } else {
-                    canStart = true
-                }
-            } else {
-                canStart = true
-            }
-            #endif
-            guard canStart || gestureRecognizer.state == .ended else { return }
-
             func dismissIfNeeded() -> Bool {
                 let shouldDismiss = (delegate?.presentationControllerShouldDismiss?(self) ?? false)
                 if shouldDismiss {
+                    #if targetEnvironment(macCatalyst)
+                    let canStart = true
+                    #else
+                    let canStart: Bool
+                    if keyboardHeight > 0 {
+                        var views = gestureRecognizer.view.map { [$0] } ?? []
+                        var firstResponder: UIView?
+                        var index = 0
+                        repeat {
+                            let view = views[index]
+                            if view.isFirstResponder {
+                                firstResponder = view
+                            } else {
+                                views.append(contentsOf: view.subviews)
+                                index += 1
+                            }
+                        } while index < views.count && firstResponder == nil
+                        if let firstResponder {
+                            let keyboardHeight = keyboardHeight
+                            canStart = firstResponder.resignFirstResponder()
+                            keyboardOffset = keyboardOverlapInContainerView(
+                                of: frameOfPresentedViewInContainerView,
+                                keyboardHeight: keyboardHeight
+                            )
+                        } else {
+                            canStart = true
+                        }
+                    } else {
+                        canStart = true
+                    }
+                    #endif
+                    guard canStart else { return false }
                     presentedViewController.dismiss(animated: true)
+                    return true
                 }
-                return shouldDismiss
+                return false
             }
 
             let gestureVelocity = gestureRecognizer.velocity(in: presentedView)
