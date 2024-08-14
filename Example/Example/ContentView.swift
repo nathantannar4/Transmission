@@ -481,7 +481,7 @@ struct ScrollableCollectionView: View {
                         .fill(Color.blue)
                         .frame(height: 44)
 
-                    ForEach(0...20, id: \.self) { _ in
+                    ForEach(0...40, id: \.self) { _ in
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Color.blue.opacity(0.3))
                             .frame(height: 44)

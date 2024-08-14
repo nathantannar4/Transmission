@@ -59,12 +59,11 @@ class MatchedGeometryPresentationController: InteractivePresentationController {
 
     override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         let frame = frameOfPresentedViewInContainerView
-        let distance = frame.height
-        let dx = frictionCurve(translation.x, distance: distance)
-        let dy = frictionCurve(translation.y, distance: distance)
-        let scale = max(minimumScaleFactor, min(1 - (abs(dx) / distance), 1 - (abs(dy) / distance)))
+        let dx = frictionCurve(translation.x, distance: frame.width)
+        let dy = frictionCurve(translation.y, distance: frame.height)
+        let scale = max(minimumScaleFactor, min(1 - (abs(dx) / frame.width), 1 - (abs(dy) / frame.height)))
         return CGAffineTransform(translationX: dx, y: dy)
-            .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * distance)
+            .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * frame.height)
             .scaledBy(x: scale, y: scale)
     }
 

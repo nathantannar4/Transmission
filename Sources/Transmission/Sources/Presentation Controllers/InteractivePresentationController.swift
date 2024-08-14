@@ -16,7 +16,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     public private(set) weak var transition: UIPercentDrivenInteractiveTransition?
     public private(set) lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
-    private weak var scrollViewPanGestureRecognizer: UIPanGestureRecognizer?
+    private weak var trackingScrollView: UIScrollView?
 
     private var translationOffset: CGPoint = .zero
     private var lastTranslation: CGPoint = .zero
@@ -29,7 +29,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             let isInteracting = gesture.state == .began || gesture.state == .changed
             return isInteracting
         }
-        return isInteracting(gesture: scrollViewPanGestureRecognizer) || isInteracting(gesture: panGesture)
+        return isInteracting(gesture: trackingScrollView?.panGestureRecognizer) || isInteracting(gesture: panGesture)
     }
 
     /// When true, dismissal of the presented view controller will be deferred until the pan gesture ends
@@ -157,7 +157,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     @objc
     private func onPanGesture(_ gestureRecognizer: UIPanGestureRecognizer) {
         guard let presentedView else { return }
-        let scrollView = gestureRecognizer.view as? UIScrollView
+        let scrollView = gestureRecognizer.view as? UIScrollView ?? trackingScrollView
         let gestureTranslation = gestureRecognizer.translation(in: presentedView)
         let delta = CGPoint(
             x: gestureTranslation.x - lastTranslation.x,
@@ -250,11 +250,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 break
             }
         } else {
-            lazy var isScrollViewAtTop = scrollView.map({ isAtTop(scrollView: $0) }) ?? true
-            guard gestureRecognizer.state == .ended || isScrollViewAtTop else {
-                return
-            }
-
             func dismissIfNeeded() -> Bool {
                 let shouldDismiss = (delegate?.presentationControllerShouldDismiss?(self) ?? false)
                 if shouldDismiss {
@@ -296,18 +291,35 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 return false
             }
 
+            let isScrollViewAtTop = scrollView.map({
+                isAtTop(scrollView: $0, delta: delta, translation: gestureTranslation)
+            }) ?? true
             let gestureVelocity = gestureRecognizer.velocity(in: presentedView)
 
             switch gestureRecognizer.state {
             case .began, .changed:
-                if !wantsInteractiveDismissal, 
+                if isScrollViewAtTop,
+                    !wantsInteractiveDismissal,
                     dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
                     dismissIfNeeded()
                 {
                     lastTranslation = .zero
                     keyboardOffset = 0
-                } else {
-                    let transform = presentedViewTransform(for: translation)
+                } else if gestureRecognizer.state == .changed,
+                    isScrollViewAtTop || trackingScrollView?.isTracking == false
+                {
+                    if wantsInteractiveDismissal, let scrollView = trackingScrollView {
+                        scrollView.isScrollEnabled = false
+                        scrollView.isScrollEnabled = true
+                        let showsVerticalScrollIndicator = scrollView.showsVerticalScrollIndicator
+                        scrollView.showsVerticalScrollIndicator = false
+                        scrollView.showsVerticalScrollIndicator = showsVerticalScrollIndicator
+                        let showsHorizontalScrollIndicator = scrollView.showsHorizontalScrollIndicator
+                        scrollView.showsHorizontalScrollIndicator = false
+                        scrollView.showsHorizontalScrollIndicator = showsHorizontalScrollIndicator
+                        trackingScrollView = nil
+                    }
+                    let transform = presentedViewTransform(for: gestureTranslation)
                     transformPresentedView(transform: transform)
                 }
 
@@ -342,12 +354,15 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     private func panGestureDidEnd() {
         translationOffset = .zero
         lastTranslation = .zero
-        scrollViewPanGestureRecognizer?.removeTarget(self, action: #selector(onPanGesture(_:)))
-        scrollViewPanGestureRecognizer = nil
+        trackingScrollView = nil
         keyboardOffset = 0
     }
 
-    private func isAtTop(scrollView: UIScrollView) -> Bool {
+    private func isAtTop(
+        scrollView: UIScrollView,
+        delta: CGPoint,
+        translation: CGPoint
+    ) -> Bool {
         let frame = scrollView.frame
         let size = scrollView.contentSize
         let canScrollVertically = size.height > frame.size.height
@@ -359,11 +374,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     return true
                 }
 
-                let dy = scrollView.contentOffset.y + scrollView.adjustedContentInset.top
-                if edges.contains(.bottom) {
-                    return dy <= 0
-                } else {
-                    return dy >= size.height - frame.height - scrollView.adjustedContentInset.bottom
+                let dy = scrollView.contentOffset.y - delta.y
+                if edges.contains(.bottom), (dy + scrollView.adjustedContentInset.top) <= 0 {
+                    return true
+                } else if edges.contains(.top) {
+                    return (dy - scrollView.adjustedContentInset.bottom) >= size.height - frame.height
                 }
             }
             return true
@@ -375,16 +390,22 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     return true
                 }
 
-                let dx = scrollView.contentOffset.x + scrollView.adjustedContentInset.left
-                if edges.contains(.trailing) {
-                    return dx <= 0
-                } else {
-                    return dx >= size.width - frame.width - scrollView.adjustedContentInset.right
+                let dx = scrollView.contentOffset.x - delta.x
+                if edges.contains(.trailing), (dx + scrollView.adjustedContentInset.left) <= 0 {
+                    return true
+                } else if edges.contains(.leading) {
+                    return (dx - scrollView.adjustedContentInset.right) >= size.width - frame.width
                 }
             }
             return true
         }()
 
+        if isAtHorizontalTop, edges.contains(.top) || edges.contains(.bottom) {
+            return isAtVerticalTop || (abs(translation.x) > abs(translation.y))
+        }
+        if isAtVerticalTop, edges.contains(.leading) || edges.contains(.trailing) {
+            return isAtHorizontalTop || (abs(translation.y) > abs(translation.x))
+        }
         return isAtVerticalTop && isAtHorizontalTop
     }
 
@@ -401,7 +422,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        if scrollViewPanGestureRecognizer == nil,
+        if trackingScrollView == nil,
             let scrollView = otherGestureRecognizer.view as? UIScrollView
         {
             guard otherGestureRecognizer.isSimultaneousWithTransition else {
@@ -409,29 +430,21 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true
                 return true
             }
-            guard !wantsInteractiveDismissal else {
-                // Cancel
-                otherGestureRecognizer.isEnabled = false; otherGestureRecognizer.isEnabled = true
-                return true
-            }
-            scrollView.panGestureRecognizer.addTarget(self, action: #selector(onPanGesture(_:)))
-            scrollViewPanGestureRecognizer = scrollView.panGestureRecognizer
+            trackingScrollView = scrollView
             translationOffset = scrollView.contentOffset
             if edges.contains(.bottom) || edges.contains(.top) {
                 translationOffset.y += scrollView.adjustedContentInset.top
-            }
-            if edges.contains(.top) {
+            } else if edges.contains(.top) {
                 translationOffset.y -= scrollView.adjustedContentInset.bottom
             }
             if edges.contains(.leading) || edges.contains(.trailing) {
                 translationOffset.x += scrollView.adjustedContentInset.left
-            }
-            if edges.contains(.trailing) {
+            } else if edges.contains(.trailing) {
                 translationOffset.x += scrollView.adjustedContentInset.right
             }
-            return false
+            return true
         }
-        return scrollViewPanGestureRecognizer != nil
+        return trackingScrollView != nil
     }
 }
 

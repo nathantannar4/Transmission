@@ -23,8 +23,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/nathantannar4/Turbocharger",
       "state" : {
-        "revision" : "9420e40f902021469ee7b4c5a0c7849f5bb26290",
-        "version" : "1.3.1"
+        "revision" : "eb872a6c960411c0a64dc1c88a636fe663f3c0cd",
+        "version" : "1.3.2"
       }
     }
   ],
