@@ -183,6 +183,14 @@ struct ContentView: View {
                         } label: {
                             Text("Dynamic Island")
                         }
+
+                        PresentationLink(
+                            transition: .heroMove
+                        ) {
+                            SafeAreaVisualizerView()
+                        } label: {
+                            Text("Hero Move")
+                        }
                     } header: {
                         Text("Custom Transitions")
                     }
