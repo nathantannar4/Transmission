@@ -423,6 +423,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if trackingScrollView == nil,
+            otherGestureRecognizer.state != .failed,
             let scrollView = otherGestureRecognizer.view as? UIScrollView
         {
             guard otherGestureRecognizer.isSimultaneousWithTransition else {
