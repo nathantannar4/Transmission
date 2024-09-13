@@ -236,7 +236,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     velocity.x = abs(gestureVelocity.x)
                 }
                 let magnitude = sqrt(pow(velocity.x, 2) + pow(velocity.y, 2))
-                let shouldFinish = (percentage >= 0.5 && magnitude > 0) || magnitude >= 1000
+                let shouldFinish = (percentage >= 0.5 && magnitude > 0) || (percentage > 0 && magnitude >= 1000)
                 if shouldFinish, gestureRecognizer.state == .ended {
                     transition.finish()
                 } else {
@@ -380,6 +380,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 } else if edges.contains(.top) {
                     return (dy - scrollView.adjustedContentInset.bottom) >= size.height - frame.height
                 }
+                return false
             }
             return true
         }()
@@ -396,6 +397,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 } else if edges.contains(.leading) {
                     return (dx - scrollView.adjustedContentInset.right) >= size.width - frame.width
                 }
+                return false
             }
             return true
         }()
