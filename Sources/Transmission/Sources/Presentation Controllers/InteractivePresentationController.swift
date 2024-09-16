@@ -426,6 +426,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     ) -> Bool {
         if trackingScrollView == nil,
             otherGestureRecognizer.state != .failed,
+            otherGestureRecognizer.state != .cancelled,
             let scrollView = otherGestureRecognizer.view as? UIScrollView
         {
             guard otherGestureRecognizer.isSimultaneousWithTransition else {
