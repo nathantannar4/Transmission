@@ -85,11 +85,13 @@ class SlideTransition: PresentationControllerTransition {
             return animator
         }
 
+        let frame = transitionContext.finalFrame(for: presented)
         #if targetEnvironment(macCatalyst)
         let isScaleEnabled = false
         #else
         let isTranslucentBackground = options.options.preferredPresentationBackgroundUIColor?.isTranslucent ?? false
-        let isScaleEnabled = options.prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0
+        let isScaleEnabled = options.prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
+            frame.origin.y == 0
         #endif
         let safeAreaInsets = transitionContext.containerView.safeAreaInsets
         let cornerRadius = options.preferredCornerRadius ?? Self.displayCornerRadius
@@ -122,7 +124,6 @@ class SlideTransition: PresentationControllerTransition {
         presenting.view.layer.masksToBounds = true
         presenting.view.layer.cornerCurve = .continuous
 
-        let frame = transitionContext.finalFrame(for: presented)
         if isPresenting {
             transitionContext.containerView.addSubview(presented.view)
             presented.view.frame = frame

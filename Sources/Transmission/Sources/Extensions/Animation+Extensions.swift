@@ -192,10 +192,11 @@ extension UIViewPropertyAnimator {
 
 extension UIView {
 
+    @available(iOS, deprecated: 18.0, message: "Use the builtin UIView.animate")
     public static func animate(
         with animation: Animation?,
         animations: @escaping () -> Void,
-        completion: ((Bool) -> Void)?
+        completion: ((Bool) -> Void)? = nil
     ) {
         guard let animation else {
             animations()

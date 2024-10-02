@@ -185,6 +185,8 @@ private struct PresentationLinkModifierBody<
             let animation = context.transaction.animation
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
+            var isTransitioningPresentationController = false
+
             if let adapter = context.coordinator.adapter,
                 !context.coordinator.isBeingReused
             {
@@ -246,6 +248,9 @@ private struct PresentationLinkModifierBody<
                         presentationController.edge = newValue.edge
                     }
 
+                case (.zoom, .zoom):
+                    break
+
                 case (.representable, .representable(let options, let transition)):
                     if let presentationController = adapter.viewController.presentationController {
                         func project<T: PresentationLinkTransitionRepresentable>(
@@ -272,10 +277,24 @@ private struct PresentationLinkModifierBody<
                         _openExistential(transition, do: project)
                     }
 
-                default:
+                case (.default, .default),
+                    (.currentContext, .currentContext),
+                    (.fullscreen, .fullscreen),
+                    (.custom, .custom):
                     break
-                }
 
+                default:
+                    if context.coordinator.adapter?.transition.options.preferredPresentationBackgroundUIColor != nil {
+                        context.coordinator.adapter?.viewController.view.backgroundColor = .systemBackground
+                    }
+                    context.coordinator.isBeingReused = true
+                    isTransitioningPresentationController = true
+                }
+            }
+
+            if let adapter = context.coordinator.adapter,
+                !context.coordinator.isBeingReused
+            {
                 adapter.transition = transition.value
                 adapter.viewController.presentationController?.overrideTraitCollection = traits
 
@@ -353,6 +372,18 @@ private struct PresentationLinkModifierBody<
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
+                case .zoom:
+                    if #available(iOS 18.0, *) {
+                        adapter.viewController.preferredTransition = .zoom { [weak uiView] context in
+                            return uiView
+                        }
+                        adapter.viewController.presentationController?.delegate = context.coordinator
+                    } else {
+                        context.coordinator.sourceView = uiView
+                        context.coordinator.overrideTraitCollection = traits
+                        adapter.viewController.modalPresentationStyle = .custom
+                    }
+
                 case .representable(_, let transition):
                     assert(!isClassType(transition), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
@@ -366,8 +397,13 @@ private struct PresentationLinkModifierBody<
                     adapter.viewController.modalPresentationStyle = .custom
                 }
 
-                // Swizzle to hook up for programatic dismissal
-                adapter.viewController.presentationDelegate = context.coordinator
+                if isTransitioningPresentationController {
+                    adapter.viewController.presentationDelegate = nil
+                    adapter.viewController.modalTransitionStyle = .crossDissolve
+                } else {
+                    // Swizzle to hook up for programatic dismissal
+                    adapter.viewController.presentationDelegate = context.coordinator
+                }
 
                 let present: () -> Void = {
                     presentingViewController.present(
@@ -376,14 +412,22 @@ private struct PresentationLinkModifierBody<
                     ) {
                         adapter.viewController
                             .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+                        if isTransitioningPresentationController {
+                            adapter.viewController.presentationDelegate = context.coordinator
+                        }
                     }
                 }
                 if let presentedViewController = presentingViewController.presentedViewController {
-                    let shouldDismiss = presentedViewController.presentationController.map {
-                        $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
-                    } ?? true
+                    let shouldDismiss =
+                        isTransitioningPresentationController ||
+                        presentedViewController.presentationController.map {
+                            $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
+                        } ?? true
                     if shouldDismiss {
-                        presentedViewController.dismiss(animated: isAnimated, completion: present)
+                        presentedViewController.dismiss(
+                            animated: isAnimated && !isTransitioningPresentationController,
+                            completion: present
+                        )
                     } else {
                         present()
                     }
@@ -569,6 +613,7 @@ private struct PresentationLinkModifierBody<
             presenting: UIViewController,
             source: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
+            guard adapter?.viewController.presentationDelegate == self else { return nil }
             switch adapter?.transition {
             case .sheet(let options):
                 #if targetEnvironment(macCatalyst)
@@ -645,6 +690,7 @@ private struct PresentationLinkModifierBody<
         func animationController(
             forDismissed dismissed: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
+            guard adapter?.viewController.presentationDelegate == self else { return nil }
             switch adapter?.transition {
             case .sheet(let options):
                 #if targetEnvironment(macCatalyst)
@@ -736,6 +782,7 @@ private struct PresentationLinkModifierBody<
         func interactionControllerForPresentation(
             using animator: UIViewControllerAnimatedTransitioning
         ) -> UIViewControllerInteractiveTransitioning? {
+            guard adapter?.viewController.presentationDelegate == self else { return nil }
             switch adapter?.transition {
             case .representable(let options, let transition):
                 return transition.interactionControllerForPresentation(
@@ -754,6 +801,7 @@ private struct PresentationLinkModifierBody<
         func interactionControllerForDismissal(
             using animator: UIViewControllerAnimatedTransitioning
         ) -> UIViewControllerInteractiveTransitioning? {
+            guard adapter?.viewController.presentationDelegate == self else { return nil }
             switch adapter?.transition {
             case .sheet:
                 #if targetEnvironment(macCatalyst)

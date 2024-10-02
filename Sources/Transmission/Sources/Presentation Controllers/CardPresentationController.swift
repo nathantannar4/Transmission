@@ -91,6 +91,13 @@ class CardPresentationController: InteractivePresentationController {
         dimmingView.isHidden = false
     }
 
+    override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+        if completed {
+            presentedViewController.view.layer.cornerRadius = 0
+        }
+    }
+
     override func dismissalTransitionShouldBegin(
         translation: CGPoint,
         delta: CGPoint,

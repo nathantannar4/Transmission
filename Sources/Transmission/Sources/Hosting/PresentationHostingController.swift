@@ -95,10 +95,12 @@ open class PresentationHostingController<
             }
 
         } else if tracksContentSize {
-            let contentSize = CGRect(
-                origin: .zero,
-                size: view.systemLayoutSizeFitting(UIView.layoutFittingExpandedSize)
-            ).inset(by: view.safeAreaInsets).size
+            var contentSize = view.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+            if contentSize == .zero {
+                contentSize = view.intrinsicContentSize
+            }
+            contentSize.height -= (view.safeAreaInsets.left + view.safeAreaInsets.right)
+            contentSize.height -= (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
             guard preferredContentSize != contentSize else { return }
             if #available(iOS 16.0, *) {
                 if presentingViewController != nil,

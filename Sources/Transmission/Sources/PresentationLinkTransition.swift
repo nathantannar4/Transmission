@@ -20,6 +20,7 @@ public struct PresentationLinkTransition: Sendable {
         case card(CardTransitionOptions)
         case matchedGeometry(MatchedGeometryTransitionOptions)
         case toast(ToastTransitionOptions)
+        case zoom(Options)
         case representable(Options, any PresentationLinkTransitionRepresentable)
 
         @available(*, deprecated)
@@ -44,6 +45,7 @@ public struct PresentationLinkTransition: Sendable {
             case .currentContext(let options),
                 .fullscreen(let options),
                 .representable(let options, _),
+                .zoom(let options),
                 .custom(let options, _):
                 return options
             }
@@ -77,6 +79,10 @@ public struct PresentationLinkTransition: Sendable {
 
     /// The toast presentation style.
     public static let toast = PresentationLinkTransition(value: .toast(.init()))
+
+    /// The zoom presentation style.
+    @available(iOS 18.0, *)
+    public static let zoom = PresentationLinkTransition(value: .zoom(.init()))
 
     /// A custom presentation style.
     public static func custom<
@@ -652,6 +658,13 @@ extension PresentationLinkTransition {
         options: ToastTransitionOptions
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .toast(options))
+    }
+
+    @available(iOS 18.0, *)
+    public static func zoom(
+        options: Options
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .zoom(options))
     }
 
     /// A custom presentation style.
