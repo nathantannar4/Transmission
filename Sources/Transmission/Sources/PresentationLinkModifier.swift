@@ -863,7 +863,7 @@ private struct PresentationLinkModifierBody<
                         presenting: presenting
                     )
                     presentationController.detents = configuration.detents.map {
-                        $0.resolve(in: presentationController).toUIKit(in: presentationController)
+                        $0.toUIKit(in: presentationController)
                     }
                     presentationController.selectedDetentIdentifier = (configuration.selected?.wrappedValue ?? configuration.detents.first?.identifier)?.toUIKit()
                     presentationController.largestUndimmedDetentIdentifier = configuration.largestUndimmedDetentIdentifier?.toUIKit()
@@ -1011,7 +1011,7 @@ private struct PresentationLinkModifierBody<
                         applySelection()
                     } else {
                         sheetPresentationController.detents = configuration.detents.map {
-                            $0.resolve(in: sheetPresentationController).toUIKit(in: sheetPresentationController)
+                            $0.toUIKit(in: sheetPresentationController)
                         }
                         withCATransaction {
                             applySelection()
