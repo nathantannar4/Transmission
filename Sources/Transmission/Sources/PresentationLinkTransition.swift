@@ -177,6 +177,18 @@ extension PresentationLinkTransition {
                     return rawValue
                 }
 
+                var isCustom: Bool {
+                    if #available(iOS 15.0, *) {
+                        switch self {
+                        case .large, .medium, .ideal:
+                            return false
+                        default:
+                            break
+                        }
+                    }
+                    return true
+                }
+
                 @available(iOS 15.0, *)
                 @available(macOS, unavailable)
                 @available(tvOS, unavailable)
@@ -205,13 +217,16 @@ extension PresentationLinkTransition {
             }
 
             public struct ResolutionContext {
-                // The trait collection of the sheet's containerView. Effectively the
-                // same as the window's traitCollection, and does not include overrides
-                // from the sheet's overrideTraitCollection.
+                /// The trait collection of the sheet's containerView. Effectively the
+                /// same as the window's traitCollection, and does not include overrides
+                /// from the sheet's overrideTraitCollection.
                 public let containerTraitCollection: UITraitCollection
 
-                // The maximum value a detent can have.
+                /// The maximum value a detent can have.
                 public let maximumDetentValue: CGFloat
+
+                /// The ideal value a detent would have.
+                public let idealDetentValue: () -> CGFloat
             }
 
             public var identifier: Identifier
@@ -254,15 +269,38 @@ extension PresentationLinkTransition {
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            public static let ideal = Detent(identifier: .ideal)
+            public static let ideal = Detent(identifier: .ideal) { ctx in
+                return ctx.idealDetentValue()
+            }
+
+            /// Creates a detent with an auto-resolved height of the views ideal size bounded between a min/max.
+            @available(iOS 15.0, *)
+            @available(macOS, unavailable)
+            @available(tvOS, unavailable)
+            @available(watchOS, unavailable)
+            public static func ideal(
+                minimum: CGFloat? = nil,
+                maximum: CGFloat? = nil
+            ) -> Detent {
+                return Detent(identifier: .ideal) { ctx in
+                    let ideal = ctx.idealDetentValue()
+                    let minimum = minimum ?? ideal
+                    let maximum = maximum ?? ctx.maximumDetentValue
+                    return max(minimum, min(ideal, maximum))
+                }
+            }
 
             /// Creates a detent with a constant height.
             @available(iOS 15.0, *)
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            public static func constant(_ identifier: Identifier, height: CGFloat) -> Detent {
-                Detent(identifier: identifier, height: height)
+            public static func constant(
+                _ identifier: Identifier,
+                height: CGFloat
+            ) -> Detent {
+                precondition(identifier.isCustom, "A custom detent identifier must be provided.")
+                return Detent(identifier: identifier, height: height)
             }
 
             /// Creates a detent that's height is lazily resolved.
@@ -274,17 +312,24 @@ extension PresentationLinkTransition {
                 _ identifier: Identifier,
                 resolver: @Sendable @escaping (ResolutionContext) -> CGFloat?
             ) -> Detent {
-                Detent(identifier: identifier, resolution: resolver)
+                precondition(identifier.isCustom, "A custom detent identifier must be provided.")
+                return Detent(identifier: identifier, resolution: resolver)
             }
 
             @available(iOS 15.0, *)
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            func resolve(in presentationController: UIPresentationController) -> Detent {
-                if identifier == .ideal {
-                    var copy = self
-                    let resolution: (UIPresentationController) -> CGFloat? = { presentationController in
+            func toUIKit(
+                in presentationController: UISheetPresentationController
+            ) -> UISheetPresentationController.Detent {
+                switch identifier {
+                case .large:
+                    return .large()
+                case .medium:
+                    return .medium()
+                default:
+                    let idealResolution: (UIPresentationController) -> CGFloat = { presentationController in
                         guard let containerView = presentationController.containerView else {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
                             return idealHeight
@@ -307,33 +352,15 @@ extension PresentationLinkTransition {
                         let idealHeight = (height - presentationController.presentedViewController.view.safeAreaInsets.bottom).rounded(.up)
                         return min(idealHeight, containerView.frame.height)
                     }
-                    copy.resolution = { [weak presentationController] ctx in
-                        guard let presentationController = presentationController else {
-                            return ctx.maximumDetentValue
-                        }
-                        return resolution(presentationController)
-                    }
-                    return copy
-                }
-                return self
-            }
 
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            func toUIKit(in presentationController: UISheetPresentationController) -> UISheetPresentationController.Detent {
-                switch identifier {
-                case .large:
-                    return .large()
-                case .medium:
-                    return .medium()
-                default:
-                    if let resolution = resolution, #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  {
+                    if let resolution, #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  {
                         return .custom(identifier: identifier.toUIKit()) { context in
                             let ctx = ResolutionContext(
                                 containerTraitCollection: context.containerTraitCollection,
-                                maximumDetentValue: context.maximumDetentValue
+                                maximumDetentValue: context.maximumDetentValue,
+                                idealDetentValue: {
+                                    idealResolution(presentationController)
+                                }
                             )
                             let max = context.maximumDetentValue
                             return min(resolution(ctx) ?? max, max)
@@ -344,7 +371,10 @@ extension PresentationLinkTransition {
                     if let resolution {
                         let ctx = ResolutionContext(
                             containerTraitCollection: presentationController.traitCollection,
-                            maximumDetentValue: presentationController.containerView?.frame.height ?? UIView.layoutFittingExpandedSize.height
+                            maximumDetentValue: presentationController.containerView?.frame.height ?? UIView.layoutFittingExpandedSize.height,
+                            idealDetentValue: {
+                                idealResolution(presentationController)
+                            }
                         )
                         constant = resolution(ctx)
                     } else {
@@ -353,7 +383,11 @@ extension PresentationLinkTransition {
                     guard let constant, UISheetPresentationController.Detent.responds(to: sel) else {
                         return .large()
                     }
-                    let result = UISheetPresentationController.Detent.perform(sel, with: identifier.rawValue, with: constant)
+                    let result = UISheetPresentationController.Detent.perform(
+                        sel,
+                        with: identifier.rawValue,
+                        with: constant
+                    )
                     guard let detent = result?.takeUnretainedValue() as? UISheetPresentationController.Detent else {
                         return .large()
                     }
@@ -361,9 +395,13 @@ extension PresentationLinkTransition {
                         detent.resolution = { containerTraitCollection, maximumDetentValue in
                             let ctx = ResolutionContext(
                                 containerTraitCollection: containerTraitCollection,
-                                maximumDetentValue: maximumDetentValue
+                                maximumDetentValue: maximumDetentValue,
+                                idealDetentValue: {
+                                    idealResolution(presentationController)
+                                }
                             )
-                            return resolution(ctx)
+                            let max = maximumDetentValue
+                            return min(resolution(ctx) ?? max, max)
                         }
                     }
                     return detent

@@ -265,7 +265,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
         from oldValue: Self,
         to newValue: Self
     ) {
-        lazy var detents = newValue.detents.map { $0.resolve(in: presentationController) }
+        let detents = newValue.detents
         #if targetEnvironment(macCatalyst)
         let cornerRadius = newValue.preferredCornerRadius
         let hasChanges: Bool = {
