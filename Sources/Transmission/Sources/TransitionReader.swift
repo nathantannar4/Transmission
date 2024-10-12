@@ -54,7 +54,9 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
         let uiView = ViewControllerReader(
             presentingViewController: Binding(
                 get: { context.coordinator.presentingViewController },
-                set: { context.coordinator.presentingViewController = $0 }
+                set: {
+                    context.coordinator.presentingViewController = $0?.parent ?? $0
+                }
             )
         )
         return uiView
@@ -72,6 +74,8 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
         weak var presentingViewController: UIViewController? {
             didSet {
                 if oldValue != presentingViewController {
+                    oldValue?.swizzle_beginAppearanceTransition(nil)
+                    oldValue?.swizzle_endAppearanceTransition(nil)
                     presentingViewControllerDidChange()
                 }
             }
@@ -82,6 +86,11 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 
         init(progress: Binding<CGFloat>) {
             self.progress = progress
+        }
+
+        deinit {
+            presentingViewController?.swizzle_beginAppearanceTransition(nil)
+            presentingViewController?.swizzle_endAppearanceTransition(nil)
         }
 
         private func presentingViewControllerDidChange() {
@@ -108,8 +117,8 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                         transitionDidChange(transitionCoordinator)
                     }
 
-                    transitionCoordinator.notifyWhenInteractionChanges { [unowned self] ctx in
-                        self.transitionDidChange(ctx)
+                    transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
+                        self?.transitionDidChange(ctx)
                     }
                 } else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
                     let isPresented = presentingViewController.isBeingPresented
@@ -160,25 +169,6 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                 }
             }
         }
-
-        private func isDismissing(_ vc: UIViewController?) -> Bool {
-            guard let vc = vc else {
-                return false
-            }
-            if vc.isBeingDismissed == true || vc.parent == nil {
-                return true
-            } else if let navigationController = vc.navigationController {
-                var current: UIViewController? = vc
-                while let c = current {
-                    let parent = c.parent
-                    if parent == navigationController {
-                        return !navigationController.viewControllers.contains(c)
-                    }
-                    current = parent
-                }
-            }
-            return false
-        }
     }
 }
 
@@ -190,7 +180,7 @@ extension UIViewController {
         var value: () -> Void
     }
 
-    func swizzle_beginAppearanceTransition(_ transition: @escaping () -> Void) {
+    func swizzle_beginAppearanceTransition(_ transition: (() -> Void)?) {
         let original = #selector(UIViewController.beginAppearanceTransition(_:animated:))
         let swizzled = #selector(UIViewController.swizzled_beginAppearanceTransition(_:animated:))
 
@@ -204,8 +194,12 @@ extension UIViewController {
             }
         }
 
-        let box = ObjCBox(value: BeginAppearanceTransition(value: transition))
-        objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+        if let transition {
+            let box = ObjCBox(value: BeginAppearanceTransition(value: transition))
+            objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+        } else {
+            objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, nil, .OBJC_ASSOCIATION_RETAIN)
+        }
     }
 
     @objc
@@ -225,7 +219,7 @@ extension UIViewController {
         var value: () -> Void
     }
 
-    func swizzle_endAppearanceTransition(_ transition: @escaping () -> Void) {
+    func swizzle_endAppearanceTransition(_ transition: (() -> Void)?) {
         let original = #selector(UIViewController.endAppearanceTransition)
         let swizzled = #selector(UIViewController.swizzled_endAppearanceTransition)
 
@@ -239,8 +233,12 @@ extension UIViewController {
             }
         }
 
-        let box = ObjCBox(value: EndAppearanceTransition(value: transition))
-        objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+        if let transition {
+            let box = ObjCBox(value: EndAppearanceTransition(value: transition))
+            objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+        } else {
+            objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, nil, .OBJC_ASSOCIATION_RETAIN)
+        }
     }
 
     @objc
