@@ -77,6 +77,7 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
             }
         }
 
+        private var trackedViewControllers = NSHashTable<UIViewController>.weakObjects()
         private weak var transitionCoordinator: UIViewControllerTransitionCoordinator?
         private weak var displayLink: CADisplayLink?
 
@@ -84,12 +85,34 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
             self.progress = progress
         }
 
+        deinit {
+            presentingViewController = nil
+        }
+
+        private func reset() {
+            for viewController in trackedViewControllers.allObjects {
+                viewController.swizzle_beginAppearanceTransition(nil)
+                viewController.swizzle_endAppearanceTransition(nil)
+            }
+            trackedViewControllers.removeAllObjects()
+        }
+
         private func presentingViewControllerDidChange() {
-            if let presentingViewController = presentingViewController {
-                presentingViewController.swizzle_beginAppearanceTransition { [unowned self] in
+            reset()
+
+            if let presentingViewController {
+                trackedViewControllers.add(presentingViewController)
+
+                if let parent = presentingViewController.parent {
+                    trackedViewControllers.add(parent)
+                }
+            }
+
+            for viewController in trackedViewControllers.allObjects {
+                viewController.swizzle_beginAppearanceTransition { [unowned self] in
                     self.transitionCoordinatorDidChange()
                 }
-                presentingViewController.swizzle_endAppearanceTransition { [unowned self] in
+                viewController.swizzle_endAppearanceTransition { [unowned self] in
                     self.transitionCoordinatorDidChange()
                 }
             }
@@ -108,8 +131,8 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                         transitionDidChange(transitionCoordinator)
                     }
 
-                    transitionCoordinator.notifyWhenInteractionChanges { [unowned self] ctx in
-                        self.transitionDidChange(ctx)
+                    transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
+                        self?.transitionDidChange(ctx)
                     }
                 } else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
                     let isPresented = presentingViewController.isBeingPresented
@@ -137,7 +160,7 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
             _ transitionCoordinator: UIViewControllerTransitionCoordinatorContext
         ) {
             let from = transitionCoordinator.viewController(forKey: .from)
-            let isPresenting = from !== presentingViewController
+            let isPresenting = !trackedViewControllers.contains(from)
 
             if transitionCoordinator.isInteractive {
                 let percentComplete = isPresenting ? transitionCoordinator.percentComplete : 1 - transitionCoordinator.percentComplete
@@ -160,25 +183,6 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                 }
             }
         }
-
-        private func isDismissing(_ vc: UIViewController?) -> Bool {
-            guard let vc = vc else {
-                return false
-            }
-            if vc.isBeingDismissed == true || vc.parent == nil {
-                return true
-            } else if let navigationController = vc.navigationController {
-                var current: UIViewController? = vc
-                while let c = current {
-                    let parent = c.parent
-                    if parent == navigationController {
-                        return !navigationController.viewControllers.contains(c)
-                    }
-                    current = parent
-                }
-            }
-            return false
-        }
     }
 }
 
@@ -190,7 +194,7 @@ extension UIViewController {
         var value: () -> Void
     }
 
-    func swizzle_beginAppearanceTransition(_ transition: @escaping () -> Void) {
+    func swizzle_beginAppearanceTransition(_ transition: (() -> Void)?) {
         let original = #selector(UIViewController.beginAppearanceTransition(_:animated:))
         let swizzled = #selector(UIViewController.swizzled_beginAppearanceTransition(_:animated:))
 
@@ -204,8 +208,12 @@ extension UIViewController {
             }
         }
 
-        let box = ObjCBox(value: BeginAppearanceTransition(value: transition))
-        objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+        if let transition {
+            let box = ObjCBox(value: BeginAppearanceTransition(value: transition))
+            objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+        } else {
+            objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, nil, .OBJC_ASSOCIATION_RETAIN)
+        }
     }
 
     @objc
@@ -225,7 +233,7 @@ extension UIViewController {
         var value: () -> Void
     }
 
-    func swizzle_endAppearanceTransition(_ transition: @escaping () -> Void) {
+    func swizzle_endAppearanceTransition(_ transition: (() -> Void)?) {
         let original = #selector(UIViewController.endAppearanceTransition)
         let swizzled = #selector(UIViewController.swizzled_endAppearanceTransition)
 
@@ -239,8 +247,12 @@ extension UIViewController {
             }
         }
 
-        let box = ObjCBox(value: EndAppearanceTransition(value: transition))
-        objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+        if let transition {
+            let box = ObjCBox(value: EndAppearanceTransition(value: transition))
+            objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+        } else {
+            objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, nil, .OBJC_ASSOCIATION_RETAIN)
+        }
     }
 
     @objc

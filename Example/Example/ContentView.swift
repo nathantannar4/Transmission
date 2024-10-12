@@ -340,33 +340,33 @@ struct ContentView: View {
                     PresentationLink {
                         TransitionReader { proxy in
                             Color.blue.opacity(proxy.progress)
+                                .overlay {
+                                    Text(proxy.progress.description)
+                                        .foregroundStyle(.white)
+                                }
                                 .ignoresSafeArea()
                                 .onChange(of: proxy.progress) { newValue in
                                     progress = newValue
                                 }
                         }
                     } label: {
-                        HStack {
-                            Text("PresentationLink")
-
-                            Text(progress.description)
-                        }
+                        Text("PresentationLink")
                     }
 
                     NavigationLink {
                         TransitionReader { proxy in
                             Color.blue.opacity(proxy.progress)
+                                .overlay {
+                                    Text(proxy.progress.description)
+                                        .foregroundStyle(.white)
+                                }
                                 .ignoresSafeArea()
                                 .onChange(of: proxy.progress) { newValue in
                                     progress = newValue
                                 }
                         }
                     } label: {
-                        HStack {
-                            Text("NavigationLink")
-
-                            Text(progress.description)
-                        }
+                        Text("NavigationLink")
                     }
 
                 } label: {

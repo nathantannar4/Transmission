@@ -406,14 +406,20 @@ private struct PresentationLinkModifierBody<
                 }
 
                 let present: () -> Void = {
+                    guard let viewController = adapter.viewController else { return }
                     presentingViewController.present(
-                        adapter.viewController,
+                        viewController,
                         animated: isAnimated
                     ) {
-                        adapter.viewController
-                            .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
-                        if isTransitioningPresentationController {
-                            adapter.viewController.presentationDelegate = context.coordinator
+                        if !isPresented.wrappedValue {
+                            // Handle `isPresented` changing mid presentation
+                            viewController.dismiss(animated: isAnimated)
+                        } else {
+                            viewController
+                                .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+                            if isTransitioningPresentationController {
+                                viewController.presentationDelegate = context.coordinator
+                            }
                         }
                     }
                 }
