@@ -303,6 +303,21 @@ extension PresentationLinkTransition {
                 return Detent(identifier: identifier, height: height)
             }
 
+            /// Creates a detent with a height relative to the maximum detent height.
+            @available(iOS 15.0, *)
+            @available(macOS, unavailable)
+            @available(tvOS, unavailable)
+            @available(watchOS, unavailable)
+            public static func percentage(
+                _ identifier: Identifier,
+                multiplier: CGFloat
+            ) -> Detent {
+                precondition(identifier.isCustom, "A custom detent identifier must be provided.")
+                return Detent(identifier: identifier) { ctx in
+                    return ctx.maximumDetentValue * multiplier
+                }
+            }
+
             /// Creates a detent that's height is lazily resolved.
             @available(iOS 15.0, *)
             @available(macOS, unavailable)
@@ -363,20 +378,22 @@ extension PresentationLinkTransition {
                                 }
                             )
                             let max = context.maximumDetentValue
-                            return min(resolution(ctx) ?? max, max)
+                            return min(ceil(resolution(ctx) ?? max), max)
                         }
                     }
                     let sel = NSSelectorFromString(String(":tnatsnoc:reifitnedIhtiWtneted_".reversed()))
                     var constant: CGFloat?
-                    if let resolution {
+                    if let resolution, let containerView = presentationController.containerView {
+                        // This seems to match the `maximumDetentValue` computed by UIKit
+                        let maximumDetentValue = containerView.frame.inset(by: containerView.safeAreaInsets).height - 10
                         let ctx = ResolutionContext(
                             containerTraitCollection: presentationController.traitCollection,
-                            maximumDetentValue: presentationController.containerView?.frame.height ?? UIView.layoutFittingExpandedSize.height,
+                            maximumDetentValue: maximumDetentValue,
                             idealDetentValue: {
                                 idealResolution(presentationController)
                             }
                         )
-                        constant = resolution(ctx)
+                        constant = resolution(ctx).map { ceil($0) }
                     } else {
                         constant = height
                     }
@@ -401,7 +418,7 @@ extension PresentationLinkTransition {
                                 }
                             )
                             let max = maximumDetentValue
-                            return min(resolution(ctx) ?? max, max)
+                            return min(ceil(resolution(ctx) ?? max), max)
                         }
                     }
                     return detent

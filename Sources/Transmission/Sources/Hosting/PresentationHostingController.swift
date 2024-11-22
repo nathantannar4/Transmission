@@ -48,13 +48,14 @@ open class PresentationHostingController<
                 return
             }
 
+            // This seems to match the `maximumDetentValue` computed by UIKit
+            let maximumDetentValue = containerView.frame.inset(by: containerView.safeAreaInsets).height - 10
             let resolvedDetentHeight = detent.resolvedValue(
                 containerTraitCollection: sheetPresentationController.traitCollection,
-                maximumDetentValue: containerView.frame.height
+                maximumDetentValue: maximumDetentValue
             )
-            guard let resolvedDetentHeight,
-                resolvedDetentHeight != view.frame.height - (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
-            else {
+            let height = view.frame.height - (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
+            guard let resolvedDetentHeight, resolvedDetentHeight != height else {
                 return
             }
 
