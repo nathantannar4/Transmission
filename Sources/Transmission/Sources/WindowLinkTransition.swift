@@ -203,20 +203,20 @@ extension WindowLinkTransition.Value {
 
 @available(iOS 14.0, *)
 struct WindowBridgeAdapter: ViewModifier {
-    var isPresented: Binding<Bool>
+    var presentationCoordinator: PresentationCoordinator
     var transition: WindowLinkTransition.Value
 
     init(
-        isPresented: Binding<Bool>,
+        presentationCoordinator: PresentationCoordinator,
         transition: WindowLinkTransition.Value
     ) {
-        self.isPresented = isPresented
+        self.presentationCoordinator = presentationCoordinator
         self.transition = transition
     }
 
     func body(content: Content) -> some View {
         content
-            .modifier(PresentationBridgeAdapter(isPresented: isPresented))
+            .modifier(PresentationBridgeAdapter(presentationCoordinator: presentationCoordinator))
             .frame(maxHeight: .infinity, alignment: transition.toSwiftUIAlignment())
     }
 }

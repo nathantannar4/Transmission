@@ -158,14 +158,16 @@ private struct DestinationLinkModifierBody<
             if let adapter = context.coordinator.adapter {
                 adapter.update(
                     destination: destination,
-                    context: context
+                    context: context,
+                    isPresented: isPresented
                 )
             } else if let navigationController = presentingViewController.navigationController {
 
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
                     transition: transition.value,
-                    context: context
+                    context: context,
+                    isPresented: isPresented
                 )
                 context.coordinator.adapter = adapter
                 switch adapter.transition {
@@ -190,17 +192,12 @@ private struct DestinationLinkModifierBody<
             let viewController = adapter.viewController!
             let isAnimated = context.transaction.isAnimated
                 || viewController.transitionCoordinator?.isAnimated == true
-                || DestinationCoordinator.transaction.isAnimated
             if let presented = viewController.presentedViewController {
                 presented.dismiss(animated: isAnimated) {
-                    viewController._popViewController(animated: isAnimated) {
-                        DestinationCoordinator.transaction = nil
-                    }
+                    viewController._popViewController(animated: isAnimated)
                 }
             } else {
-                viewController._popViewController(animated: isAnimated) {
-                    DestinationCoordinator.transaction = nil
-                }
+                viewController._popViewController(animated: isAnimated)
             }
             context.coordinator.adapter = nil
         }
@@ -242,10 +239,11 @@ private struct DestinationLinkModifierBody<
             animated: Bool
         ) {
             if let viewController = adapter?.viewController,
-                !navigationController.viewControllers.contains(viewController)
+                !navigationController.viewControllers.contains(viewController),
+                isPresented.wrappedValue
             {
                 withCATransaction {
-                    var transaction = Transaction()
+                    var transaction = Transaction(animation: animated ? .default : nil)
                     transaction.disablesAnimations = true
                     withTransaction(transaction) {
                         self.isPresented.wrappedValue = false
@@ -546,44 +544,33 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
 
     var transition: DestinationLinkTransition.Value
     var environment: EnvironmentValues
+    var isPresented: Binding<Bool>
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
-
-    var isPresented: Binding<Bool> {
-        Binding<Bool>(
-            get: { true },
-            set: { [weak self] newValue, transaction in
-                MainActor.assumeIsolated {
-                    if !newValue, let viewController = self?.viewController {
-                        let isAnimated = transaction.isAnimated
-                            || viewController.transitionCoordinator?.isAnimated == true
-                            || DestinationCoordinator.transaction.isAnimated
-                        viewController._popViewController(animated: isAnimated) {
-                            DestinationCoordinator.transaction = nil
-                        }
-                    }
-                }
-            }
-        )
-    }
 
     init(
         destination: Destination,
         transition: DestinationLinkTransition.Value,
-        context: DestinationLinkModifierBody<Destination>.Context
+        context: DestinationLinkModifierBody<Destination>.Context,
+        isPresented: Binding<Bool>
     ) {
         self.transition = transition
         self.environment = context.environment
+        self.isPresented = isPresented
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
             update(
                 destination: destination,
-                context: context
+                context: context,
+                isPresented: isPresented
             )
         } else {
             let viewController = DestinationController(
                 content: destination.modifier(
                     DestinationBridgeAdapter(
-                        isPresented: isPresented
+                        destinationCoordinator: DestinationCoordinator(
+                            isPresented: isPresented.wrappedValue,
+                            dismissBlock: { [weak self] in self?.pop($0, $1) }
+                        )
                     )
                 )
             )
@@ -606,9 +593,11 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
 
     func update(
         destination: Destination,
-        context: DestinationLinkModifierBody<Destination>.Context
+        context: DestinationLinkModifierBody<Destination>.Context,
+        isPresented: Binding<Bool>
     ) {
         environment = context.environment
+        self.isPresented = isPresented
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
@@ -621,10 +610,24 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
             let viewController = viewController as! DestinationController
             viewController.content = destination.modifier(
                 DestinationBridgeAdapter(
-                    isPresented: isPresented
+                    destinationCoordinator: DestinationCoordinator(
+                        isPresented: isPresented.wrappedValue,
+                        dismissBlock: { [weak self] in self?.pop($0, $1) }
+                    )
                 )
             )
             transition.update(viewController)
+        }
+    }
+
+    func pop(_ count: Int, _ transaction: Transaction) {
+        guard let viewController else { return }
+        let isAnimated = transaction.isAnimated
+            || viewController.transitionCoordinator?.isAnimated == true
+        viewController._popViewController(count: count, animated: isAnimated) {
+            withTransaction(transaction) {
+                self.isPresented.wrappedValue = false
+            }
         }
     }
 
@@ -710,11 +713,10 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
                 adapter.context = unsafeBitCast(context, to: Content.Context.self)
             }
             func project<T>(_ value: T) -> Content.Context {
-                let isPresented = self.isPresented
                 let destinationCoordinator = DestinationCoordinator(
                     isPresented: isPresented.wrappedValue,
-                    dismissBlock: {
-                        isPresented.wrappedValue = false
+                    dismissBlock: { [weak adapter] in
+                        adapter?.pop($0, $1)
                     }
                 )
                 var ctx = unsafeBitCast(value, to: Context<Content.Coordinator>.V1.self)

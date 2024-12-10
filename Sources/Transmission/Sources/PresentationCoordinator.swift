@@ -21,23 +21,43 @@ public struct PresentationCoordinator {
     public weak var sourceView: UIView?
 
     @usableFromInline
-    var dismissBlock: () -> Void
+    var dismissBlock: (Int, Transaction) -> Void
+
+    /// Dismisses all presented views with an optional animation
+    @inlinable
+    public func dismissToRoot(animation: Animation? = .default) {
+        dismiss(count: .max, transaction: Transaction(animation: animation))
+    }
+
+    /// Dismisses all presented views with the transaction
+    @inlinable
+    public func dismissToRoot(transaction: Transaction) {
+        dismiss(count: .max, transaction: transaction)
+    }
 
     /// Dismisses the presented view with an optional animation
     @inlinable
     public func dismiss(animation: Animation? = .default) {
-        dismiss(transaction: Transaction(animation: animation))
+        dismiss(count: 1, transaction: Transaction(animation: animation))
     }
 
     /// Dismisses the presented view with the transaction
     @inlinable
     public func dismiss(transaction: Transaction) {
-        PresentationCoordinator.transaction = transaction
-        withTransaction(transaction, dismissBlock)
+        dismiss(count: 1, transaction: transaction)
     }
 
-    @usableFromInline
-    static var transaction: Transaction?
+    /// Dismisses the presented views with an optional animation
+    @inlinable
+    public func dismiss(count: Int, animation: Animation? = .default) {
+        dismiss(count: count, transaction: Transaction(animation: animation))
+    }
+
+    /// Dismisses the presented views with the transaction
+    @inlinable
+    public func dismiss(count: Int, transaction: Transaction) {
+        dismissBlock(count, transaction)
+    }
 }
 
 @available(iOS 14.0, *)
@@ -59,17 +79,25 @@ extension EnvironmentValues {
                 return coordinator
             }
             if #available(iOS 15.0, *) {
+                let dismissAction = dismiss
                 return PresentationCoordinator(
                     isPresented: isPresented,
-                    dismissBlock: dismiss.callAsFunction
+                    dismissBlock: { _, transaction in
+                        withTransaction(transaction) {
+                            dismissAction()
+                        }
+                    }
                 )
             } else {
                 let presentationMode = presentationMode
                 return PresentationCoordinator(
-                    isPresented: presentationMode.wrappedValue.isPresented
-                ) {
-                    presentationMode.wrappedValue.dismiss()
-                }
+                    isPresented: presentationMode.wrappedValue.isPresented,
+                    dismissBlock: { _, transaction in
+                        withTransaction(transaction) {
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                    }
+                )
             }
         }
         set { self[PresentationCoordinatorKey.self] = newValue }
@@ -78,20 +106,13 @@ extension EnvironmentValues {
 
 @available(iOS 14.0, *)
 struct PresentationBridgeAdapter: ViewModifier {
-    var isPresented: Binding<Bool>
+    var presentationCoordinator: PresentationCoordinator
     @State var didAppear = false
 
     func body(content: Content) -> some View {
         content
             .modifier(_ViewInputsBridgeModifier())
-            .environment(
-                \.presentationCoordinator,
-                 PresentationCoordinator(
-                    isPresented: isPresented.wrappedValue,
-                    dismissBlock: {
-                        isPresented.wrappedValue = false
-                    })
-            )
+            .environment(\.presentationCoordinator, presentationCoordinator)
             .onAppear {
                 // Need to trigger a render update during presentation to fix DatePicker
                 withCATransaction {

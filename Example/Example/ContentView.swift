@@ -34,376 +34,404 @@ struct ContentView: View {
     @State var isHeroPresented: Bool = false
     @State var isMatchedGeometryPresented = false
     @State var progress: CGFloat = 0
-    @State var isExpanded: Bool = true
+    @State var isDestinationLinkExpanded: Bool = true
+    @State var isPresentationLinkExpanded: Bool = true
+
+    @Environment(\.presentationCoordinator) var presentationCoordinator
+    @Environment(\.destinationCoordinator) var destinationCoordinator
 
     var body: some View {
-        NavigationView {
-            List {
-                DisclosureGroup(isExpanded: $isExpanded) {
-                    Section {
-                        PresentationLink(
-                            transition: .sheet,
-                            animation: .linear(duration: 1)
-                        ) {
-                            ContentView()
-                        } label: {
-                            Text("Sheet (default Detent)")
-                        }
-
-                        PresentationLink(transition: .sheet(detents: [.ideal])) {
-                            ScrollView {
-                                SafeAreaVisualizerView()
-                                    .aspectRatio(1, contentMode: .fit)
-                            }
-                        } label: {
-                            Text("Sheet (ideal Detent)")
-                        }
-
-                        PresentationLink(transition: .sheet(detents: [.constant("constant", height: 100)])) {
-                            SafeAreaVisualizerView()
-                        } label: {
-                            Text("Sheet (constant Detent)")
-                        }
-
-                        PresentationLink(transition: .sheet(detents: [.custom("custom", resolver: { context in return context.maximumDetentValue * 0.67 })])) {
-                            SafeAreaVisualizerView()
-                        } label: {
-                            Text("Sheet (constant Detent)")
-                        }
-                    } header: {
-                        Text("Sheet Transitions")
+        List {
+            DisclosureGroup(isExpanded: $isDestinationLinkExpanded) {
+                Section {
+                    DestinationLink {
+                        ContentView()
+                    } label: {
+                        Text("Push")
                     }
 
-                    Section {
-                        PresentationLink(
-                            transition: .matchedGeometry(
-                                options: .init(
-                                    options: .init(preferredPresentationBackgroundColor: .clear)
-                                )
-                            )
-                        ) {
-                            TransitionReader { proxy in
-                                ScrollableCollectionView(edge: .bottom)
-                                    .opacity(proxy.progress)
-                            }
-                        } label: {
-                            Text("Matched Geometry")
-                        }
-
-                        Button {
-                            withAnimation {
-                                isMatchedGeometryPresented = true
-                            }
-                        } label: {
-                            HStack {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.blue)
-                                    .aspectRatio(1, contentMode: .fit)
-                                    .frame(width: 44, height: 44)
-                                    .presentation(
-                                        transition: .matchedGeometry(
-                                            options: .init(preferredCornerRadius: 10)
-                                        ),
-                                        isPresented: $isMatchedGeometryPresented
-                                    ) {
-                                        SafeAreaVisualizerView()
-                                    }
-
-                                Text("Matched Geometry")
-                            }
-                        }
-                    } header: {
-                        Text("Matched Geometry Transitions")
-                    }
-
-                    Section {
-                        PresentationLink(
-                            transition: .card,
-                            animation: .spring(duration: 0.5, bounce: 0.35)
-                        ) {
-                            CardView()
-                        } label: {
-                            Text("Card")
-                        }
-
-                        PresentationLink(
-                            transition: .card(
-                                options: .init(preferredEdgeInset: 0, preferredCornerRadius: 0)
-                            )
-                        ) {
-                            CardView()
-                        } label: {
-                            Text("Card (custom insets)")
-                        }
-                    } header: {
-                        Text("Card Transitions")
-                    }
-
-                    Section {
-                        PresentationLink(
-                            transition: .toast(edge: .top),
-                            animation: .spring(duration: 0.5, bounce: 0.35)
-                        ) {
-                            ToastView()
-                        } label: {
-                            Text("Toast (top)")
-                        }
-
-                        PresentationLink(
-                            transition: .toast(edge: .bottom),
-                            animation: .spring(duration: 0.5, bounce: 0.35)
-                        ) {
-                            ToastView()
-                        } label: {
-                            Text("Toast (bottom)")
-                        }
-                    } header: {
-                        Text("Toast Transitions")
-                    }
-
-                    Section {
-                        ForEach(Edge.allCases, id: \.self) { edge in
-                            PresentationLink(
-                                transition: .slide(edge: edge)
-                            ) {
-                                ScrollableCollectionView(edge: edge)
-                            } label: {
-                                Text("Slide (\(String(describing: edge)))")
-                            }
-                        }
-                    } header: {
-                        Text("Slide Transitions")
-                    }
-
-                    Section {
-                        PresentationLink(
-                            transition: .dynamicIsland
-                        ) {
-                            DynamicIslandView()
-                        } label: {
-                            Text("Dynamic Island")
-                        }
-
-                        PresentationLink(
-                            transition: .heroMove
-                        ) {
-                            SafeAreaVisualizerView()
-                        } label: {
-                            Text("Hero Move")
-                        }
-                    } header: {
-                        Text("Custom Transitions")
-                    }
-
-                    Section {
-                        PresentationLink(transition: .fullscreen) {
-                            SafeAreaVisualizerView()
-                        } label: {
-                            Text("Fullscreen")
-                        }
-
-                        PresentationLink(transition: .currentContext) {
-                            SafeAreaVisualizerView()
-                        } label: {
-                            Text("Current Context")
-                        }
-
-                        PresentationLink(transition: .popover) {
-                            PopoverView()
-                        } label: {
-                            Text("Popover")
-                        }
-                    } header: {
-                        Text("Default Transitions")
-                    }
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text("PresentationLink")
-                            .font(.headline)
-                        Text("via PresentationLinkModifier")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
+                    Button("Pop All") {
+                        destinationCoordinator.popToRoot()
                     }
                 }
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("DestinationLink")
+                        .font(.headline)
+                    Text("via DestinationLinkModifier")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+            }
 
-                DisclosureGroup {
-                    WindowLink(level: .overlay, transition: .opacity) {
+            DisclosureGroup(isExpanded: $isPresentationLinkExpanded) {
+                Section {
+                    PresentationLink(
+                        transition: .sheet,
+                        animation: .linear(duration: 1)
+                    ) {
+                        ContentView()
+                    } label: {
+                        Text("Sheet (default Detent)")
+                    }
+
+                    PresentationLink(transition: .sheet(detents: [.ideal])) {
+                        ScrollView {
+                            SafeAreaVisualizerView()
+                                .aspectRatio(1, contentMode: .fit)
+                        }
+                    } label: {
+                        Text("Sheet (ideal Detent)")
+                    }
+
+                    PresentationLink(transition: .sheet(detents: [.constant("constant", height: 100)])) {
                         SafeAreaVisualizerView()
                     } label: {
-                        Text("Overlay")
+                        Text("Sheet (constant Detent)")
                     }
 
-                    PresentationLink {
-                        Text("Hello, World")
-                            .window(level: .background, isPresented: .constant(true)) {
-                                Color.blue.ignoresSafeArea()
-                            }
+                    PresentationLink(transition: .sheet(detents: [.custom("custom", resolver: { context in return context.maximumDetentValue * 0.67 })])) {
+                        SafeAreaVisualizerView()
                     } label: {
-                        Text("Background")
+                        Text("Sheet (constant Detent)")
+                    }
+                } header: {
+                    Text("Sheet Transitions")
+                }
+
+                Section {
+                    PresentationLink(
+                        transition: .matchedGeometry(
+                            options: .init(
+                                options: .init(preferredPresentationBackgroundColor: .clear)
+                            )
+                        )
+                    ) {
+                        TransitionReader { proxy in
+                            ScrollableCollectionView(edge: .bottom)
+                                .opacity(proxy.progress)
+                        }
+                    } label: {
+                        Text("Matched Geometry")
                     }
 
-                    WindowLink(
-                        level: .alert,
-                        transition: .move(edge: .top).combined(with: .opacity),
-                        animation: .spring
+                    Button {
+                        withAnimation {
+                            isMatchedGeometryPresented = true
+                        }
+                    } label: {
+                        HStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue)
+                                .aspectRatio(1, contentMode: .fit)
+                                .frame(width: 44, height: 44)
+                                .presentation(
+                                    transition: .matchedGeometry(
+                                        options: .init(preferredCornerRadius: 10)
+                                    ),
+                                    isPresented: $isMatchedGeometryPresented
+                                ) {
+                                    SafeAreaVisualizerView()
+                                }
+
+                            Text("Matched Geometry")
+                        }
+                    }
+                } header: {
+                    Text("Matched Geometry Transitions")
+                }
+
+                Section {
+                    PresentationLink(
+                        transition: .card,
+                        animation: .spring(duration: 0.5, bounce: 0.35)
+                    ) {
+                        CardView()
+                    } label: {
+                        Text("Card")
+                    }
+
+                    PresentationLink(
+                        transition: .card(
+                            options: .init(preferredEdgeInset: 0, preferredCornerRadius: 0)
+                        )
+                    ) {
+                        CardView()
+                    } label: {
+                        Text("Card (custom insets)")
+                    }
+                } header: {
+                    Text("Card Transitions")
+                }
+
+                Section {
+                    PresentationLink(
+                        transition: .toast(edge: .top),
+                        animation: .spring(duration: 0.5, bounce: 0.35)
                     ) {
                         ToastView()
                     } label: {
-                        Text("Toast")
+                        Text("Toast (top)")
                     }
 
-                    WindowLink(level: .overlay) {
-                        DismissPresentationLink {
-                            Image(systemName: "plus")
-                                .foregroundColor(.white)
-                                .frame(width: 32, height: 32)
-                                .background {
-                                    Circle()
-                                        .fill(Color.blue)
-                                }
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                        .padding([.bottom, .trailing])
+                    PresentationLink(
+                        transition: .toast(edge: .bottom),
+                        animation: .spring(duration: 0.5, bounce: 0.35)
+                    ) {
+                        ToastView()
                     } label: {
-                        Text("Fab Button")
+                        Text("Toast (bottom)")
                     }
-
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text("WindowLink")
-                            .font(.headline)
-                        Text("via WindowLinkModifier")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                    }
+                } header: {
+                    Text("Toast Transitions")
                 }
 
-                DisclosureGroup {
-                    ShareSheetLink(items: [URL(string: "https://github.com/nathantannar4")!]) { result in
-                        switch result {
-                        case .success(let activity):
-                            if let activity {
-                                print("Performed \(activity)")
-                            } else {
-                                print("Shared")
-                            }
-                        case .failure(let error):
-                            print("Cancelled/Error \(error)")
+                Section {
+                    ForEach(Edge.allCases, id: \.self) { edge in
+                        PresentationLink(
+                            transition: .slide(edge: edge)
+                        ) {
+                            ScrollableCollectionView(edge: edge)
+                        } label: {
+                            Text("Slide (\(String(describing: edge)))")
                         }
-                    } label: {
-                        Text("URL")
                     }
-
-                    ShareSheetLink(items: ["https://github.com/nathantannar4"]) {
-                        Text("String")
-                    }
-
-                    ShareSheetLink(items: [
-                        SnapshotItemProvider(label: "Image") {
-                            Text("Hello, World")
-                                .foregroundColor(.white)
-                                .frame(width: 200, height: 200)
-                                .background(Color.blue)
-                        }
-                    ]) {
-                        Text("View")
-                    }
-
-                } label: {
-                    VStack(alignment: .leading) {
-                        Text("ShareSheetLink")
-                            .font(.headline)
-                        Text("via ShareSheetLinkModifier")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                    }
+                } header: {
+                    Text("Slide Transitions")
                 }
 
-                if let url = Bundle.main.url(forResource: "Logo", withExtension: "png") {
-                    DisclosureGroup {
-                        QuickLookPreviewLink(url: url, transition: .default) {
-                            Text("Default")
-                        }
-
-                        QuickLookPreviewLink(url: url, transition: .scale) {
-                            Text("Scale")
-                        }
+                Section {
+                    PresentationLink(
+                        transition: .dynamicIsland
+                    ) {
+                        DynamicIslandView()
                     } label: {
-                        Text("QuickLookPreviewLink")
-                            .font(.headline)
+                        Text("Dynamic Island")
                     }
+
+                    PresentationLink(
+                        transition: .heroMove
+                    ) {
+                        SafeAreaVisualizerView()
+                    } label: {
+                        Text("Hero Move")
+                    }
+                } header: {
+                    Text("Custom Transitions")
                 }
 
-                DisclosureGroup {
-                    PresentationLink {
-                        TransitionReader { proxy in
-                            Color.blue.opacity(proxy.progress)
-                                .overlay {
-                                    Text(proxy.progress.description)
-                                        .foregroundStyle(.white)
-                                }
-                                .ignoresSafeArea()
-                                .onChange(of: proxy.progress) { newValue in
-                                    progress = newValue
-                                }
-                        }
+                Section {
+                    PresentationLink(transition: .fullscreen) {
+                        SafeAreaVisualizerView()
                     } label: {
-                        Text("PresentationLink")
+                        Text("Fullscreen")
                     }
 
-                    NavigationLink {
-                        TransitionReader { proxy in
-                            Color.blue.opacity(proxy.progress)
-                                .overlay {
-                                    Text(proxy.progress.description)
-                                        .foregroundStyle(.white)
-                                }
-                                .ignoresSafeArea()
-                                .onChange(of: proxy.progress) { newValue in
-                                    progress = newValue
-                                }
-                        }
+                    PresentationLink(transition: .currentContext) {
+                        SafeAreaVisualizerView()
                     } label: {
-                        Text("NavigationLink")
+                        Text("Current Context")
                     }
 
-                } label: {
-                    Text("TransitionReader")
+                    PresentationLink(transition: .popover) {
+                        PopoverView()
+                    } label: {
+                        Text("Popover")
+                    }
+                } header: {
+                    Text("Default Transitions")
+                }
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("PresentationLink")
                         .font(.headline)
-                }
-
-                PresentationLink(transition: .slide) {
-                    PageView()
-                } label: {
-                    Text("TabView")
-                }
-
-                PresentationLink(transition: .slide) {
-                    WebView()
-                } label: {
-                    Text("WebView")
-                }
-
-                Toggle(isOn: $isStatusBarHidden) {
-                    Text("isStatusBarHidden")
-                }
-
-                Picker(selection: $statusBarStyle) {
-                    ForEach(StatusBarStyle.allCases, id: \.self) { style in
-                        Text(verbatim: "\(style)")
-                    }
-                } label: {
-                    Text("UIStatusBarStyle")
+                    Text("via PresentationLinkModifier")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                 }
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationTitle("Transmission")
-            .prefersStatusBarHidden(isStatusBarHidden)
-            .preferredStatusBarStyle(statusBarStyle.toUIKit())
+
+            DisclosureGroup {
+                WindowLink(level: .overlay, transition: .opacity) {
+                    SafeAreaVisualizerView()
+                } label: {
+                    Text("Overlay")
+                }
+
+                PresentationLink {
+                    Text("Hello, World")
+                        .window(level: .background, isPresented: .constant(true)) {
+                            Color.blue.ignoresSafeArea()
+                        }
+                } label: {
+                    Text("Background")
+                }
+
+                WindowLink(
+                    level: .alert,
+                    transition: .move(edge: .top).combined(with: .opacity),
+                    animation: .spring
+                ) {
+                    ToastView()
+                } label: {
+                    Text("Toast")
+                }
+
+                WindowLink(level: .overlay) {
+                    DismissPresentationLink {
+                        Image(systemName: "plus")
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background {
+                                Circle()
+                                    .fill(Color.blue)
+                            }
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding([.bottom, .trailing])
+                } label: {
+                    Text("Fab Button")
+                }
+
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("WindowLink")
+                        .font(.headline)
+                    Text("via WindowLinkModifier")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            DisclosureGroup {
+                ShareSheetLink(items: [URL(string: "https://github.com/nathantannar4")!]) { result in
+                    switch result {
+                    case .success(let activity):
+                        if let activity {
+                            print("Performed \(activity)")
+                        } else {
+                            print("Shared")
+                        }
+                    case .failure(let error):
+                        print("Cancelled/Error \(error)")
+                    }
+                } label: {
+                    Text("URL")
+                }
+
+                ShareSheetLink(items: ["https://github.com/nathantannar4"]) {
+                    Text("String")
+                }
+
+                ShareSheetLink(items: [
+                    SnapshotItemProvider(label: "Image") {
+                        Text("Hello, World")
+                            .foregroundColor(.white)
+                            .frame(width: 200, height: 200)
+                            .background(Color.blue)
+                    }
+                ]) {
+                    Text("View")
+                }
+
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("ShareSheetLink")
+                        .font(.headline)
+                    Text("via ShareSheetLinkModifier")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            if let url = Bundle.main.url(forResource: "Logo", withExtension: "png") {
+                DisclosureGroup {
+                    QuickLookPreviewLink(url: url, transition: .default) {
+                        Text("Default")
+                    }
+
+                    QuickLookPreviewLink(url: url, transition: .scale) {
+                        Text("Scale")
+                    }
+                } label: {
+                    Text("QuickLookPreviewLink")
+                        .font(.headline)
+                }
+            }
+
+            DisclosureGroup {
+                PresentationLink {
+                    TransitionReader { proxy in
+                        Color.blue.opacity(proxy.progress)
+                            .overlay {
+                                Text(proxy.progress.description)
+                                    .foregroundStyle(.white)
+                            }
+                            .ignoresSafeArea()
+                            .onChange(of: proxy.progress) { newValue in
+                                progress = newValue
+                            }
+                    }
+                } label: {
+                    Text("PresentationLink")
+                }
+
+                NavigationLink {
+                    TransitionReader { proxy in
+                        Color.blue.opacity(proxy.progress)
+                            .overlay {
+                                Text(proxy.progress.description)
+                                    .foregroundStyle(.white)
+                            }
+                            .ignoresSafeArea()
+                            .onChange(of: proxy.progress) { newValue in
+                                progress = newValue
+                            }
+                    }
+                } label: {
+                    Text("NavigationLink")
+                }
+
+            } label: {
+                Text("TransitionReader")
+                    .font(.headline)
+            }
+
+            PresentationLink(transition: .slide) {
+                PageView()
+            } label: {
+                Text("TabView")
+            }
+
+            PresentationLink(transition: .slide) {
+                WebView()
+            } label: {
+                Text("WebView")
+            }
+
+            Toggle(isOn: $isStatusBarHidden) {
+                Text("isStatusBarHidden")
+            }
+
+            Picker(selection: $statusBarStyle) {
+                ForEach(StatusBarStyle.allCases, id: \.self) { style in
+                    Text(verbatim: "\(style)")
+                }
+            } label: {
+                Text("UIStatusBarStyle")
+            }
+
+            Button("Dismiss All") {
+                presentationCoordinator.dismissToRoot()
+            }
+            .disabled(!presentationCoordinator.isPresented)
         }
-        .navigationViewStyle(.stack)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("Transmission")
+        .prefersStatusBarHidden(isStatusBarHidden)
+        .preferredStatusBarStyle(statusBarStyle.toUIKit())
     }
 }
 

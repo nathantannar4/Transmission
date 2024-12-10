@@ -177,7 +177,7 @@ private struct WindowLinkModifierBody<
                 get: { true },
                 set: { newValue, transaction in
                     if !newValue, let adapter = context.coordinator.adapter {
-                        let animation = transaction.animation ?? PresentationCoordinator.transaction?.animation
+                        let animation = transaction.animation
                         let toTransition = adapter.transition.value.toUIKit(
                             isPresented: false,
                             window: adapter.window
@@ -266,7 +266,7 @@ private struct WindowLinkModifierBody<
         } else if let adapter = context.coordinator.adapter,
             !isPresented.wrappedValue
         {
-            let animation = context.transaction.animation ?? PresentationCoordinator.transaction?.animation
+            let animation = context.transaction.animation
             let toTransition = transition.value.toUIKit(
                 isPresented: false,
                 window: adapter.window
@@ -335,8 +335,9 @@ private class WindowLinkDestinationWindowAdapter<
 
     typealias DestinationWindow = PresentationHostingWindow<ModifiedContent<Destination, WindowBridgeAdapter>>
 
-    var window: DestinationWindow
+    var window: DestinationWindow!
     var transition: WindowLinkTransition
+    var isPresented: Binding<Bool>
 
     init(
         windowScene: UIWindowScene,
@@ -345,11 +346,17 @@ private class WindowLinkDestinationWindowAdapter<
         transition: WindowLinkTransition
     ) {
         self.transition = transition
+        self.isPresented = isPresented
         self.window = DestinationWindow(
             windowScene: windowScene,
             content: destination.modifier(
                 WindowBridgeAdapter(
-                    isPresented: isPresented,
+                    presentationCoordinator: PresentationCoordinator(
+                        isPresented: isPresented.wrappedValue,
+                        dismissBlock: { [weak self] in
+                            self?.dismiss($0, $1)
+                        }
+                    ),
                     transition: transition.value
                 )
             )
@@ -361,12 +368,37 @@ private class WindowLinkDestinationWindowAdapter<
         isPresented: Binding<Bool>,
         context: WindowLinkModifierBody<Destination>.Context
     ) {
+        self.isPresented = isPresented
         window.content = destination.modifier(
             WindowBridgeAdapter(
-                isPresented: isPresented,
+                presentationCoordinator: PresentationCoordinator(
+                    isPresented: isPresented.wrappedValue,
+                    dismissBlock: { [weak self] in
+                        self?.dismiss($0, $1)
+                    }
+                ),
                 transition: transition.value
             )
         )
+    }
+
+    func dismiss(_ count: Int, _ transaction: Transaction) {
+        guard let window else { return }
+        let toTransition = transition.value.toUIKit(
+            isPresented: false,
+            window: window
+        )
+        window.dismiss(
+            animation: transaction.animation,
+            transition: {
+                window.alpha = toTransition.alpha ?? 1
+                window.transform = toTransition.t
+            }
+        ) { _ in 
+            withTransaction(transaction) {
+                self.isPresented.wrappedValue = false
+            }
+        }
     }
 }
 

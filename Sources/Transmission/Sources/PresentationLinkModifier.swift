@@ -301,7 +301,8 @@ private struct PresentationLinkModifierBody<
                 adapter.update(
                     destination: destination,
                     sourceView: uiView,
-                    context: context
+                    context: context,
+                    isPresented: isPresented
                 )
             } else {
                 let adapter: PresentationLinkDestinationViewControllerAdapter<Destination>
@@ -311,7 +312,8 @@ private struct PresentationLinkModifierBody<
                     adapter.update(
                         destination: destination,
                         sourceView: uiView,
-                        context: context
+                        context: context,
+                        isPresented: isPresented
                     )
                     context.coordinator.isBeingReused = false
                 } else {
@@ -319,7 +321,8 @@ private struct PresentationLinkModifierBody<
                         destination: destination,
                         sourceView: uiView,
                         transition: transition.value,
-                        context: context
+                        context: context,
+                        isPresented: isPresented
                     )
                     context.coordinator.adapter = adapter
                 }
@@ -445,16 +448,12 @@ private struct PresentationLinkModifierBody<
             !isPresented.wrappedValue,
             !context.coordinator.isBeingReused
         {
-            let isAnimated = context.transaction.isAnimated || PresentationCoordinator.transaction.isAnimated
+            let isAnimated = context.transaction.isAnimated
             let viewController = adapter.viewController!
             if viewController.presentedViewController != nil {
-                (viewController.presentingViewController ?? viewController).dismiss(animated: isAnimated) {
-                    PresentationCoordinator.transaction = nil
-                }
+                (viewController.presentingViewController ?? viewController).dismiss(animated: isAnimated)
             } else if viewController.presentingViewController != nil {
-                viewController.dismiss(animated: isAnimated) {
-                    PresentationCoordinator.transaction = nil
-                }
+                viewController.dismiss(animated: isAnimated)
             }
             if adapter.transition.options.isDestinationReusable {
                 context.coordinator.isBeingReused = true
@@ -503,10 +502,12 @@ private struct PresentationLinkModifierBody<
             _ presentingViewController: UIViewController?,
             animated: Bool
         ) {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                self.isPresented.wrappedValue = false
+            if isPresented.wrappedValue {
+                var transaction = Transaction(animation: animated ? .default : nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    self.isPresented.wrappedValue = false
+                }
             }
 
             // Dismiss already handled by the presentation controller below
@@ -1063,46 +1064,37 @@ private class PresentationLinkDestinationViewControllerAdapter<
 
     var transition: PresentationLinkTransition.Value
     var environment: EnvironmentValues
+    var isPresented: Binding<Bool>
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
-
-    var isPresented: Binding<Bool> {
-        Binding<Bool>(
-            get: { true },
-            set: { [weak self] newValue, transaction in
-                MainActor.assumeIsolated {
-                    if !newValue, let viewController = self?.viewController {
-                        let isAnimated = transaction.isAnimated
-                            || viewController.transitionCoordinator?.isAnimated == true
-                            || PresentationCoordinator.transaction.isAnimated
-                        viewController.dismiss(animated: isAnimated) {
-                            PresentationCoordinator.transaction = nil
-                        }
-                    }
-                }
-            }
-        )
-    }
 
     init(
         destination: Destination,
         sourceView: UIView,
         transition: PresentationLinkTransition.Value,
-        context: PresentationLinkModifierBody<Destination>.Context
+        context: PresentationLinkModifierBody<Destination>.Context,
+        isPresented: Binding<Bool>
     ) {
         self.transition = transition
         self.environment = context.environment
+        self.isPresented = isPresented
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
             update(
                 destination: destination,
                 sourceView: sourceView,
-                context: context
+                context: context,
+                isPresented: isPresented
             )
         } else {
             let viewController = DestinationController(
                 content: destination.modifier(
                     PresentationBridgeAdapter(
-                        isPresented: isPresented
+                        presentationCoordinator: PresentationCoordinator(
+                            isPresented: isPresented.wrappedValue,
+                            dismissBlock: { [weak self] in
+                                self?.dismiss($0, $1)
+                            }
+                        )
                     )
                 )
             )
@@ -1135,9 +1127,11 @@ private class PresentationLinkDestinationViewControllerAdapter<
     func update(
         destination: Destination,
         sourceView: UIView,
-        context: PresentationLinkModifierBody<Destination>.Context
+        context: PresentationLinkModifierBody<Destination>.Context,
+        isPresented: Binding<Bool>
     ) {
         environment = context.environment
+        self.isPresented = isPresented
         if let conformance = conformance {
             var visitor = Visitor(
                 destination: destination,
@@ -1157,10 +1151,33 @@ private class PresentationLinkDestinationViewControllerAdapter<
             let viewController = viewController as! DestinationController
             viewController.content = destination.modifier(
                 PresentationBridgeAdapter(
-                    isPresented: isPresented
+                    presentationCoordinator: PresentationCoordinator(
+                        isPresented: isPresented.wrappedValue,
+                        dismissBlock: { [weak self] in self?.dismiss($0, $1) }
+                    )
                 )
             )
             transition.update(viewController)
+        }
+    }
+
+    func dismiss(_ count: Int, _ transaction: Transaction) {
+        guard let viewController, count > 0 else { return }
+        let presentingViewController = {
+            var remaining = count
+            var presentingViewController = viewController
+            while remaining > 0, let next = presentingViewController.presentingViewController {
+                presentingViewController = next
+                remaining -= 1
+            }
+            return presentingViewController
+        }()
+        let isAnimated = transaction.isAnimated
+            || viewController.transitionCoordinator?.isAnimated == true
+        presentingViewController.dismiss(animated: isAnimated) {
+            withTransaction(transaction) {
+                self.isPresented.wrappedValue = false
+            }
         }
     }
 
@@ -1247,12 +1264,11 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 adapter.context = unsafeBitCast(context, to: Content.Context.self)
             }
             func project<T>(_ value: T) -> Content.Context {
-                let isPresented = self.isPresented
                 let presentationCoordinator = PresentationCoordinator(
                     isPresented: isPresented.wrappedValue,
                     sourceView: sourceView,
-                    dismissBlock: {
-                        isPresented.wrappedValue = false
+                    dismissBlock: { [weak adapter] in
+                        adapter?.dismiss($0, $1)
                     }
                 )
                 var ctx = unsafeBitCast(value, to: Context<Content.Coordinator>.V1.self)
