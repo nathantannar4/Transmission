@@ -115,6 +115,8 @@ extension PresentationLinkTransition {
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
+        /// When `true`, the destination will be presented after dismissing the view the presentation source is already presenting.
+        public var shouldAutomaticallyDismissPresentedView: Bool
         public var modalPresentationCapturesStatusBarAppearance: Bool
         public var preferredPresentationBackgroundColor: Color?
 
@@ -122,12 +124,14 @@ extension PresentationLinkTransition {
             isInteractive: Bool = true,
             isDestinationReusable: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
+            shouldAutomaticallyDismissPresentedView: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
             preferredPresentationBackgroundColor: Color? = nil
         ) {
             self.isInteractive = isInteractive
             self.isDestinationReusable = isDestinationReusable
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
+            self.shouldAutomaticallyDismissPresentedView = shouldAutomaticallyDismissPresentedView
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
         }

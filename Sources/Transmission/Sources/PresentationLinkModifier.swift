@@ -408,6 +408,12 @@ private struct PresentationLinkModifierBody<
                     adapter.viewController.presentationDelegate = context.coordinator
                 }
 
+                var presentingViewController = presentingViewController
+                if !transition.value.options.shouldAutomaticallyDismissPresentedView {
+                    while let presenting = presentingViewController.presentedViewController {
+                        presentingViewController = presenting
+                    }
+                }
                 let present: () -> Void = {
                     guard let viewController = adapter.viewController else { return }
                     presentingViewController.present(
