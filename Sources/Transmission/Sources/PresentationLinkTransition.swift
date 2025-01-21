@@ -373,7 +373,7 @@ extension PresentationLinkTransition {
                     }
 
                     if let resolution, #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  {
-                        return .custom(identifier: identifier.toUIKit()) { context in
+                        return .custom(identifier: identifier.toUIKit()) { [unowned presentationController] context in
                             let ctx = ResolutionContext(
                                 containerTraitCollection: context.containerTraitCollection,
                                 maximumDetentValue: context.maximumDetentValue,
@@ -393,7 +393,7 @@ extension PresentationLinkTransition {
                         let ctx = ResolutionContext(
                             containerTraitCollection: presentationController.traitCollection,
                             maximumDetentValue: maximumDetentValue,
-                            idealDetentValue: {
+                            idealDetentValue: { [unowned presentationController] in
                                 idealResolution(presentationController)
                             }
                         )
@@ -417,7 +417,7 @@ extension PresentationLinkTransition {
                             let ctx = ResolutionContext(
                                 containerTraitCollection: containerTraitCollection,
                                 maximumDetentValue: maximumDetentValue,
-                                idealDetentValue: {
+                                idealDetentValue: { [unowned presentationController] in
                                     idealResolution(presentationController)
                                 }
                             )
