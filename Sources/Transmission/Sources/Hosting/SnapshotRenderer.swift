@@ -5,7 +5,7 @@
 #if os(iOS)
 
 import SwiftUI
-import Turbocharger
+import Engine
 
 @frozen
 public enum SnapshotRendererColorSpace {
@@ -73,7 +73,7 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
 
     public var colorSpace: SnapshotRendererColorSpace = .nonLinear
 
-    public var proposedSize: Turbocharger.ProposedSize = .unspecified
+    public var proposedSize: ProposedSize = .unspecified
 
     private let host: HostingView<ModifiedContent<Content, SnapshotRendererModifier>>
 

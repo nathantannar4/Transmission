@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import SwiftUI
+import Engine
 
 /// The transition and presentation style for a ``DestinationLink`` or ``DestinationLinkModifier``.
 @available(iOS 14.0, *)

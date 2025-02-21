@@ -16,15 +16,13 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "1.9.5"),
-        .package(url: "https://github.com/nathantannar4/Turbocharger", from: "1.3.3"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "2.0.0"),
     ],
     targets: [
         .target(
             name: "Transmission",
             dependencies: [
                 "Engine",
-                "Turbocharger",
             ]
         )
     ]
