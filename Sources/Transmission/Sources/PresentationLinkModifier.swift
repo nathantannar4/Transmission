@@ -507,6 +507,9 @@ private struct PresentationLinkModifierBody<
             _ presentingViewController: UIViewController?,
             animated: Bool
         ) {
+            // Break the retain cycle
+            adapter?.coordinator = nil
+
             if isPresented.wrappedValue {
                 var transaction = Transaction(animation: animated ? .default : nil)
                 transaction.disablesAnimations = true
@@ -527,6 +530,9 @@ private struct PresentationLinkModifierBody<
         func presentationControllerDidDismiss(
             _ presentationController: UIPresentationController
         ) {
+            // Break the retain cycle
+            adapter?.coordinator = nil
+
             presentationController.presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: true)
             presentationController.presentingViewController.fixSwiftUIHitTesting()
         }
@@ -1051,8 +1057,10 @@ private struct PresentationLinkModifierBody<
                 withCATransaction {
                     adapter.viewController.dismiss(animated: isAnimated)
                 }
+                coordinator.adapter = nil
+            } else {
+                adapter.coordinator = coordinator
             }
-            coordinator.adapter = nil
         }
     }
 }
@@ -1071,6 +1079,9 @@ private class PresentationLinkDestinationViewControllerAdapter<
     var environment: EnvironmentValues
     var isPresented: Binding<Bool>
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
+
+    // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
+    var coordinator: PresentationLinkModifierBody<Destination>.Coordinator?
 
     init(
         destination: Destination,

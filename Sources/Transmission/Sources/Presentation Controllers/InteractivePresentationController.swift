@@ -251,7 +251,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             }
         } else {
             func dismissIfNeeded() -> Bool {
-                let shouldDismiss = (delegate?.presentationControllerShouldDismiss?(self) ?? false)
+                let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
                 if shouldDismiss {
                     #if targetEnvironment(macCatalyst)
                     let canStart = true

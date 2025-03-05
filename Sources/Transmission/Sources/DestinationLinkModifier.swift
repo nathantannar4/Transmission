@@ -241,6 +241,9 @@ private struct DestinationLinkModifierBody<
                 !navigationController.viewControllers.contains(viewController),
                 isPresented.wrappedValue
             {
+                // Break the retain cycle
+                adapter?.coordinator = nil
+
                 withCATransaction {
                     var transaction = Transaction(animation: animated ? .default : nil)
                     transaction.disablesAnimations = true
@@ -312,8 +315,10 @@ private struct DestinationLinkModifierBody<
                 withCATransaction {
                     adapter.viewController._popViewController(animated: isAnimated)
                 }
+                coordinator.adapter = nil
+            } else {
+                adapter.coordinator = coordinator
             }
-            coordinator.adapter = nil
         }
     }
 }
@@ -545,6 +550,9 @@ private class DestinationLinkDestinationViewControllerAdapter<Destination: View>
     var environment: EnvironmentValues
     var isPresented: Binding<Bool>
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
+
+    // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
+    var coordinator: DestinationLinkModifierBody<Destination>.Coordinator?
 
     init(
         destination: Destination,

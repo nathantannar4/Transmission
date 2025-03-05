@@ -173,33 +173,6 @@ private struct WindowLinkModifierBody<
         {
             context.coordinator.isPresented = isPresented
 
-            let isPresented = Binding<Bool>(
-                get: { true },
-                set: { newValue, transaction in
-                    if !newValue, let adapter = context.coordinator.adapter {
-                        let animation = transaction.animation
-                        let toTransition = adapter.transition.value.toUIKit(
-                            isPresented: false,
-                            window: adapter.window
-                        )
-                        adapter.window.dismiss(
-                            animation: animation,
-                            transition: {
-                                adapter.window.alpha = toTransition.alpha ?? 1
-                                adapter.window.transform = toTransition.t
-                            },
-                            completion: { success in
-                                if success {
-                                    withCATransaction {
-                                        self.isPresented.wrappedValue = false
-                                    }
-                                }
-                            }
-                        )
-                    }
-                }
-            )
-
             if let adapter = context.coordinator.adapter,
                 !context.coordinator.isBeingReused
             {
@@ -303,7 +276,7 @@ private struct WindowLinkModifierBody<
 
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
-            if adapter.transition.options.shouldAutomaticallyDismissDestination != false {
+            if adapter.transition.options.shouldAutomaticallyDismissDestination {
                 let toTransition = adapter.transition.value.toUIKit(
                     isPresented: false,
                     window: adapter.window
@@ -322,8 +295,10 @@ private struct WindowLinkModifierBody<
                         }
                     )
                 }
+                coordinator.adapter = nil
+            } else {
+                adapter.coordinator = coordinator
             }
-            coordinator.adapter = nil
         }
     }
 }
@@ -338,6 +313,9 @@ private class WindowLinkDestinationWindowAdapter<
     var window: DestinationWindow!
     var transition: WindowLinkTransition
     var isPresented: Binding<Bool>
+
+    // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
+    var coordinator: WindowLinkModifierBody<Destination>.Coordinator?
 
     init(
         windowScene: UIWindowScene,
@@ -384,6 +362,10 @@ private class WindowLinkDestinationWindowAdapter<
 
     func dismiss(_ count: Int, _ transaction: Transaction) {
         guard let window else { return }
+
+        // Break the retain cycle
+        coordinator = nil
+
         let toTransition = transition.value.toUIKit(
             isPresented: false,
             window: window
