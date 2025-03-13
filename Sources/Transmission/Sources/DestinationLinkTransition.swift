@@ -53,13 +53,16 @@ extension DestinationLinkTransition {
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
         public var preferredPresentationBackgroundColor: Color?
+        public var hidesBottomBarWhenPushed: Bool
 
         public init(
             shouldAutomaticallyDismissDestination: Bool = true,
-            preferredPresentationBackgroundColor: Color? = nil
+            preferredPresentationBackgroundColor: Color? = nil,
+            hidesBottomBarWhenPushed: Bool = false
         ) {
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
+            self.hidesBottomBarWhenPushed = hidesBottomBarWhenPushed
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {

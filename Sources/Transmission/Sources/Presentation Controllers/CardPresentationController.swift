@@ -6,10 +6,11 @@
 
 import UIKit
 
+/// A presentation controller that presents the view in a card anchored at the bottom of the screen
 @available(iOS 14.0, *)
-class CardPresentationController: InteractivePresentationController {
+open class CardPresentationController: InteractivePresentationController {
 
-    var preferredEdgeInset: CGFloat? {
+    public var preferredEdgeInset: CGFloat? {
         didSet {
             guard oldValue != preferredEdgeInset else { return }
             cornerRadiusDidChange()
@@ -17,14 +18,14 @@ class CardPresentationController: InteractivePresentationController {
         }
     }
 
-    var preferredCornerRadius: CGFloat? {
+    public var preferredCornerRadius: CGFloat? {
         didSet {
             guard oldValue != preferredCornerRadius else { return }
             cornerRadiusDidChange()
         }
     }
 
-    override var frameOfPresentedViewInContainerView: CGRect {
+    open override var frameOfPresentedViewInContainerView: CGRect {
         var frame = super.frameOfPresentedViewInContainerView
         guard let presentedView else { return frame }
         let isCompact = traitCollection.verticalSizeClass == .compact
@@ -71,7 +72,7 @@ class CardPresentationController: InteractivePresentationController {
         preferredCornerRadius ?? max(12, UIScreen.main.displayCornerRadius - edgeInset)
     }
 
-    init(
+    public init(
         preferredEdgeInset: CGFloat?,
         preferredCornerRadius: CGFloat?,
         presentedViewController: UIViewController,
@@ -85,20 +86,20 @@ class CardPresentationController: InteractivePresentationController {
         )
     }
 
-    override func presentationTransitionWillBegin() {
+    open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
         cornerRadiusDidChange()
         dimmingView.isHidden = false
     }
 
-    override func dismissalTransitionDidEnd(_ completed: Bool) {
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
         super.dismissalTransitionDidEnd(completed)
         if completed {
             presentedViewController.view.layer.cornerRadius = 0
         }
     }
 
-    override func dismissalTransitionShouldBegin(
+    open override func dismissalTransitionShouldBegin(
         translation: CGPoint,
         delta: CGPoint,
         velocity: CGPoint
@@ -116,7 +117,7 @@ class CardPresentationController: InteractivePresentationController {
         }
     }
 
-    override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
+    open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         var edgeInsets = super.presentedViewAdditionalSafeAreaInsets()
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
         edgeInsets.bottom = max(0, min(safeAreaInsets.bottom - edgeInset, edgeInsets.bottom))
@@ -128,6 +129,30 @@ class CardPresentationController: InteractivePresentationController {
         presentedViewController.view.layer.masksToBounds = cornerRadius > 0
         presentedViewController.view.layer.cornerRadius = cornerRadius
     }
+}
+
+/// An interactive transition built for the ``CardPresentationController``.
+///
+/// ```
+/// func animationController(
+///     forDismissed dismissed: UIViewController
+/// ) -> UIViewControllerAnimatedTransitioning? {
+///     guard let presentationController = dismissed.presentationController as? CardPresentationController else {
+///         return nil
+///     }
+///     let transition = CardPresentationControllerTransition(
+///         isPresenting: false,
+///         animation: animation
+///     )
+///     transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
+///     presentationController.transition(with: transition)
+///     return transition
+/// }
+/// ```
+///
+@available(iOS 14.0, *)
+open class CardPresentationControllerTransition: PresentationControllerTransition {
+
 }
 
 #endif

@@ -7,25 +7,26 @@
 import UIKit
 import SwiftUI
 
+/// A presentation controller that presents the view in a full screen sheet
 @available(iOS 14.0, *)
-class SlidePresentationController: InteractivePresentationController {
+open class SlidePresentationController: InteractivePresentationController {
 
-    var edge: Edge
+    public var edge: Edge
 
-    override var edges: Edge.Set {
+    public override var edges: Edge.Set {
         get { Edge.Set(edge) }
         set { }
     }
 
-    override var wantsInteractiveDismissal: Bool {
+    open override var wantsInteractiveDismissal: Bool {
         return false
     }
 
-    override var presentationStyle: UIModalPresentationStyle {
+    open override var presentationStyle: UIModalPresentationStyle {
         .overFullScreen
     }
 
-    init(
+    public init(
         edge: Edge = .bottom,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
@@ -37,21 +38,70 @@ class SlidePresentationController: InteractivePresentationController {
         )
     }
 
-    override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
+    open override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         return .identity
     }
 
-    override func containerViewDidLayoutSubviews() {
+    open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
 
         presentingViewController.view.isHidden = presentedViewController.presentedViewController != nil
     }
 }
 
+/// An interactive transition built for the ``SlidePresentationController``.
+///
+/// ```
+/// func animationController(
+///     forPresented presented: UIViewController,
+///     presenting: UIViewController,
+///     source: UIViewController
+/// ) -> UIViewControllerAnimatedTransitioning? {
+///     let transition = SlidePresentationControllerTransition(
+///         edge: options.edge,
+///         prefersScaleEffect: options.prefersScaleEffect,
+///         preferredCornerRadius: options.preferredCornerRadius,
+///         presentationBackgroundColor: options.options.preferredPresentationBackgroundUIColor,
+///         isPresenting: true,
+///         animation: animation
+///     )
+///     transition.wantsInteractiveStart = false
+///     return transition
+/// }
+///
+/// func animationController(
+///     forDismissed dismissed: UIViewController
+/// ) -> UIViewControllerAnimatedTransitioning? {
+///     guard let presentationController = dismissed.presentationController as? SlidePresentationController else {
+///         return nil
+///     }
+///     let transition = SlidePresentationControllerTransition(
+///         edge: options.edge,
+///         prefersScaleEffect: options.prefersScaleEffect,
+///         preferredCornerRadius: options.preferredCornerRadius,
+///         presentationBackgroundColor: options.options.preferredPresentationBackgroundUIColor,
+///         isPresenting: false,
+///         animation: animation
+///     )
+///     transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
+///     presentationController.transition(with: transition)
+///     return transition
+/// }
+///
+/// func interactionControllerForDismissal(
+///     using animator: UIViewControllerAnimatedTransitioning
+/// ) -> UIViewControllerInteractiveTransitioning? {
+///     return animator as? SlidePresentationControllerTransition
+/// }
+/// ```
+///
 @available(iOS 14.0, *)
-class SlideTransition: PresentationControllerTransition {
+open class SlidePresentationControllerTransition: PresentationControllerTransition {
 
-    let options: PresentationLinkTransition.SlideTransitionOptions
+    public var edge: Edge
+    public var prefersScaleEffect: Bool
+    public var preferredCornerRadius: CGFloat?
+    public var presentationBackgroundColor: UIColor?
 
     static let displayCornerRadius: CGFloat = {
         #if targetEnvironment(macCatalyst)
@@ -61,16 +111,22 @@ class SlideTransition: PresentationControllerTransition {
         #endif
     }()
 
-    init(
+    public init(
+        edge: Edge,
+        prefersScaleEffect: Bool = true,
+        preferredCornerRadius: CGFloat? = nil,
+        presentationBackgroundColor: UIColor? = nil,
         isPresenting: Bool,
-        options: PresentationLinkTransition.SlideTransitionOptions,
         animation: Animation?
     ) {
-        self.options = options
+        self.edge = edge
+        self.prefersScaleEffect = prefersScaleEffect
+        self.preferredCornerRadius = preferredCornerRadius
+        self.presentationBackgroundColor = presentationBackgroundColor
         super.init(isPresenting: isPresenting, animation: animation)
     }
 
-    override func transitionAnimator(
+    public override func transitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning
     ) -> UIViewPropertyAnimator {
 
@@ -89,15 +145,15 @@ class SlideTransition: PresentationControllerTransition {
         #if targetEnvironment(macCatalyst)
         let isScaleEnabled = false
         #else
-        let isTranslucentBackground = options.options.preferredPresentationBackgroundUIColor?.isTranslucent ?? false
-        let isScaleEnabled = options.prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
+        let isTranslucentBackground = presentationBackgroundColor?.isTranslucent ?? false
+        let isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
             frame.origin.y == 0
         #endif
         let safeAreaInsets = transitionContext.containerView.safeAreaInsets
-        let cornerRadius = options.preferredCornerRadius ?? Self.displayCornerRadius
+        let cornerRadius = preferredCornerRadius ?? Self.displayCornerRadius
 
         var dzTransform = CGAffineTransform(scaleX: 0.92, y: 0.92)
-        switch options.edge {
+        switch edge {
         case .top:
             dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.bottom / 2)
         case .bottom:
@@ -179,7 +235,7 @@ class SlideTransition: PresentationControllerTransition {
         presented: UIViewController,
         frame: CGRect
     ) -> CGAffineTransform {
-        switch options.edge {
+        switch edge {
         case .top:
             return CGAffineTransform(translationX: 0, y: -frame.maxY)
         case .bottom:

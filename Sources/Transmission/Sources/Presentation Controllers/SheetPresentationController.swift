@@ -13,7 +13,7 @@ import Engine
 typealias SheetPresentationController = MacSheetPresentationController
 
 @available(iOS 15.0, *)
-final class MacSheetTransition: SlideTransition {
+final class MacSheetTransition: SlidePresentationControllerTransition {
 
 }
 
@@ -22,7 +22,7 @@ final class MacSheetPresentationController: SlidePresentationController {
 
     var preferredCornerRadius: CGFloat? {
         didSet {
-            presentedViewController.viewIfLoaded?.layer.cornerRadius = preferredCornerRadius ?? SlideTransition.displayCornerRadius
+            presentedViewController.viewIfLoaded?.layer.cornerRadius = preferredCornerRadius ?? SlidePresentationControllerTransition.displayCornerRadius
         }
     }
 
@@ -39,7 +39,6 @@ final class MacSheetPresentationController: SlidePresentationController {
         presentingViewController.presentationController as? MacSheetPresentationController
     }
 
-    private var dimmingView = UIView()
     private var depth = 0 {
         didSet {
             layoutPresentedView(frame: frameOfPresentedViewInContainerView)
@@ -119,7 +118,28 @@ final class MacSheetPresentationController: SlidePresentationController {
             if let constant = detent.height {
                 height = min(constant, targetRect.size.height)
             } else if let resolution = detent.resolution {
-                height = resolution(.init(containerTraitCollection: traitCollection, maximumDetentValue: targetRect.size.height)) ?? targetRect.size.height
+                height = resolution(
+                    .init(
+                        containerTraitCollection: traitCollection,
+                        maximumDetentValue: targetRect.size.height,
+                        idealDetentValue: { [weak presentedViewController] in
+                            guard let presentedViewController else { return 0 }
+                            let fittingSize = CGSize(
+                                width: targetRect.width,
+                                height: .infinity
+                            )
+                            let targetHeight = min(
+                                targetRect.height,
+                                presentedViewController.view.systemLayoutSizeFitting(
+                                    fittingSize,
+                                    withHorizontalFittingPriority: .required,
+                                    verticalFittingPriority: .defaultLow
+                                ).height.rounded(.up)
+                            )
+                            return targetHeight
+                        }
+                    )
+                ) ?? targetRect.size.height
             } else {
                 return targetRect
             }
@@ -139,28 +159,12 @@ final class MacSheetPresentationController: SlidePresentationController {
 
         presentedViewController.view.layer.masksToBounds = true
         presentedViewController.view.layer.cornerCurve = .continuous
-        presentedViewController.view.layer.cornerRadius = preferredCornerRadius ?? SlideTransition.displayCornerRadius
-
-        dimmingView.alpha = 0
-        dimmingView.backgroundColor = UIColor.black.withAlphaComponent(0.3)
-        dimmingView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(dismissPresentedViewController)))
-        if let containerView = containerView {
-            containerView.insertSubview(dimmingView, belowSubview: presentedViewController.view)
-            dimmingView.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                dimmingView.topAnchor.constraint(equalTo: containerView.topAnchor),
-                dimmingView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-                dimmingView.leftAnchor.constraint(equalTo: containerView.leftAnchor),
-                dimmingView.rightAnchor.constraint(equalTo: containerView.rightAnchor),
-            ])
-        }
+        presentedViewController.view.layer.cornerRadius = preferredCornerRadius ?? SlidePresentationControllerTransition.displayCornerRadius
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
             transitionCoordinator.animate(alongsideTransition: { [unowned self] _ in
-                self.dimmingView.alpha = 1
                 self.push()
             }, completion: { [unowned self] ctx in
-                self.dimmingView.alpha = ctx.isCancelled ? 0 : 1
                 if ctx.isCancelled {
                     self.pop()
                 }
@@ -181,10 +185,8 @@ final class MacSheetPresentationController: SlidePresentationController {
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
             transitionCoordinator.animate(alongsideTransition: { [unowned self] _ in
-                self.dimmingView.alpha = 0
                 self.pop()
             }, completion: { [unowned self] ctx in
-                self.dimmingView.alpha = ctx.isCancelled ? 1 : 0
                 if ctx.isCancelled {
                     self.push()
                 }
@@ -222,28 +224,30 @@ final class MacSheetPresentationController: SlidePresentationController {
             presentedView?.transform = .identity
         }
     }
-
-    @objc
-    private func dismissPresentedViewController() {
-        presentedViewController.dismiss(animated: true)
-    }
 }
 #else
 @available(iOS 15.0, *)
-final class SheetPresentationController: UISheetPresentationController {
+open class SheetPresentationController: UISheetPresentationController {
 
-    var preferredBackgroundColor: UIColor? {
+    public var preferredBackgroundColor: UIColor? {
         didSet {
             updateBackgroundColor()
         }
     }
 
-    override func presentationTransitionWillBegin() {
+    public override init(
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?
+    ) {
+        super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
+    }
+
+    open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
         updateBackgroundColor()
     }
 
-    override func dismissalTransitionWillBegin() {
+    open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
         updateBackgroundColor()
     }

@@ -25,6 +25,14 @@ open class PresentationHostingController<
         }
     }
 
+    private func getPresentationController() -> UIPresentationController? {
+        var parent = parent
+        while let next = parent?.parent {
+            parent = next
+        }
+        return (parent ?? self).presentationController
+    }
+
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
@@ -36,8 +44,8 @@ open class PresentationHostingController<
 
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,
-            let sheetPresentationController = presentationController as? UISheetPresentationController,
-            sheetPresentationController.presentedViewController == self,
+            let sheetPresentationController = getPresentationController() as? UISheetPresentationController,
+            let presentedView = sheetPresentationController.presentedView,
             let containerView = sheetPresentationController.containerView
         {
             guard
@@ -47,13 +55,18 @@ open class PresentationHostingController<
                 return
             }
 
+            let panGesture = presentedView.gestureRecognizers?.first(where: { $0.isSheetDismissPanGesture })
+            guard panGesture == nil || panGesture?.state == .possible || panGesture?.state == .failed else {
+                return
+            }
+
             // This seems to match the `maximumDetentValue` computed by UIKit
             let maximumDetentValue = containerView.frame.inset(by: containerView.safeAreaInsets).height - 10
             let resolvedDetentHeight = detent.resolvedValue(
                 containerTraitCollection: sheetPresentationController.traitCollection,
                 maximumDetentValue: maximumDetentValue
             )
-            let height = view.frame.height - (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
+            let height = presentedView.frame.height - (presentedView.safeAreaInsets.top + presentedView.safeAreaInsets.bottom)
             guard let resolvedDetentHeight, resolvedDetentHeight != height else {
                 return
             }
@@ -65,12 +78,14 @@ open class PresentationHostingController<
                     sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
                 }
                 if animated {
+                    let duration = transitionCoordinator?.transitionDuration ?? 0.35
+                    let curve = transitionCoordinator?.completionCurve ?? .easeInOut
                     UIView.transition(
                         with: containerView,
-                        duration: 0.35,
+                        duration: duration,
                         options: [
                             .beginFromCurrentState,
-                            .curveEaseInOut
+                            UIView.AnimationOptions(rawValue: UInt(curve.rawValue << 16))
                         ]
                     ) {
                         containerView.layoutIfNeeded()
@@ -104,7 +119,7 @@ open class PresentationHostingController<
             guard preferredContentSize != contentSize else { return }
             if #available(iOS 16.0, *) {
                 if presentingViewController != nil,
-                    let popoverPresentationController = presentationController as? UIPopoverPresentationController,
+                    let popoverPresentationController = getPresentationController() as? UIPopoverPresentationController,
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {

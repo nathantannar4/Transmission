@@ -339,7 +339,7 @@ extension PresentationLinkTransition {
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            func toUIKit(
+            public func toUIKit(
                 in presentationController: UISheetPresentationController
             ) -> UISheetPresentationController.Detent {
                 switch identifier {
@@ -357,18 +357,51 @@ extension PresentationLinkTransition {
                         if width == 0 {
                             width = containerView.frame.width
                         }
-                        var height = presentationController.presentedViewController.view
-                            .systemLayoutSizeFitting(CGSize(width: width, height: .infinity))
-                            .height
-                        if height == .infinity {
-                            height = presentationController.presentedViewController.view
-                                .sizeThatFits(CGSize(width: width, height: .infinity))
+                        func idealHeight(for view: UIView, bottomSafeArea: CGFloat) -> CGFloat {
+                            var height = view
+                                .systemLayoutSizeFitting(CGSize(width: width, height: .infinity))
                                 .height
+                            if height == .infinity {
+                                height = view
+                                    .sizeThatFits(CGSize(width: width, height: .infinity))
+                                    .height
+                            }
+                            if height <= bottomSafeArea || height > containerView.frame.height {
+                                height = view.intrinsicContentSize.height
+                            }
+                            return height
                         }
-                        if height == 0 || height > containerView.frame.height {
-                            height = presentationController.presentedViewController.view.intrinsicContentSize.height
+                        func idealHeight(for viewController: UIViewController) -> CGFloat {
+                            // Edge cases for when the presentedViewController does not have an ideal height
+                            var height: CGFloat = 0
+                            if let navigationController = viewController as? UINavigationController,
+                               let topViewController = navigationController.topViewController
+                            {
+                                height = idealHeight(for: topViewController)
+                            } else if let tabBarController = viewController as? UITabBarController,
+                                      let selectedViewController = tabBarController.selectedViewController
+                            {
+                                height = idealHeight(for: selectedViewController)
+                            } else if let pageViewController = viewController as? UIPageViewController,
+                                      let selectedViewController = pageViewController.viewControllers?.first
+                            {
+                                height = idealHeight(for: selectedViewController)
+                            } else if viewController is AnyHostingController, let firstChild = viewController.children.first {
+                                height = idealHeight(for: firstChild)
+                            }
+                            if height == 0 {
+                                let bottomSafeArea = viewController.view.safeAreaInsets.bottom
+                                height = idealHeight(for: viewController.view, bottomSafeArea: bottomSafeArea)
+                                if height <= bottomSafeArea {
+                                    height = containerView.frame.height
+                                }
+                                let idealHeight = (height - bottomSafeArea).rounded(.up)
+                                height = idealHeight
+                            }
+                            return height
                         }
-                        let idealHeight = (height - presentationController.presentedViewController.view.safeAreaInsets.bottom).rounded(.up)
+
+                        let idealHeight = idealHeight(for: presentationController.presentedViewController)
                         return min(idealHeight, containerView.frame.height)
                     }
 
@@ -582,18 +615,24 @@ extension PresentationLinkTransition {
         public var options: Options
         public var edges: Edge.Set
         public var preferredCornerRadius: CGFloat?
+        public var prefersScaleEffect: Bool
         public var minimumScaleFactor: CGFloat
+        public var initialOpacity: CGFloat
 
         public init(
             edges: Edge.Set = .all,
             preferredCornerRadius: CGFloat? = nil,
+            prefersScaleEffect: Bool = false,
             minimumScaleFactor: CGFloat = 0.8,
+            initialOpacity: CGFloat = 1,
             options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
         ) {
             self.options = options
             self.edges = edges
             self.preferredCornerRadius = preferredCornerRadius
+            self.prefersScaleEffect = prefersScaleEffect
             self.minimumScaleFactor = minimumScaleFactor
+            self.initialOpacity = initialOpacity
         }
     }
 }

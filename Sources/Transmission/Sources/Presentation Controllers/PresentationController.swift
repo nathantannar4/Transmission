@@ -6,6 +6,7 @@
 
 import UIKit
 
+/// A presentation controller base class
 @available(iOS 14.0, *)
 open class PresentationController: UIPresentationController {
 
@@ -26,12 +27,12 @@ open class PresentationController: UIPresentationController {
             && !presentedViewController.isBeingDismissed
     }
 
-    open var shouldIgnoreContainerViewTouches: Bool {
+    public var shouldIgnoreContainerViewTouches: Bool {
         get { containerView?.value(forKey: "ignoreDirectTouchEvents") as? Bool ?? false }
         set { containerView?.setValue(true, forKey: "ignoreDirectTouchEvents") }
     }
 
-    open var shouldAutomaticallyAdjustFrameForKeyboard: Bool = false {
+    public var shouldAutomaticallyAdjustFrameForKeyboard: Bool = false {
         didSet {
             guard oldValue != shouldAutomaticallyAdjustFrameForKeyboard else { return }
             containerView?.setNeedsLayout()
@@ -53,6 +54,13 @@ open class PresentationController: UIPresentationController {
             )
         }
         return frame
+    }
+
+    public override init(
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?
+    ) {
+        super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
     }
 
     open override func presentationTransitionWillBegin() {

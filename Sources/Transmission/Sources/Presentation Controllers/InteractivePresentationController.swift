@@ -8,6 +8,7 @@ import SwiftUI
 import UIKit
 import Engine
 
+/// An interactive based presentation controller base class
 @available(iOS 14.0, *)
 open class InteractivePresentationController: PresentationController, UIGestureRecognizerDelegate {
 
@@ -39,6 +40,13 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     open override var shouldAutoLayoutPresentedView: Bool {
         transition == nil && panGesture.state == .possible && super.shouldAutoLayoutPresentedView
+    }
+
+    public override init(
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?
+    ) {
+        super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
     }
 
     /// Links an interactive transition to the pan gesture of the presentation controller

@@ -636,15 +636,13 @@ private struct PresentationLinkModifierBody<
             case .sheet(let options):
                 #if targetEnvironment(macCatalyst)
                 if #available(iOS 15.0, *) {
-                    let transition = SlideTransition(
+                    let transition = SlidePresentationControllerTransition(
+                        edge: .bottom,
+                        prefersScaleEffect: false,
+                        preferredCornerRadius: options.preferredCornerRadius,
+                        presentationBackgroundColor: options.options.preferredPresentationBackgroundUIColor,
                         isPresenting: true,
-                        options: .init(
-                            edge: .bottom,
-                            prefersScaleEffect: false,
-                            preferredCornerRadius: options.preferredCornerRadius,
-                            isInteractive: options.isInteractive,
-                            options: options.options
-                        )
+                        animation: animation
                     )
                     transition.wantsInteractiveStart = false
                     return transition
@@ -653,9 +651,12 @@ private struct PresentationLinkModifierBody<
                 return nil
 
             case .slide(let options):
-                let transition = SlideTransition(
+                let transition = SlidePresentationControllerTransition(
+                    edge: options.edge,
+                    prefersScaleEffect: options.prefersScaleEffect,
+                    preferredCornerRadius: options.preferredCornerRadius,
+                    presentationBackgroundColor: options.options.preferredPresentationBackgroundUIColor,
                     isPresenting: true,
-                    options: options,
                     animation: animation
                 )
                 transition.wantsInteractiveStart = false
@@ -669,9 +670,11 @@ private struct PresentationLinkModifierBody<
                 transition.wantsInteractiveStart = false
                 return transition
 
-            case .matchedGeometry:
-                let transition = MatchedGeometryTransition(
+            case .matchedGeometry(let options):
+                let transition = MatchedGeometryPresentationControllerTransition(
                     sourceView: sourceView,
+                    prefersScaleEffect: options.prefersScaleEffect,
+                    fromOpacity: options.initialOpacity,
                     isPresenting: true,
                     animation: animation
                 )
@@ -679,10 +682,10 @@ private struct PresentationLinkModifierBody<
                 return transition
 
             case .toast(let options):
-                let transition = ToastTransition(
+                let transition = ToastPresentationControllerTransition(
+                    edge: options.edge,
                     isPresenting: true,
-                    animation: animation,
-                    edge: options.edge
+                    animation: animation
                 )
                 transition.wantsInteractiveStart = false
                 return transition
@@ -716,16 +719,14 @@ private struct PresentationLinkModifierBody<
                     let presentationController = dismissed.presentationController as? MacSheetPresentationController
                 {
                     let transition = MacSheetTransition(
+                        edge: .bottom,
+                        prefersScaleEffect: false,
+                        preferredCornerRadius: options.preferredCornerRadius,
+                        presentationBackgroundColor: options.options.preferredPresentationBackgroundUIColor,
                         isPresenting: false,
-                        options: .init(
-                            edge: .bottom,
-                            prefersScaleEffect: false,
-                            preferredCornerRadius: options.preferredCornerRadius,
-                            isInteractive: options.isInteractive,
-                            options: options.options
-                        )
+                        animation: animation
                     )
-                    transition.wantsInteractiveStart = options.isInteractive && presentationController.wantsInteractiveTransition
+                    transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
                     presentationController.transition(with: transition)
                     return transition
                 }
@@ -736,9 +737,12 @@ private struct PresentationLinkModifierBody<
                 guard let presentationController = dismissed.presentationController as? SlidePresentationController else {
                     return nil
                 }
-                let transition = SlideTransition(
+                let transition = SlidePresentationControllerTransition(
+                    edge: options.edge,
+                    prefersScaleEffect: options.prefersScaleEffect,
+                    preferredCornerRadius: options.preferredCornerRadius,
+                    presentationBackgroundColor: options.options.preferredPresentationBackgroundUIColor,
                     isPresenting: false,
-                    options: options,
                     animation: animation
                 )
                 transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
@@ -749,7 +753,7 @@ private struct PresentationLinkModifierBody<
                 guard let presentationController = dismissed.presentationController as? CardPresentationController else {
                     return nil
                 }
-                let transition = PresentationControllerTransition(
+                let transition = CardPresentationControllerTransition(
                     isPresenting: false,
                     animation: animation
                 )
@@ -761,8 +765,10 @@ private struct PresentationLinkModifierBody<
                 guard let presentationController = dismissed.presentationController as? MatchedGeometryPresentationController else {
                     return nil
                 }
-                let transition = MatchedGeometryTransition(
+                let transition = MatchedGeometryPresentationControllerTransition(
                     sourceView: sourceView,
+                    prefersScaleEffect: options.prefersScaleEffect,
+                    fromOpacity: options.initialOpacity,
                     isPresenting: false,
                     animation: animation
                 )
@@ -774,10 +780,10 @@ private struct PresentationLinkModifierBody<
                 guard let presentationController = dismissed.presentationController as? ToastPresentationController else {
                     return nil
                 }
-                let transition = ToastTransition(
+                let transition = ToastPresentationControllerTransition(
+                    edge: options.edge,
                     isPresenting: false,
-                    animation: animation,
-                    edge: options.edge
+                    animation: animation
                 )
                 transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
                 presentationController.transition(with: transition)
@@ -830,16 +836,16 @@ private struct PresentationLinkModifierBody<
                 return nil
 
             case .slide:
-                return animator as? SlideTransition
+                return animator as? SlidePresentationControllerTransition
 
             case .card:
                 return animator as? PresentationControllerTransition
 
             case .matchedGeometry:
-                return animator as? MatchedGeometryTransition
+                return animator as? MatchedGeometryPresentationControllerTransition
 
             case .toast:
-                return animator as? ToastTransition
+                return animator as? ToastPresentationControllerTransition
 
             case .representable(let options, let transition):
                 return transition.interactionControllerForDismissal(

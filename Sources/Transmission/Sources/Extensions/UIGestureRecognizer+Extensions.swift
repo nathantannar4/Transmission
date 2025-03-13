@@ -46,6 +46,13 @@ extension UIGestureRecognizer {
         }
         return view.isKind(of: aClass)
     }
+
+    var isSheetDismissPanGesture: Bool {
+        guard name == "_UISheetInteractionBackgroundDismissRecognizer" else {
+            return false
+        }
+        return self is UIPanGestureRecognizer
+    }
 }
 
 #endif

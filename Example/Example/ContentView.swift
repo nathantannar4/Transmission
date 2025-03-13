@@ -33,6 +33,7 @@ struct ContentView: View {
     @State var statusBarStyle: StatusBarStyle = .default
     @State var isHeroPresented: Bool = false
     @State var isMatchedGeometryPresented = false
+    @State var isZoomPresented = false
     @State var progress: CGFloat = 0
     @State var isDestinationLinkExpanded: Bool = true
     @State var isPresentationLinkExpanded: Bool = true
@@ -103,14 +104,13 @@ struct ContentView: View {
                     PresentationLink(
                         transition: .matchedGeometry(
                             options: .init(
+                                prefersScaleEffect: true,
+                                initialOpacity: 0,
                                 options: .init(preferredPresentationBackgroundColor: .clear)
                             )
                         )
                     ) {
-                        TransitionReader { proxy in
-                            ScrollableCollectionView(edge: .bottom)
-                                .opacity(proxy.progress)
-                        }
+                        ScrollableCollectionView(edge: .bottom)
                     } label: {
                         Text("Matched Geometry")
                     }
@@ -127,11 +127,19 @@ struct ContentView: View {
                                 .frame(width: 44, height: 44)
                                 .presentation(
                                     transition: .matchedGeometry(
-                                        options: .init(preferredCornerRadius: 10)
+                                        options: .init(
+                                            preferredCornerRadius: 10
+                                        )
                                     ),
                                     isPresented: $isMatchedGeometryPresented
                                 ) {
-                                    SafeAreaVisualizerView()
+                                    TransitionReader { proxy in
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.blue)
+                                            .aspectRatio(1, contentMode: .fit)
+                                            .padding(proxy.progress * 16)
+                                            .frame(maxHeight: .infinity, alignment: .top)
+                                    }
                                 }
 
                             Text("Matched Geometry")
@@ -139,6 +147,34 @@ struct ContentView: View {
                     }
                 } header: {
                     Text("Matched Geometry Transitions")
+                }
+
+                if #available(iOS 18.0, *) {
+                    Section {
+                        Button {
+                            withAnimation {
+                                isZoomPresented = true
+                            }
+                        } label: {
+                            HStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.blue)
+                                    .frame(width: 44, height: 44)
+                                    .presentation(
+                                        transition: .zoom,
+                                        isPresented: $isZoomPresented
+                                    ) {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.blue)
+                                            .frame(width: 44, height: 44)
+                                    }
+
+                                Text("Zoom")
+                            }
+                        }
+                    } header: {
+                        Text("Zoom Transitions")
+                    }
                 }
 
                 Section {

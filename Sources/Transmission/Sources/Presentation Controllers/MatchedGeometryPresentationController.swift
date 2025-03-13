@@ -7,18 +7,19 @@
 import UIKit
 import SwiftUI
 
+/// A presentation controller that presents the view from a source view rect
 @available(iOS 14.0, *)
-class MatchedGeometryPresentationController: InteractivePresentationController {
+open class MatchedGeometryPresentationController: InteractivePresentationController {
 
-    var preferredCornerRadius: CGFloat?
+    public var preferredCornerRadius: CGFloat?
 
-    var minimumScaleFactor: CGFloat
+    public var minimumScaleFactor: CGFloat
 
-    override var wantsInteractiveDismissal: Bool {
+    open override var wantsInteractiveDismissal: Bool {
         return true
     }
 
-    init(
+    public init(
         edges: Edge.Set,
         preferredCornerRadius: CGFloat?,
         minimumScaleFactor: CGFloat,
@@ -34,7 +35,7 @@ class MatchedGeometryPresentationController: InteractivePresentationController {
         self.edges = edges
     }
 
-    override func dismissalTransitionShouldBegin(
+    open override func dismissalTransitionShouldBegin(
         translation: CGPoint,
         delta: CGPoint,
         velocity: CGPoint
@@ -50,14 +51,14 @@ class MatchedGeometryPresentationController: InteractivePresentationController {
         )
     }
 
-    override func transformPresentedView(transform: CGAffineTransform) {
+    open override func transformPresentedView(transform: CGAffineTransform) {
         super.transformPresentedView(transform: transform)
 
         let cornerRadius = transform.d * UIScreen.main.displayCornerRadius
         presentedViewController.view.layer.cornerRadius = max(preferredCornerRadius ?? 0, cornerRadius)
     }
 
-    override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
+    open override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         let frame = frameOfPresentedViewInContainerView
         let dx = frictionCurve(translation.x, distance: frame.width)
         let dy = frictionCurve(translation.y, distance: frame.height)
@@ -67,7 +68,7 @@ class MatchedGeometryPresentationController: InteractivePresentationController {
             .scaledBy(x: scale, y: scale)
     }
 
-    override func presentationTransitionWillBegin() {
+    open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
         presentedViewController.view.clipsToBounds = true
         if let preferredCornerRadius {
@@ -76,46 +77,96 @@ class MatchedGeometryPresentationController: InteractivePresentationController {
         dimmingView.isHidden = false
     }
 
-    override func presentationTransitionDidEnd(_ completed: Bool) {
+    open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
         if completed {
             presentedViewController.view.layer.cornerRadius = 0
         }
     }
 
-    override func dismissalTransitionWillBegin() {
+    open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
         presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius
     }
 
-    override func dismissalTransitionDidEnd(_ completed: Bool) {
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
         super.dismissalTransitionDidEnd(completed)
         if completed {
             presentedViewController.view.layer.cornerRadius = 0
         }
     }
 
-    override func transitionAlongsidePresentation(isPresented: Bool) {
+    open override func transitionAlongsidePresentation(isPresented: Bool) {
         super.transitionAlongsidePresentation(isPresented: isPresented)
         presentedViewController.view.layer.cornerRadius = isPresented ? UIScreen.main.displayCornerRadius : (preferredCornerRadius ?? 0)
     }
 }
 
+/// An interactive transition built for the ``MatchedGeometryPresentationController``.
+///
+/// ```
+/// func animationController(
+///     forPresented presented: UIViewController,
+///     presenting: UIViewController,
+///     source: UIViewController
+/// ) -> UIViewControllerAnimatedTransitioning? {
+///     let transition = MatchedGeometryPresentationControllerTransition(
+///         sourceView: sourceView,
+///         prefersScaleEffect: options.prefersScaleEffect,
+///         fromOpacity: options.initialOpacity,
+///         isPresenting: true,
+///         animation: animation
+///     )
+///     transition.wantsInteractiveStart = false
+///     return transition
+/// }
+///
+/// func animationController(
+///     forDismissed dismissed: UIViewController
+/// ) -> UIViewControllerAnimatedTransitioning? {
+///     guard let presentationController = dismissed.presentationController as? MatchedGeometryPresentationController else {
+///         return nil
+///     }
+///     let transition = MatchedGeometryPresentationControllerTransition(
+///         sourceView: sourceView,
+///         prefersScaleEffect: options.prefersScaleEffect,
+///         fromOpacity: options.initialOpacity,
+///         isPresenting: false,
+///         animation: animation
+///     )
+///     transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
+///     presentationController.transition(with: transition)
+///     return transition
+/// }
+///
+/// func interactionControllerForDismissal(
+///     using animator: UIViewControllerAnimatedTransitioning
+/// ) -> UIViewControllerInteractiveTransitioning? {
+///     return animator as? MatchedGeometryPresentationControllerTransition
+/// }
+/// ```
+///
 @available(iOS 14.0, *)
-class MatchedGeometryTransition: PresentationControllerTransition {
+open class MatchedGeometryPresentationControllerTransition: PresentationControllerTransition {
 
-    weak var sourceView: UIView?
+    public let prefersScaleEffect: Bool
+    public let fromOpacity: CGFloat
+    public weak var sourceView: UIView?
 
-    init(
+    public init(
         sourceView: UIView,
+        prefersScaleEffect: Bool,
+        fromOpacity: CGFloat,
         isPresenting: Bool,
         animation: Animation?
     ) {
+        self.prefersScaleEffect = prefersScaleEffect
+        self.fromOpacity = fromOpacity
         super.init(isPresenting: isPresenting, animation: animation)
         self.sourceView = sourceView
     }
 
-    override func transitionAnimator(
+    public override func transitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning
     ) -> UIViewPropertyAnimator {
 
@@ -128,6 +179,9 @@ class MatchedGeometryTransition: PresentationControllerTransition {
             return animator
         }
 
+        let presenting = sourceView?.viewController
+        let prefersScaleEffect = prefersScaleEffect
+        let fromOpacity = fromOpacity
         let isPresenting = isPresenting
         let hostingController = presented as? AnyHostingController
 
@@ -141,18 +195,27 @@ class MatchedGeometryTransition: PresentationControllerTransition {
             ? transitionContext.finalFrame(for: presented)
             : transitionContext.initialFrame(for: presented)
         if isPresenting {
+            presented.view.alpha = fromOpacity
             transitionContext.containerView.addSubview(presented.view)
             presented.view.frame = sourceFrame
             presented.view.layoutIfNeeded()
             hostingController?.render()
+        }
+        let scaleEffect = CGAffineTransform(scaleX: 0.9, y: 0.9)
+        if !isPresenting, prefersScaleEffect {
+            presenting?.view.transform = scaleEffect
         }
 
         animator.addAnimations {
             if isPresenting {
                 hostingController?.disableSafeArea = oldValue
             }
+            presented.view.alpha = isPresenting ? 1 : fromOpacity
             presented.view.frame = isPresenting ? presentedFrame : sourceFrame
             presented.view.layoutIfNeeded()
+            if prefersScaleEffect {
+                presenting?.view.transform = isPresenting ? scaleEffect : .identity
+            }
         }
         animator.addCompletion { animatingPosition in
             hostingController?.disableSafeArea = oldValue

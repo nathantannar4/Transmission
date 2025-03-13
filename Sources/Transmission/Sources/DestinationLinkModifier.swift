@@ -745,6 +745,7 @@ extension DestinationLinkTransition.Value {
 
     func update<Content: View>(_ viewController: HostingController<Content>) {
 
+        viewController.hidesBottomBarWhenPushed = options.hidesBottomBarWhenPushed
         if let preferredPresentationBackgroundUIColor = options.preferredPresentationBackgroundUIColor {
             viewController.view.backgroundColor = preferredPresentationBackgroundUIColor
         }

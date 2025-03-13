@@ -7,10 +7,11 @@
 import UIKit
 import SwiftUI
 
+/// A presentation controller that presents the view in its ideal size at the top or bottom
 @available(iOS 14.0, *)
-class ToastPresentationController: InteractivePresentationController {
+open class ToastPresentationController: InteractivePresentationController {
 
-    var edge: Edge {
+    public var edge: Edge {
         didSet {
             guard edge != oldValue else { return }
             switch edge {
@@ -23,8 +24,8 @@ class ToastPresentationController: InteractivePresentationController {
         }
     }
 
-    override var frameOfPresentedViewInContainerView: CGRect {
-        guard 
+    open override var frameOfPresentedViewInContainerView: CGRect {
+        guard
             let containerView = containerView,
             let presentedView = presentedView
         else { 
@@ -61,7 +62,7 @@ class ToastPresentationController: InteractivePresentationController {
         return frame
     }
 
-    init(
+    public init(
         edge: Edge,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
@@ -74,26 +75,66 @@ class ToastPresentationController: InteractivePresentationController {
         edges = Edge.Set(edge)
     }
 
-    override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
+    open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         .zero
     }
 }
 
+/// An interactive transition built for the ``ToastPresentationController``.
+///
+/// ```
+/// func animationController(
+///     forPresented presented: UIViewController,
+///     presenting: UIViewController,
+///     source: UIViewController
+/// ) -> UIViewControllerAnimatedTransitioning? {
+///     let transition = ToastPresentationControllerTransition(
+///         edge: options.edge,
+///         isPresenting: true,
+///         animation: animation
+///     )
+///     transition.wantsInteractiveStart = false
+///     return transition
+/// }
+///
+/// func animationController(
+///     forDismissed dismissed: UIViewController
+/// ) -> UIViewControllerAnimatedTransitioning? {
+///     guard let presentationController = dismissed.presentationController as? ToastPresentationController else {
+///         return nil
+///     }
+///     let transition = ToastPresentationControllerTransition(
+///         edge: options.edge,
+///         isPresenting: false,
+///         animation: animation
+///     )
+///     transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
+///     presentationController.transition(with: transition)
+///     return transition
+/// }
+///
+/// func interactionControllerForDismissal(
+///     using animator: UIViewControllerAnimatedTransitioning
+/// ) -> UIViewControllerInteractiveTransitioning? {
+///     return animator as? ToastPresentationControllerTransition
+/// }
+/// ```
+///
 @available(iOS 14.0, *)
-class ToastTransition: PresentationControllerTransition {
+open class ToastPresentationControllerTransition: PresentationControllerTransition {
 
-    let edge: Edge
+    public let edge: Edge
 
-    init(
+    public init(
+        edge: Edge,
         isPresenting: Bool,
-        animation: Animation?,
-        edge: Edge
+        animation: Animation?
     ) {
         self.edge = edge
         super.init(isPresenting: isPresenting, animation: animation)
     }
 
-    open override func transitionAnimator(
+    public override func transitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning
     ) -> UIViewPropertyAnimator {
 
