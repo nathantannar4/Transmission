@@ -233,6 +233,7 @@ private struct PresentationLinkModifierBody<
                     if let presentationController = adapter.viewController.presentationController as? CardPresentationController {
                         presentationController.preferredEdgeInset = newValue.preferredEdgeInset
                         presentationController.preferredCornerRadius = newValue.preferredCornerRadius
+                        presentationController.preferredAspectRatio = newValue.preferredAspectRatio
                     }
 
                 case (.matchedGeometry, .matchedGeometry(let newValue)):
@@ -943,6 +944,7 @@ private struct PresentationLinkModifierBody<
                 let presentationController = CardPresentationController(
                     preferredEdgeInset: options.preferredEdgeInset,
                     preferredCornerRadius: options.preferredCornerRadius,
+                    preferredAspectRatio: options.preferredAspectRatio,
                     presentedViewController: presented,
                     presenting: presenting
                 )
@@ -1325,7 +1327,7 @@ extension PresentationLinkTransition.Value {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
             }
 
-        case .popover:
+        case .popover, .card:
             viewController.tracksContentSize = true
 
         default:

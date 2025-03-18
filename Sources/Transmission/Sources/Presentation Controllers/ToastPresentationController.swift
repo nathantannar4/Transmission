@@ -43,12 +43,14 @@ open class ToastPresentationController: InteractivePresentationController {
             width: targetWidth,
             height: UIView.layoutFittingCompressedSize.height
         )
-        let sizeThatFits = presentedView.systemLayoutSizeFitting(
+        var sizeThatFits = presentedView.systemLayoutSizeFitting(
             fittingSize,
             withHorizontalFittingPriority: .required,
             verticalFittingPriority: .defaultLow
         )
-
+        if sizeThatFits.height <= 0 {
+            sizeThatFits.height = targetWidth
+        }
         var frame = safeAreaFrame
         frame.origin.x = (containerView.bounds.width - sizeThatFits.width) / 2
         switch edge {

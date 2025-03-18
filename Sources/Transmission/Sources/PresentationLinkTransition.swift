@@ -378,6 +378,10 @@ extension PresentationLinkTransition {
                                let topViewController = navigationController.topViewController
                             {
                                 height = idealHeight(for: topViewController)
+                            } else if let splitViewController = viewController as? UISplitViewController,
+                                      let topViewController = splitViewController.viewController(for: .primary)
+                            {
+                                height = idealHeight(for: topViewController)
                             } else if let tabBarController = viewController as? UITabBarController,
                                       let selectedViewController = tabBarController.selectedViewController
                             {
@@ -386,7 +390,7 @@ extension PresentationLinkTransition {
                                       let selectedViewController = pageViewController.viewControllers?.first
                             {
                                 height = idealHeight(for: selectedViewController)
-                            } else if viewController is AnyHostingController, let firstChild = viewController.children.first {
+                            } else if viewController is AnyHostingController, viewController.children.count == 1, let firstChild = viewController.children.first {
                                 height = idealHeight(for: firstChild)
                             }
                             if height == 0 {
@@ -589,10 +593,13 @@ extension PresentationLinkTransition {
         public var options: Options
         public var preferredEdgeInset: CGFloat?
         public var preferredCornerRadius: CGFloat?
+        /// A `nil` aspect ratio will size the cards height to it's ideal size
+        public var preferredAspectRatio: CGFloat?
 
         public init(
             preferredEdgeInset: CGFloat? = nil,
             preferredCornerRadius: CGFloat? = nil,
+            preferredAspectRatio: CGFloat? = 1,
             isInteractive: Bool? = nil,
             options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
         ) {
@@ -602,6 +609,7 @@ extension PresentationLinkTransition {
             }
             self.preferredEdgeInset = preferredEdgeInset
             self.preferredCornerRadius = preferredCornerRadius
+            self.preferredAspectRatio = preferredAspectRatio
         }
     }
 }

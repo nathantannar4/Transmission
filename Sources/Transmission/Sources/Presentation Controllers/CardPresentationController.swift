@@ -18,6 +18,13 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
+    public var preferredAspectRatio: CGFloat? {
+        didSet {
+            guard oldValue != preferredAspectRatio else { return }
+            containerView?.setNeedsLayout()
+        }
+    }
+
     public var preferredCornerRadius: CGFloat? {
         didSet {
             guard oldValue != preferredCornerRadius else { return }
@@ -29,29 +36,41 @@ open class CardPresentationController: InteractivePresentationController {
         var frame = super.frameOfPresentedViewInContainerView
         guard let presentedView else { return frame }
         let isCompact = traitCollection.verticalSizeClass == .compact
-        let keyboardOverlap = keyboardOverlapInContainerView(
-            of: frame,
-            keyboardHeight: keyboardHeight
-        )
         let width = isCompact ? frame.height : frame.width
         let fittingSize = CGSize(
             width: width,
             height: UIView.layoutFittingCompressedSize.height
         )
-        let sizeThatFits = presentedView.systemLayoutSizeFitting(
-            fittingSize,
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .defaultLow
+        var sizeThatFits = CGRect(
+            origin: .zero,
+            size: presentedView.systemLayoutSizeFitting(
+                fittingSize,
+                withHorizontalFittingPriority: .required,
+                verticalFittingPriority: .defaultLow
+            )
         )
-        let height = isCompact ? frame.height - keyboardOverlap : min(frame.height, max(sizeThatFits.height - presentedView.safeAreaInsets.top - presentedView.safeAreaInsets.bottom, frame.width))
+        .inset(by: presentedView.safeAreaInsets)
+        if sizeThatFits.height <= 0 {
+            sizeThatFits.size.height = width
+        }
+        let preferredHeightValue = preferredAspectRatio.map { $0 * (isCompact ? frame.height : frame.width) }
+        let height = isCompact
+            ? min(frame.height, preferredHeightValue ?? (sizeThatFits.height))
+            : min(frame.height, max(sizeThatFits.height, preferredHeightValue ?? 0))
         frame = CGRect(
             x: frame.origin.x + (frame.width - width) / 2,
             y: frame.origin.y + (frame.height - height),
             width: width,
             height: height
         )
-        if !isTransitioningSize {
-            frame.origin.y -= keyboardOverlap
+        let keyboardOverlap = keyboardOverlapInContainerView(
+            of: frame,
+            keyboardHeight: keyboardHeight
+        )
+        frame.origin.y -= keyboardOverlap
+        if frame.origin.y < 0 {
+            frame.size.height += frame.origin.y
+            frame.origin.y = 0
         }
         frame = frame.inset(
             by: UIEdgeInsets(
@@ -75,11 +94,13 @@ open class CardPresentationController: InteractivePresentationController {
     public init(
         preferredEdgeInset: CGFloat?,
         preferredCornerRadius: CGFloat?,
+        preferredAspectRatio: CGFloat? = 1,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.preferredEdgeInset = preferredEdgeInset
         self.preferredCornerRadius = preferredCornerRadius
+        self.preferredAspectRatio = preferredAspectRatio
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController

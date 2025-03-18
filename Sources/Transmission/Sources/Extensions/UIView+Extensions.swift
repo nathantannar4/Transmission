@@ -18,6 +18,20 @@ extension UIView {
         }
         return responder as? UIViewController
     }
+
+    var idealSize: CGSize {
+        var idealSize = CGRect(
+            origin: .zero,
+            size: systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+        ).size
+        if idealSize == .zero {
+            idealSize = sizeThatFits(CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
+        }
+        if idealSize == .zero {
+            idealSize = intrinsicContentSize
+        }
+        return idealSize
+    }
 }
 
 #endif

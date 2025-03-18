@@ -16,11 +16,9 @@ open class PresentationHostingController<
             guard tracksContentSize != oldValue else { return }
             view.setNeedsLayout()
             if tracksContentSize {
-                preferredContentSize = CGRect(
-                    origin: .zero,
-                    size: view.systemLayoutSizeFitting(UIView.layoutFittingExpandedSize)
-                )
-                .inset(by: view.safeAreaInsets).size
+                preferredContentSize = CGRect(origin: .zero, size: view.idealSize).inset(by: view.safeAreaInsets).size
+            } else {
+                preferredContentSize = .zero
             }
         }
     }
@@ -110,21 +108,16 @@ open class PresentationHostingController<
             }
 
         } else if tracksContentSize {
-            var contentSize = view.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-            if contentSize == .zero {
-                contentSize = view.intrinsicContentSize
-            }
-            contentSize.height -= (view.safeAreaInsets.left + view.safeAreaInsets.right)
-            contentSize.height -= (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
+            let contentSize = CGRect(origin: .zero, size: view.idealSize).inset(by: view.safeAreaInsets).size
             guard preferredContentSize != contentSize else { return }
-            if #available(iOS 16.0, *) {
-                if presentingViewController != nil,
-                    let popoverPresentationController = getPresentationController() as? UIPopoverPresentationController,
+            if #available(iOS 16.0, *), presentingViewController != nil {
+                let presentationController = getPresentationController()
+                if let popoverPresentationController = presentationController as? UIPopoverPresentationController,
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {
                     let oldSize = preferredContentSize
-                    if oldSize == .zero || !isAnimated {
+                    if oldSize == .zero || oldSize == CGSize(width: 10_000, height: 10_000) || !isAnimated {
                         preferredContentSize = contentSize
                     } else {
                         allowUIKitAnimationsForNextUpdate = isAnimated
@@ -141,6 +134,29 @@ open class PresentationHostingController<
                             self.allowUIKitAnimationsForNextUpdate = false
                         }
                     }
+                } else if let presentationController = presentationController as? PresentationController {
+                    preferredContentSize = contentSize
+                    let frame = presentationController.frameOfPresentedViewInContainerView
+                    if isAnimated {
+                        self.allowUIKitAnimationsForNextUpdate = true
+                        UIView.animate(
+                            withDuration: 0.35,
+                            delay: 0,
+                            options: [
+                                .beginFromCurrentState,
+                                .curveEaseInOut
+                            ]
+                        ) {
+                            presentationController.layoutPresentedView(frame: frame)
+                            presentationController.containerView?.layoutIfNeeded()
+                        } completion: { _ in
+                            self.allowUIKitAnimationsForNextUpdate = false
+                        }
+                    } else {
+                        presentationController.layoutPresentedView(frame: frame)
+                    }
+                } else {
+                    preferredContentSize = contentSize
                 }
             } else {
                 preferredContentSize = contentSize

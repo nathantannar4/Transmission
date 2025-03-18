@@ -186,9 +186,9 @@ open class PresentationController: UIPresentationController {
         of frame: CGRect,
         keyboardHeight: CGFloat
     ) -> CGFloat {
-        guard let containerView, !isTransitioningSize else { return 0 }
-        let maxHeight = containerView.frame.height
-        let dy = maxHeight - keyboardHeight - frame.maxY
+        guard let containerView else { return 0 }
+        let maxHeight = isTransitioningSize ? containerView.frame.width : containerView.frame.height
+        let dy = maxHeight - keyboardHeight - (isTransitioningSize ? frame.maxX : frame.maxY)
         if dy < 0 {
             return abs(dy)
         }
@@ -209,14 +209,15 @@ open class PresentationController: UIPresentationController {
 
         guard keyboardHeight != dy else { return }
         keyboardHeight = dy
-        guard shouldAutoLayoutPresentedView else { return }
-        containerView?.setNeedsLayout()
+        guard shouldAutoLayoutPresentedView, let containerView else { return }
+        containerView.setNeedsLayout()
 
         guard
             let duration = userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
+            duration > 0,
             let curve = userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt
         else {
-            containerView?.layoutIfNeeded()
+            containerView.layoutIfNeeded()
             return
         }
         UIView.animate(
@@ -226,8 +227,8 @@ open class PresentationController: UIPresentationController {
                 .init(rawValue: curve << 16),
                 .beginFromCurrentState,
             ]
-        ) { [weak self] in
-            self?.containerView?.layoutIfNeeded()
+        ) {
+            containerView.layoutIfNeeded()
         }
     }
 
