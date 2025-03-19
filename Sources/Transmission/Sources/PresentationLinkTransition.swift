@@ -353,23 +353,16 @@ extension PresentationLinkTransition {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
                             return idealHeight
                         }
-                        var width = min(presentationController.presentedViewController.view.frame.width, containerView.frame.width)
-                        if width == 0 {
-                            width = containerView.frame.width
-                        }
-                        func idealHeight(for view: UIView, bottomSafeArea: CGFloat) -> CGFloat {
+                        func idealHeight(for view: UIView) -> CGFloat {
                             var height = view
-                                .systemLayoutSizeFitting(CGSize(width: width, height: .infinity))
+                                .systemLayoutSizeFitting(CGSize(width: containerView.frame.width, height: .infinity))
                                 .height
                             if height == .infinity {
                                 height = view
-                                    .sizeThatFits(CGSize(width: width, height: .infinity))
+                                    .sizeThatFits(CGSize(width: containerView.frame.width, height: .infinity))
                                     .height
                             }
-                            if height <= bottomSafeArea || height > containerView.frame.height {
-                                height = view.intrinsicContentSize.height
-                            }
-                            return height
+                            return min(height, containerView.frame.height)
                         }
                         func idealHeight(for viewController: UIViewController) -> CGFloat {
                             // Edge cases for when the presentedViewController does not have an ideal height
@@ -395,7 +388,7 @@ extension PresentationLinkTransition {
                             }
                             if height == 0 {
                                 let bottomSafeArea = viewController.view.safeAreaInsets.bottom
-                                height = idealHeight(for: viewController.view, bottomSafeArea: bottomSafeArea)
+                                height = idealHeight(for: viewController.view)
                                 if height <= bottomSafeArea {
                                     height = containerView.frame.height
                                 }
