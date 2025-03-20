@@ -173,6 +173,17 @@ private struct DestinationLinkModifierBody<
                 case .`default`:
                     break
 
+                case .zoom:
+                    if #available(iOS 18.0, *) {
+                        let zoomOptions = UIViewController.Transition.ZoomOptions()
+                        zoomOptions.interactiveDismissShouldBegin = { [weak adapter] context in
+                            adapter?.transition.options.isInteractive ?? true
+                        }
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions, sourceViewProvider: { [weak uiView] _ in
+                            return uiView
+                        })
+                    }
+
                 case .custom(_, let transition):
                     assert(!isClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
@@ -207,7 +218,6 @@ private struct DestinationLinkModifierBody<
     }
 
     final class Coordinator: NSObject,
-        UIAdaptivePresentationControllerDelegate,
         UINavigationControllerDelegate
     {
         var isPresented: Binding<Bool>

@@ -54,16 +54,20 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
     open override func transformPresentedView(transform: CGAffineTransform) {
         super.transformPresentedView(transform: transform)
 
-        let cornerRadius = transform.d * UIScreen.main.displayCornerRadius
-        presentedViewController.view.layer.cornerRadius = max(preferredCornerRadius ?? 0, cornerRadius)
+        if transform == .identity {
+            presentedViewController.view.layer.cornerRadius = 0
+        } else {
+            let cornerRadius = transform.d * UIScreen.main.displayCornerRadius
+            presentedViewController.view.layer.cornerRadius = max(preferredCornerRadius ?? 0, cornerRadius)
+        }
     }
 
     open override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         let frame = frameOfPresentedViewInContainerView
-        let dx = frictionCurve(translation.x, distance: frame.width)
-        let dy = frictionCurve(translation.y, distance: frame.height)
+        let dx = frictionCurve(translation.x, distance: frame.width, coefficient: 1)
+        let dy = frictionCurve(translation.y, distance: frame.height, coefficient: 0.5)
         let scale = max(minimumScaleFactor, min(1 - (abs(dx) / frame.width), 1 - (abs(dy) / frame.height)))
-        return CGAffineTransform(translationX: dx, y: dy)
+        return CGAffineTransform(translationX: dx, y: dy * 0.25)
             .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * frame.height)
             .scaledBy(x: scale, y: scale)
     }
@@ -173,13 +177,14 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
 
         guard
-            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
+            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
         else {
             transitionContext.completeTransition(false)
             return animator
         }
 
-        let presenting = sourceView?.viewController
+        let sourceViewController = sourceView?.viewController
         let prefersScaleEffect = prefersScaleEffect
         let fromOpacity = fromOpacity
         let isPresenting = isPresenting
@@ -188,9 +193,19 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         let oldValue = hostingController?.disableSafeArea ?? false
         hostingController?.disableSafeArea = true
 
+        let scaleEffect = CGAffineTransform(scaleX: 0.9, y: 0.9)
+        if prefersScaleEffect, !isPresenting {
+            sourceViewController?.view.transform = .identity
+        }
+
         let sourceFrame = sourceView.map {
             $0.convert($0.frame, to: transitionContext.containerView)
         } ?? transitionContext.containerView.frame
+
+        if prefersScaleEffect, !isPresenting {
+            sourceViewController?.view.transform = scaleEffect
+        }
+
         let presentedFrame = isPresenting
             ? transitionContext.finalFrame(for: presented)
             : transitionContext.initialFrame(for: presented)
@@ -200,10 +215,11 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             presented.view.frame = sourceFrame
             presented.view.layoutIfNeeded()
             hostingController?.render()
+        } else if presenting.view.superview == nil {
+            transitionContext.containerView.insertSubview(presenting.view, belowSubview: presented.view)
         }
-        let scaleEffect = CGAffineTransform(scaleX: 0.9, y: 0.9)
         if !isPresenting, prefersScaleEffect {
-            presenting?.view.transform = scaleEffect
+            sourceViewController?.view.transform = scaleEffect
         }
 
         animator.addAnimations {
@@ -214,7 +230,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             presented.view.frame = isPresenting ? presentedFrame : sourceFrame
             presented.view.layoutIfNeeded()
             if prefersScaleEffect {
-                presenting?.view.transform = isPresenting ? scaleEffect : .identity
+                sourceViewController?.view.transform = isPresenting ? scaleEffect : .identity
             }
         }
         animator.addCompletion { animatingPosition in

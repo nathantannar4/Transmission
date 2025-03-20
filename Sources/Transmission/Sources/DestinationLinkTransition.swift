@@ -12,6 +12,7 @@ import Engine
 public struct DestinationLinkTransition: Sendable {
     enum Value: @unchecked Sendable {
         case `default`(Options)
+        case zoom(Options)
         case representable(Options, any DestinationLinkTransitionRepresentable)
 
         @available(*, deprecated)
@@ -19,11 +20,7 @@ public struct DestinationLinkTransition: Sendable {
 
         var options: Options {
             switch self {
-            case .default(let options):
-                return options
-            case .custom(let options, _):
-                return options
-            case .representable(let options, _):
+            case .default(let options), .zoom(let options), .custom(let options, _), .representable(let options, _):
                 return options
             }
         }
@@ -32,6 +29,10 @@ public struct DestinationLinkTransition: Sendable {
 
     /// The default presentation style of the `UINavigationController`.
     public static let `default`: DestinationLinkTransition = DestinationLinkTransition(value: .default(.init()))
+
+    /// The zoom presentation style.
+    @available(iOS 18.0, *)
+    public static let zoom = DestinationLinkTransition(value: .zoom(.init()))
 
     /// A custom presentation style.
     @available(*, deprecated)
@@ -50,16 +51,20 @@ extension DestinationLinkTransition {
     /// The transition options.
     @frozen
     public struct Options {
+        /// Used when the presentation delegate asks if it should dismiss
+        public var isInteractive: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
         public var preferredPresentationBackgroundColor: Color?
         public var hidesBottomBarWhenPushed: Bool
 
         public init(
+            isInteractive: Bool = true,
             shouldAutomaticallyDismissDestination: Bool = true,
             preferredPresentationBackgroundColor: Color? = nil,
             hidesBottomBarWhenPushed: Bool = false
         ) {
+            self.isInteractive = isInteractive
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
             self.hidesBottomBarWhenPushed = hidesBottomBarWhenPushed
@@ -78,6 +83,14 @@ extension DestinationLinkTransition {
         options: DestinationLinkTransition.Options
     ) -> DestinationLinkTransition {
         DestinationLinkTransition(value: .default(options))
+    }
+
+    /// The zoom presentation style.
+    @available(iOS 18.0, *)
+    public static func zoom(
+        options: Options
+    ) -> DestinationLinkTransition {
+        DestinationLinkTransition(value: .zoom(options))
     }
 
     /// A custom presentation style.

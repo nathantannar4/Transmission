@@ -624,7 +624,7 @@ extension PresentationLinkTransition {
             edges: Edge.Set = .all,
             preferredCornerRadius: CGFloat? = nil,
             prefersScaleEffect: Bool = false,
-            minimumScaleFactor: CGFloat = 0.8,
+            minimumScaleFactor: CGFloat = 0.5,
             initialOpacity: CGFloat = 1,
             options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
         ) {
