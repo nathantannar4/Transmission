@@ -23,9 +23,6 @@ public struct PresentationLinkTransition: Sendable {
         case zoom(Options)
         case representable(Options, any PresentationLinkTransitionRepresentable)
 
-        @available(*, deprecated)
-        case custom(Options, PresentationLinkCustomTransition)
-
         var options: Options {
             switch self {
             case .default(let options):
@@ -45,8 +42,7 @@ public struct PresentationLinkTransition: Sendable {
             case .currentContext(let options),
                 .fullscreen(let options),
                 .representable(let options, _),
-                .zoom(let options),
-                .custom(let options, _):
+                .zoom(let options):
                 return options
             }
         }
@@ -77,12 +73,30 @@ public struct PresentationLinkTransition: Sendable {
     /// The matched geometry presentation style.
     public static let matchedGeometry = PresentationLinkTransition(value: .matchedGeometry(.init()))
 
+    /// The matched geometry zoom presentation style.
+    public static let matchedGeometryZoom = PresentationLinkTransition(value: .matchedGeometry(
+        .init(
+            preferredCornerRadius: nil,
+            prefersScaleEffect: true,
+            prefersZoomEffect: true,
+            initialOpacity: 0
+        )
+    ))
+
     /// The toast presentation style.
     public static let toast = PresentationLinkTransition(value: .toast(.init()))
 
     /// The zoom presentation style.
     @available(iOS 18.0, *)
     public static let zoom = PresentationLinkTransition(value: .zoom(.init()))
+
+    /// The zoom presentation style if available, otherwise a backwards compatible variant of the matched geometry presentation style.
+    public static var zoomIfAvailable: PresentationLinkTransition {
+        if #available(iOS 18.0, *) {
+            return .zoom
+        }
+        return .matchedGeometryZoom
+    }
 
     /// A custom presentation style.
     public static func custom<
@@ -91,16 +105,6 @@ public struct PresentationLinkTransition: Sendable {
         _ transition: T
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .representable(.init(), transition))
-    }
-
-    /// A custom presentation style.
-    @available(*, deprecated)
-    public static func custom<
-        T: PresentationLinkCustomTransition
-    >(
-        _ transition: T
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .custom(.init(), transition))
     }
 }
 
@@ -119,6 +123,7 @@ extension PresentationLinkTransition {
         public var shouldAutomaticallyDismissPresentedView: Bool
         public var modalPresentationCapturesStatusBarAppearance: Bool
         public var preferredPresentationBackgroundColor: Color?
+        public var preferredPresentationShadow: Shadow
 
         public init(
             isInteractive: Bool = true,
@@ -126,7 +131,8 @@ extension PresentationLinkTransition {
             shouldAutomaticallyDismissDestination: Bool = true,
             shouldAutomaticallyDismissPresentedView: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
-            preferredPresentationBackgroundColor: Color? = nil
+            preferredPresentationBackgroundColor: Color? = nil,
+            preferredPresentationShadow: Shadow = .clear
         ) {
             self.isInteractive = isInteractive
             self.isDestinationReusable = isDestinationReusable
@@ -134,10 +140,53 @@ extension PresentationLinkTransition {
             self.shouldAutomaticallyDismissPresentedView = shouldAutomaticallyDismissPresentedView
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
+            self.preferredPresentationShadow = preferredPresentationShadow
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {
             preferredPresentationBackgroundColor?.toUIColor()
+        }
+    }
+
+    public struct Shadow: Equatable, Sendable {
+        public var shadowOpacity: Float
+        public var shadowRadius: CGFloat
+        public var shadowOffset: CGSize
+        public var shadowColor: Color
+
+        public init(
+            shadowOpacity: Float,
+            shadowRadius: CGFloat,
+            shadowOffset: CGSize = CGSize(width: 0, height: -3),
+            shadowColor: Color = Color.black
+        ) {
+            self.shadowOpacity = shadowOpacity
+            self.shadowRadius = shadowRadius
+            self.shadowOffset = shadowOffset
+            self.shadowColor = shadowColor
+        }
+
+        public static let prominent = Shadow(
+            shadowOpacity: 0.4,
+            shadowRadius: 40
+        )
+
+        public static let minimal = Shadow(
+            shadowOpacity: 0.2,
+            shadowRadius: 24
+        )
+
+        public static let clear = Shadow(
+            shadowOpacity: 0,
+            shadowRadius: 0,
+            shadowColor: .clear
+        )
+
+        func apply(to view: UIView, progress: Double = 1) {
+            view.layer.shadowOpacity = shadowOpacity * Float(progress)
+            view.layer.shadowRadius = shadowRadius
+            view.layer.shadowOffset = shadowOffset
+            view.layer.shadowColor = shadowColor.toCGColor()
         }
     }
 }
@@ -564,7 +613,10 @@ extension PresentationLinkTransition {
             prefersScaleEffect: Bool = true,
             preferredCornerRadius: CGFloat? = nil,
             isInteractive: Bool? = nil,
-            options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
+            options: Options = .init(
+                modalPresentationCapturesStatusBarAppearance: true,
+                preferredPresentationShadow: .prominent
+            )
         ) {
             self.options = options
             if let isInteractive {
@@ -594,7 +646,10 @@ extension PresentationLinkTransition {
             preferredCornerRadius: CGFloat? = nil,
             preferredAspectRatio: CGFloat? = 1,
             isInteractive: Bool? = nil,
-            options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
+            options: Options = .init(
+                modalPresentationCapturesStatusBarAppearance: true,
+                preferredPresentationShadow: .minimal
+            )
         ) {
             self.options = options
             if let isInteractive {
@@ -617,6 +672,7 @@ extension PresentationLinkTransition {
         public var edges: Edge.Set
         public var preferredCornerRadius: CGFloat?
         public var prefersScaleEffect: Bool
+        public var prefersZoomEffect: Bool
         public var minimumScaleFactor: CGFloat
         public var initialOpacity: CGFloat
 
@@ -624,14 +680,19 @@ extension PresentationLinkTransition {
             edges: Edge.Set = .all,
             preferredCornerRadius: CGFloat? = nil,
             prefersScaleEffect: Bool = false,
+            prefersZoomEffect: Bool = false,
             minimumScaleFactor: CGFloat = 0.5,
             initialOpacity: CGFloat = 1,
-            options: Options = .init(modalPresentationCapturesStatusBarAppearance: true)
+            options: Options = .init(
+                modalPresentationCapturesStatusBarAppearance: true,
+                preferredPresentationShadow: .prominent
+            )
         ) {
             self.options = options
             self.edges = edges
             self.preferredCornerRadius = preferredCornerRadius
             self.prefersScaleEffect = prefersScaleEffect
+            self.prefersZoomEffect = prefersZoomEffect
             self.minimumScaleFactor = minimumScaleFactor
             self.initialOpacity = initialOpacity
         }
@@ -659,6 +720,7 @@ extension PresentationLinkTransition {
 
 @available(iOS 14.0, *)
 extension PresentationLinkTransition {
+
     /// The default presentation style of the `UIViewController`.
     public static func `default`(
         options: PresentationLinkTransition.Options
@@ -668,14 +730,29 @@ extension PresentationLinkTransition {
 
     /// The sheet presentation style.
     public static func sheet(
+        detent: SheetTransitionOptions.Detent
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(
+            value: .sheet(
+                .init(
+                    detents: [detent]
+                )
+            )
+        )
+    }
+
+    /// The sheet presentation style.
+    public static func sheet(
         selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
-        detents: [SheetTransitionOptions.Detent]
+        detents: [SheetTransitionOptions.Detent],
+        largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(
             value: .sheet(
                 .init(
                     selected: selected,
-                    detents: detents
+                    detents: detents,
+                    largestUndimmedDetentIdentifier: largestUndimmedDetentIdentifier
                 )
             )
         )
@@ -719,9 +796,19 @@ extension PresentationLinkTransition {
 
     /// The slide presentation style.
     public static func slide(
-        edge: Edge
+        edge: Edge = .bottom,
+        prefersScaleEffect: Bool = true,
+        preferredCornerRadius: CGFloat? = nil
     ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .slide(.init(edge: edge)))
+        PresentationLinkTransition(
+            value: .slide(
+                .init(
+                    edge: edge,
+                    prefersScaleEffect: prefersScaleEffect,
+                    preferredCornerRadius: preferredCornerRadius
+                )
+            )
+        )
     }
 
     /// The slide presentation style.
@@ -733,6 +820,23 @@ extension PresentationLinkTransition {
 
     /// The card presentation style.
     public static func card(
+        preferredEdgeInset: CGFloat?,
+        preferredCornerRadius: CGFloat?,
+        preferredAspectRatio: CGFloat?
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(
+            value: .card(
+                .init(
+                    preferredEdgeInset: preferredEdgeInset,
+                    preferredCornerRadius: preferredCornerRadius,
+                    preferredAspectRatio: preferredAspectRatio
+                )
+            )
+        )
+    }
+
+    /// The card presentation style.
+    public static func card(
         options: CardTransitionOptions
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .card(options))
@@ -740,9 +844,42 @@ extension PresentationLinkTransition {
 
     /// The matched geometry presentation style.
     public static func matchedGeometry(
+        preferredCornerRadius: CGFloat? = nil,
+        prefersScaleEffect: Bool = false,
+        prefersZoomEffect: Bool = false,
+        minimumScaleFactor: CGFloat = 0.5,
+        initialOpacity: CGFloat = 1
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(
+            value: .matchedGeometry(
+                .init(
+                    preferredCornerRadius: preferredCornerRadius,
+                    prefersScaleEffect: prefersScaleEffect,
+                    prefersZoomEffect: prefersZoomEffect,
+                    minimumScaleFactor: minimumScaleFactor,
+                    initialOpacity: initialOpacity
+                )
+            )
+        )
+    }
+
+    /// The matched geometry presentation style.
+    public static func matchedGeometry(
         options: MatchedGeometryTransitionOptions
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .matchedGeometry(options))
+    }
+
+    /// The matched geometry presentation style.
+    public static func matchedGeometryZoom(
+        preferredCornerRadius: CGFloat? = nil
+    ) -> PresentationLinkTransition {
+        .matchedGeometry(
+            preferredCornerRadius: preferredCornerRadius,
+            prefersScaleEffect: true,
+            prefersZoomEffect: true,
+            initialOpacity: 0
+        )
     }
 
     /// The toast presentation style.
@@ -759,11 +896,29 @@ extension PresentationLinkTransition {
         PresentationLinkTransition(value: .toast(options))
     }
 
+    /// The zoom presentation style.
     @available(iOS 18.0, *)
     public static func zoom(
         options: Options
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .zoom(options))
+    }
+
+    /// The zoom presentation style if available, otherwise a backwards compatible variant of the matched geometry presentation style.
+    public static func zoomIfAvailable(
+        options: Options
+    ) -> PresentationLinkTransition {
+        if #available(iOS 18.0, *) {
+            return .zoom(options: options)
+        }
+        return .matchedGeometry(
+            options: .init(
+                prefersScaleEffect: true,
+                prefersZoomEffect: true,
+                initialOpacity: 0,
+                options: options
+            )
+        )
     }
 
     /// A custom presentation style.
@@ -774,130 +929,6 @@ extension PresentationLinkTransition {
         _ transition: T
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .representable(options, transition))
-    }
-
-    /// A custom presentation style.
-    @available(*, deprecated)
-    public static func custom<
-        T: PresentationLinkCustomTransition
-    >(
-        options: PresentationLinkTransition.Options,
-        _ transition: T
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .custom(options, transition))
-    }
-}
-
-// MARK: - Custom
-
-/// A protocol that defines a custom transition for a ``PresentationLinkTransition``
-///
-/// > Important: Conforming types should be a struct or an enum
-///
-@available(iOS 14.0, *)
-@available(*, deprecated, renamed: "PresentationLinkTransitionRepresentable")
-@MainActor @preconcurrency
-public protocol PresentationLinkCustomTransition {
-
-    /// The presentation controller to use for the transition.
-    @MainActor @preconcurrency func presentationController(
-        sourceView: UIView,
-        presented: UIViewController,
-        presenting: UIViewController?
-    ) -> UIPresentationController
-
-    /// The animation controller to use for the transition presentation.
-    ///
-    /// > Note: This protocol implementation is optional and defaults to `nil`
-    ///
-    @MainActor @preconcurrency func animationController(
-        forPresented presented: UIViewController,
-        presenting: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning?
-
-    /// The animation controller to use for the transition dismissal.
-    ///
-    /// > Note: This protocol implementation is optional and defaults to `nil`
-    ///
-    @MainActor @preconcurrency func animationController(
-        forDismissed dismissed: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning?
-
-    /// The interaction controller to use for the transition presentation.
-    ///
-    /// > Note: This protocol implementation is optional and defaults to `nil`
-    ///
-    @MainActor @preconcurrency func interactionControllerForPresentation(
-        using animator: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning?
-
-    /// The interaction controller to use for the transition dismissal.
-    ///
-    /// > Note: This protocol implementation is optional and defaults to `nil`
-    /// 
-    @MainActor @preconcurrency func interactionControllerForDismissal(
-        using animator: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning?
-
-    /// The presentation style to use for an adaptive presentation.
-    ///
-    /// > Note: This protocol implementation is optional and defaults to `.none`
-    ///
-    @MainActor @preconcurrency func adaptivePresentationStyle(
-        for controller: UIPresentationController,
-        traitCollection: UITraitCollection
-    ) -> UIModalPresentationStyle
-
-    /// The presentation controller to use for an adaptive presentation.
-    ///
-    /// > Note: This protocol implementation is optional
-    ///
-    @MainActor @preconcurrency func presentationController(
-        _ presentationController: UIPresentationController,
-        prepare adaptivePresentationController: UIPresentationController
-    )
-}
-
-@available(iOS 14.0, *)
-@available(*, deprecated, renamed: "PresentationLinkTransitionRepresentable")
-extension PresentationLinkCustomTransition {
-    public func animationController(
-        forPresented presented: UIViewController,
-        presenting: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning? {
-        return nil
-    }
-
-    public func animationController(
-        forDismissed dismissed: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning? {
-        return nil
-    }
-
-    public func interactionControllerForPresentation(
-        using animator: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning? {
-        return nil
-    }
-
-    public func interactionControllerForDismissal(
-        using animator: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning? {
-        return nil
-    }
-
-    public func adaptivePresentationStyle(
-        for controller: UIPresentationController,
-        traitCollection: UITraitCollection
-    ) -> UIModalPresentationStyle {
-        return .none
-    }
-
-    public func presentationController(
-        _ presentationController: UIPresentationController,
-        prepare adaptivePresentationController: UIPresentationController
-    ) {
-
     }
 }
 

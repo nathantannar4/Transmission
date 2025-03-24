@@ -157,7 +157,6 @@ final class MacSheetPresentationController: SlidePresentationController {
 
         selected?.wrappedValue = detent.identifier
 
-        presentedViewController.view.layer.masksToBounds = true
         presentedViewController.view.layer.cornerCurve = .continuous
         presentedViewController.view.layer.cornerRadius = preferredCornerRadius ?? SlidePresentationControllerTransition.displayCornerRadius
 

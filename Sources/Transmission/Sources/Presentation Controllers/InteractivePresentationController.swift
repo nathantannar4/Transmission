@@ -109,6 +109,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         return true
     }
 
+    open func dismissalTransitionDidCancel() {
+
+    }
+
     open func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         if wantsInteractiveDismissal, translation.y >= 0 {
             return CGAffineTransform(translationX: 0, y: translation.y)
@@ -327,8 +331,15 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         scrollView.showsHorizontalScrollIndicator = showsHorizontalScrollIndicator
                         trackingScrollView = nil
                     }
-                    let transform = presentedViewTransform(for: gestureTranslation)
-                    transformPresentedView(transform: transform)
+                    if wantsInteractiveDismissal,
+                       dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
+                       dismissIfNeeded()
+                    {
+                        panGestureDidEnd()
+                    } else {
+                        let transform = presentedViewTransform(for: gestureTranslation)
+                        transformPresentedView(transform: transform)
+                    }
                 }
 
             case .ended:
@@ -364,6 +375,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         lastTranslation = .zero
         trackingScrollView = nil
         keyboardOffset = 0
+        dismissalTransitionDidCancel()
     }
 
     private func isAtTop(

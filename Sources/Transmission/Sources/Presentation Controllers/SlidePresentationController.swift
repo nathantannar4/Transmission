@@ -42,6 +42,11 @@ open class SlidePresentationController: InteractivePresentationController {
         return .identity
     }
 
+    open override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        dimmingView.isHidden = false
+    }
+
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
 
@@ -174,11 +179,23 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
             }
         }
 
-        presented.view.layer.masksToBounds = true
         presented.view.layer.cornerCurve = .continuous
-
-        presenting.view.layer.masksToBounds = true
+        presented.view.layer.masksToBounds = true
         presenting.view.layer.cornerCurve = .continuous
+        presenting.view.layer.masksToBounds = true
+        let isSpringAnimation: Bool = {
+            let timingCurve = animation?.resolved()?.timingCurve
+            switch timingCurve {
+            case .spring, .fluidSpring:
+                return true
+            default:
+                return false
+            }
+        }()
+        if !isSpringAnimation {
+            presented.view.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+            presenting.view.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        }
 
         if isPresenting {
             transitionContext.containerView.addSubview(presented.view)
@@ -210,14 +227,20 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
                 presenting.view.layer.cornerRadius = isPresenting ? cornerRadius : 0
             }
         }
+        if isScaleEnabled {
+            animator.addAnimations(
+                {
+                    presented.view.layer.cornerRadius = 0
+                },
+                delayFactor: 0.99
+            )
+        }
         animator.addCompletion { animatingPosition in
-
-            if presented.view.frame.origin.y == 0 {
-                presented.view.layer.cornerRadius = 0
-            }
-
             if isScaleEnabled {
+                presented.view.layer.cornerRadius = 0
+                presented.view.layer.masksToBounds = true
                 presenting.view.layer.cornerRadius = 0
+                presenting.view.layer.masksToBounds = true
                 presenting.view.transform = .identity
             }
 

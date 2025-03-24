@@ -21,6 +21,11 @@ open class PresentationController: UIPresentationController {
         return view
     }()
 
+    public class ShadowView: UIView {
+        public weak var preferredSourceView: UIView?
+    }
+    public let shadowView = ShadowView()
+
     open var shouldAutoLayoutPresentedView: Bool {
         !isTransitioningSize
             && !presentedViewController.isBeingPresented
@@ -36,6 +41,13 @@ open class PresentationController: UIPresentationController {
         didSet {
             guard oldValue != shouldAutomaticallyAdjustFrameForKeyboard else { return }
             containerView?.setNeedsLayout()
+        }
+    }
+
+    public var presentedViewShadow: PresentationLinkTransition.Shadow = .clear {
+        didSet {
+            guard presentedViewController.isBeingPresented, presentedViewController.isBeingDismissed else { return }
+            updateShadow(progress: 1)
         }
     }
 
@@ -72,6 +84,8 @@ open class PresentationController: UIPresentationController {
         dimmingView.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
         )
+        containerView?.addSubview(shadowView)
+        updateShadow(progress: 0)
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
             transitionCoordinator.animate { _ in
@@ -86,6 +100,8 @@ open class PresentationController: UIPresentationController {
         super.presentationTransitionDidEnd(completed)
 
         if completed {
+            updateShadow(progress: 1)
+
             NotificationCenter.default
                 .addObserver(
                     self,
@@ -110,6 +126,7 @@ open class PresentationController: UIPresentationController {
         super.dismissalTransitionWillBegin()
 
         delegate?.presentationControllerWillDismiss?(self)
+        updateShadow(progress: 1)
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
             transitionCoordinator.animate { _ in
@@ -124,6 +141,7 @@ open class PresentationController: UIPresentationController {
         super.dismissalTransitionDidEnd(completed)
 
         if completed {
+            updateShadow(progress: 0)
             delegate?.presentationControllerDidDismiss?(self)
 
             NotificationCenter.default
@@ -147,6 +165,17 @@ open class PresentationController: UIPresentationController {
 
     open func transitionAlongsidePresentation(isPresented: Bool) {
         dimmingView.alpha = isPresented ? 1 : 0
+        layoutShadowView()
+        updateShadow(progress: isPresented ? 1 : 0)
+    }
+
+    open func updateShadow(progress: Double) {
+        if presentedViewShadow == .clear {
+            shadowView.isHidden = true
+        } else {
+            shadowView.isHidden = false
+            presentedViewShadow.apply(to: shadowView, progress: progress)
+        }
     }
 
     open override func containerViewDidLayoutSubviews() {
@@ -154,6 +183,8 @@ open class PresentationController: UIPresentationController {
         dimmingView.frame = containerView?.bounds ?? .zero
         if shouldAutoLayoutPresentedView {
             layoutPresentedView(frame: frameOfPresentedViewInContainerView)
+        } else {
+            layoutShadowView()
         }
     }
 
@@ -179,6 +210,21 @@ open class PresentationController: UIPresentationController {
         presentedView.center = CGPoint(
             x: frame.minX + (frame.width * anchor.x),
             y: frame.minY + (frame.height * anchor.y)
+        )
+        layoutShadowView()
+    }
+
+    open func layoutShadowView() {
+        guard let sourceView = shadowView.preferredSourceView ?? presentedView else { return }
+        guard !shadowView.isHidden else { return }
+        shadowView.transform = sourceView.transform
+        shadowView.bounds = sourceView.bounds
+        shadowView.center = sourceView.center
+        shadowView.layer.shadowPath = CGPath(
+            roundedRect: sourceView.bounds,
+            cornerWidth: sourceView.layer.cornerRadius,
+            cornerHeight: sourceView.layer.cornerRadius,
+            transform: nil
         )
     }
 

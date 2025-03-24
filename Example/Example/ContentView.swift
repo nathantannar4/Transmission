@@ -102,17 +102,19 @@ struct ContentView: View {
 
                 Section {
                     PresentationLink(
-                        transition: .matchedGeometry(
-                            options: .init(
-                                prefersScaleEffect: true,
-                                initialOpacity: 0,
-                                options: .init(preferredPresentationBackgroundColor: .clear)
-                            )
-                        )
+                        transition: .matchedGeometry
                     ) {
                         ScrollableCollectionView(edge: .bottom)
                     } label: {
                         Text("Matched Geometry")
+                    }
+
+                    PresentationLink(
+                        transition: .matchedGeometryZoom
+                    ) {
+                        ScrollableCollectionView(edge: .bottom)
+                    } label: {
+                        Text("Matched Geometry w/ Zoom")
                     }
 
                     Button {
@@ -127,9 +129,7 @@ struct ContentView: View {
                                 .frame(width: 44, height: 44)
                                 .presentation(
                                     transition: .matchedGeometry(
-                                        options: .init(
-                                            preferredCornerRadius: 10
-                                        )
+                                        preferredCornerRadius: 10
                                     ),
                                     isPresented: $isMatchedGeometryPresented
                                 ) {
@@ -189,7 +189,10 @@ struct ContentView: View {
 
                     PresentationLink(
                         transition: .card(
-                            options: .init(preferredEdgeInset: 0, preferredCornerRadius: 0)
+                            options: .init(
+                                preferredEdgeInset: 0,
+                                preferredCornerRadius: 0
+                            )
                         )
                     ) {
                         CardView()
@@ -243,14 +246,6 @@ struct ContentView: View {
                         DynamicIslandView()
                     } label: {
                         Text("Dynamic Island")
-                    }
-
-                    PresentationLink(
-                        transition: .heroMove
-                    ) {
-                        SafeAreaVisualizerView()
-                    } label: {
-                        Text("Hero Move")
                     }
                 } header: {
                     Text("Custom Transitions")

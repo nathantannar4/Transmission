@@ -65,7 +65,7 @@ open class ToastPresentationController: InteractivePresentationController {
     }
 
     public init(
-        edge: Edge,
+        edge: Edge = .top,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {

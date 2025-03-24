@@ -204,7 +204,7 @@ private struct PresentationLinkModifierBody<
                     )
 
                 case (.popover(let oldValue), .popover(let newValue)):
-                    if let presentationController = adapter.viewController.presentationController as? UIPopoverPresentationController {
+                    if let presentationController = adapter.viewController.presentationController as? PopoverPresentationController {
                         presentationController.permittedArrowDirections = newValue.permittedArrowDirections(
                             layoutDirection: traits.layoutDirection
                         )
@@ -227,6 +227,7 @@ private struct PresentationLinkModifierBody<
                 case (.slide, .slide(let newValue)):
                     if let presentationController = adapter.viewController.presentationController as? SlidePresentationController {
                         presentationController.edge = newValue.edge
+                        presentationController.presentedViewShadow = newValue.options.preferredPresentationShadow
                     }
 
                 case (.card, .card(let newValue)):
@@ -234,6 +235,7 @@ private struct PresentationLinkModifierBody<
                         presentationController.preferredEdgeInset = newValue.preferredEdgeInset
                         presentationController.preferredCornerRadius = newValue.preferredCornerRadius
                         presentationController.preferredAspectRatio = newValue.preferredAspectRatio
+                        presentationController.presentedViewShadow = newValue.options.preferredPresentationShadow
                     }
 
                 case (.matchedGeometry, .matchedGeometry(let newValue)):
@@ -241,11 +243,14 @@ private struct PresentationLinkModifierBody<
                         presentationController.edges = newValue.edges
                         presentationController.preferredCornerRadius = newValue.preferredCornerRadius
                         presentationController.minimumScaleFactor = newValue.minimumScaleFactor
+                        presentationController.prefersZoomEffect = newValue.prefersZoomEffect
+                        presentationController.presentedViewShadow = newValue.options.preferredPresentationShadow
                     }
 
                 case (.toast, .toast(let newValue)):
                     if let presentationController = adapter.viewController.presentationController as? ToastPresentationController {
                         presentationController.edge = newValue.edge
+                        presentationController.presentedViewShadow = newValue.options.preferredPresentationShadow
                     }
 
                 case (.zoom, .zoom):
@@ -279,8 +284,7 @@ private struct PresentationLinkModifierBody<
 
                 case (.default, .default),
                     (.currentContext, .currentContext),
-                    (.fullscreen, .fullscreen),
-                    (.custom, .custom):
+                    (.fullscreen, .fullscreen):
                     break
 
                 default:
@@ -389,12 +393,6 @@ private struct PresentationLinkModifierBody<
 
                 case .representable(_, let transition):
                     assert(!isClassType(transition), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
-                    context.coordinator.sourceView = uiView
-                    context.coordinator.overrideTraitCollection = traits
-                    adapter.viewController.modalPresentationStyle = .custom
-
-                case .custom(_, let transition):
-                    assert(!isClassType(transition), "PresentationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
@@ -574,12 +572,6 @@ private struct PresentationLinkModifierBody<
                     traitCollection: traitCollection
                 )
 
-            case .custom(_, let transition):
-                return transition.adaptivePresentationStyle(
-                    for: controller,
-                    traitCollection: traitCollection
-                )
-
             default:
                 return .none
             }
@@ -616,9 +608,6 @@ private struct PresentationLinkModifierBody<
                     adaptivePresentationController: adaptivePresentationController,
                     context: context
                 )
-
-            case .custom(_, let transition):
-                transition.presentationController(presentationController, prepare: adaptivePresentationController)
 
             default:
                 break
@@ -675,6 +664,8 @@ private struct PresentationLinkModifierBody<
                 let transition = MatchedGeometryPresentationControllerTransition(
                     sourceView: sourceView,
                     prefersScaleEffect: options.prefersScaleEffect,
+                    prefersZoomEffect: options.prefersScaleEffect,
+                    preferredCornerRadius: options.preferredCornerRadius,
                     fromOpacity: options.initialOpacity,
                     isPresenting: true,
                     animation: animation
@@ -696,12 +687,6 @@ private struct PresentationLinkModifierBody<
                     forPresented: presented,
                     presenting: presenting,
                     context: makeContext(options: options)
-                )
-
-            case .custom(_, let transition):
-                return transition.animationController(
-                    forPresented: presented,
-                    presenting: presenting
                 )
 
             default:
@@ -769,6 +754,8 @@ private struct PresentationLinkModifierBody<
                 let transition = MatchedGeometryPresentationControllerTransition(
                     sourceView: sourceView,
                     prefersScaleEffect: options.prefersScaleEffect,
+                    prefersZoomEffect: options.prefersScaleEffect,
+                    preferredCornerRadius: options.preferredCornerRadius,
                     fromOpacity: options.initialOpacity,
                     isPresenting: false,
                     animation: animation
@@ -796,9 +783,6 @@ private struct PresentationLinkModifierBody<
                     context: makeContext(options: options)
                 )
 
-            case .custom(_, let transition):
-                return transition.animationController(forDismissed: dismissed)
-
             default:
                 return nil
             }
@@ -814,9 +798,6 @@ private struct PresentationLinkModifierBody<
                     using: animator,
                     context: makeContext(options: options)
                 )
-
-            case .custom(_, let transition):
-                return transition.interactionControllerForPresentation(using: animator)
 
             default:
                 return nil
@@ -854,9 +835,6 @@ private struct PresentationLinkModifierBody<
                     context: makeContext(options: options)
                 )
 
-            case .custom(_, let transition):
-                return transition.interactionControllerForDismissal(using: animator)
-
             default:
                 return nil
             }
@@ -869,38 +847,39 @@ private struct PresentationLinkModifierBody<
         ) -> UIPresentationController? {
             guard let adapter else { return nil }
             switch adapter.transition {
-            case .sheet(let configuration):
+            case .sheet(let options):
                 if #available(iOS 15.0, *) {
                     #if targetEnvironment(macCatalyst)
                     let presentationController = MacSheetPresentationController(
                         presentedViewController: presented,
                         presenting: presenting
                     )
-                    presentationController.preferredCornerRadius = configuration.preferredCornerRadius
+                    presentationController.presentedViewShadow = options.options.preferredPresentationShadow
+                    presentationController.preferredCornerRadius = options.preferredCornerRadius
                     let selected = configuration.selected?.wrappedValue
-                    presentationController.detent = configuration.detents.first(where: { $0.identifier == selected }) ?? configuration.detents.first ?? .large
-                    presentationController.selected = configuration.selected
-                    presentationController.largestUndimmedDetentIdentifier = configuration.largestUndimmedDetentIdentifier
+                    presentationController.detent = options.detents.first(where: { $0.identifier == selected }) ?? options.detents.first ?? .large
+                    presentationController.selected = options.selected
+                    presentationController.largestUndimmedDetentIdentifier = options.largestUndimmedDetentIdentifier
                     return presentationController
                     #else
                     let presentationController = SheetPresentationController(
                         presentedViewController: presented,
                         presenting: presenting
                     )
-                    presentationController.detents = configuration.detents.map {
+                    presentationController.detents = options.detents.map {
                         $0.toUIKit(in: presentationController)
                     }
-                    presentationController.selectedDetentIdentifier = (configuration.selected?.wrappedValue ?? configuration.detents.first?.identifier)?.toUIKit()
-                    presentationController.largestUndimmedDetentIdentifier = configuration.largestUndimmedDetentIdentifier?.toUIKit()
-                    presentationController.prefersGrabberVisible = configuration.prefersGrabberVisible
-                    presentationController.preferredCornerRadius = configuration.preferredCornerRadius
-                    presentationController.prefersScrollingExpandsWhenScrolledToEdge = configuration.prefersScrollingExpandsWhenScrolledToEdge
-                    presentationController.prefersEdgeAttachedInCompactHeight = configuration.prefersEdgeAttachedInCompactHeight
-                    presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = configuration.widthFollowsPreferredContentSizeWhenEdgeAttached
-                    if configuration.prefersSourceViewAlignment {
+                    presentationController.selectedDetentIdentifier = (options.selected?.wrappedValue ?? options.detents.first?.identifier)?.toUIKit()
+                    presentationController.largestUndimmedDetentIdentifier = options.largestUndimmedDetentIdentifier?.toUIKit()
+                    presentationController.prefersGrabberVisible = options.prefersGrabberVisible
+                    presentationController.preferredCornerRadius = options.preferredCornerRadius
+                    presentationController.prefersScrollingExpandsWhenScrolledToEdge = options.prefersScrollingExpandsWhenScrolledToEdge
+                    presentationController.prefersEdgeAttachedInCompactHeight = options.prefersEdgeAttachedInCompactHeight
+                    presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = options.widthFollowsPreferredContentSizeWhenEdgeAttached
+                    if options.prefersSourceViewAlignment {
                         presentationController.sourceView = sourceView
                     }
-                    presentationController.preferredBackgroundColor = configuration.options.preferredPresentationBackgroundUIColor
+                    presentationController.preferredBackgroundColor = options.options.preferredPresentationBackgroundUIColor
                     presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
                     return presentationController
@@ -911,13 +890,14 @@ private struct PresentationLinkModifierBody<
                         presentedViewController: presented,
                         presenting: presenting
                     )
+                    presentationController.presentedViewShadow = options.options.preferredPresentationShadow
                     presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
                     return presentationController
                 }
 
             case .popover(let options):
-                let presentationController = UIPopoverPresentationController(
+                let presentationController = PopoverPresentationController(
                     presentedViewController: presented,
                     presenting: presenting
                 )
@@ -936,6 +916,7 @@ private struct PresentationLinkModifierBody<
                     presentedViewController: presented,
                     presenting: presenting
                 )
+                presentationController.presentedViewShadow = options.options.preferredPresentationShadow
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
@@ -948,6 +929,7 @@ private struct PresentationLinkModifierBody<
                     presentedViewController: presented,
                     presenting: presenting
                 )
+                presentationController.presentedViewShadow = options.options.preferredPresentationShadow
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
@@ -957,9 +939,11 @@ private struct PresentationLinkModifierBody<
                     edges: options.edges,
                     preferredCornerRadius: options.preferredCornerRadius,
                     minimumScaleFactor: options.minimumScaleFactor,
+                    prefersZoomEffect: options.prefersScaleEffect,
                     presentedViewController: presented,
                     presenting: presenting
                 )
+                presentationController.presentedViewShadow = options.options.preferredPresentationShadow
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
@@ -970,6 +954,7 @@ private struct PresentationLinkModifierBody<
                     presentedViewController: presented,
                     presenting: presenting
                 )
+                presentationController.presentedViewShadow = options.options.preferredPresentationShadow
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
@@ -979,16 +964,6 @@ private struct PresentationLinkModifierBody<
                     presented: presented,
                     presenting: presenting,
                     context: makeContext(options: options)
-                )
-                presentationController.overrideTraitCollection = overrideTraitCollection
-                presentationController.delegate = self
-                return presentationController
-
-            case .custom(_, let transition):
-                let presentationController = transition.presentationController(
-                    sourceView: sourceView,
-                    presented: presented,
-                    presenting: presenting
                 )
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
@@ -1166,7 +1141,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             )
             conformance.visit(visitor: &visitor)
             switch transition {
-            case .representable(let options, _), .custom(let options, _):
+            case .representable(let options, _):
                 viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
             default:
                 break

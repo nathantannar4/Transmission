@@ -50,6 +50,9 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         transitionDuration = transitionDuration(using: transitionContext)
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
         let delay = animation?.delay ?? 0
+        if let presentationController = transitionContext.viewController(forKey: isPresenting ? .to : .from)?.presentationController as? PresentationController {
+            presentationController.layoutShadowView()
+        }
         animator.startAnimation(afterDelay: delay)
 
         if !transitionContext.isAnimated {

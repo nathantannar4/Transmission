@@ -13,7 +13,6 @@
 		38DC6EAD293FD490006276F8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 38DC6EAC293FD490006276F8 /* Assets.xcassets */; };
 		38DC6EB0293FD490006276F8 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 38DC6EAF293FD490006276F8 /* Preview Assets.xcassets */; };
 		38DC6EBA293FD4DD006276F8 /* Transmission in Frameworks */ = {isa = PBXBuildFile; productRef = 38DC6EB9293FD4DD006276F8 /* Transmission */; };
-		38DC6EC0293FDA39006276F8 /* HeroMoveTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DC6EBF293FDA39006276F8 /* HeroMoveTransition.swift */; };
 		38EBF15C2C45D2E8004ACABC /* Logo.png in Resources */ = {isa = PBXBuildFile; fileRef = 38EBF15B2C45D2E8004ACABC /* Logo.png */; };
 /* End PBXBuildFile section */
 
@@ -25,7 +24,6 @@
 		38DC6EAC293FD490006276F8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		38DC6EAF293FD490006276F8 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		38DC6EB7293FD4A4006276F8 /* Transmission */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = Transmission; path = ..; sourceTree = "<group>"; };
-		38DC6EBF293FDA39006276F8 /* HeroMoveTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroMoveTransition.swift; sourceTree = "<group>"; };
 		38DC6EC1293FF784006276F8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		38EBF15B2C45D2E8004ACABC /* Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = Logo.png; path = ../../Logo.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -66,7 +64,6 @@
 				38DC6EC1293FF784006276F8 /* Info.plist */,
 				38DC6EA8293FD48F006276F8 /* ExampleApp.swift */,
 				38DC6EAA293FD48F006276F8 /* ContentView.swift */,
-				38DC6EBF293FDA39006276F8 /* HeroMoveTransition.swift */,
 				38C26C4A2BFDA89F007E4297 /* DynamicIslandTransition.swift */,
 				38EBF15B2C45D2E8004ACABC /* Logo.png */,
 				38DC6EAC293FD490006276F8 /* Assets.xcassets */,
@@ -177,7 +174,6 @@
 				38C26C4B2BFDA89F007E4297 /* DynamicIslandTransition.swift in Sources */,
 				38DC6EAB293FD48F006276F8 /* ContentView.swift in Sources */,
 				38DC6EA9293FD48F006276F8 /* ExampleApp.swift in Sources */,
-				38DC6EC0293FDA39006276F8 /* HeroMoveTransition.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

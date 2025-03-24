@@ -31,6 +31,11 @@ open class PresentationHostingController<
         return (parent ?? self).presentationController
     }
 
+    open override func viewDidLoad() {
+        super.viewDidLoad()
+        view.clipsToBounds = true
+    }
+
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 

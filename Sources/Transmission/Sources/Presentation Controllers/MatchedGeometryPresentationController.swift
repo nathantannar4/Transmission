@@ -13,6 +13,8 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 
     public var preferredCornerRadius: CGFloat?
 
+    public var prefersZoomEffect: Bool
+
     public var minimumScaleFactor: CGFloat
 
     open override var wantsInteractiveDismissal: Bool {
@@ -20,14 +22,16 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
     }
 
     public init(
-        edges: Edge.Set,
-        preferredCornerRadius: CGFloat?,
-        minimumScaleFactor: CGFloat,
+        edges: Edge.Set = .all,
+        preferredCornerRadius: CGFloat? = nil,
+        minimumScaleFactor: CGFloat = 0.5,
+        prefersZoomEffect: Bool = false,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.preferredCornerRadius = preferredCornerRadius
         self.minimumScaleFactor = minimumScaleFactor
+        self.prefersZoomEffect = prefersZoomEffect
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
@@ -40,6 +44,9 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
         delta: CGPoint,
         velocity: CGPoint
     ) -> Bool {
+        guard panGesture.state == .ended else {
+            return false
+        }
         let dz = sqrt(pow(translation.y, 2) + pow(translation.x, 2))
         let magnitude = sqrt(pow(velocity.y, 2) + pow(velocity.x, 2))
         let canFinish = (dz >= 200 && magnitude > 0) || magnitude >= 1000
@@ -52,40 +59,58 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
     }
 
     open override func transformPresentedView(transform: CGAffineTransform) {
-        super.transformPresentedView(transform: transform)
+        if prefersZoomEffect {
+            if transform.isIdentity {
+                presentedViewController.view.layer.cornerRadius = 0
+            } else {
+                presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius
+            }
+            presentedViewController.view.transform = transform
+            layoutShadowView()
 
-        if transform == .identity {
-            presentedViewController.view.layer.cornerRadius = 0
         } else {
-            let cornerRadius = transform.d * UIScreen.main.displayCornerRadius
-            presentedViewController.view.layer.cornerRadius = max(preferredCornerRadius ?? 0, cornerRadius)
+            super.transformPresentedView(transform: transform)
+
+            if transform.isIdentity {
+                presentedViewController.view.layer.cornerRadius = 0
+                updateShadow(progress: 0)
+            } else {
+                let progress = prefersZoomEffect ? 0 : max(0, min(transform.d, 1))
+                let cornerRadius = progress * UIScreen.main.displayCornerRadius
+                presentedViewController.view.layer.cornerRadius = max(preferredCornerRadius ?? 0, cornerRadius)
+                updateShadow(progress: progress)
+            }
         }
     }
 
     open override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         let frame = frameOfPresentedViewInContainerView
-        let dx = frictionCurve(translation.x, distance: frame.width, coefficient: 1)
-        let dy = frictionCurve(translation.y, distance: frame.height, coefficient: 0.5)
-        let scale = max(minimumScaleFactor, min(1 - (abs(dx) / frame.width), 1 - (abs(dy) / frame.height)))
-        return CGAffineTransform(translationX: dx, y: dy * 0.25)
-            .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * frame.height)
-            .scaledBy(x: scale, y: scale)
+        if prefersZoomEffect {
+            let dx = frictionCurve(translation.x, distance: frame.width, coefficient: 0.4)
+            let dy = frictionCurve(translation.y, distance: frame.height, coefficient: 0.3)
+            let scale = min(max(1 - dy / frame.width, minimumScaleFactor), 1)
+            return CGAffineTransform(translationX: dx, y: min(dy, frame.width * minimumScaleFactor))
+                .scaledBy(x: scale, y: scale)
+        } else {
+            let dx = frictionCurve(translation.x, distance: frame.width, coefficient: 1)
+            let dy = frictionCurve(translation.y, distance: frame.height, coefficient: 0.5)
+            let scale = max(minimumScaleFactor, min(1 - (abs(dx) / frame.width), 1 - (abs(dy) / frame.height)))
+            return CGAffineTransform(translationX: dx, y: dy * 0.25)
+                .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * frame.height)
+                .scaledBy(x: scale, y: scale)
+        }
     }
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-        presentedViewController.view.clipsToBounds = true
         if let preferredCornerRadius {
             presentedViewController.view.layer.cornerRadius = preferredCornerRadius
         }
-        dimmingView.isHidden = false
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
-        if completed {
-            presentedViewController.view.layer.cornerRadius = 0
-        }
+        presentedViewController.view.layer.cornerRadius = 0
     }
 
     open override func dismissalTransitionWillBegin() {
@@ -95,14 +120,17 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 
     open override func dismissalTransitionDidEnd(_ completed: Bool) {
         super.dismissalTransitionDidEnd(completed)
-        if completed {
-            presentedViewController.view.layer.cornerRadius = 0
-        }
+        presentedViewController.view.layer.cornerRadius = 0
     }
 
     open override func transitionAlongsidePresentation(isPresented: Bool) {
         super.transitionAlongsidePresentation(isPresented: isPresented)
         presentedViewController.view.layer.cornerRadius = isPresented ? UIScreen.main.displayCornerRadius : (preferredCornerRadius ?? 0)
+    }
+
+    open override func updateShadow(progress: Double) {
+        super.updateShadow(progress: progress)
+        dimmingView.isHidden = presentedViewShadow.shadowOpacity > 0
     }
 }
 
@@ -117,6 +145,8 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 ///     let transition = MatchedGeometryPresentationControllerTransition(
 ///         sourceView: sourceView,
 ///         prefersScaleEffect: options.prefersScaleEffect,
+///         prefersZoomEffect: options.prefersZoomEffect,
+///         preferredCornerRadius: options.preferredCornerRadius,
 ///         fromOpacity: options.initialOpacity,
 ///         isPresenting: true,
 ///         animation: animation
@@ -134,6 +164,8 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 ///     let transition = MatchedGeometryPresentationControllerTransition(
 ///         sourceView: sourceView,
 ///         prefersScaleEffect: options.prefersScaleEffect,
+///         prefersZoomEffect: options.prefersZoomEffect,
+///         preferredCornerRadius: options.preferredCornerRadius,
 ///         fromOpacity: options.initialOpacity,
 ///         isPresenting: false,
 ///         animation: animation
@@ -154,17 +186,23 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 open class MatchedGeometryPresentationControllerTransition: PresentationControllerTransition {
 
     public let prefersScaleEffect: Bool
+    public let prefersZoomEffect: Bool
+    public let preferredCornerRadius: CGFloat?
     public let fromOpacity: CGFloat
     public weak var sourceView: UIView?
 
     public init(
         sourceView: UIView,
         prefersScaleEffect: Bool,
+        prefersZoomEffect: Bool,
+        preferredCornerRadius: CGFloat?,
         fromOpacity: CGFloat,
         isPresenting: Bool,
         animation: Animation?
     ) {
         self.prefersScaleEffect = prefersScaleEffect
+        self.prefersZoomEffect = prefersZoomEffect
+        self.preferredCornerRadius = preferredCornerRadius
         self.fromOpacity = fromOpacity
         super.init(isPresenting: isPresenting, animation: animation)
         self.sourceView = sourceView
@@ -186,55 +224,136 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
 
         let sourceViewController = sourceView?.viewController
         let prefersScaleEffect = prefersScaleEffect
+        let prefersZoomEffect = prefersZoomEffect
         let fromOpacity = fromOpacity
         let isPresenting = isPresenting
-        let hostingController = presented as? AnyHostingController
+
+        lazy var hostingController: AnyHostingController? = {
+            if prefersZoomEffect {
+                return nil
+            }
+            return presented as? AnyHostingController
+        }()
+
+        lazy var portalView: PortalView? = {
+            if prefersZoomEffect {
+                let portalView = PortalView(sourceView: presented.view)
+                portalView?.hidesSourceView = true
+                return portalView
+            }
+            return nil
+        }()
+
+        lazy var window: UIWindow? = {
+            if prefersScaleEffect {
+                if sourceViewController?.parent == nil {
+                    if let window = sourceViewController?.view.window {
+                        return window
+                    }
+                }
+            }
+            return nil
+        }()
+
+        let scaleEffect = CGAffineTransform(scaleX: 0.9, y: 0.9)
+        let cornerRadius = preferredCornerRadius ?? UIScreen.main._displayCornerRadius
+        if prefersScaleEffect, !isPresenting {
+            sourceViewController?.view.transform = .identity
+            sourceViewController?.view.layer.cornerRadius = cornerRadius
+        }
 
         let oldValue = hostingController?.disableSafeArea ?? false
         hostingController?.disableSafeArea = true
 
-        let scaleEffect = CGAffineTransform(scaleX: 0.9, y: 0.9)
-        if prefersScaleEffect, !isPresenting {
-            sourceViewController?.view.transform = .identity
+        if prefersScaleEffect {
+            sourceViewController?.view.layer.masksToBounds = true
+            if window?.backgroundColor == nil {
+                window?.backgroundColor = sourceViewController?.view.backgroundColor
+            }
         }
 
         let sourceFrame = sourceView.map {
             $0.convert($0.frame, to: transitionContext.containerView)
         } ?? transitionContext.containerView.frame
 
+        let presentedFrame = isPresenting
+            ? transitionContext.finalFrame(for: presented)
+        : (presented.view.transform.isIdentity ? presented.view.frame : transitionContext.initialFrame(for: presented))
+
         if prefersScaleEffect, !isPresenting {
             sourceViewController?.view.transform = scaleEffect
         }
 
-        let presentedFrame = isPresenting
-            ? transitionContext.finalFrame(for: presented)
-            : transitionContext.initialFrame(for: presented)
         if isPresenting {
-            presented.view.alpha = fromOpacity
             transitionContext.containerView.addSubview(presented.view)
-            presented.view.frame = sourceFrame
-            presented.view.layoutIfNeeded()
-            hostingController?.render()
+
+            if prefersZoomEffect {
+                presented.view.frame = presentedFrame
+                if let portalView {
+                    transitionContext.containerView.addSubview(portalView)
+                }
+                portalView?.frame = presentedFrame
+                portalView?.alpha = fromOpacity
+                portalView?.transform = CGAffineTransform(to: presentedFrame, from: sourceFrame)
+                if let presentationController = presented.presentationController as? PresentationController {
+                    presentationController.shadowView.preferredSourceView = portalView
+                }
+
+            } else {
+                presented.view.frame = sourceFrame
+                presented.view.alpha = fromOpacity
+                presented.view.layoutIfNeeded()
+                hostingController?.render()
+            }
+
         } else if presenting.view.superview == nil {
             transitionContext.containerView.insertSubview(presenting.view, belowSubview: presented.view)
         }
+
         if !isPresenting, prefersScaleEffect {
             sourceViewController?.view.transform = scaleEffect
         }
 
+        if !isPresenting, prefersZoomEffect, let portalView {
+            transitionContext.containerView.addSubview(portalView)
+            portalView.frame = presentedFrame
+            portalView.transform = presented.view.transform
+            if let presentationController = presented.presentationController as? PresentationController {
+                presentationController.shadowView.preferredSourceView = portalView
+            }
+        }
+        
         animator.addAnimations {
             if isPresenting {
                 hostingController?.disableSafeArea = oldValue
             }
-            presented.view.alpha = isPresenting ? 1 : fromOpacity
-            presented.view.frame = isPresenting ? presentedFrame : sourceFrame
-            presented.view.layoutIfNeeded()
+            if prefersZoomEffect {
+                portalView?.transform = isPresenting ? .identity : CGAffineTransform(to: presentedFrame, from: sourceFrame)
+            } else {
+                presented.view.frame = isPresenting ? presentedFrame : sourceFrame
+                presented.view.layoutIfNeeded()
+            }
+
             if prefersScaleEffect {
+                sourceViewController?.view.layer.cornerRadius = isPresenting ? cornerRadius : 0
                 sourceViewController?.view.transform = isPresenting ? scaleEffect : .identity
             }
         }
+        animator.addAnimations({
+            if prefersZoomEffect {
+                portalView?.alpha = isPresenting ? 1 : fromOpacity
+            } else {
+                presented.view.alpha = isPresenting ? 1 : fromOpacity
+            }
+        }, delayFactor: isPresenting ? 0 : 0.25)
+
         animator.addCompletion { animatingPosition in
             hostingController?.disableSafeArea = oldValue
+            portalView?.removeFromSuperview()
+            if prefersScaleEffect, !isPresenting {
+                sourceViewController?.view.layer.masksToBounds = false
+                window?.backgroundColor = nil
+            }
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

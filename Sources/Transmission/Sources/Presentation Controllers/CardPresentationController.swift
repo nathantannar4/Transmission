@@ -92,8 +92,8 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     public init(
-        preferredEdgeInset: CGFloat?,
-        preferredCornerRadius: CGFloat?,
+        preferredEdgeInset: CGFloat? = nil,
+        preferredCornerRadius: CGFloat? = nil,
         preferredAspectRatio: CGFloat? = 1,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
@@ -109,6 +109,7 @@ open class CardPresentationController: InteractivePresentationController {
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
+        presentedViewController.view.layer.cornerCurve = .continuous
         cornerRadiusDidChange()
         dimmingView.isHidden = false
     }
@@ -146,8 +147,6 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     private func cornerRadiusDidChange() {
-        let cornerRadius = cornerRadius
-        presentedViewController.view.layer.masksToBounds = cornerRadius > 0
         presentedViewController.view.layer.cornerRadius = cornerRadius
     }
 }
