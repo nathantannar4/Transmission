@@ -63,11 +63,13 @@ open class CardPresentationController: InteractivePresentationController {
             width: width,
             height: height
         )
-        let keyboardOverlap = keyboardOverlapInContainerView(
-            of: frame,
-            keyboardHeight: keyboardHeight
-        )
-        frame.origin.y -= keyboardOverlap
+        if shouldAutomaticallyAdjustFrameForKeyboard {
+            let keyboardOverlap = keyboardOverlapInContainerView(
+                of: frame,
+                keyboardHeight: keyboardHeight
+            )
+            frame.origin.y -= keyboardOverlap
+        }
         if frame.origin.y < 0 {
             frame.size.height += frame.origin.y
             frame.origin.y = 0
@@ -105,6 +107,7 @@ open class CardPresentationController: InteractivePresentationController {
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
+        shouldAutomaticallyAdjustFrameForKeyboard = true
     }
 
     open override func presentationTransitionWillBegin() {

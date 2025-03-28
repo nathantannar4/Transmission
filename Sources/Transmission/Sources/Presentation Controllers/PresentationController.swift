@@ -255,7 +255,7 @@ open class PresentationController: UIPresentationController {
 
         guard keyboardHeight != dy else { return }
         keyboardHeight = dy
-        guard shouldAutoLayoutPresentedView, let containerView else { return }
+        guard shouldAutoLayoutPresentedView, shouldAutomaticallyAdjustFrameForKeyboard, let containerView else { return }
         containerView.setNeedsLayout()
 
         guard
