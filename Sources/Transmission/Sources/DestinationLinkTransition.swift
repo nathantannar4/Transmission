@@ -15,12 +15,9 @@ public struct DestinationLinkTransition: Sendable {
         case zoom(Options)
         case representable(Options, any DestinationLinkTransitionRepresentable)
 
-        @available(*, deprecated)
-        case custom(Options, DestinationLinkCustomTransition)
-
         var options: Options {
             switch self {
-            case .default(let options), .zoom(let options), .custom(let options, _), .representable(let options, _):
+            case .default(let options), .zoom(let options), .representable(let options, _):
                 return options
             }
         }
@@ -34,10 +31,12 @@ public struct DestinationLinkTransition: Sendable {
     @available(iOS 18.0, *)
     public static let zoom = DestinationLinkTransition(value: .zoom(.init()))
 
-    /// A custom presentation style.
-    @available(*, deprecated)
-    public static func custom<T: DestinationLinkCustomTransition>(_ transition: T) -> DestinationLinkTransition {
-        DestinationLinkTransition(value: .custom(.init(), transition))
+    /// The zoom presentation style if available, otherwise the default transition style.
+    public static var zoomIfAvailable: DestinationLinkTransition {
+        if #available(iOS 18.0, *) {
+            return .zoom
+        }
+        return .default
     }
 
     /// A custom presentation style.
@@ -93,13 +92,15 @@ extension DestinationLinkTransition {
         DestinationLinkTransition(value: .zoom(options))
     }
 
-    /// A custom presentation style.
-    @available(*, deprecated)
-    public static func custom<T: DestinationLinkCustomTransition>(
-        options: DestinationLinkTransition.Options,
-        _ transition: T
+    /// The zoom presentation style if available, otherwise a fallback transition style.
+    public static func zoomIfAvailable(
+        options: Options,
+        otherwise fallback: DestinationLinkTransition = .default
     ) -> DestinationLinkTransition {
-        DestinationLinkTransition(value: .custom(options, transition))
+        if #available(iOS 18.0, *) {
+            return .zoom(options: options)
+        }
+        return fallback
     }
 
     /// A custom presentation style.
@@ -108,42 +109,6 @@ extension DestinationLinkTransition {
         _ transition: T
     ) -> DestinationLinkTransition {
         DestinationLinkTransition(value: .representable(options, transition))
-    }
-}
-
-@available(iOS 14.0, *)
-@available(*, deprecated, renamed: "DestinationLinkTransitionRepresentable")
-@MainActor @preconcurrency
-public protocol DestinationLinkCustomTransition {
-
-    /// The interaction controller to use for the transition presentation.
-    ///
-    /// > Note: This protocol implementation is optional and defaults to `nil`
-    ///
-    @MainActor @preconcurrency func navigationController(
-        _ navigationController: UINavigationController,
-        interactionControllerFor animationController: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning?
-
-    /// The animation controller to use for the transition presentation.
-    @MainActor @preconcurrency func navigationController(
-        _ navigationController: UINavigationController,
-        animationControllerFor operation: UINavigationController.Operation,
-        from fromVC: UIViewController,
-        to toVC: UIViewController,
-        sourceView: UIView
-    ) -> UIViewControllerAnimatedTransitioning
-}
-
-@available(iOS 14.0, *)
-@available(*, deprecated, renamed: "DestinationLinkTransitionRepresentable")
-extension DestinationLinkCustomTransition {
-
-    public func navigationController(
-        _ navigationController: UINavigationController,
-        interactionControllerFor animationController: UIViewControllerAnimatedTransitioning
-    ) -> UIViewControllerInteractiveTransitioning? {
-        return nil
     }
 }
 

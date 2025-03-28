@@ -11,6 +11,7 @@ import Engine
 ///
 /// See Also:
 ///  - ``PresentationLink``
+///  - ``WindowLink``
 ///
 @available(iOS 14.0, *)
 @frozen

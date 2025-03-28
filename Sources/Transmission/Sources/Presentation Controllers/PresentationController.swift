@@ -87,12 +87,10 @@ open class PresentationController: UIPresentationController {
         containerView?.addSubview(shadowView)
         updateShadow(progress: 0)
 
-        if let transitionCoordinator = presentedViewController.transitionCoordinator {
+        if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
                 self.transitionAlongsidePresentation(isPresented: true)
             }
-        } else {
-            transitionAlongsidePresentation(isPresented: true)
         }
     }
 
@@ -100,7 +98,7 @@ open class PresentationController: UIPresentationController {
         super.presentationTransitionDidEnd(completed)
 
         if completed {
-            updateShadow(progress: 1)
+            transitionAlongsidePresentation(isPresented: true)
 
             NotificationCenter.default
                 .addObserver(
@@ -128,12 +126,10 @@ open class PresentationController: UIPresentationController {
         delegate?.presentationControllerWillDismiss?(self)
         updateShadow(progress: 1)
 
-        if let transitionCoordinator = presentedViewController.transitionCoordinator {
+        if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
                 self.transitionAlongsidePresentation(isPresented: false)
             }
-        } else {
-            transitionAlongsidePresentation(isPresented: false)
         }
     }
 
@@ -141,7 +137,7 @@ open class PresentationController: UIPresentationController {
         super.dismissalTransitionDidEnd(completed)
 
         if completed {
-            updateShadow(progress: 0)
+            transitionAlongsidePresentation(isPresented: false)
             delegate?.presentationControllerDidDismiss?(self)
 
             NotificationCenter.default
@@ -255,7 +251,7 @@ open class PresentationController: UIPresentationController {
 
         guard keyboardHeight != dy else { return }
         keyboardHeight = dy
-        guard shouldAutoLayoutPresentedView, let containerView else { return }
+        guard shouldAutoLayoutPresentedView, shouldAutomaticallyAdjustFrameForKeyboard, let containerView else { return }
         containerView.setNeedsLayout()
 
         guard

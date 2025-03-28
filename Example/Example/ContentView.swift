@@ -34,6 +34,7 @@ struct ContentView: View {
     @State var isHeroPresented: Bool = false
     @State var isMatchedGeometryPresented = false
     @State var isZoomPresented = false
+    @State var isSourceViewZoomPresented = false
     @State var progress: CGFloat = 0
     @State var isDestinationLinkExpanded: Bool = true
     @State var isPresentationLinkExpanded: Bool = true
@@ -151,6 +152,8 @@ struct ContentView: View {
 
                 if #available(iOS 18.0, *) {
                     Section {
+                        ImageLink()
+
                         Button {
                             withAnimation {
                                 isZoomPresented = true
@@ -166,12 +169,49 @@ struct ContentView: View {
                                     ) {
                                         RoundedRectangle(cornerRadius: 10)
                                             .fill(Color.blue)
-                                            .frame(width: 44, height: 44)
                                     }
 
                                 Text("Zoom")
                             }
                         }
+
+                        Button {
+                            withAnimation {
+                                isSourceViewZoomPresented = true
+                            }
+                        } label: {
+                            HStack {
+                                PresentationLinkAdapter(
+                                    transition: .zoom,
+                                    isPresented: $isSourceViewZoomPresented
+                                ) {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.blue)
+                                } content: {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.blue)
+                                        .frame(width: 44, height: 44)
+                                }
+
+                                Text("Zoom w/ Source View")
+                            }
+                        }
+
+                        PresentationSourceViewLink(
+                            transition: .zoom
+                        ) {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue)
+                        } label: {
+                            HStack {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.blue)
+                                    .frame(width: 44, height: 44)
+
+                                Text("Zoom w/ Source View")
+                            }
+                        }
+
                     } header: {
                         Text("Zoom Transitions")
                     }
@@ -661,6 +701,68 @@ struct DynamicIslandView: View {
         .environment(\.colorScheme, .dark)
         .padding(12)
         .ignoresSafeArea(edges: .vertical)
+    }
+}
+
+@available(iOS 18.0, *)
+struct ImageLink: View {
+
+    var images: [String] = [
+        "Landscape1",
+        "Landscape2",
+        "Landscape3",
+    ]
+    @State var selectedImage: String?
+
+    var body: some View {
+        Button {
+            withAnimation {
+                selectedImage = images.first
+            }
+        } label: {
+            HStack {
+                PresentationSourceViewLink(
+                    transition: .zoom(options: .init(preferredPresentationBackgroundColor: .black)),
+                    isPresented: $selectedImage.isNotNil()
+                ) {
+                    Destination(
+                        images: images,
+                        selectedImage: $selectedImage
+                    )
+                } label: {
+                    Image(selectedImage ?? images.first!)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 44, height: 44)
+                        .clipped()
+                }
+                .animation(.default, value: selectedImage)
+
+                Text("Image Link")
+            }
+        }
+    }
+
+    struct Destination: View {
+        var images: [String]
+        @Binding var selectedImage: String?
+        @State var scrollPosition: String?
+
+        var body: some View {
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 0) {
+                    ForEach(images, id: \.self) { image in
+                        Image(image)
+                            .resizable()
+                            .scaledToFit()
+                    }
+                    .containerRelativeFrame(.horizontal)
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .scrollPosition(id: $selectedImage)
+        }
     }
 }
 

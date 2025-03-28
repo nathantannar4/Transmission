@@ -81,7 +81,19 @@ extension UIViewController {
     }
 
     func fixSwiftUIHitTesting() {
-        if let view = viewIfLoaded {
+        if let tabBarController = self as? UITabBarController {
+            tabBarController.selectedViewController?.fixSwiftUIHitTesting()
+        } else if let navigationController = self as? UINavigationController {
+            navigationController.topViewController?.fixSwiftUIHitTesting()
+        } else if let splitViewController = self as? UISplitViewController {
+            for viewController in splitViewController.viewControllers {
+                viewController.fixSwiftUIHitTesting()
+            }
+        } else if let pageViewController = self as? UIPageViewController {
+            for viewController in pageViewController.viewControllers ?? [] {
+                viewController.fixSwiftUIHitTesting()
+            }
+        } else if let view = viewIfLoaded {
             // This fixes SwiftUI's gesture handling that can get messed up when applying
             // transforms and/or frame changes during an interactive presentation. This resets
             // SwiftUI's geometry in a clean way, fixing hit testing.

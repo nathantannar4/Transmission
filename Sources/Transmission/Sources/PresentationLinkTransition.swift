@@ -710,7 +710,10 @@ extension PresentationLinkTransition {
 
         public init(
             edge: Edge = .bottom,
-            options: Options = .init(preferredPresentationBackgroundColor: .clear)
+            options: Options = .init(
+                preferredPresentationBackgroundColor: .clear,
+                preferredPresentationShadow: .minimal
+            )
         ) {
             self.options = options
             self.edge = edge
@@ -919,6 +922,17 @@ extension PresentationLinkTransition {
                 options: options
             )
         )
+    }
+
+    /// The zoom presentation style if available, otherwise a fallback transition style.
+    public static func zoomIfAvailable(
+        options: Options,
+        otherwise fallback: PresentationLinkTransition
+    ) -> PresentationLinkTransition {
+        if #available(iOS 18.0, *) {
+            return .zoom(options: options)
+        }
+        return fallback
     }
 
     /// A custom presentation style.

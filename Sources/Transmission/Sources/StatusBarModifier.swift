@@ -102,7 +102,9 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
     @WeakState var presentingViewController: UIViewController?
 
     func makeUIView(context: Context) -> ViewControllerReader {
-        let uiView = ViewControllerReader(presentingViewController: $presentingViewController)
+        let uiView = ViewControllerReader(
+            presentingViewController: $presentingViewController
+        )
         return uiView
     }
 

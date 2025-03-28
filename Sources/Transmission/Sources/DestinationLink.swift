@@ -9,8 +9,17 @@ import Engine
 
 /// A button that pushes a destination view in a new `UIViewController`.
 ///
+/// The destination view is presented with the provided `transition`.
+/// By default, the ``DestinationLinkTransition/default`` transition is used.
+///
 /// See Also:
+///  - ``DestinationLinkModifier``
+///  - ``DestinationLinkTransition``
+///  - ``DestinationSourceViewLink``
 ///  - ``TransitionReader``
+///
+/// > Tip: You can implement custom transitions with the ``DestinationLinkTransition/custom(_:)``
+///  transition.
 ///
 @available(iOS 14.0, *)
 @frozen

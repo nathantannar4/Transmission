@@ -8,7 +8,7 @@ import SwiftUI
 
 /// A button that's action dismisses the presented view.
 ///
-/// Compatible with `PresentationLink` and `WindowLink`.
+/// Compatible with ``PresentationLink`` and ``WindowLink``.
 ///
 /// > Note: The button is disabled if there is no presented view
 /// 

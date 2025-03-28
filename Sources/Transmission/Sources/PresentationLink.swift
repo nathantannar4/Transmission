@@ -13,7 +13,9 @@ import Engine
 /// By default, the ``PresentationLinkTransition/default`` transition is used.
 ///
 /// See Also:
+///  - ``PresentationSourceViewLink``
 ///  - ``PresentationLinkTransition``
+///  - ``PresentationLinkModifier``
 ///  - ``TransitionReader``
 ///
 /// > Tip: You can implement custom transitions with a `UIPresentationController` and/or
