@@ -33,7 +33,9 @@ struct ContentView: View {
     @State var statusBarStyle: StatusBarStyle = .default
     @State var isHeroPresented: Bool = false
     @State var isMatchedGeometryPresented = false
+    @State var isMatchedGeometryPushPresented = false
     @State var isZoomPresented = false
+    @State var isCardMatchedGeometryPresented = false
     @State var isSourceViewZoomPresented = false
     @State var progress: CGFloat = 0
     @State var isDestinationLinkExpanded: Bool = true
@@ -50,6 +52,33 @@ struct ContentView: View {
                         ContentView()
                     } label: {
                         Text("Push")
+                    }
+
+                    Button {
+                        withAnimation {
+                            isMatchedGeometryPushPresented = true
+                        }
+                    } label: {
+                        HStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue)
+                                .aspectRatio(1, contentMode: .fit)
+                                .frame(width: 44, height: 44)
+                                .destination(
+                                    transition: .matchedGeometry,
+                                    isPresented: $isMatchedGeometryPushPresented
+                                ) {
+                                    ContentView()
+                                }
+
+                            Text("Push w/ Matched Geometry")
+                        }
+                    }
+
+                    DestinationSourceViewLink(transition: .zoomIfAvailable) {
+                        ContentView()
+                    } label: {
+                        Text("Push w/ Zoom")
                     }
 
                     Button("Pop All") {
@@ -77,7 +106,11 @@ struct ContentView: View {
                         Text("Sheet (default Detent)")
                     }
 
-                    PresentationLink(transition: .sheet(detents: [.ideal])) {
+                    PresentationLink(
+                        transition: .sheet(
+                            detents: [.ideal]
+                        )
+                    ) {
                         ScrollView {
                             SafeAreaVisualizerView()
                                 .aspectRatio(1, contentMode: .fit)
@@ -86,13 +119,27 @@ struct ContentView: View {
                         Text("Sheet (ideal Detent)")
                     }
 
-                    PresentationLink(transition: .sheet(detents: [.constant("constant", height: 100)])) {
+                    PresentationLink(
+                        transition: .sheet(
+                            detents: [
+                                .constant("constant", height: 100)
+                            ]
+                        )
+                    ) {
                         SafeAreaVisualizerView()
                     } label: {
                         Text("Sheet (constant Detent)")
                     }
 
-                    PresentationLink(transition: .sheet(detents: [.custom("custom", resolver: { context in return context.maximumDetentValue * 0.67 })])) {
+                    PresentationLink(
+                        transition: .sheet(
+                            detents: [
+                                .custom("custom", resolver: { context in
+                                    return context.maximumDetentValue * 0.67
+                                })
+                            ]
+                        )
+                    ) {
                         SafeAreaVisualizerView()
                     } label: {
                         Text("Sheet (constant Detent)")
@@ -229,16 +276,48 @@ struct ContentView: View {
 
                     PresentationLink(
                         transition: .card(
-                            options: .init(
-                                preferredEdgeInset: 0,
-                                preferredCornerRadius: 0
-                            )
+                            preferredEdgeInset: 0,
+                            preferredCornerRadius: 0
                         )
                     ) {
                         CardView()
                     } label: {
                         Text("Card (custom insets)")
                     }
+
+                    Button {
+                        withAnimation(.spring(duration: 0.5)) {
+                            isCardMatchedGeometryPresented = true
+                        }
+                    } label: {
+                        HStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue)
+                                .frame(width: 44, height: 44)
+                                .presentation(
+                                    transition: .asymmetric(
+                                        presented: CardPresentationLinkTransition(
+                                            options: .init(
+                                                preferredAspectRatio: nil
+                                            )
+                                        ),
+                                        presenting: MatchedGeometryPresentationLinkTransition(
+                                            options: .init(
+                                                prefersZoomEffect: true,
+                                                initialOpacity: 1
+                                            )
+                                        ),
+                                        dismissing: .default
+                                    ),
+                                    isPresented: $isCardMatchedGeometryPresented
+                                ) {
+                                    InfoCardView()
+                                }
+
+                            Text("Card w/ Matched Geometry")
+                        }
+                    }
+
                 } header: {
                     Text("Card Transitions")
                 }
@@ -274,6 +353,21 @@ struct ContentView: View {
                         } label: {
                             Text("Slide (\(String(describing: edge)))")
                         }
+                    }
+
+                    PresentationLink(
+                        transition: .slide(
+                            edge: .bottom,
+                            preferredPresentationBackgroundColor: .clear
+                        )
+                    ) {
+                        VStack {
+                            Text("Hello, World")
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Material.ultraThin, ignoresSafeAreaEdges: .all)
+                    } label: {
+                        Text("Slide (Clear Background)")
                     }
                 } header: {
                     Text("Slide Transitions")
@@ -618,6 +712,28 @@ struct CardView: View {
             TextField("Placeholder", text: $text)
                 .fixedSize()
         }
+    }
+}
+
+struct InfoCardView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Lorem ipsum")
+                    .font(.title3.bold())
+
+                Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+                    .foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+
+            DismissPresentationLink {
+                Text("Done")
+                    .frame(maxWidth: .infinity, minHeight: 32)
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 

@@ -63,7 +63,7 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
             if proxy.modalPresentationCapturesStatusBarAppearance {
                 return proxy.preferredStatusBarStyle
             } else if let presentingViewController = proxy.presentingViewController {
-                if proxy.presentationController is UISheetPresentationController {
+                if proxy._activePresentationController is UISheetPresentationController {
                     return .lightContent
                 }
                 return presentingViewController.preferredStatusBarStyle
@@ -82,7 +82,7 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
             if proxy.modalPresentationCapturesStatusBarAppearance {
                 return proxy.prefersStatusBarHidden
             } else if let presentingViewController = proxy.presentingViewController {
-                if proxy.presentationController is UISheetPresentationController {
+                if proxy._activePresentationController is UISheetPresentationController {
                     return false
                 }
                 return presentingViewController.prefersStatusBarHidden

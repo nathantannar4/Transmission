@@ -161,7 +161,7 @@ open class PresentationController: UIPresentationController {
 
     open func transitionAlongsidePresentation(isPresented: Bool) {
         dimmingView.alpha = isPresented ? 1 : 0
-        layoutShadowView()
+        layoutBackgroundViews()
         updateShadow(progress: isPresented ? 1 : 0)
     }
 
@@ -176,11 +176,9 @@ open class PresentationController: UIPresentationController {
 
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
-        dimmingView.frame = containerView?.bounds ?? .zero
         if shouldAutoLayoutPresentedView {
             layoutPresentedView(frame: frameOfPresentedViewInContainerView)
-        } else {
-            layoutShadowView()
+            layoutBackgroundViews()
         }
     }
 
@@ -207,6 +205,14 @@ open class PresentationController: UIPresentationController {
             x: frame.minX + (frame.width * anchor.x),
             y: frame.minY + (frame.height * anchor.y)
         )
+        layoutBackgroundViews()
+    }
+
+    open func layoutBackgroundViews() {
+        let dimmingViewFrame = presentingViewController.view.convert(presentingViewController.view.bounds, to: containerView)
+        dimmingView.frame = dimmingViewFrame
+        dimmingView.layer.cornerRadius = presentingViewController.view.layer.cornerRadius
+
         layoutShadowView()
     }
 
@@ -276,9 +282,15 @@ open class PresentationController: UIPresentationController {
 
     @objc
     private func didSelectBackground() {
-        let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
-        if shouldDismiss {
-            presentedViewController.dismiss(animated: true)
+        if let next = presentedViewController.presentedViewController,
+           let presentationController = next._activePresentationController as? PresentationController
+        {
+            presentationController.didSelectBackground()
+        } else {
+            let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
+            if shouldDismiss {
+                presentedViewController.dismiss(animated: true)
+            }
         }
     }
 }

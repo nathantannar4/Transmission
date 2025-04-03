@@ -40,7 +40,7 @@ public protocol DestinationLinkTransitionRepresentable {
         from fromVC: UIViewController,
         to toVC: UIViewController,
         context: Context
-    ) -> UIViewControllerAnimatedTransitioning
+    ) -> UIViewControllerAnimatedTransitioning?
 }
 
 @available(iOS 14.0, *)

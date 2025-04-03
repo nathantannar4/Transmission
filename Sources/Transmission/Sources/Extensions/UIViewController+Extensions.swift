@@ -45,6 +45,13 @@ extension UIViewController {
         }
         return transitionCoordinator
     }
+
+    var _activePresentationController: UIPresentationController? {
+        if #available(iOS 16.0, *), let activePresentationController {
+            return activePresentationController
+        }
+        return presentingViewController != nil ? presentationController : nil
+    }
 }
 
 #endif

@@ -15,11 +15,6 @@ open class PresentationHostingController<
         didSet {
             guard tracksContentSize != oldValue else { return }
             view.setNeedsLayout()
-            if tracksContentSize {
-                preferredContentSize = CGRect(origin: .zero, size: view.idealSize).inset(by: view.safeAreaInsets).size
-            } else {
-                preferredContentSize = .zero
-            }
         }
     }
 
@@ -28,7 +23,7 @@ open class PresentationHostingController<
         while let next = parent?.parent {
             parent = next
         }
-        return (parent ?? self).presentationController
+        return (parent ?? self)._activePresentationController
     }
 
     open override func viewDidLoad() {
@@ -114,14 +109,15 @@ open class PresentationHostingController<
             }
 
         } else if tracksContentSize {
-            let contentSize = CGRect(origin: .zero, size: view.idealSize).inset(by: view.safeAreaInsets).size
-            guard preferredContentSize != contentSize else { return }
             if #available(iOS 16.0, *), presentingViewController != nil {
                 let presentationController = getPresentationController()
                 if let popoverPresentationController = presentationController as? UIPopoverPresentationController,
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {
+                    let contentSize = CGRect(origin: .zero, size: view.idealSize).inset(by: view.safeAreaInsets).size
+                    guard preferredContentSize != contentSize else { return }
+
                     let isAnimated = isAnimated && !isBeingPresented
                     let oldSize = preferredContentSize
                     if oldSize == .zero || oldSize == CGSize(width: 10_000, height: 10_000) || !isAnimated {
@@ -135,37 +131,49 @@ open class PresentationHostingController<
                                 .beginFromCurrentState,
                                 .curveEaseInOut
                             ]
-                        ) {
-                            self.preferredContentSize = contentSize
-                        } completion: { _ in
-                            self.allowUIKitAnimationsForNextUpdate = false
+                        ) { [weak self] in
+                            self?.preferredContentSize = contentSize
+                        } completion: { [weak self] _ in
+                            self?.allowUIKitAnimationsForNextUpdate = false
                         }
                     }
                 } else if let presentationController = presentationController as? PresentationController {
-                    preferredContentSize = contentSize
+                    if let interactivePresentationController = presentationController as? InteractivePresentationController {
+                        guard interactivePresentationController.panGesture.state != .changed else { return }
+                    }
                     let frame = presentationController.frameOfPresentedViewInContainerView
+                    guard !view.frame.size.isApproximatelyEqual(to: frame.size) else { return }
                     if isAnimated {
                         self.allowUIKitAnimationsForNextUpdate = true
-                        UIView.animate(
-                            withDuration: 0.35,
-                            delay: 0,
-                            options: [
-                                .beginFromCurrentState,
-                                .curveEaseInOut
-                            ]
-                        ) {
-                            presentationController.layoutPresentedView(frame: frame)
-                            presentationController.containerView?.layoutIfNeeded()
-                        } completion: { _ in
-                            self.allowUIKitAnimationsForNextUpdate = false
+                        if let transitionCoordinator {
+                            transitionCoordinator.animate { _ in
+                                presentationController.layoutPresentedView(frame: frame)
+                            } completion: { [weak self] _ in
+                                self?.allowUIKitAnimationsForNextUpdate = false
+                            }
+                        } else {
+                            UIView.animate(
+                                withDuration: 0.35,
+                                delay: 0,
+                                options: [
+                                    .beginFromCurrentState,
+                                    .curveEaseInOut
+                                ]
+                            ) {
+                                presentationController.layoutPresentedView(frame: frame)
+                            } completion: { [weak self] _ in
+                                self?.allowUIKitAnimationsForNextUpdate = false
+                            }
                         }
                     } else {
                         presentationController.layoutPresentedView(frame: frame)
                     }
                 } else {
+                    let contentSize = CGRect(origin: .zero, size: view.idealSize).inset(by: view.safeAreaInsets).size
                     preferredContentSize = contentSize
                 }
             } else {
+                let contentSize = CGRect(origin: .zero, size: view.idealSize).inset(by: view.safeAreaInsets).size
                 preferredContentSize = contentSize
             }
         }

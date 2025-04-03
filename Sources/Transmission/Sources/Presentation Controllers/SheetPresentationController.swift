@@ -10,23 +10,32 @@ import Engine
 
 #if targetEnvironment(macCatalyst)
 @available(iOS 15.0, *)
-typealias SheetPresentationController = MacSheetPresentationController
+public typealias SheetPresentationController = MacSheetPresentationController
 
 @available(iOS 15.0, *)
-final class MacSheetTransition: SlidePresentationControllerTransition {
+open class MacSheetTransition: SlidePresentationControllerTransition {
 
+    public init(
+        preferredCornerRadius: CGFloat?,
+        isPresenting: Bool,
+        animation: Animation?
+    ) {
+        let cornerRadius = preferredCornerRadius ?? 12
+        super.init(
+            edge: .bottom,
+            prefersScaleEffect: false,
+            preferredFromCornerRadius: cornerRadius,
+            preferredToCornerRadius: cornerRadius,
+            isPresenting: isPresenting,
+            animation: animation
+        )
+    }
 }
 
 @available(iOS 15.0, *)
-final class MacSheetPresentationController: SlidePresentationController {
+open class MacSheetPresentationController: SlidePresentationController {
 
-    var preferredCornerRadius: CGFloat? {
-        didSet {
-            presentedViewController.viewIfLoaded?.layer.cornerRadius = preferredCornerRadius ?? SlidePresentationControllerTransition.displayCornerRadius
-        }
-    }
-
-    var detent: PresentationLinkTransition.SheetTransitionOptions.Detent = .large {
+    public var detent: PresentationLinkTransition.SheetTransitionOptions.Detent = .large {
         didSet {
             dimmingView.isHidden = largestUndimmedDetentIdentifier == detent.identifier
         }
@@ -36,7 +45,7 @@ final class MacSheetPresentationController: SlidePresentationController {
     var largestUndimmedDetentIdentifier: PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier?
 
     private var prevPresentationController: MacSheetPresentationController? {
-        presentingViewController.presentationController as? MacSheetPresentationController
+        presentingViewController._activePresentationController as? MacSheetPresentationController
     }
 
     private var depth = 0 {
@@ -56,7 +65,7 @@ final class MacSheetPresentationController: SlidePresentationController {
         prevPresentationController?.prevPresentationController?.depth -= 1
     }
 
-    override var frameOfPresentedViewInContainerView: CGRect {
+    open override var frameOfPresentedViewInContainerView: CGRect {
         let frame = super.frameOfPresentedViewInContainerView.inset(by: containerView?.safeAreaInsets ?? .zero)
         let isPinnedToEdges = frame.size.height > (1.5 * frame.size.width)
         let targetRect: CGRect = {
@@ -152,13 +161,22 @@ final class MacSheetPresentationController: SlidePresentationController {
         }
     }
 
-    override func presentationTransitionWillBegin() {
+    public init(
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?
+    ) {
+        super.init(
+            edge: .bottom,
+            presentedViewController: presentedViewController,
+            presenting: presentingViewController
+        )
+        presentedViewShadow = .prominent
+    }
+
+    open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
 
         selected?.wrappedValue = detent.identifier
-
-        presentedViewController.view.layer.cornerCurve = .continuous
-        presentedViewController.view.layer.cornerRadius = preferredCornerRadius ?? SlidePresentationControllerTransition.displayCornerRadius
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
             transitionCoordinator.animate(alongsideTransition: { [unowned self] _ in
@@ -171,7 +189,7 @@ final class MacSheetPresentationController: SlidePresentationController {
         }
     }
 
-    override func presentationTransitionDidEnd(_ completed: Bool) {
+    open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
 
         if !completed {
@@ -179,7 +197,7 @@ final class MacSheetPresentationController: SlidePresentationController {
         }
     }
 
-    override func dismissalTransitionWillBegin() {
+    open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
@@ -193,7 +211,7 @@ final class MacSheetPresentationController: SlidePresentationController {
         }
     }
 
-    override func dismissalTransitionDidEnd(_ completed: Bool) {
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
         super.dismissalTransitionDidEnd(completed)
 
         if completed {
@@ -201,7 +219,7 @@ final class MacSheetPresentationController: SlidePresentationController {
         }
     }
 
-    override func containerViewDidLayoutSubviews() {
+    open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
 
         if let presentedView = presentedView {
@@ -212,7 +230,7 @@ final class MacSheetPresentationController: SlidePresentationController {
         }
     }
 
-    override func layoutPresentedView(frame: CGRect) {
+    open override func layoutPresentedView(frame: CGRect) {
         presentedView?.transform = .identity
         super.layoutPresentedView(frame: frame)
         if depth > 0 {
@@ -270,11 +288,8 @@ extension PresentationLinkTransition.SheetTransitionOptions {
     ) {
         let detents = newValue.detents
         #if targetEnvironment(macCatalyst)
-        let cornerRadius = newValue.preferredCornerRadius
         let hasChanges: Bool = {
-            if presentationController.presentedViewController.view.layer.cornerRadius != cornerRadius {
-                return true
-            } else if oldValue.largestUndimmedDetentIdentifier != newValue.largestUndimmedDetentIdentifier {
+            if oldValue.largestUndimmedDetentIdentifier != newValue.largestUndimmedDetentIdentifier {
                 return true
             } else if let selected = newValue.selected,
                 presentationController.detent.identifier != selected.wrappedValue
@@ -306,7 +321,6 @@ extension PresentationLinkTransition.SheetTransitionOptions {
         if hasChanges {
             func applyConfiguration() {
                 #if targetEnvironment(macCatalyst)
-                presentationController.preferredCornerRadius = cornerRadius
                 presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetentIdentifier
                 presentationController.selected = newValue.selected
                 let selected = newValue.selected?.wrappedValue
