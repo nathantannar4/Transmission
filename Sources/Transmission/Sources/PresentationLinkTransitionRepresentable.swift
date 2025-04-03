@@ -43,6 +43,12 @@ public protocol PresentationLinkTransitionRepresentable {
         context: Context
     )
 
+    /// Updates the presented hosting controller
+    @MainActor @preconcurrency func updateHostingController<Content: View>(
+        presenting: PresentationHostingController<Content>,
+        context: Context
+    )
+
     /// The animation controller to use for the transition presentation.
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
@@ -101,6 +107,14 @@ public protocol PresentationLinkTransitionRepresentable {
 
 @available(iOS 14.0, *)
 extension PresentationLinkTransitionRepresentable {
+
+    public func updateHostingController<Content: View>(
+        presenting: PresentationHostingController<Content>,
+        context: Context
+    ) {
+
+    }
+
     public func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,

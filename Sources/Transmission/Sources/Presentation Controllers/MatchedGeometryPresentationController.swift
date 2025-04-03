@@ -222,6 +222,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             return animator
         }
 
+        let sourceView = sourceView
         let sourceViewController = sourceView?.viewController
         let prefersScaleEffect = prefersScaleEffect
         let prefersZoomEffect = prefersZoomEffect
@@ -289,6 +290,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
 
             if prefersZoomEffect {
                 presented.view.frame = presentedFrame
+                sourceView?.alpha = 1 - fromOpacity
                 if let portalView {
                     transitionContext.containerView.addSubview(portalView)
                 }
@@ -341,6 +343,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         }
         animator.addAnimations({
             if prefersZoomEffect {
+                sourceView?.alpha = isPresenting ? 0 : 1 - fromOpacity
                 portalView?.alpha = isPresenting ? 1 : fromOpacity
             } else {
                 presented.view.alpha = isPresenting ? 1 : fromOpacity

@@ -117,11 +117,23 @@ open class CardPresentationController: InteractivePresentationController {
         dimmingView.isHidden = false
     }
 
+    open override func presentationTransitionDidEnd(_ completed: Bool) {
+        super.presentationTransitionDidEnd(completed)
+        if completed {
+            cornerRadiusDidChange()
+        }
+    }
+
     open override func dismissalTransitionDidEnd(_ completed: Bool) {
         super.dismissalTransitionDidEnd(completed)
         if completed {
             presentedViewController.view.layer.cornerRadius = 0
         }
+    }
+
+    open override func transitionAlongsidePresentation(isPresented: Bool) {
+        super.transitionAlongsidePresentation(isPresented: isPresented)
+        cornerRadiusDidChange()
     }
 
     open override func dismissalTransitionShouldBegin(

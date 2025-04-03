@@ -48,6 +48,7 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
             isHidden = false
             let hostingView = HostingView(content: content)
             addSubview(hostingView)
+            hostingView.disablesSafeArea = true
             self.hostingView = hostingView
         }
     }

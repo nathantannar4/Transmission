@@ -43,7 +43,7 @@ open class PresentationHostingController<
             return
         }
 
-        let isAnimated = isBeingPresented ? false : transitionCoordinator?.isAnimated ?? true
+        let isAnimated = transitionCoordinator?.isAnimated ?? true
 
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,
@@ -70,9 +70,10 @@ open class PresentationHostingController<
                 maximumDetentValue: maximumDetentValue
             )
             let height = presentedView.frame.height - (presentedView.safeAreaInsets.top + presentedView.safeAreaInsets.bottom)
-            guard let resolvedDetentHeight, resolvedDetentHeight != height else {
+            guard let resolvedDetentHeight, abs(resolvedDetentHeight - height) > 1e-5 else {
                 return
             }
+            let isAnimated = isAnimated && !isBeingPresented
 
             func performTransition(animated: Bool, completion: (() -> Void)? = nil) {
                 if #available(iOS 16.0, *) {
@@ -103,8 +104,8 @@ open class PresentationHostingController<
 
             if #available(iOS 16.0, *) {
                 allowUIKitAnimationsForNextUpdate = true
-                performTransition(animated: isAnimated) {
-                    self.allowUIKitAnimationsForNextUpdate = false
+                performTransition(animated: isAnimated) { [weak self] in
+                    self?.allowUIKitAnimationsForNextUpdate = false
                 }
             } else {
                 withCATransaction {
@@ -121,6 +122,7 @@ open class PresentationHostingController<
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {
+                    let isAnimated = isAnimated && !isBeingPresented
                     let oldSize = preferredContentSize
                     if oldSize == .zero || oldSize == CGSize(width: 10_000, height: 10_000) || !isAnimated {
                         preferredContentSize = contentSize

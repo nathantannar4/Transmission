@@ -1043,7 +1043,15 @@ private class PresentationLinkDestinationViewControllerAdapter<
                     )
                 )
             )
-            transition.update(viewController)
+            transition.update(
+                viewController,
+                context: .init(
+                    sourceView: sourceView,
+                    options: transition.options,
+                    environment: context.environment,
+                    transaction: context.transaction
+                )
+            )
             self.viewController = viewController
         }
     }
@@ -1102,7 +1110,15 @@ private class PresentationLinkDestinationViewControllerAdapter<
                     )
                 )
             )
-            transition.update(viewController)
+            transition.update(
+                viewController,
+                context: .init(
+                    sourceView: sourceView,
+                    options: transition.options,
+                    environment: context.environment,
+                    transaction: context.transaction
+                )
+            )
         }
     }
 
@@ -1233,7 +1249,10 @@ private class PresentationLinkDestinationViewControllerAdapter<
 @available(iOS 14.0, *)
 extension PresentationLinkTransition.Value {
 
-    func update<Content: View>(_ viewController: PresentationHostingController<Content>) {
+    func update<Content: View>(
+        _ viewController: PresentationHostingController<Content>,
+        context: @autoclosure () -> PresentationLinkTransitionRepresentableContext
+    ) {
 
         viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
         if let backgroundColor = options.preferredPresentationBackgroundUIColor {
@@ -1250,6 +1269,9 @@ extension PresentationLinkTransition.Value {
 
         case .popover, .card:
             viewController.tracksContentSize = true
+
+        case .representable(_, let transition):
+            transition.updateHostingController(presenting: viewController, context: context())
 
         default:
             break

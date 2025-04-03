@@ -823,9 +823,9 @@ extension PresentationLinkTransition {
 
     /// The card presentation style.
     public static func card(
-        preferredEdgeInset: CGFloat?,
-        preferredCornerRadius: CGFloat?,
-        preferredAspectRatio: CGFloat?
+        preferredEdgeInset: CGFloat? = nil,
+        preferredCornerRadius: CGFloat? = nil,
+        preferredAspectRatio: CGFloat? = 1
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(
             value: .card(

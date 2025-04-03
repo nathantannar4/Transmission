@@ -252,7 +252,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 if shouldFinish, gestureRecognizer.state == .ended {
                     transition.finish()
                 } else {
-                    transition.completionSpeed = 1 - percentage
+                    transition.completionSpeed = percentage
                     transition.cancel()
                 }
                 self.transition = nil
