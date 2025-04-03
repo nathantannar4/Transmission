@@ -7,6 +7,137 @@
 import UIKit
 import SwiftUI
 
+@available(iOS 14.0, *)
+extension PresentationLinkTransition {
+
+    /// The slide presentation style.
+    public static var slide: PresentationLinkTransition = .slide()
+
+    /// The slide presentation style.
+    public static func slide(
+        _ transitionOptions: SlidePresentationLinkTransition.Options,
+        options: PresentationLinkTransition.Options = .init(
+            modalPresentationCapturesStatusBarAppearance: true
+        )
+    ) -> PresentationLinkTransition {
+        .custom(
+            options: options,
+            SlidePresentationLinkTransition(options: transitionOptions)
+        )
+    }
+
+    /// The slide presentation style.
+    public static func slide(
+        edge: Edge = .bottom,
+        prefersScaleEffect: Bool = true,
+        preferredCornerRadius: CGFloat? = nil,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
+    ) -> PresentationLinkTransition {
+        .slide(
+            .init(
+                edge: edge,
+                prefersScaleEffect: prefersScaleEffect,
+                preferredCornerRadius: preferredCornerRadius,
+                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .prominent
+            ),
+            options: .init(
+                isInteractive: isInteractive,
+                modalPresentationCapturesStatusBarAppearance: true,
+                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+            )
+        )
+    }
+}
+
+@frozen
+@available(iOS 14.0, *)
+public struct SlidePresentationLinkTransition: PresentationLinkTransitionRepresentable {
+
+    /// The transition options for a card transition.
+    @frozen
+    public struct Options {
+
+        public var edge: Edge
+        public var prefersScaleEffect: Bool
+        public var preferredCornerRadius: CGFloat?
+        public var preferredPresentationShadow: PresentationLinkTransition.Shadow
+
+        public init(
+            edge: Edge = .bottom,
+            prefersScaleEffect: Bool = true,
+            preferredCornerRadius: CGFloat? = nil,
+            preferredPresentationShadow: PresentationLinkTransition.Shadow = .prominent
+        ) {
+            self.edge = edge
+            self.prefersScaleEffect = prefersScaleEffect
+            self.preferredCornerRadius = preferredCornerRadius
+            self.preferredPresentationShadow = preferredPresentationShadow
+        }
+    }
+    public var options: Options
+
+    public init(options: Options = .init()) {
+        self.options = options
+    }
+
+    public func makeUIPresentationController(
+        presented: UIViewController,
+        presenting: UIViewController?,
+        context: Context
+    ) -> SlidePresentationController {
+        let presentationController = SlidePresentationController(
+            edge: options.edge,
+            preferredCornerRadius: options.preferredCornerRadius,
+            presentedViewController: presented,
+            presenting: presenting
+        )
+        presentationController.presentedViewShadow = options.preferredPresentationShadow
+        return presentationController
+    }
+
+    public func updateUIPresentationController(
+        presentationController: SlidePresentationController,
+        context: Context
+    ) {
+        presentationController.edge = options.edge
+        presentationController.presentedViewShadow = options.preferredPresentationShadow
+    }
+
+    public func animationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController,
+        context: Context
+    ) -> (any UIViewControllerAnimatedTransitioning)? {
+        let transition = SlidePresentationControllerTransition(
+            edge: options.edge,
+            prefersScaleEffect: options.prefersScaleEffect,
+            isPresenting: true,
+            animation: context.transaction.animation
+        )
+        transition.wantsInteractiveStart = false
+        return transition
+    }
+
+    public func animationController(
+        forDismissed dismissed: UIViewController,
+        context: Context
+    ) -> (any UIViewControllerAnimatedTransitioning)? {
+        guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
+            return nil
+        }
+        let transition = SlidePresentationControllerTransition(
+            edge: options.edge,
+            prefersScaleEffect: options.prefersScaleEffect,
+            isPresenting: false,
+            animation: context.transaction.animation
+        )
+        transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
+        presentationController.transition(with: transition)
+        return transition
+    }
+}
+
 /// A presentation controller that presents the view in a full screen sheet
 @available(iOS 14.0, *)
 open class SlidePresentationController: InteractivePresentationController {
@@ -39,6 +170,7 @@ open class SlidePresentationController: InteractivePresentationController {
 
     public init(
         edge: Edge = .bottom,
+        preferredCornerRadius: CGFloat? = nil,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
@@ -47,6 +179,7 @@ open class SlidePresentationController: InteractivePresentationController {
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
+        self.preferredCornerRadius = preferredCornerRadius
     }
 
     open override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
@@ -139,7 +272,6 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
 
     public var edge: Edge
     public var prefersScaleEffect: Bool
-    public var presentationBackgroundColor: UIColor?
 
     static let displayCornerRadius: CGFloat = {
         #if targetEnvironment(macCatalyst)
@@ -152,13 +284,11 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
     public init(
         edge: Edge,
         prefersScaleEffect: Bool = true,
-        presentationBackgroundColor: UIColor? = nil,
         isPresenting: Bool,
         animation: Animation?
     ) {
         self.edge = edge
         self.prefersScaleEffect = prefersScaleEffect
-        self.presentationBackgroundColor = presentationBackgroundColor
         super.init(isPresenting: isPresenting, animation: animation)
     }
 
@@ -181,7 +311,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         #if targetEnvironment(macCatalyst)
         let isScaleEnabled = false
         #else
-        let isTranslucentBackground = presentationBackgroundColor?.isTranslucent ?? false
+        let isTranslucentBackground = presented.view.backgroundColor?.isTranslucent ?? false
         let isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
             frame.origin.y == 0
         #endif

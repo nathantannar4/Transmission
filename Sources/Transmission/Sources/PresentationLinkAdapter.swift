@@ -161,35 +161,6 @@ private struct PresentationLinkAdapterBody<
                         }
                     }
 
-                case (.slide, .slide(let newValue)):
-                    if let presentationController = adapter.viewController.presentationController as? SlidePresentationController {
-                        presentationController.edge = newValue.edge
-                        presentationController.presentedViewShadow = newValue.options.preferredPresentationShadow
-                    }
-
-                case (.card, .card(let newValue)):
-                    if let presentationController = adapter.viewController.presentationController as? CardPresentationController {
-                        presentationController.preferredEdgeInset = newValue.preferredEdgeInset
-                        presentationController.preferredCornerRadius = newValue.preferredCornerRadius
-                        presentationController.preferredAspectRatio = newValue.preferredAspectRatio
-                        presentationController.presentedViewShadow = newValue.options.preferredPresentationShadow
-                    }
-
-                case (.matchedGeometry, .matchedGeometry(let newValue)):
-                    if let presentationController = adapter.viewController.presentationController as? MatchedGeometryPresentationController {
-                        presentationController.edges = newValue.edges
-                        presentationController.preferredCornerRadius = newValue.preferredCornerRadius
-                        presentationController.minimumScaleFactor = newValue.minimumScaleFactor
-                        presentationController.prefersZoomEffect = newValue.prefersZoomEffect
-                        presentationController.presentedViewShadow = newValue.options.preferredPresentationShadow
-                    }
-
-                case (.toast, .toast(let newValue)):
-                    if let presentationController = adapter.viewController.presentationController as? ToastPresentationController {
-                        presentationController.edge = newValue.edge
-                        presentationController.presentedViewShadow = newValue.options.preferredPresentationShadow
-                    }
-
                 case (.zoom, .zoom):
                     break
 
@@ -316,7 +287,7 @@ private struct PresentationLinkAdapterBody<
                     adapter.viewController.modalPresentationStyle = .overFullScreen
                     adapter.viewController.presentationController?.overrideTraitCollection = traits
 
-                case .sheet, .popover, .slide, .card, .matchedGeometry, .toast:
+                case .sheet, .popover:
                     context.coordinator.sourceView = uiView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
@@ -588,47 +559,6 @@ private struct PresentationLinkAdapterBody<
                 #endif
                 return nil
 
-            case .slide(let options):
-                let transition = SlidePresentationControllerTransition(
-                    edge: options.edge,
-                    prefersScaleEffect: options.prefersScaleEffect,
-                    presentationBackgroundColor: options.options.preferredPresentationBackgroundUIColor,
-                    isPresenting: true,
-                    animation: animation
-                )
-                transition.wantsInteractiveStart = false
-                return transition
-
-            case .card:
-                let transition = PresentationControllerTransition(
-                    isPresenting: true,
-                    animation: animation
-                )
-                transition.wantsInteractiveStart = false
-                return transition
-
-            case .matchedGeometry(let options):
-                let transition = MatchedGeometryPresentationControllerTransition(
-                    sourceView: sourceView,
-                    prefersScaleEffect: options.prefersScaleEffect,
-                    prefersZoomEffect: options.prefersScaleEffect,
-                    preferredCornerRadius: options.preferredCornerRadius,
-                    fromOpacity: options.initialOpacity,
-                    isPresenting: true,
-                    animation: animation
-                )
-                transition.wantsInteractiveStart = false
-                return transition
-
-            case .toast(let options):
-                let transition = ToastPresentationControllerTransition(
-                    edge: options.edge,
-                    isPresenting: true,
-                    animation: animation
-                )
-                transition.wantsInteractiveStart = false
-                return transition
-
             case .representable(let options, let transition):
                 return transition.animationController(
                     forPresented: presented,
@@ -665,68 +595,15 @@ private struct PresentationLinkAdapterBody<
                 #endif
                 return nil
 
-            case .slide(let options):
-                guard let presentationController = dismissed.presentationController as? SlidePresentationController else {
-                    return nil
-                }
-                let transition = SlidePresentationControllerTransition(
-                    edge: options.edge,
-                    prefersScaleEffect: options.prefersScaleEffect,
-                    presentationBackgroundColor: options.options.preferredPresentationBackgroundUIColor,
-                    isPresenting: false,
-                    animation: animation
-                )
-                transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
-                presentationController.transition(with: transition)
-                return transition
-
-            case .card(let options):
-                guard let presentationController = dismissed.presentationController as? CardPresentationController else {
-                    return nil
-                }
-                let transition = CardPresentationControllerTransition(
-                    isPresenting: false,
-                    animation: animation
-                )
-                transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
-                presentationController.transition(with: transition)
-                return transition
-
-            case .matchedGeometry(let options):
-                guard let presentationController = dismissed.presentationController as? MatchedGeometryPresentationController else {
-                    return nil
-                }
-                let transition = MatchedGeometryPresentationControllerTransition(
-                    sourceView: sourceView,
-                    prefersScaleEffect: options.prefersScaleEffect,
-                    prefersZoomEffect: options.prefersScaleEffect,
-                    preferredCornerRadius: options.preferredCornerRadius,
-                    fromOpacity: options.initialOpacity,
-                    isPresenting: false,
-                    animation: animation
-                )
-                transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
-                presentationController.transition(with: transition)
-                return transition
-
-            case .toast(let options):
-                guard let presentationController = dismissed.presentationController as? ToastPresentationController else {
-                    return nil
-                }
-                let transition = ToastPresentationControllerTransition(
-                    edge: options.edge,
-                    isPresenting: false,
-                    animation: animation
-                )
-                transition.wantsInteractiveStart = options.options.isInteractive && presentationController.wantsInteractiveTransition
-                presentationController.transition(with: transition)
-                return transition
-
             case .representable(let options, let transition):
-                return transition.animationController(
+                let animationController = transition.animationController(
                     forDismissed: dismissed,
                     context: makeContext(options: options)
                 )
+                if let transition = animationController as? UIPercentDrivenInteractiveTransition {
+                    transition.wantsInteractiveStart = options.isInteractive && transition.wantsInteractiveStart
+                }
+                return animationController
 
             default:
                 return nil
@@ -761,18 +638,6 @@ private struct PresentationLinkAdapterBody<
                 }
                 #endif
                 return nil
-
-            case .slide:
-                return animator as? SlidePresentationControllerTransition
-
-            case .card:
-                return animator as? PresentationControllerTransition
-
-            case .matchedGeometry:
-                return animator as? MatchedGeometryPresentationControllerTransition
-
-            case .toast:
-                return animator as? ToastPresentationControllerTransition
 
             case .representable(let options, let transition):
                 return transition.interactionControllerForDismissal(
@@ -835,7 +700,6 @@ private struct PresentationLinkAdapterBody<
                         presentedViewController: presented,
                         presenting: presenting
                     )
-                    presentationController.presentedViewShadow = options.options.preferredPresentationShadow
                     presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
                     return presentationController
@@ -851,55 +715,6 @@ private struct PresentationLinkAdapterBody<
                     layoutDirection: presentationController.traitCollection.layoutDirection
                 )
                 presentationController.sourceView = sourceView
-                presentationController.overrideTraitCollection = overrideTraitCollection
-                presentationController.delegate = self
-                return presentationController
-
-            case .slide(let options):
-                let presentationController = SlidePresentationController(
-                    edge: options.edge,
-                    presentedViewController: presented,
-                    presenting: presenting
-                )
-                presentationController.presentedViewShadow = options.options.preferredPresentationShadow
-                presentationController.overrideTraitCollection = overrideTraitCollection
-                presentationController.delegate = self
-                return presentationController
-
-            case .card(let options):
-                let presentationController = CardPresentationController(
-                    preferredEdgeInset: options.preferredEdgeInset,
-                    preferredCornerRadius: options.preferredCornerRadius,
-                    preferredAspectRatio: options.preferredAspectRatio,
-                    presentedViewController: presented,
-                    presenting: presenting
-                )
-                presentationController.presentedViewShadow = options.options.preferredPresentationShadow
-                presentationController.overrideTraitCollection = overrideTraitCollection
-                presentationController.delegate = self
-                return presentationController
-
-            case .matchedGeometry(let options):
-                let presentationController = MatchedGeometryPresentationController(
-                    edges: options.edges,
-                    preferredCornerRadius: options.preferredCornerRadius,
-                    minimumScaleFactor: options.minimumScaleFactor,
-                    prefersZoomEffect: options.prefersScaleEffect,
-                    presentedViewController: presented,
-                    presenting: presenting
-                )
-                presentationController.presentedViewShadow = options.options.preferredPresentationShadow
-                presentationController.overrideTraitCollection = overrideTraitCollection
-                presentationController.delegate = self
-                return presentationController
-
-            case .toast(let options):
-                let presentationController = ToastPresentationController(
-                    edge: options.edge,
-                    presentedViewController: presented,
-                    presenting: presenting
-                )
-                presentationController.presentedViewShadow = options.options.preferredPresentationShadow
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
@@ -1267,7 +1082,7 @@ extension PresentationLinkTransition.Value {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
             }
 
-        case .popover, .card:
+        case .popover:
             viewController.tracksContentSize = true
 
         case .representable(_, let transition):

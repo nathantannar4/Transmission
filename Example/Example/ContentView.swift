@@ -34,6 +34,7 @@ struct ContentView: View {
     @State var isHeroPresented: Bool = false
     @State var isMatchedGeometryPresented = false
     @State var isZoomPresented = false
+    @State var isCardMatchedGeometryPresented = false
     @State var isSourceViewZoomPresented = false
     @State var progress: CGFloat = 0
     @State var isDestinationLinkExpanded: Bool = true
@@ -50,6 +51,18 @@ struct ContentView: View {
                         ContentView()
                     } label: {
                         Text("Push")
+                    }
+
+                    DestinationLink(transition: .matchedGeometry) {
+                        ContentView()
+                    } label: {
+                        Text("Push w/ Matched Geometry")
+                    }
+
+                    DestinationSourceViewLink(transition: .zoomIfAvailable) {
+                        ContentView()
+                    } label: {
+                        Text("Push w/ Zoom")
                     }
 
                     Button("Pop All") {
@@ -229,16 +242,44 @@ struct ContentView: View {
 
                     PresentationLink(
                         transition: .card(
-                            options: .init(
-                                preferredEdgeInset: 0,
-                                preferredCornerRadius: 0
-                            )
+                            preferredEdgeInset: 0,
+                            preferredCornerRadius: 0
                         )
                     ) {
                         CardView()
                     } label: {
                         Text("Card (custom insets)")
                     }
+
+                    Button {
+                        withAnimation(.spring(duration: 0.5)) {
+                            isCardMatchedGeometryPresented = true
+                        }
+                    } label: {
+                        HStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue)
+                                .frame(width: 44, height: 44)
+                                .presentation(
+                                    transition: .asymmetric(
+                                        presented: CardPresentationLinkTransition(),
+                                        presenting: MatchedGeometryPresentationLinkTransition(
+                                            options: .init(
+                                                prefersZoomEffect: true,
+                                                initialOpacity: 1
+                                            )
+                                        ),
+                                        dismissing: .default
+                                    ),
+                                    isPresented: $isCardMatchedGeometryPresented
+                                ) {
+                                    InfoCardView()
+                                }
+
+                            Text("Card w/ Matched Geometry")
+                        }
+                    }
+
                 } header: {
                     Text("Card Transitions")
                 }
@@ -274,6 +315,21 @@ struct ContentView: View {
                         } label: {
                             Text("Slide (\(String(describing: edge)))")
                         }
+                    }
+
+                    PresentationLink(
+                        transition: .slide(
+                            edge: .bottom,
+                            preferredPresentationBackgroundColor: .clear
+                        )
+                    ) {
+                        VStack {
+                            Text("Hello, World")
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Material.ultraThin, ignoresSafeAreaEdges: .all)
+                    } label: {
+                        Text("Slide (Clear Background)")
                     }
                 } header: {
                     Text("Slide Transitions")
@@ -617,6 +673,27 @@ struct CardView: View {
         SafeAreaVisualizerView {
             TextField("Placeholder", text: $text)
                 .fixedSize()
+        }
+    }
+}
+
+struct InfoCardView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Lorem ipsum")
+                    .font(.title3.bold())
+
+                Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+                    .foregroundStyle(.secondary)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+
+            DismissPresentationLink {
+                Text("Done")
+                    .frame(maxWidth: .infinity, minHeight: 32)
+            }
+            .buttonStyle(.bordered)
         }
     }
 }

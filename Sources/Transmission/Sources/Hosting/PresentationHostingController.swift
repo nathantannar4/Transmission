@@ -135,29 +135,37 @@ open class PresentationHostingController<
                                 .beginFromCurrentState,
                                 .curveEaseInOut
                             ]
-                        ) {
-                            self.preferredContentSize = contentSize
-                        } completion: { _ in
-                            self.allowUIKitAnimationsForNextUpdate = false
+                        ) { [weak self] in
+                            self?.preferredContentSize = contentSize
+                        } completion: { [weak self] _ in
+                            self?.allowUIKitAnimationsForNextUpdate = false
                         }
                     }
                 } else if let presentationController = presentationController as? PresentationController {
                     preferredContentSize = contentSize
                     let frame = presentationController.frameOfPresentedViewInContainerView
+                    guard !view.frame.isApproximatelyEqual(to: frame) else { return }
                     if isAnimated {
                         self.allowUIKitAnimationsForNextUpdate = true
-                        UIView.animate(
-                            withDuration: 0.35,
-                            delay: 0,
-                            options: [
-                                .beginFromCurrentState,
-                                .curveEaseInOut
-                            ]
-                        ) {
-                            presentationController.layoutPresentedView(frame: frame)
-                            presentationController.containerView?.layoutIfNeeded()
-                        } completion: { _ in
-                            self.allowUIKitAnimationsForNextUpdate = false
+                        if let transitionCoordinator {
+                            transitionCoordinator.animate { _ in
+                                presentationController.layoutPresentedView(frame: frame)
+                            } completion: { [weak self] _ in
+                                self?.allowUIKitAnimationsForNextUpdate = false
+                            }
+                        } else {
+                            UIView.animate(
+                                withDuration: 0.35,
+                                delay: 0,
+                                options: [
+                                    .beginFromCurrentState,
+                                    .curveEaseInOut
+                                ]
+                            ) {
+                                presentationController.layoutPresentedView(frame: frame)
+                            } completion: { [weak self] _ in
+                                self?.allowUIKitAnimationsForNextUpdate = false
+                            }
                         }
                     } else {
                         presentationController.layoutPresentedView(frame: frame)

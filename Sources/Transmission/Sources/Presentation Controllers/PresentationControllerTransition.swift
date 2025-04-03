@@ -113,6 +113,7 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
                 y: frame.size.height + transitionContext.containerView.safeAreaInsets.bottom
             )
             presented.view.transform = transform
+            transitionContext.containerView.layoutIfNeeded()
             animator.addAnimations {
                 presented.view.transform = .identity
             }
@@ -120,7 +121,7 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
             if presenting.view.superview == nil {
                 transitionContext.containerView.insertSubview(presenting.view, at: 0)
                 presenting.view.frame = transitionContext.finalFrame(for: presenting)
-                presenting.view.layoutIfNeeded()
+                transitionContext.containerView.layoutIfNeeded()
             }
             let frame = transitionContext.finalFrame(for: presented)
             let dy = transitionContext.containerView.frame.height - frame.origin.y

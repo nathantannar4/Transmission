@@ -16,10 +16,6 @@ public struct PresentationLinkTransition: Sendable {
         case currentContext(Options)
         case fullscreen(Options)
         case popover(PopoverTransitionOptions)
-        case slide(SlideTransitionOptions)
-        case card(CardTransitionOptions)
-        case matchedGeometry(MatchedGeometryTransitionOptions)
-        case toast(ToastTransitionOptions)
         case zoom(Options)
         case representable(Options, any PresentationLinkTransitionRepresentable)
 
@@ -30,14 +26,6 @@ public struct PresentationLinkTransition: Sendable {
             case .sheet(let options):
                 return options.options
             case .popover(let options):
-                return options.options
-            case .slide(let options):
-                return options.options
-            case .card(let options):
-                return options.options
-            case .matchedGeometry(let options):
-                return options.options
-            case .toast(let options):
                 return options.options
             case .currentContext(let options),
                 .fullscreen(let options),
@@ -63,28 +51,6 @@ public struct PresentationLinkTransition: Sendable {
 
     /// The popover presentation style.
     public static let popover = PresentationLinkTransition(value: .popover(.init()))
-
-    /// The slide presentation style.
-    public static let slide = PresentationLinkTransition(value: .slide(.init()))
-
-    /// The card presentation style.
-    public static let card = PresentationLinkTransition(value: .card(.init()))
-
-    /// The matched geometry presentation style.
-    public static let matchedGeometry = PresentationLinkTransition(value: .matchedGeometry(.init()))
-
-    /// The matched geometry zoom presentation style.
-    public static let matchedGeometryZoom = PresentationLinkTransition(value: .matchedGeometry(
-        .init(
-            preferredCornerRadius: nil,
-            prefersScaleEffect: true,
-            prefersZoomEffect: true,
-            initialOpacity: 0
-        )
-    ))
-
-    /// The toast presentation style.
-    public static let toast = PresentationLinkTransition(value: .toast(.init()))
 
     /// The zoom presentation style.
     @available(iOS 18.0, *)
@@ -123,7 +89,6 @@ extension PresentationLinkTransition {
         public var shouldAutomaticallyDismissPresentedView: Bool
         public var modalPresentationCapturesStatusBarAppearance: Bool
         public var preferredPresentationBackgroundColor: Color?
-        public var preferredPresentationShadow: Shadow
 
         public init(
             isInteractive: Bool = true,
@@ -131,8 +96,7 @@ extension PresentationLinkTransition {
             shouldAutomaticallyDismissDestination: Bool = true,
             shouldAutomaticallyDismissPresentedView: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
-            preferredPresentationBackgroundColor: Color? = nil,
-            preferredPresentationShadow: Shadow = .clear
+            preferredPresentationBackgroundColor: Color? = nil
         ) {
             self.isInteractive = isInteractive
             self.isDestinationReusable = isDestinationReusable
@@ -140,7 +104,6 @@ extension PresentationLinkTransition {
             self.shouldAutomaticallyDismissPresentedView = shouldAutomaticallyDismissPresentedView
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
-            self.preferredPresentationShadow = preferredPresentationShadow
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {
@@ -599,130 +562,6 @@ extension PresentationLinkTransition {
 
 @available(iOS 14.0, *)
 extension PresentationLinkTransition {
-    /// The transition options for a slide transition.
-    @frozen
-    public struct SlideTransitionOptions {
-
-        public var options: Options
-        public var edge: Edge
-        public var prefersScaleEffect: Bool
-        public var preferredCornerRadius: CGFloat?
-
-        public init(
-            edge: Edge = .bottom,
-            prefersScaleEffect: Bool = true,
-            preferredCornerRadius: CGFloat? = nil,
-            isInteractive: Bool? = nil,
-            options: Options = .init(
-                modalPresentationCapturesStatusBarAppearance: true,
-                preferredPresentationShadow: .prominent
-            )
-        ) {
-            self.options = options
-            if let isInteractive {
-                self.options.isInteractive = isInteractive
-            }
-            self.edge = edge
-            self.prefersScaleEffect = prefersScaleEffect
-            self.preferredCornerRadius = preferredCornerRadius
-        }
-    }
-}
-
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-    /// The transition options for a card transition.
-    @frozen
-    public struct CardTransitionOptions {
-
-        public var options: Options
-        public var preferredEdgeInset: CGFloat?
-        public var preferredCornerRadius: CGFloat?
-        /// A `nil` aspect ratio will size the cards height to it's ideal size
-        public var preferredAspectRatio: CGFloat?
-
-        public init(
-            preferredEdgeInset: CGFloat? = nil,
-            preferredCornerRadius: CGFloat? = nil,
-            preferredAspectRatio: CGFloat? = 1,
-            isInteractive: Bool? = nil,
-            options: Options = .init(
-                modalPresentationCapturesStatusBarAppearance: true,
-                preferredPresentationShadow: .minimal
-            )
-        ) {
-            self.options = options
-            if let isInteractive {
-                self.options.isInteractive = isInteractive
-            }
-            self.preferredEdgeInset = preferredEdgeInset
-            self.preferredCornerRadius = preferredCornerRadius
-            self.preferredAspectRatio = preferredAspectRatio
-        }
-    }
-}
-
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-    /// The transition options for a matched geometry transition.
-    @frozen
-    public struct MatchedGeometryTransitionOptions {
-
-        public var options: Options
-        public var edges: Edge.Set
-        public var preferredCornerRadius: CGFloat?
-        public var prefersScaleEffect: Bool
-        public var prefersZoomEffect: Bool
-        public var minimumScaleFactor: CGFloat
-        public var initialOpacity: CGFloat
-
-        public init(
-            edges: Edge.Set = .all,
-            preferredCornerRadius: CGFloat? = nil,
-            prefersScaleEffect: Bool = false,
-            prefersZoomEffect: Bool = false,
-            minimumScaleFactor: CGFloat = 0.5,
-            initialOpacity: CGFloat = 1,
-            options: Options = .init(
-                modalPresentationCapturesStatusBarAppearance: true,
-                preferredPresentationShadow: .prominent
-            )
-        ) {
-            self.options = options
-            self.edges = edges
-            self.preferredCornerRadius = preferredCornerRadius
-            self.prefersScaleEffect = prefersScaleEffect
-            self.prefersZoomEffect = prefersZoomEffect
-            self.minimumScaleFactor = minimumScaleFactor
-            self.initialOpacity = initialOpacity
-        }
-    }
-}
-
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-    /// The transition options for a matched geometry transition.
-    @frozen
-    public struct ToastTransitionOptions {
-
-        public var options: Options
-        public var edge: Edge
-
-        public init(
-            edge: Edge = .bottom,
-            options: Options = .init(
-                preferredPresentationBackgroundColor: .clear,
-                preferredPresentationShadow: .minimal
-            )
-        ) {
-            self.options = options
-            self.edge = edge
-        }
-    }
-}
-
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
 
     /// The default presentation style of the `UIViewController`.
     public static func `default`(
@@ -797,108 +636,6 @@ extension PresentationLinkTransition {
         PresentationLinkTransition(value: .popover(options))
     }
 
-    /// The slide presentation style.
-    public static func slide(
-        edge: Edge = .bottom,
-        prefersScaleEffect: Bool = true,
-        preferredCornerRadius: CGFloat? = nil
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .slide(
-                .init(
-                    edge: edge,
-                    prefersScaleEffect: prefersScaleEffect,
-                    preferredCornerRadius: preferredCornerRadius
-                )
-            )
-        )
-    }
-
-    /// The slide presentation style.
-    public static func slide(
-        options: SlideTransitionOptions
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .slide(options))
-    }
-
-    /// The card presentation style.
-    public static func card(
-        preferredEdgeInset: CGFloat? = nil,
-        preferredCornerRadius: CGFloat? = nil,
-        preferredAspectRatio: CGFloat? = 1
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .card(
-                .init(
-                    preferredEdgeInset: preferredEdgeInset,
-                    preferredCornerRadius: preferredCornerRadius,
-                    preferredAspectRatio: preferredAspectRatio
-                )
-            )
-        )
-    }
-
-    /// The card presentation style.
-    public static func card(
-        options: CardTransitionOptions
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .card(options))
-    }
-
-    /// The matched geometry presentation style.
-    public static func matchedGeometry(
-        preferredCornerRadius: CGFloat? = nil,
-        prefersScaleEffect: Bool = false,
-        prefersZoomEffect: Bool = false,
-        minimumScaleFactor: CGFloat = 0.5,
-        initialOpacity: CGFloat = 1
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .matchedGeometry(
-                .init(
-                    preferredCornerRadius: preferredCornerRadius,
-                    prefersScaleEffect: prefersScaleEffect,
-                    prefersZoomEffect: prefersZoomEffect,
-                    minimumScaleFactor: minimumScaleFactor,
-                    initialOpacity: initialOpacity
-                )
-            )
-        )
-    }
-
-    /// The matched geometry presentation style.
-    public static func matchedGeometry(
-        options: MatchedGeometryTransitionOptions
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .matchedGeometry(options))
-    }
-
-    /// The matched geometry presentation style.
-    public static func matchedGeometryZoom(
-        preferredCornerRadius: CGFloat? = nil
-    ) -> PresentationLinkTransition {
-        .matchedGeometry(
-            preferredCornerRadius: preferredCornerRadius,
-            prefersScaleEffect: true,
-            prefersZoomEffect: true,
-            initialOpacity: 0
-        )
-    }
-
-    /// The toast presentation style.
-    public static func toast(
-        edge: Edge
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .toast(.init(edge: edge)))
-    }
-
-    /// The toast presentation style.
-    public static func toast(
-        options: ToastTransitionOptions
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .toast(options))
-    }
-
     /// The zoom presentation style.
     @available(iOS 18.0, *)
     public static func zoom(
@@ -915,12 +652,13 @@ extension PresentationLinkTransition {
             return .zoom(options: options)
         }
         return .matchedGeometry(
-            options: .init(
+            .init(
                 prefersScaleEffect: true,
                 prefersZoomEffect: true,
                 initialOpacity: 0,
-                options: options
-            )
+                preferredPresentationShadow: options.preferredPresentationBackgroundColor == .clear ? .clear : .prominent
+            ),
+            options: options
         )
     }
 
