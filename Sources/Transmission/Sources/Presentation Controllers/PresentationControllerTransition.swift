@@ -40,6 +40,13 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
     open func transitionDuration(
         using transitionContext: UIViewControllerContextTransitioning?
     ) -> TimeInterval {
+
+        if let animation,
+           let presenting = transitionContext?.viewController(forKey: isPresenting ? .to : .from)
+        {
+            presenting.transitionCoordinator?.animation = animation
+        }
+
         guard transitionContext?.isAnimated == true else { return 0 }
         return animation?.duration ?? 0.35
     }
@@ -86,22 +93,28 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         if let animator = animator {
             return animator
         }
-        let animator = transitionAnimator(using: transitionContext)
+        let animator = UIViewPropertyAnimator(animation: animation) ?? {
+            if let timingCurve {
+                return UIViewPropertyAnimator(duration: duration, timingParameters: timingCurve)
+            }
+            return UIViewPropertyAnimator(duration: duration, curve: completionCurve)
+        }()
+        configureTransitionAnimator(using: transitionContext, animator: animator)
         self.animator = animator
         return animator
     }
 
-    open func transitionAnimator(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewPropertyAnimator {
+    open func configureTransitionAnimator(
+        using transitionContext: UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
 
-        let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
             let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
         else {
             transitionContext.completeTransition(false)
-            return animator
+            return
         }
 
         if isPresenting {
@@ -141,7 +154,6 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
                 transitionContext.completeTransition(false)
             }
         }
-        return animator
     }
 }
 

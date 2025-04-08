@@ -7,6 +7,7 @@
 import SwiftUI
 
 protocol UIViewControllerPresentationDelegate: NSObject {
+    func viewControllerWillDismiss(_ presentingViewController: UIViewController?, animated: Bool)
     func viewControllerDidDismiss(_ presentingViewController: UIViewController?, animated: Bool)
 }
 
@@ -62,6 +63,7 @@ extension UIViewController {
             next = current.presentedViewController
         }
         let presentingViewController = presentingViewController
+        presentationDelegate?.viewControllerWillDismiss(presentingViewController, animated: flag)
         swizzled_dismiss(animated: flag) {
             if self.transitionCoordinator?.isCancelled != true {
                 for delegate in presentedDelegates.reversed() {

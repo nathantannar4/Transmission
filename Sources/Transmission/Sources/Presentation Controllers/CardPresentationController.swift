@@ -82,6 +82,10 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         self.options = options
     }
 
+    public static let defaultEdgeInset: CGFloat = 4
+    public static let defaultCornerRadius: CGFloat = UIScreen.main.displayCornerRadius(min: 36)
+    public static let defaultAdjustedCornerRadius: CGFloat = defaultCornerRadius - defaultEdgeInset
+
     public func makeUIPresentationController(
         presented: UIViewController,
         presenting: UIViewController?,
@@ -199,13 +203,9 @@ open class CardPresentationController: InteractivePresentationController {
             }
             let fittingSize = CGSize(
                 width: width - (presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets.left + presentedViewAdditionalSafeAreaInsets.right : 0) - (2 * edgeInset),
-                height: UIView.layoutFittingCompressedSize.height
+                height: UIView.layoutFittingExpandedSize.height
             )
-            var sizeThatFits = presentedView.systemLayoutSizeFitting(
-                fittingSize,
-                withHorizontalFittingPriority: .required,
-                verticalFittingPriority: .defaultLow
-            )
+            var sizeThatFits = presentedView.systemLayoutSizeFitting(fittingSize)
             if sizeThatFits.height <= 0 {
                 sizeThatFits.height = width
             }
@@ -255,11 +255,11 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     private var edgeInset: CGFloat {
-        preferredEdgeInset ?? CardPresentationControllerTransition.defaultEdgeInset
+        preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
     }
 
     private var cornerRadius: CGFloat {
-        preferredCornerRadius ?? CardPresentationControllerTransition.defaultCornerRadius
+        preferredCornerRadius ?? (CardPresentationLinkTransition.defaultCornerRadius - edgeInset)
     }
 
     public init(
@@ -298,6 +298,18 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
+    open override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        presentedViewController.view.layer.cornerCurve = .continuous
+    }
+
+    open override func presentationTransitionDidEnd(_ completed: Bool) {
+        super.presentationTransitionDidEnd(completed)
+        if completed {
+            presentedViewController.view.layer.cornerRadius = cornerRadius
+        }
+    }
+
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         var edgeInsets = super.presentedViewAdditionalSafeAreaInsets()
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
@@ -315,7 +327,6 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     private func cornerRadiusDidChange() {
-        presentedViewController.view.layer.cornerCurve = .continuous
         presentedViewController.additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
     }
 }
@@ -342,9 +353,6 @@ open class CardPresentationControllerTransition: PresentationControllerTransitio
     public let preferredEdgeInset: CGFloat?
     public let preferredCornerRadius: CGFloat?
 
-    public static let defaultEdgeInset: CGFloat = 4
-    public static let defaultCornerRadius: CGFloat = UIScreen.main.displayCornerRadius(min: 36) - defaultEdgeInset
-
     public init(
         preferredEdgeInset: CGFloat? = nil,
         preferredCornerRadius: CGFloat? = nil,
@@ -356,15 +364,16 @@ open class CardPresentationControllerTransition: PresentationControllerTransitio
         super.init(isPresenting: isPresenting, animation: animation)
     }
 
-    open override func transitionAnimator(
-        using transitionContext: any UIViewControllerContextTransitioning
-    ) -> UIViewPropertyAnimator {
-
+    open override func configureTransitionAnimator(
+        using transitionContext: any UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
         if let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from) {
-            let cornerRadius = preferredCornerRadius ?? Self.defaultCornerRadius
+            let edgeInset = preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
+            let cornerRadius = preferredCornerRadius ?? (CardPresentationLinkTransition.defaultCornerRadius - edgeInset)
             presented.view.layer.cornerRadius = cornerRadius
         }
-        return super.transitionAnimator(using: transitionContext)
+        return super.configureTransitionAnimator(using: transitionContext, animator: animator)
     }
 }
 

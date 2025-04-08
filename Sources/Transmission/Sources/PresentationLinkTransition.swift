@@ -135,7 +135,7 @@ extension PresentationLinkTransition {
         )
 
         public static let minimal = Shadow(
-            shadowOpacity: 0.2,
+            shadowOpacity: 0.15,
             shadowRadius: 24
         )
 
@@ -365,16 +365,19 @@ extension PresentationLinkTransition {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
                             return idealHeight
                         }
+                        let width = presentationController.frameOfPresentedViewInContainerView.width
                         func idealHeight(for view: UIView) -> CGFloat {
                             var height = view
-                                .systemLayoutSizeFitting(CGSize(width: containerView.frame.width, height: .infinity))
+                                .systemLayoutSizeFitting(
+                                    CGSize(width: width, height: UIView.layoutFittingExpandedSize.height)
+                                )
                                 .height
                             if height == .infinity {
                                 height = view
-                                    .sizeThatFits(CGSize(width: containerView.frame.width, height: .infinity))
+                                    .sizeThatFits(CGSize(width: width, height: .infinity))
                                     .height
                             }
-                            return min(height, containerView.frame.height)
+                            return height
                         }
                         func idealHeight(for viewController: UIViewController) -> CGFloat {
                             // Edge cases for when the presentedViewController does not have an ideal height
@@ -411,7 +414,7 @@ extension PresentationLinkTransition {
                         }
 
                         let idealHeight = idealHeight(for: presentationController.presentedViewController)
-                        return min(idealHeight, containerView.frame.height)
+                        return idealHeight
                     }
 
                     if let resolution, #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  {
@@ -439,7 +442,7 @@ extension PresentationLinkTransition {
                                 idealResolution(presentationController)
                             }
                         )
-                        constant = resolution(ctx).map { ceil($0) }
+                        constant = resolution(ctx).map { min(ceil($0), maximumDetentValue) }
                     } else {
                         constant = height
                     }

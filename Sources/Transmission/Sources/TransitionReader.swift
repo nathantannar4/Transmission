@@ -8,8 +8,11 @@ import SwiftUI
 
 @frozen
 public struct TransitionReaderProxy {
+
     /// The progress state of the transition from 0 to 1 where 1 is fully presented.
     public var progress: CGFloat
+
+    public var isPresented: Bool { progress >= 1 }
 
     @usableFromInline
     init(progress: CGFloat) {
@@ -52,10 +55,9 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
-            presentingViewController: Binding(
-                get: { context.coordinator.presentingViewController },
-                set: { context.coordinator.presentingViewController = $0 }
-            )
+            onDidMoveToWindow: { viewController in
+                context.coordinator.presentingViewController = viewController
+            }
         )
         return uiView
     }
@@ -173,15 +175,36 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                 let newValue: CGFloat = transitionCoordinator.isCancelled ? isPresenting ? 0 : 1 : isPresenting ? 1 : 0
                 var transaction = Transaction(animation: nil)
                 if transitionCoordinator.isAnimated {
-                    let duration = transitionCoordinator.transitionDuration == 0 ? 0.35 : transitionCoordinator.transitionDuration
-                    let animation = transitionCoordinator.completionCurve.toSwiftUI(duration: duration)
-                    transaction.animation = animation
+                    if let animation = transitionCoordinator.animation {
+                        transaction.animation = animation
+                    } else {
+                        let duration = transitionCoordinator.transitionDuration == 0 ? 0.35 : transitionCoordinator.transitionDuration
+                        let animation = transitionCoordinator.completionCurve.toSwiftUI(duration: duration)
+                        transaction.animation = animation
+                    }
                 }
-                transaction.disablesAnimations = true
                 withTransaction(transaction) {
                     self.progress.wrappedValue = newValue
                 }
             }
+        }
+    }
+}
+
+private var transitionCoordinatorAnimationKey: UInt = 0
+
+extension UIViewControllerTransitionCoordinatorContext {
+
+    var animation: Animation? {
+        get {
+            if let box = objc_getAssociatedObject(self, &transitionCoordinatorAnimationKey) as? ObjCBox<Animation?> {
+                return box.value
+            }
+            return nil
+        }
+        set {
+            let box = ObjCBox<Animation?>(value: newValue)
+            objc_setAssociatedObject(self, &transitionCoordinatorAnimationKey, box, .OBJC_ASSOCIATION_RETAIN)
         }
     }
 }

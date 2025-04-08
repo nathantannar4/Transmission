@@ -76,6 +76,47 @@ public protocol PresentationLinkPresentedTransitionRepresentable {
 }
 
 @available(iOS 14.0, *)
+extension PresentationLinkPresentedTransitionRepresentable {
+
+    public func updateHostingController<Content: View>(
+        presenting: PresentationHostingController<Content>,
+        context: Context
+    ) { }
+}
+
+@frozen
+@available(iOS 14.0, *)
+public struct PresentationLinkDefaultPresentedTransition: PresentationLinkPresentedTransitionRepresentable {
+
+    public func makeUIPresentationController(
+        presented: UIViewController,
+        presenting: UIViewController?,
+        context: Context
+    ) -> InteractivePresentationController {
+        let presentationController = InteractivePresentationController(
+            presentedViewController: presented,
+            presenting: presented
+        )
+        presentationController.presentedViewShadow = .minimal
+        presentationController.dimmingView.isHidden = false
+        return presentationController
+    }
+
+    public func updateUIPresentationController(
+        presentationController: InteractivePresentationController,
+        context: Context
+    ) {
+
+    }
+}
+
+@available(iOS 14.0, *)
+extension PresentationLinkPresentedTransitionRepresentable where Self == PresentationLinkDefaultPresentedTransition {
+    public static var `default`: PresentationLinkDefaultPresentedTransition { .init() }
+}
+
+
+@available(iOS 14.0, *)
 @MainActor @preconcurrency
 public protocol PresentationLinkPresentingTransitionRepresentable {
 

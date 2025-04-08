@@ -138,6 +138,7 @@ open class PresentationHostingController<
                         }
                     }
                 } else if let presentationController = presentationController as? PresentationController {
+                    guard presentationController.shouldAutoLayoutPresentedView else { return }
                     if let interactivePresentationController = presentationController as? InteractivePresentationController {
                         guard interactivePresentationController.panGesture.state != .changed else { return }
                     }

@@ -89,7 +89,11 @@ private struct DestinationLinkAdapterBody<
 
     func makeUIView(context: Context) -> UIViewType {
         let uiView = TransitionSourceView(
-            presentingViewController: $presentingViewController,
+            onDidMoveToWindow: { viewController in
+                withCATransaction {
+                    presentingViewController = viewController
+                }
+            },
             content: sourceView
         )
         return uiView
@@ -119,7 +123,10 @@ private struct DestinationLinkAdapterBody<
                     destination: destination,
                     transition: transition.value,
                     context: context,
-                    isPresented: isPresented
+                    isPresented: isPresented,
+                    onPop: { [weak coordinator = context.coordinator] in
+                        coordinator?.onPop($0, transaction: $1)
+                    }
                 )
                 context.coordinator.adapter = adapter
                 switch adapter.transition {
@@ -195,6 +202,16 @@ private struct DestinationLinkAdapterBody<
                 environment: adapter?.environment ?? .init(),
                 transaction: Transaction(animation: animation)
             )
+        }
+
+        func onPop(_ count: Int, transaction: Transaction) {
+            guard let viewController = adapter?.viewController else { return }
+            animation = transaction.animation
+            viewController._popViewController(count: count, animated: transaction.isAnimated) {
+                withTransaction(transaction) {
+                    self.isPresented.wrappedValue = false
+                }
+            }
         }
 
         // MARK: - UINavigationControllerDelegate
@@ -507,6 +524,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
     var environment: EnvironmentValues
     var isPresented: Binding<Bool>
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
+    var onPop: (Int, Transaction) -> Void
 
     // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
     var coordinator: DestinationLinkAdapterBody<Destination, SourceView>.Coordinator?
@@ -515,11 +533,13 @@ private class DestinationLinkDestinationViewControllerAdapter<
         destination: Destination,
         transition: DestinationLinkTransition.Value,
         context: DestinationLinkAdapterBody<Destination, SourceView>.Context,
-        isPresented: Binding<Bool>
+        isPresented: Binding<Bool>,
+        onPop: @escaping (Int, Transaction) -> Void
     ) {
         self.transition = transition
         self.environment = context.environment
         self.isPresented = isPresented
+        self.onPop = onPop
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
             update(
@@ -585,14 +605,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
     }
 
     func pop(_ count: Int, _ transaction: Transaction) {
-        guard let viewController else { return }
-        let isAnimated = transaction.isAnimated
-            || viewController.transitionCoordinator?.isAnimated == true
-        viewController._popViewController(count: count, animated: isAnimated) {
-            withTransaction(transaction) {
-                self.isPresented.wrappedValue = false
-            }
-        }
+        onPop(count, transaction)
     }
 
     private struct Context<Coordinator> {

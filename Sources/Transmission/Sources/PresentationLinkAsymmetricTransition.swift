@@ -65,11 +65,17 @@ public struct PresentationLinkAsymmetricTransition<
         presenting: UIViewController?,
         context: Context
     ) -> UIPresentationControllerType {
-        presentedController.makeUIPresentationController(
+        let presentationController = presentedController.makeUIPresentationController(
             presented: presented,
             presenting: presenting,
             context: context
         )
+        if DismissingAnimationController.self != PresentedController.self,
+           let interactivePresentationController = presentationController as? InteractivePresentationController
+        {
+            interactivePresentationController.prefersInteractiveDismissal = true
+        }
+        return presentationController
     }
 
     public func updateUIPresentationController(
@@ -118,10 +124,16 @@ public struct PresentationLinkAsymmetricTransition<
         forDismissed dismissed: UIViewController,
         context: Context
     ) -> UIDismissingAnimationControllerType? {
-        dismissingAnimationController.animationController(
+        let animationController = dismissingAnimationController.animationController(
             forDismissed: dismissed,
             context: context
         )
+        if PresentingAnimationController.self == MatchedGeometryPresentationLinkTransition.self,
+           DismissingAnimationController.self != MatchedGeometryPresentationLinkTransition.self
+        {
+            context.sourceView.alpha = 1
+        }
+        return animationController
     }
 
     public func interactionControllerForDismissal(

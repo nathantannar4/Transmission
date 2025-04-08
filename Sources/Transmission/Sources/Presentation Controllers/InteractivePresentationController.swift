@@ -35,8 +35,16 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     /// When true, dismissal of the presented view controller will be deferred until the pan gesture ends
     open var wantsInteractiveDismissal: Bool {
-        return keyboardOffset > 0
+        if keyboardOffset > 0 {
+            return true
+        }
+        if prefersInteractiveDismissal {
+            return true
+        }
+        return false
     }
+
+    public var prefersInteractiveDismissal: Bool = false
 
     open override var shouldAutoLayoutPresentedView: Bool {
         transition == nil && panGesture.state == .possible && super.shouldAutoLayoutPresentedView
@@ -312,7 +320,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             case .began, .changed:
                 if isScrollViewAtTop,
                     !wantsInteractiveDismissal,
-                    dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
+                    panGestureDismissalShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
                     dismissIfNeeded()
                 {
                     lastTranslation = .zero
@@ -332,7 +340,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         trackingScrollView = nil
                     }
                     if wantsInteractiveDismissal,
-                       dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
+                       panGestureDismissalShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
                        dismissIfNeeded()
                     {
                         panGestureDidEnd()
@@ -345,7 +353,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             case .ended:
                 if wantsInteractiveDismissal,
                     isScrollViewAtTop,
-                    dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
+                    panGestureDismissalShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
                     dismissIfNeeded()
                 {
                     panGestureDidEnd()
@@ -368,6 +376,18 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 panGestureDidEnd()
             }
         }
+    }
+
+    private func panGestureDismissalShouldBegin(
+        translation: CGPoint,
+        delta: CGPoint,
+        velocity: CGPoint
+    ) -> Bool {
+        let shouldBegin = dismissalTransitionShouldBegin(translation: translation, delta: delta, velocity: velocity)
+        if prefersInteractiveDismissal, shouldBegin {
+            return panGesture.state != .began && panGesture.state != .changed
+        }
+        return shouldBegin
     }
 
     private func panGestureDidEnd() {

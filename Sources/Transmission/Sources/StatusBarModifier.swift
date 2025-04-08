@@ -54,7 +54,13 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
     @WeakState var presentingViewController: UIViewController?
 
     func makeUIView(context: Context) -> ViewControllerReader {
-        let uiView = ViewControllerReader(presentingViewController: $presentingViewController)
+        let uiView = ViewControllerReader(
+            onDidMoveToWindow: { viewController in
+                withCATransaction {
+                    presentingViewController = viewController
+                }
+            }
+        )
         return uiView
     }
 
@@ -103,7 +109,11 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
-            presentingViewController: $presentingViewController
+            onDidMoveToWindow: { viewController in
+                withCATransaction {
+                    presentingViewController = viewController
+                }
+            }
         )
         return uiView
     }

@@ -41,7 +41,7 @@ extension PresentationLinkTransition {
                 prefersZoomEffect: prefersZoomEffect,
                 minimumScaleFactor: minimumScaleFactor,
                 initialOpacity: initialOpacity,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .prominent
+                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -92,7 +92,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             prefersZoomEffect: Bool = false,
             minimumScaleFactor: CGFloat = 0.5,
             initialOpacity: CGFloat = 1,
-            preferredPresentationShadow: PresentationLinkTransition.Shadow = .prominent
+            preferredPresentationShadow: PresentationLinkTransition.Shadow = .minimal
         ) {
             self.edges = edges
             self.preferredFromCornerRadius = preferredFromCornerRadius
@@ -232,6 +232,18 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
         )
     }
 
+    open override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        presentedViewController.view.layer.cornerCurve = .continuous
+    }
+
+    open override func presentationTransitionDidEnd(_ completed: Bool) {
+        super.presentationTransitionDidEnd(completed)
+        if completed {
+            presentedViewController.view.layer.cornerRadius = 0
+        }
+    }
+
     open override func transformPresentedView(transform: CGAffineTransform) {
         if prefersZoomEffect {
             if transform.isIdentity {
@@ -342,18 +354,17 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         self.sourceView = sourceView
     }
 
-    public override func transitionAnimator(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewPropertyAnimator {
-
-        let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
+    open override func configureTransitionAnimator(
+        using transitionContext: any UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
 
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
             let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
         else {
             transitionContext.completeTransition(false)
-            return animator
+            return
         }
 
         let sourceView = sourceView
@@ -425,7 +436,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             sourceViewController?.view.transform = scaleEffect
         }
 
-        let fromCornerRadius = preferredFromCornerRadius ?? (sourceView?.frame.height ?? 0) / 2
+        let fromCornerRadius = preferredFromCornerRadius.map { $0 > 0 ? $0 : sourceFrame.height / 2 } ?? 0
         let toCornerRadius = preferredToCornerRadius ?? UIScreen.main.displayCornerRadius(min: 0)
 
         if isPresenting {
@@ -448,9 +459,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             } else {
                 presented.view.frame = sourceFrame
                 presented.view.alpha = fromOpacity
-                withAnimation(animation) {
-                    transitionContext.containerView.layoutIfNeeded()
-                }
+                presented.view.layoutIfNeeded()
                 hostingController?.render()
                 if let presentationController = presented.presentationController as? PresentationController {
                     presentedFrame = presentationController.frameOfPresentedViewInContainerView
@@ -463,6 +472,10 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             if presenting.view.superview == nil {
                 transitionContext.containerView.insertSubview(presenting.view, belowSubview: presented.view)
             }
+
+            if !prefersZoomEffect {
+                sourceView?.alpha = fromOpacity
+            }
         }
 
 
@@ -471,6 +484,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         }
 
         if !isPresenting, prefersZoomEffect, let portalView {
+            presented.view.layoutIfNeeded()
             transitionContext.containerView.addSubview(portalView)
             portalView.frame = presentedFrame
             portalView.transform = presented.view.transform
@@ -494,7 +508,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
                 portalView?.transform = isPresenting ? .identity : CGAffineTransform(to: presentedFrame, from: sourceFrame)
             } else {
                 presented.view.frame = isPresenting ? presentedFrame : sourceFrame
-                transitionContext.containerView.layoutIfNeeded()
+                presented.view.layoutIfNeeded()
             }
 
             if prefersScaleEffect {
@@ -503,8 +517,8 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             }
         }
         animator.addAnimations({
+            sourceView?.alpha = isPresenting ? 0 : 1 - fromOpacity
             if prefersZoomEffect {
-                sourceView?.alpha = isPresenting ? 0 : 1 - fromOpacity
                 portalView?.alpha = isPresenting ? 1 : fromOpacity
             } else {
                 presented.view.alpha = isPresenting ? 1 : fromOpacity
@@ -514,10 +528,12 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         animator.addCompletion { animatingPosition in
             hostingController?.disableSafeArea = disableSafeArea
             portalView?.removeFromSuperview()
+            sourceView?.alpha = isPresenting ? 0 : 1
             if prefersScaleEffect, !isPresenting {
                 sourceViewController?.view.layer.masksToBounds = false
                 window?.backgroundColor = nil
             }
+            presented.view.layer.cornerRadius = 0
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)
@@ -525,7 +541,6 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
                 transitionContext.completeTransition(false)
             }
         }
-        return animator
     }
 }
 

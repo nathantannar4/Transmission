@@ -90,7 +90,11 @@ private struct PresentationLinkAdapterBody<
 
     func makeUIView(context: Context) -> UIViewType {
         let uiView = TransitionSourceView(
-            presentingViewController: $presentingViewController,
+            onDidMoveToWindow: { viewController in
+                withCATransaction {
+                    presentingViewController = viewController
+                }
+            },
             content: sourceView
         )
         return uiView
@@ -239,7 +243,10 @@ private struct PresentationLinkAdapterBody<
                         sourceView: uiView,
                         transition: transition.value,
                         context: context,
-                        isPresented: isPresented
+                        isPresented: isPresented,
+                        onDismiss: { [weak coordinator = context.coordinator] in
+                            coordinator?.onDismiss($0, transaction: $1)
+                        }
                     )
                     context.coordinator.adapter = adapter
                 }
@@ -420,7 +427,33 @@ private struct PresentationLinkAdapterBody<
             )
         }
 
+        func onDismiss(_ count: Int, transaction: Transaction) {
+            guard let viewController = adapter?.viewController, count > 0 else { return }
+            let presentingViewController = {
+                var remaining = count
+                var presentingViewController = viewController
+                while remaining > 0, let next = presentingViewController.presentingViewController {
+                    presentingViewController = next
+                    remaining -= 1
+                }
+                return presentingViewController
+            }()
+            animation = transaction.animation
+            presentingViewController.dismiss(animated: transaction.isAnimated) {
+                withTransaction(transaction) {
+                    self.isPresented.wrappedValue = false
+                }
+            }
+        }
+
         // MARK: - UIViewControllerPresentationDelegate
+
+        func viewControllerWillDismiss(
+            _ presentingViewController: UIViewController?,
+            animated: Bool
+        ) {
+            animation = animated ? .default : nil
+        }
 
         func viewControllerDidDismiss(
             _ presentingViewController: UIViewController?,
@@ -817,6 +850,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
     var environment: EnvironmentValues
     var isPresented: Binding<Bool>
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
+    var onDismiss: (Int, Transaction) -> Void
 
     // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
     var coordinator: PresentationLinkAdapterBody<Destination, SourceView>.Coordinator?
@@ -826,11 +860,13 @@ private class PresentationLinkDestinationViewControllerAdapter<
         sourceView: UIView,
         transition: PresentationLinkTransition.Value,
         context: PresentationLinkAdapterBody<Destination, SourceView>.Context,
-        isPresented: Binding<Bool>
+        isPresented: Binding<Bool>,
+        onDismiss: @escaping (Int, Transaction) -> Void
     ) {
         self.transition = transition
         self.environment = context.environment
         self.isPresented = isPresented
+        self.onDismiss = onDismiss
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
             update(
@@ -932,23 +968,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
     }
 
     func dismiss(_ count: Int, _ transaction: Transaction) {
-        guard let viewController, count > 0 else { return }
-        let presentingViewController = {
-            var remaining = count
-            var presentingViewController = viewController
-            while remaining > 0, let next = presentingViewController.presentingViewController {
-                presentingViewController = next
-                remaining -= 1
-            }
-            return presentingViewController
-        }()
-        let isAnimated = transaction.isAnimated
-            || viewController.transitionCoordinator?.isAnimated == true
-        presentingViewController.dismiss(animated: isAnimated) {
-            withTransaction(transaction) {
-                self.isPresented.wrappedValue = false
-            }
-        }
+        onDismiss(count, transaction)
     }
 
     private struct Context<Coordinator> {

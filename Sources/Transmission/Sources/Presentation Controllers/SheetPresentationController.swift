@@ -104,14 +104,12 @@ open class MacSheetPresentationController: SlidePresentationController {
         case .ideal:
             let fittingSize = CGSize(
                 width: targetRect.width,
-                height: .infinity
+                height: UIView.layoutFittingExpandedSize.height
             )
             let targetHeight = min(
                 targetRect.height,
                 presentedViewController.view.systemLayoutSizeFitting(
-                    fittingSize,
-                    withHorizontalFittingPriority: .required,
-                    verticalFittingPriority: .defaultLow
+                    fittingSize
                 ).height.rounded(.up)
             )
 
@@ -135,14 +133,12 @@ open class MacSheetPresentationController: SlidePresentationController {
                             guard let presentedViewController else { return 0 }
                             let fittingSize = CGSize(
                                 width: targetRect.width,
-                                height: .infinity
+                                height: UIView.layoutFittingExpandedSize.height
                             )
                             let targetHeight = min(
                                 targetRect.height,
                                 presentedViewController.view.systemLayoutSizeFitting(
-                                    fittingSize,
-                                    withHorizontalFittingPriority: .required,
-                                    verticalFittingPriority: .defaultLow
+                                    fittingSize
                                 ).height.rounded(.up)
                             )
                             return targetHeight
@@ -170,7 +166,7 @@ open class MacSheetPresentationController: SlidePresentationController {
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-        presentedViewShadow = .prominent
+        presentedViewShadow = .minimal
     }
 
     open override func presentationTransitionWillBegin() {

@@ -163,13 +163,9 @@ open class ToastPresentationController: InteractivePresentationController {
         let targetWidth = safeAreaFrame.width - 2 * inset
         let fittingSize = CGSize(
             width: targetWidth,
-            height: UIView.layoutFittingCompressedSize.height
+            height: UIView.layoutFittingExpandedSize.height
         )
-        var sizeThatFits = presentedView.systemLayoutSizeFitting(
-            fittingSize,
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .defaultLow
-        )
+        var sizeThatFits = presentedView.systemLayoutSizeFitting(fittingSize)
         if sizeThatFits.height <= 0 {
             sizeThatFits.height = targetWidth
         }
@@ -250,16 +246,16 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
         super.init(isPresenting: isPresenting, animation: animation)
     }
 
-    public override func transitionAnimator(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewPropertyAnimator {
+    open override func configureTransitionAnimator(
+        using transitionContext: any UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
 
-        let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
         else {
             transitionContext.completeTransition(false)
-            return animator
+            return
         }
 
         if isPresenting {
@@ -311,7 +307,6 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
                 transitionContext.completeTransition(false)
             }
         }
-        return animator
     }
 }
 

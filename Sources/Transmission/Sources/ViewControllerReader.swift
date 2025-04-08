@@ -30,7 +30,11 @@ private struct ViewControllerReaderAdapterBody: UIViewRepresentable {
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
-            presentingViewController: presentingViewController
+            onDidMoveToWindow: { viewController in
+                withCATransaction {
+                    presentingViewController.wrappedValue = viewController
+                }
+            }
         )
         return uiView
     }

@@ -39,7 +39,7 @@ extension PresentationLinkTransition {
                 edge: edge,
                 prefersScaleEffect: prefersScaleEffect,
                 preferredFromCornerRadius: preferredCornerRadius,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .prominent
+                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -69,7 +69,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
             prefersScaleEffect: Bool = true,
             preferredFromCornerRadius: CGFloat? = nil,
             preferredToCornerRadius: CGFloat? = nil,
-            preferredPresentationShadow: PresentationLinkTransition.Shadow = .prominent
+            preferredPresentationShadow: PresentationLinkTransition.Shadow = .minimal
         ) {
             self.edge = edge
             self.prefersScaleEffect = prefersScaleEffect
@@ -156,7 +156,7 @@ open class SlidePresentationController: InteractivePresentationController {
     }
 
     open override var wantsInteractiveDismissal: Bool {
-        return false
+        return prefersInteractiveDismissal
     }
 
     open override var presentationStyle: UIModalPresentationStyle {
@@ -177,7 +177,35 @@ open class SlidePresentationController: InteractivePresentationController {
     }
 
     open override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
+        if prefersInteractiveDismissal {
+            return super.presentedViewTransform(for: translation)
+        }
         return .identity
+    }
+
+    open override func transformPresentedView(transform: CGAffineTransform) {
+        super.transformPresentedView(transform: transform)
+
+        if transform.isIdentity {
+            presentedViewController.view.layer.cornerRadius = 0
+            updateShadow(progress: 0)
+        } else {
+            presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius()
+            let progress = max(0, min(transform.d, 1))
+            updateShadow(progress: progress)
+        }
+    }
+
+    open override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        presentedViewController.view.layer.cornerCurve = .continuous
+    }
+
+    open override func presentationTransitionDidEnd(_ completed: Bool) {
+        super.presentationTransitionDidEnd(completed)
+        if completed {
+            presentedViewController.view.layer.cornerRadius = 0
+        }
     }
 
     open override func containerViewDidLayoutSubviews() {
@@ -242,19 +270,18 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         super.init(isPresenting: isPresenting, animation: animation)
     }
 
-    open override func transitionAnimator(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewPropertyAnimator {
+    open override func configureTransitionAnimator(
+        using transitionContext: any UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
 
         let isPresenting = isPresenting
-        let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: duration, curve: completionCurve)
-
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
             let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
         else {
             transitionContext.completeTransition(false)
-            return animator
+            return
         }
 
         let frame = transitionContext.finalFrame(for: presented)
@@ -322,7 +349,6 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         animator.addAnimations {
             presented.view.transform = presentedTransform
             presenting.view.transform = presentingTransform
-            presented.view.layer.cornerRadius = isPresenting ? toCornerRadius : fromCornerRadius
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = isPresenting ? UIScreen.main.displayCornerRadius() : 0
             }
@@ -333,7 +359,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
                 presenting.view.layer.masksToBounds = true
                 presenting.view.transform = .identity
             }
-
+            presented.view.layer.cornerRadius = 0
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)
@@ -341,7 +367,6 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
                 transitionContext.completeTransition(false)
             }
         }
-        return animator
     }
 
     private func presentationTransform(

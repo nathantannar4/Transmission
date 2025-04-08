@@ -8,10 +8,10 @@ import SwiftUI
 
 class ViewControllerReader: UIView {
 
-    let presentingViewController: Binding<UIViewController?>
+    let onDidMoveToWindow: (UIViewController?) -> Void
 
-    init(presentingViewController: Binding<UIViewController?>) {
-        self.presentingViewController = presentingViewController
+    init(onDidMoveToWindow: @escaping (UIViewController?) -> Void) {
+        self.onDidMoveToWindow = onDidMoveToWindow
         super.init(frame: .zero)
         isHidden = true
     }
@@ -26,12 +26,7 @@ class ViewControllerReader: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        withCATransaction { [weak self] in
-            guard let self = self else {
-                return
-            }
-            self.presentingViewController.wrappedValue = self.viewController
-        }
+        onDidMoveToWindow(viewController)
     }
 }
 
@@ -40,10 +35,10 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
     var hostingView: HostingView<Content>?
 
     init(
-        presentingViewController: Binding<UIViewController?>,
+        onDidMoveToWindow: @escaping (UIViewController?) -> Void,
         content: Content
     ) {
-        super.init(presentingViewController: presentingViewController)
+        super.init(onDidMoveToWindow: onDidMoveToWindow)
         if Content.self != EmptyView.self {
             isHidden = false
             let hostingView = HostingView(content: content)
