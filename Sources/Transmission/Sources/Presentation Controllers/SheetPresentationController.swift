@@ -102,16 +102,7 @@ open class MacSheetPresentationController: SlidePresentationController {
             )
 
         case .ideal:
-            let fittingSize = CGSize(
-                width: targetRect.width,
-                height: UIView.layoutFittingExpandedSize.height
-            )
-            let targetHeight = min(
-                targetRect.height,
-                presentedViewController.view.systemLayoutSizeFitting(
-                    fittingSize
-                ).height.rounded(.up)
-            )
+            let targetHeight = presentedViewController.view.idealHeight(for: targetRect.width)
 
             return CGRect(
                 x: targetRect.origin.x,
@@ -131,16 +122,7 @@ open class MacSheetPresentationController: SlidePresentationController {
                         maximumDetentValue: targetRect.size.height,
                         idealDetentValue: { [weak presentedViewController] in
                             guard let presentedViewController else { return 0 }
-                            let fittingSize = CGSize(
-                                width: targetRect.width,
-                                height: UIView.layoutFittingExpandedSize.height
-                            )
-                            let targetHeight = min(
-                                targetRect.height,
-                                presentedViewController.view.systemLayoutSizeFitting(
-                                    fittingSize
-                                ).height.rounded(.up)
-                            )
+                            let targetHeight = presentedViewController.view.idealHeight(for: targetRect.width)
                             return targetHeight
                         }
                     )

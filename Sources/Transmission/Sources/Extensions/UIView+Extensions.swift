@@ -20,17 +20,24 @@ extension UIView {
     }
 
     var idealSize: CGSize {
-        var idealSize = CGRect(
-            origin: .zero,
-            size: systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-        ).size
-        if idealSize == .zero {
-            idealSize = sizeThatFits(CGSize(width: CGFloat.infinity, height: CGFloat.infinity))
+        let idealHeight = idealHeight(for: frame.width)
+        if idealHeight == 0 {
+            return intrinsicContentSize
         }
-        if idealSize == .zero {
-            idealSize = intrinsicContentSize
+        return CGSize(
+            width: frame.width,
+            height: idealHeight
+        )
+    }
+
+    func idealHeight(for width: CGFloat) -> CGFloat {
+        var height = systemLayoutSizeFitting(CGSize(width: width, height: UIView.layoutFittingExpandedSize.height))
+            .height
+        if height >= UIView.layoutFittingExpandedSize.height {
+            height = sizeThatFits(CGSize(width: width, height: .infinity))
+                .height
         }
-        return idealSize
+        return height
     }
 }
 

@@ -365,19 +365,9 @@ extension PresentationLinkTransition {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
                             return idealHeight
                         }
-                        let width = presentationController.frameOfPresentedViewInContainerView.width
-                        func idealHeight(for view: UIView) -> CGFloat {
-                            var height = view
-                                .systemLayoutSizeFitting(
-                                    CGSize(width: width, height: UIView.layoutFittingExpandedSize.height)
-                                )
-                                .height
-                            if height == .infinity {
-                                height = view
-                                    .sizeThatFits(CGSize(width: width, height: .infinity))
-                                    .height
-                            }
-                            return height
+                        var width = presentationController.frameOfPresentedViewInContainerView.width
+                        if width == 0 {
+                            width = containerView.frame.width
                         }
                         func idealHeight(for viewController: UIViewController) -> CGFloat {
                             // Edge cases for when the presentedViewController does not have an ideal height
@@ -403,7 +393,7 @@ extension PresentationLinkTransition {
                             }
                             if height == 0 {
                                 let bottomSafeArea = viewController.view.safeAreaInsets.bottom
-                                height = idealHeight(for: viewController.view)
+                                height = viewController.view.idealHeight(for: width)
                                 if height <= bottomSafeArea {
                                     height = containerView.frame.height
                                 }

@@ -201,11 +201,11 @@ open class CardPresentationController: InteractivePresentationController {
                 let dx = containerView?.safeAreaInsets.bottom == 0 ? 0 : insets.top - min(insets.bottom, (containerView?.safeAreaInsets.bottom ?? 0) - edgeInset)
                 return (preferredAspectRatio * (width - dx)).rounded(scale: containerView?.window?.screen.scale ?? 1)
             }
-            let fittingSize = CGSize(
-                width: width - (presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets.left + presentedViewAdditionalSafeAreaInsets.right : 0) - (2 * edgeInset),
-                height: UIView.layoutFittingExpandedSize.height
+            let fittingWidth = width - (presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets.left + presentedViewAdditionalSafeAreaInsets.right : 0) - (2 * edgeInset)
+            var sizeThatFits = CGSize(
+                width: fittingWidth,
+                height: presentedView.idealHeight(for: fittingWidth)
             )
-            var sizeThatFits = presentedView.systemLayoutSizeFitting(fittingSize)
             if sizeThatFits.height <= 0 {
                 sizeThatFits.height = width
             }

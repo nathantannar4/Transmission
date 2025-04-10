@@ -161,11 +161,10 @@ open class ToastPresentationController: InteractivePresentationController {
             .inset(by: containerView.safeAreaInsets)
 
         let targetWidth = safeAreaFrame.width - 2 * inset
-        let fittingSize = CGSize(
+        var sizeThatFits = CGSize(
             width: targetWidth,
-            height: UIView.layoutFittingExpandedSize.height
+            height: presentedView.idealHeight(for: targetWidth)
         )
-        var sizeThatFits = presentedView.systemLayoutSizeFitting(fittingSize)
         if sizeThatFits.height <= 0 {
             sizeThatFits.height = targetWidth
         }
