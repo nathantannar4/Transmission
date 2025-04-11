@@ -169,6 +169,12 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }
+        let animation: Animation? = {
+            guard context.transaction.animation == .default else {
+                return context.transaction.animation
+            }
+            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
+        }()
         let transition = MatchedGeometryPresentationControllerTransition(
             sourceView: context.sourceView,
             prefersScaleEffect: options.prefersScaleEffect,
@@ -177,7 +183,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             preferredToCornerRadius: options.preferredToCornerRadius,
             fromOpacity: options.initialOpacity,
             isPresenting: false,
-            animation: context.transaction.animation
+            animation: animation
         )
         transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
         presentationController.transition(with: transition)
@@ -445,6 +451,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
 
             if prefersZoomEffect {
                 presented.view.frame = presentedFrame
+                presented.view.layoutIfNeeded()
                 sourceView?.alpha = 1 - fromOpacity
                 if let portalView {
                     transitionContext.containerView.addSubview(portalView)
@@ -468,6 +475,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
 
         } else {
             presented.view.layer.cornerRadius = toCornerRadius
+            presented.view.layoutIfNeeded()
 
             if presenting.view.superview == nil {
                 transitionContext.containerView.insertSubview(presenting.view, belowSubview: presented.view)

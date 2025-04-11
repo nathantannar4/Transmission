@@ -48,7 +48,7 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         }
 
         guard transitionContext?.isAnimated == true else { return 0 }
-        return animation?.duration ?? 0.35
+        return animation?.duration(defaultDuration: 0.35) ?? 0.35
     }
 
     public func animateTransition(
@@ -57,7 +57,7 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         transitionDuration = transitionDuration(using: transitionContext)
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
         let delay = animation?.delay ?? 0
-        if let presentationController = transitionContext.viewController(forKey: isPresenting ? .to : .from)?._activePresentationController as? PresentationController {
+        if let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? PresentationController {
             presentationController.layoutBackgroundViews()
         }
         animator.startAnimation(afterDelay: delay)
@@ -93,12 +93,11 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         if let animator = animator {
             return animator
         }
-        let animator = UIViewPropertyAnimator(animation: animation) ?? {
-            if let timingCurve {
-                return UIViewPropertyAnimator(duration: duration, timingParameters: timingCurve)
-            }
-            return UIViewPropertyAnimator(duration: duration, curve: completionCurve)
-        }()
+        let animator = UIViewPropertyAnimator(
+            animation: animation,
+            defaultDuration: duration,
+            defaultCompletionCurve: completionCurve
+        )
         configureTransitionAnimator(using: transitionContext, animator: animator)
         self.animator = animator
         return animator
@@ -154,6 +153,13 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
                 transitionContext.completeTransition(false)
             }
         }
+    }
+}
+
+extension UIViewControllerContextTransitioning {
+
+    func presentationController(isPresenting: Bool) -> UIPresentationController? {
+        viewController(forKey: isPresenting ? .to : .from)?._activePresentationController
     }
 }
 

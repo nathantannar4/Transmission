@@ -432,6 +432,9 @@ private struct PresentationLinkAdapterBody<
             let presentingViewController = {
                 var remaining = count
                 var presentingViewController = viewController
+                if remaining == 1, presentingViewController.presentedViewController == nil {
+                    remaining -= 1
+                }
                 while remaining > 0, let next = presentingViewController.presentingViewController {
                     presentingViewController = next
                     remaining -= 1
@@ -881,6 +884,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
                     PresentationBridgeAdapter(
                         presentationCoordinator: PresentationCoordinator(
                             isPresented: isPresented.wrappedValue,
+                            sourceView: sourceView,
                             dismissBlock: { [weak self] in
                                 self?.dismiss($0, $1)
                             }
@@ -951,6 +955,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 PresentationBridgeAdapter(
                     presentationCoordinator: PresentationCoordinator(
                         isPresented: isPresented.wrappedValue,
+                        sourceView: sourceView,
                         dismissBlock: { [weak self] in self?.dismiss($0, $1) }
                     )
                 )

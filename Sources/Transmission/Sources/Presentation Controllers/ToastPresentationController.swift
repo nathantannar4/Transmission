@@ -118,10 +118,16 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }
+        let animation: Animation? = {
+            guard context.transaction.animation == .default else {
+                return context.transaction.animation
+            }
+            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
+        }()
         let transition = ToastPresentationControllerTransition(
             edge: options.edge,
             isPresenting: false,
-            animation: context.transaction.animation
+            animation: animation
         )
         transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
         presentationController.transition(with: transition)

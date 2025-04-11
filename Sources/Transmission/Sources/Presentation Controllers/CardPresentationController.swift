@@ -141,11 +141,17 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }
+        let animation: Animation? = {
+            guard context.transaction.animation == .default else {
+                return context.transaction.animation
+            }
+            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
+        }()
         let transition = CardPresentationControllerTransition(
             preferredEdgeInset: options.preferredEdgeInset,
             preferredCornerRadius: options.preferredCornerRadius,
             isPresenting: false,
-            animation: context.transaction.animation
+            animation: animation
         )
         transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
         presentationController.transition(with: transition)

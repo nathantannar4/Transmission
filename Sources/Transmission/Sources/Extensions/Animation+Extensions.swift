@@ -7,9 +7,14 @@ import EngineCore
 
 extension Animation {
 
-    public var duration: TimeInterval? {
-        guard let resolved = Resolved(animation: self) else { return nil }
-        return resolved.timingCurve.duration.map { $0 * resolved.speed }
+    public func duration(defaultDuration: CGFloat) -> TimeInterval {
+        guard let resolved = Resolved(animation: self) else { return defaultDuration }
+        switch resolved.timingCurve {
+        case .default:
+            return defaultDuration / resolved.speed
+        default:
+            return (resolved.timingCurve.duration ?? defaultDuration) / resolved.speed
+        }
     }
 
     public var delay: TimeInterval? {
@@ -30,11 +35,11 @@ extension Animation {
     }
 
     struct Resolved {
-        enum TimingCurve: Codable {
+        enum TimingCurve: Codable, Equatable {
             case `default`
 
-            struct BezierAnimation: Codable {
-                struct AnimationCurve: Codable {
+            struct BezierAnimation: Codable, Equatable {
+                struct AnimationCurve: Codable, Equatable {
                     var ax: Double
                     var bx: Double
                     var cx: Double
@@ -48,7 +53,7 @@ extension Animation {
             }
             case bezier(BezierAnimation)
 
-            struct SpringAnimation: Codable {
+            struct SpringAnimation: Codable, Equatable {
                 var mass: Double
                 var stiffness: Double
                 var damping: Double
@@ -56,7 +61,7 @@ extension Animation {
             }
             case spring(SpringAnimation)
 
-            struct FluidSpringAnimation: Codable {
+            struct FluidSpringAnimation: Codable, Equatable {
                 var duration: Double
                 var dampingFraction: Double
                 var blendDuration: TimeInterval
@@ -169,23 +174,26 @@ extension Animation {
 
 extension UIViewPropertyAnimator {
 
-    public convenience init?(
-        animation: Animation?
+    public convenience init(
+        animation: Animation?,
+        defaultDuration: TimeInterval = 0.35,
+        defaultCompletionCurve: UIView.AnimationCurve = .easeInOut
     ) {
-        guard animation != .default, let resolved = animation?.resolved() else {
-            return nil
-        }
-        switch resolved.timingCurve {
-        case .default:
-            return nil
-        case .bezier, .spring, .fluidSpring:
-            let duration = (resolved.timingCurve.duration ?? 0.35) * resolved.speed
-            self.init(
-                duration: duration,
-                timingParameters: AnimationTimingCurveProvider(
-                    timingCurve: resolved.timingCurve
+        if let resolved = animation?.resolved() {
+            switch resolved.timingCurve {
+            case .default:
+                self.init(duration: defaultDuration / resolved.speed, curve: defaultCompletionCurve.toSwiftUI())
+            case .bezier, .spring, .fluidSpring:
+                let duration = (resolved.timingCurve.duration ?? defaultDuration) / resolved.speed
+                self.init(
+                    duration: duration,
+                    timingParameters: AnimationTimingCurveProvider(
+                        timingCurve: resolved.timingCurve
+                    )
                 )
-            )
+            }
+        } else {
+            self.init(duration: defaultDuration, curve: defaultCompletionCurve.toSwiftUI())
         }
     }
 }
@@ -204,7 +212,7 @@ extension UIView {
             return
         }
 
-        let animator = UIViewPropertyAnimator(animation: animation) ?? UIViewPropertyAnimator(duration: 0.35, curve: .easeInOut)
+        let animator = UIViewPropertyAnimator(animation: animation)
         animator.addAnimations(animations)
         if let completion {
             animator.addCompletion { position in

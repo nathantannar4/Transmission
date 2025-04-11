@@ -7,16 +7,16 @@
 import SwiftUI
 
 @frozen
-public struct TransitionReaderProxy {
+public struct TransitionReaderProxy: Equatable {
 
     /// The progress state of the transition from 0 to 1 where 1 is fully presented.
     public var progress: CGFloat
 
-    public var isPresented: Bool { progress >= 1 }
+    public var isPresented: Bool { progress > 0 }
 
     @usableFromInline
-    init(progress: CGFloat) {
-        self.progress = progress
+    init() {
+        self.progress = 0
     }
 }
 
@@ -34,7 +34,7 @@ public struct TransitionReader<Content: View>: View {
     @usableFromInline
     var content: (Proxy) -> Content
 
-    @State var proxy = Proxy(progress: 0)
+    @State var proxy = Proxy()
 
     @inlinable
     public init(@ViewBuilder content: @escaping (Proxy) -> Content) {
@@ -44,14 +44,47 @@ public struct TransitionReader<Content: View>: View {
     public var body: some View {
         content(proxy)
             .background(
-                TransitionReaderAdapter(progress: $proxy.progress)
+                TransitionReaderAdapter(proxy: $proxy)
             )
+    }
+}
+
+/// A modifier that binds the view's size to the ``PresentationCoordinator`` source view size. Intended
+/// to be used with ``TransitionReader`` during a `.matchedGeometry` transition.
+@frozen
+@available(iOS 14.0, *)
+public struct TransitionSourceViewFrameModifier: ViewModifier {
+
+    public var isPresented: Bool
+
+    @Environment(\.presentationCoordinator) var presentationCoordinator
+
+    public init(isPresented: Bool) {
+        self.isPresented = isPresented
+    }
+
+    public func body(content: Content) -> some View {
+        let size = presentationCoordinator.sourceView?.frame.size
+        let isEnabled = !isPresented && size != nil
+        content
+            .frame(idealWidth: size?.width, idealHeight: size?.height)
+            .fixedSize(horizontal: isEnabled, vertical: isEnabled)
+    }
+}
+
+@available(iOS 14.0, *)
+extension View {
+
+    /// A modifier that binds the view's size to the ``PresentationCoordinator`` source view size. Intended
+    /// to be used with ``TransitionReader`` during a `.matchedGeometry` transition.
+    public func transitionSourceViewFrame(isPresented: Bool) -> some View {
+        modifier(TransitionSourceViewFrameModifier(isPresented: isPresented))
     }
 }
 
 private struct TransitionReaderAdapter: UIViewRepresentable {
 
-    var progress: Binding<CGFloat>
+    var proxy: Binding<TransitionReaderProxy>
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
@@ -65,11 +98,11 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
     func updateUIView(_ uiView: ViewControllerReader, context: Context) { }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(progress: progress)
+        Coordinator(proxy: proxy)
     }
 
     final class Coordinator: NSObject {
-        let progress: Binding<CGFloat>
+        let proxy: Binding<TransitionReaderProxy>
 
         weak var presentingViewController: UIViewController? {
             didSet {
@@ -83,8 +116,8 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
         private weak var transitionCoordinator: UIViewControllerTransitionCoordinator?
         private weak var displayLink: CADisplayLink?
 
-        init(progress: Binding<CGFloat>) {
-            self.progress = progress
+        init(proxy: Binding<TransitionReaderProxy>) {
+            self.proxy = proxy
         }
 
         deinit {
@@ -138,14 +171,16 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
                     }
                 } else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
                     let isPresented = presentingViewController.isBeingPresented
+                    let newValue: CGFloat = isPresented ? 1 : 0
+                    guard proxy.wrappedValue.progress != newValue else { return }
                     let transaction = Transaction(animation: nil)
                     withTransaction(transaction) {
-                        self.progress.wrappedValue = isPresented ? 1 : 0
+                        self.proxy.wrappedValue.progress = newValue
                     }
                 }
             } else {
                 displayLink?.invalidate()
-                progress.wrappedValue = 0
+                proxy.wrappedValue.progress = 0
             }
         }
 
@@ -165,26 +200,34 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
             let isPresenting = !trackedViewControllers.contains(from)
 
             if transitionCoordinator.isInteractive {
-                let percentComplete = isPresenting ? transitionCoordinator.percentComplete : 1 - transitionCoordinator.percentComplete
+                let newValue = isPresenting
+                    ? transitionCoordinator.percentComplete
+                    : 1 - transitionCoordinator.percentComplete
+                guard proxy.wrappedValue.progress != newValue else { return }
                 var transaction = Transaction()
                 transaction.isContinuous = true
                 withTransaction(transaction) {
-                    progress.wrappedValue = percentComplete
+                    proxy.wrappedValue.progress = newValue
                 }
             } else {
-                let newValue: CGFloat = transitionCoordinator.isCancelled ? isPresenting ? 0 : 1 : isPresenting ? 1 : 0
+                let newValue: CGFloat = transitionCoordinator.isCancelled
+                    ? isPresenting ? 0 : 1
+                    : isPresenting ? 1 : 0
+                guard proxy.wrappedValue.progress != newValue else { return }
                 var transaction = Transaction(animation: nil)
                 if transitionCoordinator.isAnimated {
-                    if let animation = transitionCoordinator.animation {
+                    if let animation = transitionCoordinator.animation, animation.resolved()?.timingCurve != .default {
                         transaction.animation = animation
                     } else {
                         let duration = transitionCoordinator.transitionDuration == 0 ? 0.35 : transitionCoordinator.transitionDuration
+                        // Offset slightly so the curves aren't in sync with UIKit animation, or it appears more glitchy
                         let animation = transitionCoordinator.completionCurve.toSwiftUI(duration: duration)
+                            .speed(1.15)
                         transaction.animation = animation
                     }
                 }
                 withTransaction(transaction) {
-                    self.progress.wrappedValue = newValue
+                    proxy.wrappedValue.progress = newValue
                 }
             }
         }
