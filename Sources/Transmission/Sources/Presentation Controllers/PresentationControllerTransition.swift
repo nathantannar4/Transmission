@@ -34,21 +34,17 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         _ transitionContext: UIViewControllerContextTransitioning
     ) {
         super.startInteractiveTransition(transitionContext)
+        if let presenting = transitionContext.viewController(forKey: isPresenting ? .to : .from) {
+            presenting.transitionReaderAnimation = animation
+        }
         transitionDuration = transitionDuration(using: transitionContext)
     }
 
     open func transitionDuration(
         using transitionContext: UIViewControllerContextTransitioning?
     ) -> TimeInterval {
-
-        if let animation,
-           let presenting = transitionContext?.viewController(forKey: isPresenting ? .to : .from)
-        {
-            presenting.transitionCoordinator?.animation = animation
-        }
-
         guard transitionContext?.isAnimated == true else { return 0 }
-        return animation?.duration ?? 0.35
+        return animation?.duration(defaultDuration: 0.35) ?? 0.35
     }
 
     public func animateTransition(
@@ -57,7 +53,7 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         transitionDuration = transitionDuration(using: transitionContext)
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
         let delay = animation?.delay ?? 0
-        if let presentationController = transitionContext.viewController(forKey: isPresenting ? .to : .from)?._activePresentationController as? PresentationController {
+        if let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? PresentationController {
             presentationController.layoutBackgroundViews()
         }
         animator.startAnimation(afterDelay: delay)
@@ -93,12 +89,11 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         if let animator = animator {
             return animator
         }
-        let animator = UIViewPropertyAnimator(animation: animation) ?? {
-            if let timingCurve {
-                return UIViewPropertyAnimator(duration: duration, timingParameters: timingCurve)
-            }
-            return UIViewPropertyAnimator(duration: duration, curve: completionCurve)
-        }()
+        let animator = UIViewPropertyAnimator(
+            animation: animation,
+            defaultDuration: duration,
+            defaultCompletionCurve: completionCurve
+        )
         configureTransitionAnimator(using: transitionContext, animator: animator)
         self.animator = animator
         return animator
@@ -118,15 +113,16 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
         }
 
         if isPresenting {
-            let frame = transitionContext.finalFrame(for: presented)
+            let presentedFrame = transitionContext.finalFrame(for: presented)
             transitionContext.containerView.addSubview(presented.view)
-            presented.view.frame = frame
+            presented.view.frame = presentedFrame
+            presented.view.layoutIfNeeded()
+
             let transform = CGAffineTransform(
                 translationX: 0,
-                y: frame.size.height + transitionContext.containerView.safeAreaInsets.bottom
+                y: presentedFrame.size.height + transitionContext.containerView.safeAreaInsets.bottom
             )
             presented.view.transform = transform
-            transitionContext.containerView.layoutIfNeeded()
             animator.addAnimations {
                 presented.view.transform = .identity
             }
@@ -134,7 +130,7 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
             if presenting.view.superview == nil {
                 transitionContext.containerView.insertSubview(presenting.view, at: 0)
                 presenting.view.frame = transitionContext.finalFrame(for: presenting)
-                transitionContext.containerView.layoutIfNeeded()
+                presenting.view.layoutIfNeeded()
             }
             let frame = transitionContext.finalFrame(for: presented)
             let dy = transitionContext.containerView.frame.height - frame.origin.y
@@ -142,6 +138,8 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
                 translationX: 0,
                 y: dy
             )
+            presented.view.layoutIfNeeded()
+
             animator.addAnimations {
                 presented.view.transform = transform
             }
@@ -154,6 +152,13 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
                 transitionContext.completeTransition(false)
             }
         }
+    }
+}
+
+extension UIViewControllerContextTransitioning {
+
+    func presentationController(isPresenting: Bool) -> UIPresentationController? {
+        viewController(forKey: isPresenting ? .to : .from)?._activePresentationController
     }
 }
 

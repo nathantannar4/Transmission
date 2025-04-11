@@ -312,7 +312,7 @@ private struct PresentationLinkAdapterBody<
                     }
 
                 case .representable(_, let transition):
-                    assert(!isClassType(transition), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
+                    assert(!swift_getIsClassType(transition), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
@@ -337,6 +337,8 @@ private struct PresentationLinkAdapterBody<
                         viewController,
                         animated: isAnimated
                     ) {
+                        context.coordinator.animation = nil
+                        context.coordinator.didPresentAnimated = isAnimated
                         if !isPresented.wrappedValue {
                             // Handle `isPresented` changing mid presentation
                             viewController.dismiss(animated: isAnimated)
@@ -409,6 +411,7 @@ private struct PresentationLinkAdapterBody<
         var adapter: PresentationLinkDestinationViewControllerAdapter<Destination, SourceView>?
         var isBeingReused = false
         var animation: Animation?
+        var didPresentAnimated = false
         unowned var sourceView: UIView!
         var overrideTraitCollection: UITraitCollection?
 
@@ -423,7 +426,7 @@ private struct PresentationLinkAdapterBody<
                 sourceView: sourceView,
                 options: options,
                 environment: adapter?.environment ?? .init(),
-                transaction: Transaction(animation: animation)
+                transaction: Transaction(animation: animation ?? (didPresentAnimated ? .default : nil))
             )
         }
 
@@ -432,6 +435,9 @@ private struct PresentationLinkAdapterBody<
             let presentingViewController = {
                 var remaining = count
                 var presentingViewController = viewController
+                if remaining == 1, presentingViewController.presentedViewController == nil {
+                    remaining -= 1
+                }
                 while remaining > 0, let next = presentingViewController.presentingViewController {
                     presentingViewController = next
                     remaining -= 1
@@ -439,6 +445,7 @@ private struct PresentationLinkAdapterBody<
                 return presentingViewController
             }()
             animation = transaction.animation
+            didPresentAnimated = false
             presentingViewController.dismiss(animated: transaction.isAnimated) {
                 withTransaction(transaction) {
                     self.isPresented.wrappedValue = false
@@ -447,13 +454,6 @@ private struct PresentationLinkAdapterBody<
         }
 
         // MARK: - UIViewControllerPresentationDelegate
-
-        func viewControllerWillDismiss(
-            _ presentingViewController: UIViewController?,
-            animated: Bool
-        ) {
-            animation = animated ? .default : nil
-        }
 
         func viewControllerDidDismiss(
             _ presentingViewController: UIViewController?,
@@ -823,9 +823,8 @@ private struct PresentationLinkAdapterBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                let isAnimated = coordinator.animation != nil
                 withCATransaction {
-                    adapter.viewController.dismiss(animated: isAnimated)
+                    adapter.viewController.dismiss(animated: coordinator.didPresentAnimated)
                 }
                 coordinator.adapter = nil
             } else {
@@ -881,6 +880,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
                     PresentationBridgeAdapter(
                         presentationCoordinator: PresentationCoordinator(
                             isPresented: isPresented.wrappedValue,
+                            sourceView: sourceView,
                             dismissBlock: { [weak self] in
                                 self?.dismiss($0, $1)
                             }
@@ -951,6 +951,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 PresentationBridgeAdapter(
                     presentationCoordinator: PresentationCoordinator(
                         isPresented: isPresented.wrappedValue,
+                        sourceView: sourceView,
                         dismissBlock: { [weak self] in self?.dismiss($0, $1) }
                     )
                 )

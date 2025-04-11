@@ -31,7 +31,7 @@ struct MatchedGeometryPushTransition: DestinationLinkTransitionRepresentable {
             prefersZoomEffect: true,
             preferredFromCornerRadius: nil,
             preferredToCornerRadius: nil,
-            fromOpacity: 0,
+            initialOpacity: 0,
             isPresenting: operation == .push,
             animation: context.transaction.animation
         )

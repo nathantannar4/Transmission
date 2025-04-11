@@ -62,6 +62,13 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         self.transition = transition
     }
 
+    open func preferredDefaultAnimation() -> Animation? {
+        guard panGesture.state == .ended else { return nil }
+        let velocity = panGesture.velocity(in: panGesture.view)
+        let initialVelocity = min(abs(velocity.y) / presentedViewController.view.frame.height, 1)
+        return Animation.interpolatingSpring(duration: 0.35, bounce: 0, initialVelocity: initialVelocity)
+    }
+
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
 
@@ -260,7 +267,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 if shouldFinish, gestureRecognizer.state == .ended {
                     transition.finish()
                 } else {
-                    transition.completionSpeed = percentage
+                    transition.completionSpeed = max(percentage, 0.1)
                     transition.cancel()
                 }
                 self.transition = nil

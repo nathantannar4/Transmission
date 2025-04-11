@@ -214,7 +214,7 @@ public struct ShareSheetLinkModifier: ViewModifier {
         func makeUIViewController(
             context: Context
         ) -> UIActivityViewController {
-            assert(items.allSatisfy({ !isClassType($0) }), "ShareSheetItemProvider must be value types (either a struct or an enum); it was a class")
+            assert(items.allSatisfy({ !swift_getIsClassType($0) }), "ShareSheetItemProvider must be value types (either a struct or an enum); it was a class")
             let ctx = ShareSheetItemProviderContext(environment: context.environment)
             let activityItems = items.map { $0.makeUIActivityItemSource(context: ctx) }
             let applicationActivities = items.compactMap { $0.makeUIActivity(context: ctx) }

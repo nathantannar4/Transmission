@@ -31,11 +31,16 @@ extension UIView {
     }
 
     func idealHeight(for width: CGFloat) -> CGFloat {
-        var height = systemLayoutSizeFitting(CGSize(width: width, height: UIView.layoutFittingExpandedSize.height))
-            .height
+        var height = systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingExpandedSize.height),
+            withHorizontalFittingPriority: .fittingSizeLevel,
+            verticalFittingPriority: .defaultLow
+        ).height
         if height >= UIView.layoutFittingExpandedSize.height {
-            height = sizeThatFits(CGSize(width: width, height: .infinity))
-                .height
+            let sizeThatFits = sizeThatFits(CGSize(width: width, height: .infinity))
+            if sizeThatFits.height > 0 {
+                height = sizeThatFits.height
+            }
         }
         return height
     }

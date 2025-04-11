@@ -130,13 +130,19 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }
+        let animation: Animation? = {
+            guard context.transaction.animation == .default else {
+                return context.transaction.animation
+            }
+            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
+        }()
         let transition = SlidePresentationControllerTransition(
             edge: options.edge,
             prefersScaleEffect: options.prefersScaleEffect,
             preferredFromCornerRadius: options.preferredFromCornerRadius,
             preferredToCornerRadius: options.preferredToCornerRadius,
             isPresenting: false,
-            animation: context.transaction.animation
+            animation: animation
         )
         transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
         presentationController.transition(with: transition)
@@ -340,6 +346,8 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
             #endif
             presented.view.layer.cornerRadius = toCornerRadius
         }
+
+        presented.view.layoutIfNeeded()
 
         let presentedTransform = isPresenting ? .identity : presentationTransform(
             presented: presented,

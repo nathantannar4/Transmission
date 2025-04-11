@@ -38,7 +38,8 @@ struct ContentView: View {
     @State var isCardMatchedGeometryPresented = false
     @State var isSourceViewZoomPresented = false
     @State var progress: CGFloat = 0
-    @State var isDestinationLinkExpanded: Bool = true
+    @State var isTransitionReaderExpanded: Bool = true
+    @State var isDestinationLinkExpanded: Bool = false
     @State var isPresentationLinkExpanded: Bool = true
 
     @Environment(\.presentationCoordinator) var presentationCoordinator
@@ -46,50 +47,84 @@ struct ContentView: View {
 
     var body: some View {
         List {
-            DisclosureGroup(isExpanded: $isDestinationLinkExpanded) {
+            DisclosureGroup(isExpanded: $isTransitionReaderExpanded) {
                 Section {
-                    DestinationLink {
-                        ContentView()
-                    } label: {
-                        Text("Push")
-                    }
-
-                    Button {
-                        withAnimation {
-                            isMatchedGeometryPushPresented = true
-                        }
-                    } label: {
-                        HStack {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue)
-                                .aspectRatio(1, contentMode: .fit)
-                                .frame(width: 44, height: 44)
-                                .destination(
-                                    transition: .matchedGeometry,
-                                    isPresented: $isMatchedGeometryPushPresented
-                                ) {
-                                    ContentView()
+                    PresentationLink {
+                        TransitionReader { proxy in
+                            Color.blue.opacity(proxy.progress)
+                                .overlay {
+                                    Text(proxy.progress.description)
+                                        .foregroundStyle(.white)
                                 }
-
-                            Text("Push w/ Matched Geometry")
+                                .ignoresSafeArea()
+                                .onChange(of: proxy.progress) { newValue in
+                                    progress = newValue
+                                }
                         }
-                    }
-
-                    DestinationSourceViewLink(transition: .zoomIfAvailable) {
-                        ContentView()
                     } label: {
-                        Text("Push w/ Zoom")
+                        Text("PresentationLink")
                     }
 
-                    Button("Pop All") {
-                        destinationCoordinator.popToRoot()
+                    NavigationLink {
+                        TransitionReader { proxy in
+                            Color.blue.opacity(proxy.progress)
+                                .overlay {
+                                    Text(proxy.progress.description)
+                                        .foregroundStyle(.white)
+                                }
+                                .ignoresSafeArea()
+                                .onChange(of: proxy.progress) { newValue in
+                                    progress = newValue
+                                }
+                        }
+                    } label: {
+                        Text("NavigationLink")
+                    }
+
+                    PresentationSourceViewLink(
+                        transition: .asymmetric(
+                            presented: CardPresentationLinkTransition(
+                                options: .init(
+                                    preferredAspectRatio: nil
+                                )
+                            ),
+                            presenting: MatchedGeometryPresentationLinkTransition(
+                                options: .init(
+                                    preferredFromCornerRadius: -1,
+                                    preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
+                                    initialOpacity: 1
+                                )
+                            ),
+                            dismissing: MatchedGeometryPresentationLinkTransition(
+                                options: .init(
+                                    preferredFromCornerRadius: -1,
+                                    preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
+                                    initialOpacity: 1
+                                )
+                            ),
+                            options: .init(
+                                preferredPresentationBackgroundColor: nil
+                            )
+                        ),
+                        animation: .bouncy(duration: 0.5)
+                    ) {
+                        TransitionReader { proxy in
+                            InfoCardView(isPresented: proxy.isPresented)
+                        }
+                    } label: {
+                        Text("Delete")
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity, minHeight: 50)
+                            .background {
+                                Capsule().fill(.red)
+                            }
                     }
                 }
             } label: {
                 VStack(alignment: .leading) {
-                    Text("DestinationLink")
+                    Text("Custom Transitions")
                         .font(.headline)
-                    Text("via DestinationLinkModifier")
+                    Text("via TransitionReader")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
@@ -303,6 +338,8 @@ struct ContentView: View {
                                         ),
                                         presenting: MatchedGeometryPresentationLinkTransition(
                                             options: .init(
+                                                preferredFromCornerRadius: 10,
+                                                preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
                                                 prefersZoomEffect: true,
                                                 initialOpacity: 1
                                             )
@@ -375,7 +412,8 @@ struct ContentView: View {
 
                 Section {
                     PresentationLink(
-                        transition: .dynamicIsland
+                        transition: .dynamicIsland,
+                        animation: .bouncy
                     ) {
                         DynamicIslandView()
                     } label: {
@@ -470,6 +508,53 @@ struct ContentView: View {
                 }
             }
 
+            DisclosureGroup(isExpanded: $isDestinationLinkExpanded) {
+                Section {
+                    DestinationLink {
+                        ContentView()
+                    } label: {
+                        Text("Default")
+                    }
+
+                    if #available(iOS 18.0, *) {
+                        DestinationSourceViewLink(transition: .zoom) {
+                            ContentView()
+                        } label: {
+                            Text("Zoom")
+                        }
+                    }
+
+                    Button {
+                        withAnimation {
+                            isMatchedGeometryPushPresented = true
+                        }
+                    } label: {
+                        HStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.blue)
+                                .aspectRatio(1, contentMode: .fit)
+                                .frame(width: 44, height: 44)
+                                .destination(
+                                    transition: .matchedGeometry,
+                                    isPresented: $isMatchedGeometryPushPresented
+                                ) {
+                                    ContentView()
+                                }
+
+                            Text("Matched Geometry")
+                        }
+                    }
+                }
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("DestinationLink")
+                        .font(.headline)
+                    Text("via DestinationLinkModifier")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+            }
+
             DisclosureGroup {
                 ShareSheetLink(items: [URL(string: "https://github.com/nathantannar4")!]) { result in
                     switch result {
@@ -526,44 +611,6 @@ struct ContentView: View {
                 }
             }
 
-            DisclosureGroup {
-                PresentationLink {
-                    TransitionReader { proxy in
-                        Color.blue.opacity(proxy.progress)
-                            .overlay {
-                                Text(proxy.progress.description)
-                                    .foregroundStyle(.white)
-                            }
-                            .ignoresSafeArea()
-                            .onChange(of: proxy.progress) { newValue in
-                                progress = newValue
-                            }
-                    }
-                } label: {
-                    Text("PresentationLink")
-                }
-
-                NavigationLink {
-                    TransitionReader { proxy in
-                        Color.blue.opacity(proxy.progress)
-                            .overlay {
-                                Text(proxy.progress.description)
-                                    .foregroundStyle(.white)
-                            }
-                            .ignoresSafeArea()
-                            .onChange(of: proxy.progress) { newValue in
-                                progress = newValue
-                            }
-                    }
-                } label: {
-                    Text("NavigationLink")
-                }
-
-            } label: {
-                Text("TransitionReader")
-                    .font(.headline)
-            }
-
             PresentationLink(transition: .slide) {
                 PageView()
             } label: {
@@ -587,6 +634,11 @@ struct ContentView: View {
             } label: {
                 Text("UIStatusBarStyle")
             }
+
+            Button("Pop All") {
+                destinationCoordinator.popToRoot()
+            }
+            .disabled(!destinationCoordinator.isPresented)
 
             Button("Dismiss All") {
                 presentationCoordinator.dismissToRoot()
@@ -715,28 +767,6 @@ struct CardView: View {
     }
 }
 
-struct InfoCardView: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Lorem ipsum")
-                    .font(.title3.bold())
-
-                Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
-                    .foregroundStyle(.secondary)
-            }
-            .fixedSize(horizontal: false, vertical: true)
-
-            DismissPresentationLink {
-                Text("Done")
-                    .frame(maxWidth: .infinity, minHeight: 32)
-            }
-            .buttonStyle(.bordered)
-        }
-        .frame(maxHeight: .infinity, alignment: .top)
-    }
-}
-
 struct ToastView: View {
     @Environment(\.presentationCoordinator) var presentationCoordinator
 
@@ -811,7 +841,7 @@ struct DynamicIslandView: View {
             }
             .aspectRatio(1, contentMode: .fit)
         }
-        .frame(minHeight: 48)
+        .frame(minHeight: 48, maxHeight: .infinity)
         .buttonStyle(.plain)
         .prefersStatusBarHidden()
         .environment(\.colorScheme, .dark)
@@ -878,6 +908,89 @@ struct ImageLink: View {
             }
             .scrollTargetBehavior(.paging)
             .scrollPosition(id: $selectedImage)
+        }
+    }
+}
+
+struct InfoCardView: View {
+    var isPresented: Bool = true
+
+    var body: some View {
+        VStack {
+            if isPresented {
+                VStack(alignment: .leading) {
+                    HStack(alignment: .center) {
+                        Text("Lorem ipsum")
+                            .font(.title3.bold())
+
+                        Spacer()
+
+                        DismissPresentationLink {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                                .imageScale(.large)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Text("Lorem ipsum dolor sit amet consectetur adipiscing elit quisque faucibus ex sapien vitae pellentesque sem placerat in id cursus mi pretium tellus duis convallis tempus leo eu aenean sed diam.")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .transition(.opacity.animation(.default.speed(2)))
+            }
+
+            let layout = isPresented ? AnyLayout(HStackLayout()) : AnyLayout(ZStackLayout())
+            layout {
+                DismissPresentationLink {
+                    Text("Cancel")
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background {
+                            Capsule()
+                                .fill(.black)
+                        }
+                }
+
+                PresentationSourceViewLink(
+                    transition: .asymmetric(
+                        presented: CardPresentationLinkTransition(
+                            options: .init(
+                                preferredAspectRatio: nil
+                            )
+                        ),
+                        presenting: MatchedGeometryPresentationLinkTransition(
+                            options: .init(
+                                preferredFromCornerRadius: -1,
+                                preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
+                                initialOpacity: 1
+                            )
+                        ),
+                        dismissing: MatchedGeometryPresentationLinkTransition(
+                            options: .init(
+                                preferredFromCornerRadius: -1,
+                                preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
+                                initialOpacity: 1
+                            )
+                        ),
+                        options: .init(
+                            preferredPresentationBackgroundColor: nil
+                        )
+                    ),
+                    animation: .bouncy(duration: 0.5)
+                ) {
+                    TransitionReader { proxy in
+                        InfoCardView(isPresented: proxy.isPresented)
+                    }
+                } label: {
+                    Text("Delete")
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background {
+                            Capsule().fill(isPresented ? .red : .black)
+                        }
+                }
+            }
         }
     }
 }

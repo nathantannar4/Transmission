@@ -118,10 +118,16 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }
+        let animation: Animation? = {
+            guard context.transaction.animation == .default else {
+                return context.transaction.animation
+            }
+            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
+        }()
         let transition = ToastPresentationControllerTransition(
             edge: options.edge,
             isPresenting: false,
-            animation: context.transaction.animation
+            animation: animation
         )
         transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
         presentationController.transition(with: transition)
@@ -258,44 +264,65 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
         }
 
         if isPresenting {
-            let frame = transitionContext.finalFrame(for: presented)
+            var presentedFrame = transitionContext.finalFrame(for: presented)
             transitionContext.containerView.addSubview(presented.view)
-            presented.view.frame = frame
+            presented.view.frame = presentedFrame
+            presented.view.isHidden = true
+            presented.view.layoutIfNeeded()
+
+            (presented as? AnyHostingController)?.render()
+
+            if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
+                transitionReaderCoordinator.update(isPresented: true)
+
+                presented.view.setNeedsLayout()
+                presented.view.layoutIfNeeded()
+
+                if let presentationController = presented.presentationController as? PresentationController {
+                    presentedFrame = presentationController.frameOfPresentedViewInContainerView
+                }
+
+                transitionReaderCoordinator.update(isPresented: false)
+                presented.view.setNeedsLayout()
+                presented.view.layoutIfNeeded()
+                transitionReaderCoordinator.update(isPresented: true)
+            }
+
             switch edge {
             case .top, .leading:
                 let transform = CGAffineTransform(
                     translationX: 0,
-                    y: -presented.view.intrinsicContentSize.height - transitionContext.containerView.safeAreaInsets.top
+                    y: -presented.view.frame.maxY
                 )
-                presented.view.transform = transform
+                presented.view.frame = presentedFrame.applying(transform)
             case .bottom, .trailing:
                 let transform = CGAffineTransform(
                     translationX: 0,
-                    y: frame.size.height + transitionContext.containerView.safeAreaInsets.bottom
+                    y: transitionContext.containerView.frame.height - presentedFrame.minY
                 )
-                presented.view.transform = transform
+                presented.view.frame = presentedFrame.applying(transform)
             }
+            presented.view.isHidden = false
             animator.addAnimations {
-                presented.view.transform = .identity
+                presented.view.frame = presentedFrame
             }
         } else {
-            let transform: CGAffineTransform
+            presented.view.layoutIfNeeded()
+
+            let finalFrame: CGRect
             switch edge {
             case .top, .leading:
-                transform = CGAffineTransform(
-                    translationX: 0,
-                    y: -presented.view.intrinsicContentSize.height - transitionContext.containerView.safeAreaInsets.top
-                )
+                let transform = CGAffineTransform(translationX: 0, y: -presented.view.frame.maxY)
+                finalFrame = presented.view.frame.applying(transform)
             case .bottom, .trailing:
-                let frame = transitionContext.finalFrame(for: presented)
-                let dy = transitionContext.containerView.frame.height - frame.origin.y
-                transform = CGAffineTransform(
+                let transform = CGAffineTransform(
                     translationX: 0,
-                    y: dy
+                    y: transitionContext.containerView.frame.height - presented.view.frame.minY
                 )
+                finalFrame = presented.view.frame.applying(transform)
             }
             animator.addAnimations {
-                presented.view.transform = transform
+                presented.view.frame = finalFrame
             }
         }
         animator.addCompletion { animatingPosition in

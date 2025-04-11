@@ -13,7 +13,7 @@
 
 ## Preview
 
-![Example Preview](https://github.com/nathantannar4/Transmission/blob/main/Example/Example.gif)
+https://github.com/user-attachments/assets/5b323b24-6697-4b66-aef0-d7b085b17d79
 
 ## Requirements
 
@@ -63,21 +63,17 @@ public struct PresentationLinkTransition {
     public static var `default`: PresentationLinkTransition
 
     public static let sheet: PresentationLinkTransition
-    public static func sheet(
-        selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
-        detents: [SheetTransitionOptions.Detent]
-    ) -> PresentationLinkTransition
-    
     public static let currentContext: PresentationLinkTransition
     public static let fullscreen: PresentationLinkTransition
     public static let popover: PresentationLinkTransition
     public static let slide: PresentationLinkTransition
     public static let card: PresentationLinkTransition
+    @available(iOS 18.0, *)
+    public static let zoom: PresentationLinkTransition
+    public static let matchedGeometry: PresentationLinkTransition
+    public static let toast: PresentationLinkTransition
     
     public static func custom<T: PresentationLinkTransitionRepresentable>(_ transition: T) -> PresentationLinkTransition
-    
-    @available(*, deprecated)
-    public static func custom<T: PresentationLinkCustomTransition>(_ transition: T) -> PresentationLinkTransition
 }
 
 @available(iOS 15.0, *)
@@ -125,17 +121,22 @@ public protocol PresentationLinkTransitionRepresentable {
     )
 }
 
+/// A coordinator that can be used to programatically dismiss a view.
+///
+/// See Also:
+///  - ``PresentationLink``
+///  - ``WindowLink``
+///
 @available(iOS 14.0, *)
 @frozen
 public struct PresentationCoordinator {
 
     public var isPresented: Bool
+    public weak var sourceView: UIView?
 
-    @inlinable
-    public func dismiss(animation: Animation? = .default)
+    public func dismiss(count: Int, animation: Animation? = .default)
     
-    @inlinable
-    public func dismiss(transaction: Transaction)
+    public func dismiss(count: Int, transaction: Transaction)
 }
 
 @available(iOS 14.0, *)
@@ -147,6 +148,12 @@ extension EnvironmentValues {
 ///
 /// The destination view is presented with the provided `transition`.
 /// By default, the ``PresentationLinkTransition/default`` transition is used.
+///
+/// See Also:
+///  - ``PresentationSourceViewLink``
+///  - ``PresentationLinkTransition``
+///  - ``PresentationLinkModifier``
+///  - ``TransitionReader``
 ///
 /// > Tip: You can implement custom transitions with a `UIPresentationController` and/or
 /// `UIViewControllerInteractiveTransitioning` with the ``PresentationLinkTransition/custom(_:)``
@@ -160,18 +167,7 @@ public struct PresentationLink<
 >: View {
 
     public init(
-        @ViewBuilder destination: () -> Destination,
-        @ViewBuilder label: () -> Label
-    )
-
-    public init(
         transition: PresentationLinkTransition = .default,
-        @ViewBuilder destination: () -> Destination,
-        @ViewBuilder label: () -> Label
-    )
-
-    public init(
-        isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder label: () -> Label
     )
@@ -186,19 +182,9 @@ public struct PresentationLink<
 
 @available(iOS 14.0, *)
 extension PresentationLink {
-    public init<ViewController: UIViewController>(
-        destination: @escaping () -> ViewController,
-        @ViewBuilder label: () -> Label
-    )
 
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition,
-        destination: @escaping () -> ViewController,
-        @ViewBuilder label: () -> Label
-    )
-
-    public init<ViewController: UIViewController>(
-        isPresented: Binding<Bool>,
         destination: @escaping () -> ViewController,
         @ViewBuilder label: () -> Label
     )
@@ -208,29 +194,18 @@ extension PresentationLink {
         isPresented: Binding<Bool>,
         destination: @escaping () -> ViewController,
         @ViewBuilder label: () -> Label
-    )
-}
-
-@available(iOS 14.0, *)
-extension PresentationLinkModifier {
-    public init(
-        transition: PresentationLinkTransition = .default,
-        isPresented: Binding<Bool>,
-        @ViewBuilder destination: () -> Destination
     )
 }
 
 @available(iOS 14.0, *)
 extension View {
 
-    /// A modifier that presents a destination view in a new `UIViewController`.
     public func presentation<Destination: View>(
         transition: PresentationLinkTransition = .default,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination
     ) -> some View
 
-    /// A modifier that presents a destination view in a new `UIViewController`.
     public func presentation<T, Destination: View>(
         _ value: Binding<T?>,
         transition: PresentationLinkTransition = .default,
@@ -252,9 +227,142 @@ public struct TransitionReader<Content: View>: View {
     public struct Proxy {
         /// The progress state of the transition from 0 to 1 where 1 is fully presented
         public var progress: CGFloat
+
+        public var isPresented: Bool
     }
 
     public init(@ViewBuilder content: @escaping (Proxy) -> Content)
+}
+```
+
+### DestinationLink
+
+```swift
+/// The transition and presentation style for a ``DestinationLink`` or ``DestinationLinkModifier``.
+@available(iOS 14.0, *)
+public struct DestinationLinkTransition: Sendable {
+
+    public static let `default`: DestinationLinkTransition
+
+    @available(iOS 18.0, *)
+    public static let zoom: DestinationLinkTransition
+
+    public static func custom<T: DestinationLinkTransitionRepresentable>(_ transition: T) -> DestinationLinkTransition
+}
+
+/// A protocol that defines a custom transition for a ``DestinationLinkTransition``
+@available(iOS 14.0, *)
+@MainActor @preconcurrency
+public protocol DestinationLinkTransitionRepresentable {
+
+    typealias Context = DestinationLinkTransitionRepresentableContext
+
+    /// The interaction controller to use for the transition presentation.
+    ///
+    /// > Note: This protocol implementation is optional and defaults to `nil`
+    ///
+    @MainActor @preconcurrency func navigationController(
+        _ navigationController: UINavigationController,
+        interactionControllerFor animationController: UIViewControllerAnimatedTransitioning,
+        context: Context
+    ) -> UIViewControllerInteractiveTransitioning?
+
+    /// The animation controller to use for the transition presentation.
+    @MainActor @preconcurrency func navigationController(
+        _ navigationController: UINavigationController,
+        animationControllerFor operation: UINavigationController.Operation,
+        from fromVC: UIViewController,
+        to toVC: UIViewController,
+        context: Context
+    ) -> UIViewControllerAnimatedTransitioning?
+}
+
+/// A coordinator that can be used to programatically dismiss a view.
+///
+/// See Also:
+///  - ``DestinationLink``
+///
+@available(iOS 14.0, *)
+@frozen
+public struct DestinationCoordinator {
+    public var isPresented: Bool
+
+    public func pop(count: Int, animation: Animation? = .default)
+    
+    public func pop(count: Int, transaction: Transaction)
+}
+
+@available(iOS 14.0, *)
+extension EnvironmentValues {
+    public var destinationCoordinator: DestinationCoordinator { get }
+}
+
+/// A button that pushes a destination view in a new `UIViewController`.
+///
+/// The destination view is presented with the provided `transition`.
+/// By default, the ``DestinationLinkTransition/default`` transition is used.
+///
+/// See Also:
+///  - ``DestinationLinkModifier``
+///  - ``DestinationLinkTransition``
+///  - ``DestinationSourceViewLink``
+///  - ``TransitionReader``
+///
+/// > Tip: You can implement custom transitions with the ``DestinationLinkTransition/custom(_:)``
+///  transition.
+///
+@available(iOS 14.0, *)
+@frozen
+public struct DestinationLink<
+    Label: View,
+    Destination: View
+>: View {
+
+    public init(
+        transition: DestinationLinkTransition = .default,
+        @ViewBuilder destination: () -> Destination,
+        @ViewBuilder label: () -> Label
+    )
+
+    public init(
+        transition: DestinationLinkTransition,
+        isPresented: Binding<Bool>,
+        @ViewBuilder destination: () -> Destination,
+        @ViewBuilder label: () -> Label
+    )
+}
+
+@available(iOS 14.0, *)
+extension DestinationLink {
+
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder label: () -> Label
+    )
+
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder label: () -> Label
+    )
+}
+
+@available(iOS 14.0, *)
+extension View {
+
+    public func destination<Destination: View>(
+        transition: DestinationLinkTransition = .default,
+        isPresented: Binding<Bool>,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View
+
+    public func destination<T, Destination: View>(
+        _ value: Binding<T?>,
+        transition: DestinationLinkTransition = .default,
+        @ViewBuilder destination: (Binding<T>) -> Destination
+    ) -> some View
 }
 ```
 

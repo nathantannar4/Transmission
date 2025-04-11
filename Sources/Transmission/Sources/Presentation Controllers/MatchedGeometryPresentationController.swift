@@ -154,7 +154,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             prefersZoomEffect: options.prefersZoomEffect,
             preferredFromCornerRadius: options.preferredFromCornerRadius,
             preferredToCornerRadius: options.preferredToCornerRadius,
-            fromOpacity: options.initialOpacity,
+            initialOpacity: options.initialOpacity,
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -169,15 +169,21 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }
+        let animation: Animation? = {
+            guard context.transaction.animation == .default else {
+                return context.transaction.animation
+            }
+            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
+        }()
         let transition = MatchedGeometryPresentationControllerTransition(
             sourceView: context.sourceView,
             prefersScaleEffect: options.prefersScaleEffect,
             prefersZoomEffect: options.prefersZoomEffect,
             preferredFromCornerRadius: options.preferredFromCornerRadius,
             preferredToCornerRadius: options.preferredToCornerRadius,
-            fromOpacity: options.initialOpacity,
+            initialOpacity: options.initialOpacity,
             isPresenting: false,
-            animation: context.transaction.animation
+            animation: animation
         )
         transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
         presentationController.transition(with: transition)
@@ -259,12 +265,10 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 
             if transform.isIdentity {
                 presentedViewController.view.layer.cornerRadius = 0
-                updateShadow(progress: 0)
             } else {
                 let progress = prefersZoomEffect ? 0 : max(0, min(transform.d, 1))
                 let cornerRadius = progress * UIScreen.main.displayCornerRadius()
                 presentedViewController.view.layer.cornerRadius = cornerRadius
-                updateShadow(progress: progress)
             }
         }
     }
@@ -332,7 +336,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
     public let prefersZoomEffect: Bool
     public let preferredFromCornerRadius: CGFloat?
     public let preferredToCornerRadius: CGFloat?
-    public let fromOpacity: CGFloat
+    public let initialOpacity: CGFloat
     public weak var sourceView: UIView?
 
     public init(
@@ -341,7 +345,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         prefersZoomEffect: Bool,
         preferredFromCornerRadius: CGFloat?,
         preferredToCornerRadius: CGFloat?,
-        fromOpacity: CGFloat,
+        initialOpacity: CGFloat,
         isPresenting: Bool,
         animation: Animation?
     ) {
@@ -349,7 +353,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         self.prefersZoomEffect = prefersZoomEffect
         self.preferredFromCornerRadius = preferredFromCornerRadius
         self.preferredToCornerRadius = preferredToCornerRadius
-        self.fromOpacity = fromOpacity
+        self.initialOpacity = initialOpacity
         super.init(isPresenting: isPresenting, animation: animation)
         self.sourceView = sourceView
     }
@@ -371,7 +375,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         let sourceViewController = sourceView?.viewController
         let prefersScaleEffect = prefersScaleEffect
         let prefersZoomEffect = prefersZoomEffect
-        let fromOpacity = fromOpacity
+        let initialOpacity = initialOpacity
         let isPresenting = isPresenting
 
         lazy var hostingController: AnyHostingController? = {
@@ -408,7 +412,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         }
 
         let disableSafeArea = hostingController?.disableSafeArea ?? false
-        if !transitionContext.isInteractive {
+        if isPresenting, !transitionContext.isInteractive {
             hostingController?.disableSafeArea = true
         } else {
             presented.transitionCoordinator?.notifyWhenInteractionChanges { ctx in
@@ -443,14 +447,16 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             transitionContext.containerView.addSubview(presented.view)
             presented.view.layer.cornerRadius = fromCornerRadius
 
+            sourceView?.alpha = 1 - initialOpacity
+
             if prefersZoomEffect {
                 presented.view.frame = presentedFrame
-                sourceView?.alpha = 1 - fromOpacity
+                presented.view.layoutIfNeeded()
                 if let portalView {
                     transitionContext.containerView.addSubview(portalView)
                 }
                 portalView?.frame = presentedFrame
-                portalView?.alpha = fromOpacity
+                portalView?.alpha = initialOpacity
                 portalView?.transform = CGAffineTransform(to: presentedFrame, from: sourceFrame)
                 if let presentationController = presented.presentationController as? PresentationController {
                     presentationController.shadowView.preferredSourceView = portalView
@@ -458,23 +464,42 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
 
             } else {
                 presented.view.frame = sourceFrame
-                presented.view.alpha = fromOpacity
+                presented.view.alpha = initialOpacity
                 presented.view.layoutIfNeeded()
                 hostingController?.render()
-                if let presentationController = presented.presentationController as? PresentationController {
-                    presentedFrame = presentationController.frameOfPresentedViewInContainerView
+
+                if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
+                    transitionReaderCoordinator.update(isPresented: true)
+
+                    presented.view.setNeedsLayout()
+                    presented.view.layoutIfNeeded()
+
+                    if let presentationController = presented.presentationController as? PresentationController {
+                        presentedFrame = presentationController.frameOfPresentedViewInContainerView
+                    }
+
+                    transitionReaderCoordinator.update(isPresented: false)
+                    presented.view.setNeedsLayout()
+                    presented.view.layoutIfNeeded()
+                    transitionReaderCoordinator.update(isPresented: true)
                 }
             }
 
         } else {
-            presented.view.layer.cornerRadius = toCornerRadius
+            if presented.view.layer.cornerRadius == 0 {
+                presented.view.layer.cornerRadius = toCornerRadius
+            }
+            presented.view.layoutIfNeeded()
+            hostingController?.render()
+
+            presented.transitionReaderCoordinator?.update(isPresented: false)
 
             if presenting.view.superview == nil {
                 transitionContext.containerView.insertSubview(presenting.view, belowSubview: presented.view)
             }
 
             if !prefersZoomEffect {
-                sourceView?.alpha = fromOpacity
+                sourceView?.alpha = initialOpacity
             }
         }
 
@@ -484,7 +509,6 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         }
 
         if !isPresenting, prefersZoomEffect, let portalView {
-            presented.view.layoutIfNeeded()
             transitionContext.containerView.addSubview(portalView)
             portalView.frame = presentedFrame
             portalView.transform = presented.view.transform
@@ -500,6 +524,8 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
                 } else {
                     hostingController?.disableSafeArea = true
                 }
+            } else if !isPresenting, !transitionContext.isInteractive {
+                hostingController?.disableSafeArea = true
             }
 
             presented.view.layer.cornerRadius = isPresenting ? toCornerRadius : fromCornerRadius
@@ -517,11 +543,11 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             }
         }
         animator.addAnimations({
-            sourceView?.alpha = isPresenting ? 0 : 1 - fromOpacity
+            sourceView?.alpha = isPresenting ? 0 : 1 - initialOpacity
             if prefersZoomEffect {
-                portalView?.alpha = isPresenting ? 1 : fromOpacity
+                portalView?.alpha = isPresenting ? 1 : initialOpacity
             } else {
-                presented.view.alpha = isPresenting ? 1 : fromOpacity
+                presented.view.alpha = isPresenting ? 1 : initialOpacity
             }
         }, delayFactor: isPresenting ? 0 : 0.25)
 

@@ -131,30 +131,16 @@ class DynamicIslandPresentationController: InteractivePresentationController {
 
 class DynamicIslandPresentationControllerTransition: PresentationControllerTransition {
 
-    override func transitionAnimator(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewPropertyAnimator {
+    override func configureTransitionAnimator(
+        using transitionContext: UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
 
-        let animator: UIViewPropertyAnimator
-        if isPresenting {
-            animator = UIViewPropertyAnimator(
-                duration: duration,
-                timingParameters: UISpringTimingParameters(
-                    damping: 0.7,
-                    response: 0.5
-                )
-            )
-        } else {
-            animator = UIViewPropertyAnimator(
-                duration: duration,
-                curve: .easeIn
-            )
-        }
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
         else {
             transitionContext.completeTransition(false)
-            return animator
+            return
         }
 
         let dynamicIslandFrame = CGRect(x: 135, y: 11, width: 123, height: 36)
@@ -197,7 +183,6 @@ class DynamicIslandPresentationControllerTransition: PresentationControllerTrans
                 transitionContext.completeTransition(false)
             }
         }
-        return animator
     }
 }
 

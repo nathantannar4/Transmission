@@ -25,7 +25,12 @@ public protocol AnyHostingController: UIViewController {
 extension UIHostingController: AnyHostingController {
     public var disableSafeArea: Bool {
         get { _disableSafeArea }
-        set { _disableSafeArea = newValue }
+        set {
+            if #available(macOS 13.3, iOS 16.4, tvOS 16.4, *) {
+                safeAreaRegions = newValue ? [] : .all
+            }
+            _disableSafeArea = newValue
+        }
     }
     
     public func render() {

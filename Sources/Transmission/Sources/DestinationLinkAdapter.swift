@@ -145,12 +145,17 @@ private struct DestinationLinkAdapterBody<
                     }
 
                 case .representable(_, let transition):
-                    assert(!isClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
+                    assert(!swift_getIsClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     context.coordinator.sourceView = uiView
                 }
 
                 navigationController.delegates.add(delegate: context.coordinator, for: adapter.viewController)
-                navigationController.pushViewController(adapter.viewController, animated: isAnimated)
+                context.coordinator.isPushing = true
+                navigationController.pushViewController(adapter.viewController, animated: isAnimated) {
+                    context.coordinator.animation = nil
+                    context.coordinator.didPresentAnimated = isAnimated
+                    context.coordinator.isPushing = false
+                }
             }
         } else if let adapter = context.coordinator.adapter,
                   !isPresented.wrappedValue
@@ -187,6 +192,8 @@ private struct DestinationLinkAdapterBody<
         var isPresented: Binding<Bool>
         var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, SourceView>?
         var animation: Animation?
+        var didPresentAnimated = false
+        var isPushing = false
         unowned var sourceView: UIView!
 
         init(isPresented: Binding<Bool>) {
@@ -200,13 +207,14 @@ private struct DestinationLinkAdapterBody<
                 sourceView: sourceView,
                 options: options,
                 environment: adapter?.environment ?? .init(),
-                transaction: Transaction(animation: animation)
+                transaction: Transaction(animation: animation ?? (didPresentAnimated ? .default : nil))
             )
         }
 
         func onPop(_ count: Int, transaction: Transaction) {
             guard let viewController = adapter?.viewController else { return }
             animation = transaction.animation
+            didPresentAnimated = false
             viewController._popViewController(count: count, animated: transaction.isAnimated) {
                 withTransaction(transaction) {
                     self.isPresented.wrappedValue = false
@@ -223,6 +231,7 @@ private struct DestinationLinkAdapterBody<
         ) {
             if let viewController = adapter?.viewController,
                !navigationController.viewControllers.contains(viewController),
+               !isPushing,
                isPresented.wrappedValue
             {
                 // Break the retain cycle
@@ -284,7 +293,7 @@ private struct DestinationLinkAdapterBody<
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
                 let isAnimated = coordinator.animation != nil
                 withCATransaction {
-                    adapter.viewController._popViewController(animated: isAnimated)
+                    adapter.viewController._popViewController(animated: coordinator.didPresentAnimated)
                 }
                 coordinator.adapter = nil
             } else {
