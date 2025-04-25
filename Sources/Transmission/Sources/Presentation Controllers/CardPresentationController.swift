@@ -11,7 +11,7 @@ import SwiftUI
 extension PresentationLinkTransition {
 
     /// The card presentation style.
-    public static var card: PresentationLinkTransition = .card()
+    public static let card: PresentationLinkTransition = .card()
 
     /// The card presentation style.
     public static func card(

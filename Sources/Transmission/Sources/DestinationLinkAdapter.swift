@@ -291,7 +291,6 @@ private struct DestinationLinkAdapterBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                let isAnimated = coordinator.animation != nil
                 withCATransaction {
                     adapter.viewController._popViewController(animated: coordinator.didPresentAnimated)
                 }

@@ -11,7 +11,7 @@ import SwiftUI
 extension PresentationLinkTransition {
 
     /// The slide presentation style.
-    public static var slide: PresentationLinkTransition = .slide()
+    public static let slide: PresentationLinkTransition = .slide()
 
     /// The slide presentation style.
     public static func slide(

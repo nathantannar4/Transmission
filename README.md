@@ -50,6 +50,10 @@ let package = Package(
 )
 ```
 
+## Documentation
+
+Detailed documentation is available [here](https://swiftpackageindex.com/nathantannar4/Transmission/main/documentation/transmission).
+
 ## Introduction to Transmission
 
 For some sample code to get started with `Transmission`, build and run the included "Example" project.
