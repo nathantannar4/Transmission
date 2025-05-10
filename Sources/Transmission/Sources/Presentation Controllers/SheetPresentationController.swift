@@ -293,6 +293,9 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             } else if oldValue.detents != detents {
                 return true
             }
+            if #available(iOS 17.0, *), oldValue.prefersPageSizing != newValue.prefersPageSizing {
+                return true
+            }
             return false
         }()
         #endif
@@ -310,6 +313,9 @@ extension PresentationLinkTransition.SheetTransitionOptions {
                     presentationController.selectedDetentIdentifier = selected.wrappedValue?.toUIKit()
                 }
                 presentationController.preferredCornerRadius = newValue.preferredCornerRadius
+                if #available(iOS 17.0, *) {
+                    presentationController.prefersPageSizing = newValue.prefersPageSizing
+                }
                 #endif
             }
             if isAnimated {

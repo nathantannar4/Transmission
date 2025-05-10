@@ -140,6 +140,34 @@ extension View {
             ViewControllerRepresentableAdapter(destination)
         }
     }
+
+    /// A modifier that presents a destination view in a new `UIViewController`.
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``PresentationLinkModifier``
+    ///
+    @_disfavoredOverload
+    public func presentation<T, ViewController: UIViewController>(
+        _ value: Binding<T?>,
+        transition: PresentationLinkTransition = .default,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<UIViewController>.Context) -> UIViewController
+    ) -> some View {
+        presentation(transition: transition, isPresented: value.isNotNil()) {
+            ViewControllerRepresentableAdapter { context in
+                guard let value = value.unwrap() else { return UIViewController() }
+                return destination(value, context)
+            }
+        }
+    }
 }
 
 #endif

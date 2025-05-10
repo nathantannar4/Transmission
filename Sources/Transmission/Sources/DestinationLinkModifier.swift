@@ -129,6 +129,31 @@ extension View {
             ViewControllerRepresentableAdapter(destination)
         }
     }
+
+    /// A modifier that pushes a destination `UIViewController`.
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    @_disfavoredOverload
+    public func destination<T, ViewController: UIViewController>(
+        _ value: Binding<T?>,
+        transition: DestinationLinkTransition = .default,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<UIViewController>.Context) -> UIViewController
+    ) -> some View {
+        self.destination(transition: transition, isPresented: value.isNotNil()) {
+            ViewControllerRepresentableAdapter { context in
+                guard let value = value.unwrap() else { return UIViewController() }
+                return destination(value, context)
+            }
+        }
+    }
 }
 
 #endif

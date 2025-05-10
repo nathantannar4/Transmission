@@ -475,6 +475,7 @@ extension PresentationLinkTransition {
         public var prefersScrollingExpandsWhenScrolledToEdge: Bool
         public var prefersEdgeAttachedInCompactHeight: Bool
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
+        public var prefersPageSizing: Bool
 
         public init(
             selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
@@ -487,6 +488,7 @@ extension PresentationLinkTransition {
             prefersScrollingExpandsWhenScrolledToEdge: Bool = true,
             prefersEdgeAttachedInCompactHeight: Bool = false,
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
+            prefersPageSizing: Bool = false,
             options: Options = .init()
         ) {
             self.options = options
@@ -506,6 +508,7 @@ extension PresentationLinkTransition {
             self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
             self.prefersEdgeAttachedInCompactHeight = prefersEdgeAttachedInCompactHeight
             self.widthFollowsPreferredContentSizeWhenEdgeAttached = widthFollowsPreferredContentSizeWhenEdgeAttached
+            self.prefersPageSizing = prefersPageSizing
         }
     }
 

@@ -716,6 +716,9 @@ private struct PresentationLinkAdapterBody<
                     if options.prefersSourceViewAlignment {
                         presentationController.sourceView = sourceView
                     }
+                    if #available(iOS 17.0, *) {
+                        presentationController.prefersPageSizing = options.prefersPageSizing
+                    }
                     presentationController.preferredBackgroundColor = options.options.preferredPresentationBackgroundUIColor
                     presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
