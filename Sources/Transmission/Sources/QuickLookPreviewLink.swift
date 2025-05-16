@@ -197,7 +197,7 @@ public struct QuickLookPreviewLinkModifier: ViewModifier {
 
         class PreviewController: QLPreviewController, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
             var openURL: OpenURLAction?
-            unowned var sourceView: UIView!
+            weak var sourceView: UIView?
             var items: [QuickLookPreviewItem.Resolved] = [] {
                 didSet {
                     guard oldValue != items else { return }

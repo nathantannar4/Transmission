@@ -412,7 +412,7 @@ private struct PresentationLinkAdapterBody<
         var isBeingReused = false
         var animation: Animation?
         var didPresentAnimated = false
-        unowned var sourceView: UIView!
+        weak var sourceView: UIView?
         var overrideTraitCollection: UITraitCollection?
 
         init(isPresented: Binding<Bool>) {

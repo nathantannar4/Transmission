@@ -194,7 +194,7 @@ private struct DestinationLinkAdapterBody<
         var animation: Animation?
         var didPresentAnimated = false
         var isPushing = false
-        unowned var sourceView: UIView!
+        weak var sourceView: UIView?
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented

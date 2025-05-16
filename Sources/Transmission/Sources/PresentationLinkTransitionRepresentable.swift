@@ -9,8 +9,9 @@ import EngineCore
 
 /// The context for a ``PresentationLinkTransitionRepresentable``
 @available(iOS 14.0, *)
+@frozen
 public struct PresentationLinkTransitionRepresentableContext {
-    public var sourceView: UIView
+    public weak var sourceView: UIView?
     public var options: PresentationLinkTransition.Options
     public var environment: EnvironmentValues
     public var transaction: Transaction

@@ -340,7 +340,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
     public weak var sourceView: UIView?
 
     public init(
-        sourceView: UIView,
+        sourceView: UIView?,
         prefersScaleEffect: Bool,
         prefersZoomEffect: Bool,
         preferredFromCornerRadius: CGFloat?,
