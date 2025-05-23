@@ -357,6 +357,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         animator.addAnimations {
             presented.view.transform = presentedTransform
             presenting.view.transform = presentingTransform
+            presented.view.layer.cornerRadius = isPresenting ? toCornerRadius : fromCornerRadius
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = isPresenting ? UIScreen.main.displayCornerRadius() : 0
             }

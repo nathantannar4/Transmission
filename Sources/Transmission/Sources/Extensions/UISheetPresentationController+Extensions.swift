@@ -63,6 +63,14 @@ extension UISheetPresentationController.Detent {
         }
     }
 
+    @available(iOS 18.0, *)
+    static func fullScreen() -> UISheetPresentationController.Detent? {
+        // https://x.com/SebJVidal/status/1924721754074714258
+        let aSelector = String("tneteDlluf_".reversed())
+        guard responds(to: NSSelectorFromString(aSelector)) else { return nil }
+        return value(forKey: aSelector) as? UISheetPresentationController.Detent
+    }
+
     static var legacyResolutionKey: UInt = 0
     var resolution: ((UITraitCollection, CGFloat) -> CGFloat?)? {
         get {

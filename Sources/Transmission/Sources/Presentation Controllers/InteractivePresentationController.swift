@@ -151,7 +151,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         // SwiftUI automatically reduces safe area during a view transform,
         // which causes layout changes. Add back the difference so it stays
         // consistent.
-        guard let presentedView, presentedView.frame != .zero else { return .zero }
+        guard let presentedView, presentedView.frame != .zero, !presentedView.transform.isIdentity else { return .zero }
         let frameOfPresentedViewInContainerView = frameOfPresentedViewInContainerView
         let frame = presentedViewController.view.frame
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero

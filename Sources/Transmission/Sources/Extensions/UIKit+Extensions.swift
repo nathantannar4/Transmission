@@ -19,21 +19,6 @@ extension UIEdgeInsets {
 
 extension UIView.AnimationCurve {
 
-    func toSwiftUI() -> UIView.AnimationCurve {
-        switch self {
-        case .easeInOut:
-            return .easeInOut
-        case .easeIn:
-            return .easeIn
-        case .easeOut:
-            return .easeOut
-        case .linear:
-            return .linear
-        default:
-            return .easeInOut
-        }
-    }
-
     func toSwiftUI(duration: TimeInterval) -> Animation {
         switch self {
         case .linear:

@@ -33,12 +33,12 @@ extension UIViewPropertyAnimator {
             case .default:
                 self.init(
                     duration: defaultDuration / resolved.speed,
-                    curve: defaultCompletionCurve.toSwiftUI()
+                    curve: defaultCompletionCurve
                 )
             case .custom(let animation):
                 self.init(
                     duration: (animation.duration ?? defaultDuration) / resolved.speed,
-                    curve: defaultCompletionCurve.toSwiftUI()
+                    curve: defaultCompletionCurve
                 )
             case .bezier, .spring, .fluidSpring:
                 let duration = (resolved.timingCurve.duration ?? defaultDuration) / resolved.speed
@@ -50,7 +50,7 @@ extension UIViewPropertyAnimator {
                 )
             }
         } else {
-            self.init(duration: defaultDuration, curve: defaultCompletionCurve.toSwiftUI())
+            self.init(duration: defaultDuration, curve: defaultCompletionCurve)
         }
     }
 }

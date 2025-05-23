@@ -202,8 +202,17 @@ extension PresentationLinkTransition {
                             break
                         }
                     }
+                    if #available(iOS 18.0, *), self == .fullScreen {
+                        return false
+                    }
                     return true
                 }
+
+                @available(iOS 18.0, *)
+                @available(macOS, unavailable)
+                @available(tvOS, unavailable)
+                @available(watchOS, unavailable)
+                public static let fullScreen = Identifier("com.apple.UIKit.full")
 
                 @available(iOS 15.0, *)
                 @available(macOS, unavailable)
@@ -266,12 +275,31 @@ extension PresentationLinkTransition {
                 return true
             }
 
+            /// Creates a full screen detent.
+            @available(iOS 18.0, *)
+            @available(macOS, unavailable)
+            @available(tvOS, unavailable)
+            @available(watchOS, unavailable)
+            public static let fullScreen = Detent(identifier: .fullScreen)
+
             /// Creates a large detent.
             @available(iOS 15.0, *)
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
             public static let large = Detent(identifier: .large)
+
+            /// Creates a full screen detent if preferred and available, otherwise the large detent.
+            @available(iOS 15.0, *)
+            @available(macOS, unavailable)
+            @available(tvOS, unavailable)
+            @available(watchOS, unavailable)
+            public static func large(prefersFullScreen: Bool = false) -> Detent {
+                if prefersFullScreen, #available(iOS 18.0, *) {
+                    return .fullScreen
+                }
+                return .large
+            }
 
             /// Creates a medium detent.
             @available(iOS 15.0, *)
@@ -360,6 +388,9 @@ extension PresentationLinkTransition {
                 case .medium:
                     return .medium()
                 default:
+                    if #available(iOS 18.0, *), self == .fullScreen {
+                        return .fullScreen() ?? .large()
+                    }
                     let idealResolution: (UIPresentationController) -> CGFloat = { presentationController in
                         guard let containerView = presentationController.containerView else {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
