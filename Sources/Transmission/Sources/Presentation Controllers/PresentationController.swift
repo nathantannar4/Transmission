@@ -11,7 +11,12 @@ import UIKit
 open class PresentationController: UIPresentationController {
 
     public private(set) var isTransitioningSize = false
-    public private(set) var keyboardHeight: CGFloat = 0
+    public private(set) var keyboardHeight: CGFloat = 0 {
+        didSet {
+            guard keyboardHeight != oldValue else { return }
+            keyboardHeightDidChange()
+        }
+    }
 
     public let dimmingView: UIView = {
         let view = UIView()
@@ -228,6 +233,9 @@ open class PresentationController: UIPresentationController {
             cornerHeight: sourceView.layer.cornerRadius,
             transform: nil
         )
+    }
+
+    open func keyboardHeightDidChange() {
     }
 
     open func keyboardOverlapInContainerView(

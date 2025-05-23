@@ -219,7 +219,7 @@ open class CardPresentationController: InteractivePresentationController {
             if presentedView.safeAreaInsets == .zero {
                 sizeThatFits.height += (presentedViewAdditionalSafeAreaInsets.top + presentedViewAdditionalSafeAreaInsets.bottom)
             }
-            return min(frame.height, sizeThatFits.height)
+            return min(frame.height, sizeThatFits.height).rounded(.down)
         }()
         frame = CGRect(
             x: frame.origin.x + (frame.width - width) / 2,
@@ -234,11 +234,15 @@ open class CardPresentationController: InteractivePresentationController {
                 of: frame,
                 keyboardHeight: keyboardHeight
             )
+
+            if keyboardHeight > 0 {
+                frame.origin.y += presentedViewController.additionalSafeAreaInsets.bottom
+            }
         }
 
         frame.origin.y -= keyboardOverlap
         if presentedView.safeAreaInsets == .zero {
-            if keyboardOverlap == 0 {
+            if keyboardOverlap == 0, presentedViewController.isBeingPresented {
                 let bottomSafeArea = max(0, (containerView?.safeAreaInsets.bottom ?? 0) - edgeInset)
                 frame.size.height += bottomSafeArea
                 frame.origin.y -= bottomSafeArea
@@ -306,7 +310,7 @@ open class CardPresentationController: InteractivePresentationController {
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-        presentedViewController.view.layer.cornerCurve = .continuous
+        presentedViewController.view.layer.cornerCurve = cornerRadius > 0 && cornerRadius == UIScreen.main.displayCornerRadius() ? .continuous : .circular
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -325,7 +329,7 @@ open class CardPresentationController: InteractivePresentationController {
         edgeInsets.right = max(edgeInsets.right, inset)
         edgeInsets.bottom = max(0, min(safeAreaInsets.bottom - edgeInset, edgeInsets.bottom))
         if keyboardHeight > 0 {
-            edgeInsets.bottom = max(edgeInsets.bottom, inset)
+            edgeInsets.bottom = max(edgeInsets.bottom, cornerRadius)
         } else {
             edgeInsets.bottom += max(0, inset - safeAreaInsets.bottom)
         }
