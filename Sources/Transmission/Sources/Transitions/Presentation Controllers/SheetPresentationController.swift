@@ -24,8 +24,8 @@ open class MacSheetTransition: SlidePresentationControllerTransition {
         super.init(
             edge: .bottom,
             prefersScaleEffect: false,
-            preferredFromCornerRadius: cornerRadius,
-            preferredToCornerRadius: cornerRadius,
+            preferredFromCornerRadius: .rounded(cornerRadius: cornerRadius),
+            preferredToCornerRadius: .rounded(cornerRadius: cornerRadius),
             isPresenting: isPresenting,
             animation: animation
         )

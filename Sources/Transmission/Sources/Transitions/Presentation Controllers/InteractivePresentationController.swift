@@ -6,7 +6,6 @@
 
 import SwiftUI
 import UIKit
-import Engine
 
 /// An interactive based presentation controller base class
 @available(iOS 14.0, *)
@@ -67,7 +66,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
 
-        presentedViewController.additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
+        let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
+        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
+            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
+        }
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -171,7 +173,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     open override func layoutPresentedView(frame: CGRect) {
         super.layoutPresentedView(frame: frame)
-        presentedViewController.additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
+        let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
+        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
+            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
+        }
     }
 
     @objc
@@ -290,9 +295,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             func dismissIfNeeded() -> Bool {
                 let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
                 if shouldDismiss {
-                    #if targetEnvironment(macCatalyst)
-                    let canStart = true
-                    #else
+                    #if !targetEnvironment(macCatalyst)
                     let canStart: Bool
                     if keyboardHeight > 0 {
                         var views = gestureRecognizer.view.map { [$0] } ?? []
@@ -320,8 +323,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     } else {
                         canStart = true
                     }
-                    #endif
                     guard canStart else { return false }
+                    #endif
                     presentedViewController.dismiss(animated: true)
                     return true
                 }

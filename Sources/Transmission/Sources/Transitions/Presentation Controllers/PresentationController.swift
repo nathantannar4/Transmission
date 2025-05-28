@@ -49,7 +49,7 @@ open class PresentationController: UIPresentationController {
         }
     }
 
-    public var presentedViewShadow: PresentationLinkTransition.Shadow = .clear {
+    public var presentedViewShadow: ShadowOptions = .clear {
         didSet {
             guard presentedViewController.isBeingPresented, presentedViewController.isBeingDismissed else { return }
             updateShadow(progress: 1)
@@ -176,7 +176,7 @@ open class PresentationController: UIPresentationController {
             shadowView.isHidden = true
         } else {
             shadowView.isHidden = false
-            presentedViewShadow.apply(to: shadowView, progress: progress)
+            presentedViewShadow.apply(to: shadowView.layer, progress: progress)
         }
     }
 

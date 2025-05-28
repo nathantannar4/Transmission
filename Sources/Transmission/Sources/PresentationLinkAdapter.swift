@@ -627,8 +627,12 @@ private struct PresentationLinkAdapterBody<
                     forDismissed: dismissed,
                     context: makeContext(options: options)
                 )
-                if let transition = animationController as? UIPercentDrivenInteractiveTransition {
-                    transition.wantsInteractiveStart = options.isInteractive && transition.wantsInteractiveStart
+                if let transition = animationController as? UIPercentDrivenInteractiveTransition, transition.wantsInteractiveStart {
+                    if let presentationController = dismissed.presentationController as? InteractivePresentationController {
+                        transition.wantsInteractiveStart = options.isInteractive && presentationController.wantsInteractiveTransition
+                    } else if !options.isInteractive {
+                        transition.wantsInteractiveStart = false
+                    }
                 }
                 return animationController
 

@@ -369,48 +369,54 @@ extension URL: ShareSheetItemProvider {
 }
 
 /// A share sheet provider for an object that conforms to `NSItemProviderWriting`.
-public struct ShareSheetItem<T: NSItemProviderWriting> {
+@available(iOS 14.0, *)
+public struct ShareSheetItem<T: NSItemProviderWriting>: ShareSheetItemProvider {
 
-    var label: String?
-    var object: T
+    var label: Text?
+    var object: () -> T
 
-    public init(label: String? = nil, _ object: T) {
-        self.label = label
+    public init(label: LocalizedStringKey, _ object: @autoclosure @escaping () -> T) {
+        self.label = Text(label)
         self.object = object
     }
-}
 
-extension ShareSheetItem: ShareSheetItemProvider {
+    public init(label: String? = nil, _ object: @autoclosure @escaping () -> T) {
+        self.label = label.map { Text(verbatim: $0) }
+        self.object = object
+    }
+
     public func makeUIActivityItemSource(context: Context) -> UIActivityItemSource {
-        Source(item: self)
+        Source(label: label?.resolve(in: context.environment), object: object())
     }
 
     private class Source: NSObject, UIActivityItemSource {
-        let item: ShareSheetItem<T>
+        let label: String?
+        let object: T
 
-        init(item: ShareSheetItem<T>) {
-            self.item = item
+        init(label: String?, object: T) {
+            self.label = label
+            self.object = object
         }
 
         func activityViewControllerPlaceholderItem(
             _ activityViewController: UIActivityViewController
         ) -> Any {
-            item.object
+            object
         }
 
         func activityViewController(
             _ activityViewController: UIActivityViewController,
             itemForActivityType activityType: UIActivity.ActivityType?
         ) -> Any? {
-            item.object
+            object
         }
 
         func activityViewControllerLinkMetadata(
             _ activityViewController: UIActivityViewController
         ) -> LPLinkMetadata? {
             let metadata = LPLinkMetadata()
-            metadata.title = item.label
-            metadata.imageProvider = NSItemProvider(object: item.object)
+            metadata.title = label
+            metadata.imageProvider = NSItemProvider(object: object)
             return metadata
         }
     }
@@ -466,11 +472,7 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
             _ activityViewController: UIActivityViewController,
             itemForActivityType activityType: UIActivity.ActivityType?
         ) -> Any? {
-            if let data = provider.data {
-                return UIImage(data: data)
-            } else {
-                return provider
-            }
+            return provider
         }
 
         func activityViewController(
@@ -499,8 +501,6 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
         private class SnapshotRenderProvider: NSObject, NSItemProviderWriting {
             let content: Content
 
-            var data: Data?
-
             init(content: Content) {
                 self.content = content
             }
@@ -513,18 +513,36 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
                 withTypeIdentifier typeIdentifier: String,
                 forItemProviderCompletionHandler completionHandler: @escaping (Data?, Error?) -> Void
             ) -> Progress? {
-                DispatchQueue.main.async {
-                    let renderer = SnapshotRenderer(content: self.content)
+                DispatchQueue.main.async { [content] in
+                    let renderer = SnapshotRenderer(content: content)
                     guard let image = renderer.uiImage else {
                         completionHandler(nil, nil)
                         return
                     }
                     image.loadData(withTypeIdentifier: typeIdentifier) { data, error in
-                        self.data = data
                         completionHandler(data, error)
                     }
                 }
                 return nil
+            }
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+struct ShareSheetLinkModifier_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack {
+            ShareSheetLink(items: ["Hello, World"]) {
+                Text("Share Text")
+            }
+
+            ShareSheetLink(items: [URL(string: "https://github.com/nathantannar4")!]) {
+                Text("Share URL")
+            }
+
+            ShareSheetLink(items: [SnapshotItemProvider(label: "View", content: Text("Hello, World!"))]) {
+                Text("Share View Snapshot")
             }
         }
     }

@@ -76,6 +76,9 @@ public struct PresentationLinkTransition: Sendable {
 
 @available(iOS 14.0, *)
 extension PresentationLinkTransition {
+
+    public typealias Shadow = ShadowOptions
+
     /// The transition options.
     @frozen
     public struct Options: Sendable {
@@ -108,48 +111,6 @@ extension PresentationLinkTransition {
 
         var preferredPresentationBackgroundUIColor: UIColor? {
             preferredPresentationBackgroundColor?.toUIColor()
-        }
-    }
-
-    public struct Shadow: Equatable, Sendable {
-        public var shadowOpacity: Float
-        public var shadowRadius: CGFloat
-        public var shadowOffset: CGSize
-        public var shadowColor: Color
-
-        public init(
-            shadowOpacity: Float,
-            shadowRadius: CGFloat,
-            shadowOffset: CGSize = CGSize(width: 0, height: -3),
-            shadowColor: Color = Color.black
-        ) {
-            self.shadowOpacity = shadowOpacity
-            self.shadowRadius = shadowRadius
-            self.shadowOffset = shadowOffset
-            self.shadowColor = shadowColor
-        }
-
-        public static let prominent = Shadow(
-            shadowOpacity: 0.4,
-            shadowRadius: 40
-        )
-
-        public static let minimal = Shadow(
-            shadowOpacity: 0.15,
-            shadowRadius: 24
-        )
-
-        public static let clear = Shadow(
-            shadowOpacity: 0,
-            shadowRadius: 0,
-            shadowColor: .clear
-        )
-
-        func apply(to view: UIView, progress: Double = 1) {
-            view.layer.shadowOpacity = shadowOpacity * Float(progress)
-            view.layer.shadowRadius = shadowRadius
-            view.layer.shadowOffset = shadowOffset
-            view.layer.shadowColor = shadowColor.toCGColor()
         }
     }
 }
@@ -650,10 +611,23 @@ extension PresentationLinkTransition {
 
     /// The popover presentation style.
     public static func popover(
-        permittedArrowDirections: PresentationLinkTransition.PopoverTransitionOptions.PermittedArrowDirections,
-        canOverlapSourceViewRect: Bool = false
+        permittedArrowDirections: PresentationLinkTransition.PopoverTransitionOptions.PermittedArrowDirections = .all,
+        canOverlapSourceViewRect: Bool = false,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .popover(.init(permittedArrowDirections: permittedArrowDirections, canOverlapSourceViewRect: canOverlapSourceViewRect)))
+        PresentationLinkTransition(
+            value: .popover(
+                .init(
+                    permittedArrowDirections: permittedArrowDirections,
+                    canOverlapSourceViewRect: canOverlapSourceViewRect,
+                    options: .init(
+                        isInteractive: isInteractive,
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                    )
+                )
+            )
+        )
     }
 
     /// The popover presentation style.

@@ -7,149 +7,6 @@
 import UIKit
 import SwiftUI
 
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-
-    /// The slide presentation style.
-    public static let slide: PresentationLinkTransition = .slide()
-
-    /// The slide presentation style.
-    public static func slide(
-        _ transitionOptions: SlidePresentationLinkTransition.Options,
-        options: PresentationLinkTransition.Options = .init(
-            modalPresentationCapturesStatusBarAppearance: true
-        )
-    ) -> PresentationLinkTransition {
-        .custom(
-            options: options,
-            SlidePresentationLinkTransition(options: transitionOptions)
-        )
-    }
-
-    /// The slide presentation style.
-    public static func slide(
-        edge: Edge = .bottom,
-        prefersScaleEffect: Bool = true,
-        preferredCornerRadius: CGFloat? = nil,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        .slide(
-            .init(
-                edge: edge,
-                prefersScaleEffect: prefersScaleEffect,
-                preferredFromCornerRadius: preferredCornerRadius,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
-            ),
-            options: .init(
-                isInteractive: isInteractive,
-                modalPresentationCapturesStatusBarAppearance: true,
-                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-            )
-        )
-    }
-}
-
-@frozen
-@available(iOS 14.0, *)
-public struct SlidePresentationLinkTransition: PresentationLinkTransitionRepresentable {
-
-    /// The transition options for a card transition.
-    @frozen
-    public struct Options {
-
-        public var edge: Edge
-        public var prefersScaleEffect: Bool
-        public var preferredFromCornerRadius: CGFloat?
-        public var preferredToCornerRadius: CGFloat?
-        public var preferredPresentationShadow: PresentationLinkTransition.Shadow
-
-        public init(
-            edge: Edge = .bottom,
-            prefersScaleEffect: Bool = true,
-            preferredFromCornerRadius: CGFloat? = nil,
-            preferredToCornerRadius: CGFloat? = nil,
-            preferredPresentationShadow: PresentationLinkTransition.Shadow = .minimal
-        ) {
-            self.edge = edge
-            self.prefersScaleEffect = prefersScaleEffect
-            self.preferredFromCornerRadius = preferredFromCornerRadius
-            self.preferredToCornerRadius = preferredToCornerRadius
-            self.preferredPresentationShadow = preferredPresentationShadow
-        }
-    }
-    public var options: Options
-
-    public init(options: Options = .init()) {
-        self.options = options
-    }
-
-    public func makeUIPresentationController(
-        presented: UIViewController,
-        presenting: UIViewController?,
-        context: Context
-    ) -> SlidePresentationController {
-        let presentationController = SlidePresentationController(
-            edge: options.edge,
-            presentedViewController: presented,
-            presenting: presenting
-        )
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
-        return presentationController
-    }
-
-    public func updateUIPresentationController(
-        presentationController: SlidePresentationController,
-        context: Context
-    ) {
-        presentationController.edge = options.edge
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
-    }
-
-    public func animationController(
-        forPresented presented: UIViewController,
-        presenting: UIViewController,
-        context: Context
-    ) -> SlidePresentationControllerTransition? {
-        let transition = SlidePresentationControllerTransition(
-            edge: options.edge,
-            prefersScaleEffect: options.prefersScaleEffect,
-            preferredFromCornerRadius: options.preferredFromCornerRadius,
-            preferredToCornerRadius: options.preferredToCornerRadius,
-            isPresenting: true,
-            animation: context.transaction.animation
-        )
-        transition.wantsInteractiveStart = false
-        return transition
-    }
-
-    public func animationController(
-        forDismissed dismissed: UIViewController,
-        context: Context
-    ) -> SlidePresentationControllerTransition? {
-        guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
-            return nil
-        }
-        let animation: Animation? = {
-            guard context.transaction.animation == .default else {
-                return context.transaction.animation
-            }
-            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
-        }()
-        let transition = SlidePresentationControllerTransition(
-            edge: options.edge,
-            prefersScaleEffect: options.prefersScaleEffect,
-            preferredFromCornerRadius: options.preferredFromCornerRadius,
-            preferredToCornerRadius: options.preferredToCornerRadius,
-            isPresenting: false,
-            animation: animation
-        )
-        transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-        presentationController.transition(with: transition)
-        return transition
-    }
-}
-
 /// A presentation controller that presents the view in a full screen sheet
 @available(iOS 14.0, *)
 open class SlidePresentationController: InteractivePresentationController {
@@ -258,14 +115,14 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
 
     public var edge: Edge
     public var prefersScaleEffect: Bool
-    public var preferredFromCornerRadius: CGFloat?
-    public var preferredToCornerRadius: CGFloat?
+    public var preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle?
+    public var preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
 
     public init(
         edge: Edge,
         prefersScaleEffect: Bool = true,
-        preferredFromCornerRadius: CGFloat?,
-        preferredToCornerRadius: CGFloat?,
+        preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle?,
+        preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         isPresenting: Bool,
         animation: Animation?
     ) {
@@ -293,14 +150,14 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         let frame = transitionContext.finalFrame(for: presented)
         #if targetEnvironment(macCatalyst)
         let isScaleEnabled = false
-        let toCornerRadius = preferredToCornerRadius ?? 0
-        let fromCornerRadius = preferredFromCornerRadius ?? 0
+        let toCornerRadius = preferredToCornerRadius ?? .rounded(cornerRadius: 0)
+        let fromCornerRadius = preferredFromCornerRadius ?? .rounded(cornerRadius: 0)
         #else
         let isTranslucentBackground = presented.view.backgroundColor?.isTranslucent ?? false
         let isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
             frame.origin.y == 0
-        let toCornerRadius = preferredToCornerRadius ?? UIScreen.main.displayCornerRadius(min: 0)
-        let fromCornerRadius = preferredFromCornerRadius ?? (preferredToCornerRadius ?? UIScreen.main.displayCornerRadius())
+        let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
+        let fromCornerRadius = preferredFromCornerRadius ?? preferredToCornerRadius ?? .screen()
         #endif
         let safeAreaInsets = transitionContext.containerView.safeAreaInsets
 
@@ -326,8 +183,12 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
             }
         }
 
-        presenting.view.layer.cornerCurve = .continuous
-        presenting.view.layer.masksToBounds = true
+        #if !targetEnvironment(macCatalyst)
+        if isScaleEnabled {
+            presenting.view.layer.cornerCurve = .continuous
+            presenting.view.layer.masksToBounds = true
+        }
+        #endif
 
         if isPresenting {
             transitionContext.containerView.addSubview(presented.view)
@@ -336,7 +197,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
                 presented: presented,
                 frame: frame
             )
-            presented.view.layer.cornerRadius = fromCornerRadius
+            fromCornerRadius.apply(to: presented.view.layer)
         } else {
             #if !targetEnvironment(macCatalyst)
             if isScaleEnabled {
@@ -344,7 +205,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
                 presenting.view.layer.cornerRadius = UIScreen.main.displayCornerRadius()
             }
             #endif
-            presented.view.layer.cornerRadius = toCornerRadius
+            toCornerRadius.apply(to: presented.view.layer)
         }
 
         presented.view.layoutIfNeeded()
@@ -357,7 +218,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         animator.addAnimations {
             presented.view.transform = presentedTransform
             presenting.view.transform = presentingTransform
-            presented.view.layer.cornerRadius = isPresenting ? toCornerRadius : fromCornerRadius
+            (isPresenting ? toCornerRadius : fromCornerRadius).apply(to: presented.view.layer)
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = isPresenting ? UIScreen.main.displayCornerRadius() : 0
             }

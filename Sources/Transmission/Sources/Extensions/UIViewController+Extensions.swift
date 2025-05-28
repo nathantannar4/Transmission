@@ -47,10 +47,15 @@ extension UIViewController {
     }
 
     var _activePresentationController: UIPresentationController? {
-        if #available(iOS 16.0, *), let activePresentationController {
-            return activePresentationController
-        }
-        return presentingViewController != nil ? presentationController : nil
+        guard presentingViewController != nil else { return nil }
+        let active: UIPresentationController? = {
+            if #available(iOS 16.0, *), let activePresentationController {
+                return activePresentationController
+            }
+            return presentationController
+        }()
+        guard active?.presentedViewController == self else { return nil }
+        return active
     }
 }
 
