@@ -112,4 +112,274 @@ extension DestinationLinkTransition {
     }
 }
 
+@available(iOS 14.0, *)
+extension DestinationLinkTransition {
+
+    /// The matched geometry transition style.
+    public static var matchedGeometry: DestinationLinkTransition {
+        .matchedGeometry(.init())
+    }
+
+    /// The matched geometry transition style.
+    public static func matchedGeometry(
+        _ transitionOptions: MatchedGeometryPushTransition.Options,
+        options: DestinationLinkTransition.Options = .init()
+    ) -> DestinationLinkTransition {
+        .asymmetric(
+            push: MatchedGeometryPushTransition(options: transitionOptions),
+            pop: .default,
+            options: options
+        )
+    }
+
+    /// The matched geometry transition style.
+    public static func matchedGeometry(
+        preferredCornerRadius: CGFloat? = nil,
+        prefersScaleEffect: Bool = false,
+        prefersZoomEffect: Bool = false,
+        minimumScaleFactor: CGFloat = 0.5,
+        initialOpacity: CGFloat = 1,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
+    ) -> DestinationLinkTransition {
+        .matchedGeometry(
+            .init(
+                preferredFromCornerRadius: preferredCornerRadius,
+                prefersScaleEffect: prefersScaleEffect,
+                prefersZoomEffect: prefersZoomEffect,
+                minimumScaleFactor: minimumScaleFactor,
+                initialOpacity: initialOpacity
+            ),
+            options: .init(
+                isInteractive: isInteractive,
+                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+            )
+        )
+    }
+
+    /// The matched geometry transition style.
+    public static let matchedGeometryZoom: DestinationLinkTransition = .matchedGeometryZoom()
+
+    /// The matched geometry transition style.
+    public static func matchedGeometryZoom(
+        preferredCornerRadius: CGFloat? = nil
+    ) -> DestinationLinkTransition {
+        .matchedGeometry(
+            preferredCornerRadius: preferredCornerRadius,
+            prefersScaleEffect: true,
+            prefersZoomEffect: true,
+            initialOpacity: 0
+        )
+    }
+}
+
+@available(iOS 14.0, *)
+public struct MatchedGeometryPushTransition: DestinationLinkPushTransitionRepresentable {
+
+    /// The transition options for a card transition.
+    @frozen
+    public struct Options {
+
+        public var edges: Edge.Set
+        public var preferredFromCornerRadius: CGFloat?
+        public var preferredToCornerRadius: CGFloat?
+        public var prefersScaleEffect: Bool
+        public var prefersZoomEffect: Bool
+        public var minimumScaleFactor: CGFloat
+        public var initialOpacity: CGFloat
+
+        public init(
+            edges: Edge.Set = .all,
+            preferredFromCornerRadius: CGFloat? = nil,
+            preferredToCornerRadius: CGFloat? = nil,
+            prefersScaleEffect: Bool = false,
+            prefersZoomEffect: Bool = false,
+            minimumScaleFactor: CGFloat = 0.5,
+            initialOpacity: CGFloat = 1
+        ) {
+            self.edges = edges
+            self.preferredFromCornerRadius = preferredFromCornerRadius
+            self.preferredToCornerRadius = preferredToCornerRadius
+            self.prefersScaleEffect = prefersScaleEffect
+            self.prefersZoomEffect = prefersZoomEffect
+            self.minimumScaleFactor = minimumScaleFactor
+            self.initialOpacity = initialOpacity
+        }
+    }
+    public var options: Options
+
+    public init(options: Options = .init()) {
+        self.options = options
+    }
+
+    public func navigationController(
+        _ navigationController: UINavigationController,
+        pushing toVC: UIViewController,
+        from fromVC: UIViewController,
+        context: Context
+    ) -> MatchedGeometryPresentationControllerTransition? {
+
+        let transition = MatchedGeometryPresentationControllerTransition(
+            sourceView: context.sourceView,
+            prefersScaleEffect: false,
+            prefersZoomEffect: true,
+            preferredFromCornerRadius: nil,
+            preferredToCornerRadius: nil,
+            initialOpacity: 0,
+            isPresenting: true,
+            animation: context.transaction.animation
+        )
+        transition.wantsInteractiveStart = false
+        return transition
+    }
+}
+
+@available(iOS 14.0, *)
+extension DestinationLinkTransition {
+
+    /// The slide transition style.
+    public static var slide: DestinationLinkTransition {
+        .slide(.init())
+    }
+
+    /// The slide transition style.
+    public static func slide(
+        _ transitionOptions: SlidePushTransition.Options,
+        options: DestinationLinkTransition.Options = .init()
+    ) -> DestinationLinkTransition {
+        .custom(
+            options: options,
+            SlidePushTransition(options: transitionOptions)
+        )
+    }
+
+    /// The slide transition style.
+    public static func slide(
+        initialOpacity: CGFloat = 1,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
+    ) -> DestinationLinkTransition {
+        .matchedGeometry(
+            .init(
+                initialOpacity: initialOpacity
+            ),
+            options: .init(
+                isInteractive: isInteractive,
+                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+            )
+        )
+    }
+}
+
+@available(iOS 14.0, *)
+public struct SlidePushTransition: DestinationLinkTransitionRepresentable {
+
+    /// The transition options for a card transition.
+    @frozen
+    public struct Options {
+
+        public var initialOpacity: CGFloat
+
+        public init(
+            initialOpacity: CGFloat = 1
+        ) {
+            self.initialOpacity = initialOpacity
+        }
+    }
+    public var options: Options
+
+    public init(options: Options = .init()) {
+        self.options = options
+    }
+
+    public func navigationController(
+        _ navigationController: UINavigationController,
+        pushing toVC: UIViewController,
+        from fromVC: UIViewController,
+        context: Context
+    ) -> SlidePushControllerTransition? {
+        let transition = SlidePushControllerTransition(
+            initialOpacity: options.initialOpacity,
+            isPresenting: true,
+            animation: context.transaction.animation
+        )
+        transition.wantsInteractiveStart = false
+        return transition
+    }
+
+    public func navigationController(
+        _ navigationController: UINavigationController,
+        popping fromVC: UIViewController,
+        to toVC: UIViewController,
+        context: Context
+    ) -> SlidePushControllerTransition? {
+        let transition = SlidePushControllerTransition(
+            initialOpacity: options.initialOpacity,
+            isPresenting: false,
+            animation: context.transaction.animation
+        )
+        return transition
+    }
+}
+
+@available(iOS 14.0, *)
+open class SlidePushControllerTransition: InteractiveViewControllerTransition {
+
+    public let initialOpacity: CGFloat
+
+    public init(
+        initialOpacity: CGFloat,
+        isPresenting: Bool,
+        animation: Animation?
+    ) {
+        self.initialOpacity = initialOpacity
+        super.init(isPresenting: isPresenting, animation: animation)
+    }
+
+    open override func configureTransitionAnimator(
+        using transitionContext: any UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
+        guard
+            let fromVC = transitionContext.viewController(forKey: .from),
+            let toVC = transitionContext.viewController(forKey: .to)
+        else {
+            transitionContext.completeTransition(false)
+            return
+        }
+
+        let width = transitionContext.containerView.frame.width
+        transitionContext.containerView.addSubview(toVC.view)
+        toVC.view.frame = transitionContext.finalFrame(for: toVC)
+        toVC.view.transform = CGAffineTransform(
+            translationX: isPresenting ? width : -width,
+            y: 0
+        )
+        toVC.view.layoutIfNeeded()
+        toVC.view.alpha = initialOpacity
+
+        let fromVCTransform = CGAffineTransform(
+            translationX: isPresenting ? -width : width,
+            y: 0
+        )
+
+        animator.addAnimations { [initialOpacity] in
+            toVC.view.transform = .identity
+            toVC.view.alpha = 1
+            fromVC.view.transform = fromVCTransform
+            fromVC.view.alpha = initialOpacity
+        }
+        animator.addCompletion { animatingPosition in
+            toVC.view.transform = .identity
+            fromVC.view.transform = .identity
+            switch animatingPosition {
+            case .end:
+                transitionContext.completeTransition(true)
+            default:
+                transitionContext.completeTransition(false)
+            }
+        }
+    }
+}
+
 #endif

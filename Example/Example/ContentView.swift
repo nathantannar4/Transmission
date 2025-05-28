@@ -85,7 +85,7 @@ struct ContentView: View {
                         transition: .asymmetric(
                             presented: CardPresentationLinkTransition(
                                 options: .init(
-                                    preferredAspectRatio: nil
+                                    preferredAspectRatio: nil,
                                 )
                             ),
                             presenting: MatchedGeometryPresentationLinkTransition(
@@ -249,8 +249,7 @@ struct ContentView: View {
                                         transition: .zoom,
                                         isPresented: $isZoomPresented
                                     ) {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color.blue)
+                                        ScrollableCollectionView(edge: .bottom)
                                     }
 
                                 Text("Zoom")
@@ -267,8 +266,7 @@ struct ContentView: View {
                                     transition: .zoom,
                                     isPresented: $isSourceViewZoomPresented
                                 ) {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.blue)
+                                    ScrollableCollectionView(edge: .bottom)
                                 } content: {
                                     RoundedRectangle(cornerRadius: 10)
                                         .fill(Color.blue)
@@ -282,8 +280,7 @@ struct ContentView: View {
                         PresentationSourceViewLink(
                             transition: .zoom
                         ) {
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.blue)
+                            ScrollableCollectionView(edge: .bottom)
                         } label: {
                             HStack {
                                 RoundedRectangle(cornerRadius: 10)
@@ -311,8 +308,8 @@ struct ContentView: View {
 
                     PresentationLink(
                         transition: .card(
-                            preferredEdgeInset: 0,
-                            preferredCornerRadius: 0
+                            preferredEdgeInset: 6,
+                            preferredCornerRadius: 20
                         )
                     ) {
                         CardView()
@@ -514,6 +511,12 @@ struct ContentView: View {
                         ContentView()
                     } label: {
                         Text("Default")
+                    }
+
+                    DestinationLink(transition: .slide) {
+                        ContentView()
+                    } label: {
+                        Text("Slide")
                     }
 
                     if #available(iOS 18.0, *) {

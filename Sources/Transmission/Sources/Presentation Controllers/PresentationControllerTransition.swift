@@ -8,98 +8,17 @@ import UIKit
 import SwiftUI
 
 @available(iOS 14.0, *)
-open class PresentationControllerTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
+open class PresentationControllerTransition: InteractiveViewControllerTransition {
 
-    public let isPresenting: Bool
-    public let animation: Animation?
-    private var animator: UIViewPropertyAnimator?
-
-    private var transitionDuration: CGFloat = 0
-    open override var duration: CGFloat {
-        transitionDuration
-    }
-
-    public init(
-        isPresenting: Bool,
-        animation: Animation?
+    open override func animatedStarted(
+        transitionContext: UIViewControllerContextTransitioning
     ) {
-        self.isPresenting = isPresenting
-        self.animation = animation
-        super.init()
-    }
-
-    // MARK: - UIViewControllerAnimatedTransitioning
-
-    open override func startInteractiveTransition(
-        _ transitionContext: UIViewControllerContextTransitioning
-    ) {
-        super.startInteractiveTransition(transitionContext)
-        if let presenting = transitionContext.viewController(forKey: isPresenting ? .to : .from) {
-            presenting.transitionReaderAnimation = animation
-        }
-        transitionDuration = transitionDuration(using: transitionContext)
-    }
-
-    open func transitionDuration(
-        using transitionContext: UIViewControllerContextTransitioning?
-    ) -> TimeInterval {
-        guard transitionContext?.isAnimated == true else { return 0 }
-        return animation?.duration(defaultDuration: 0.35) ?? 0.35
-    }
-
-    public func animateTransition(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) {
-        transitionDuration = transitionDuration(using: transitionContext)
-        let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
-        let delay = animation?.delay ?? 0
         if let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? PresentationController {
             presentationController.layoutBackgroundViews()
         }
-        animator.startAnimation(afterDelay: delay)
-
-        if !transitionContext.isAnimated {
-            animator.stopAnimation(false)
-            animator.finishAnimation(at: .end)
-        }
     }
 
-    open func animationEnded(_ transitionCompleted: Bool) {
-        animator = nil
-    }
-
-    public func interruptibleAnimator(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewImplicitlyAnimating {
-        let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
-        return animator
-    }
-
-    open override func responds(to aSelector: Selector!) -> Bool {
-        let responds = super.responds(to: aSelector)
-        if aSelector == #selector(interruptibleAnimator(using:)) {
-            return responds && wantsInteractiveStart
-        }
-        return responds
-    }
-
-    private func makeTransitionAnimatorIfNeeded(
-        using transitionContext: UIViewControllerContextTransitioning
-    ) -> UIViewPropertyAnimator {
-        if let animator = animator {
-            return animator
-        }
-        let animator = UIViewPropertyAnimator(
-            animation: animation,
-            defaultDuration: duration,
-            defaultCompletionCurve: completionCurve
-        )
-        configureTransitionAnimator(using: transitionContext, animator: animator)
-        self.animator = animator
-        return animator
-    }
-
-    open func configureTransitionAnimator(
+    open override func configureTransitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
     ) {
@@ -152,13 +71,6 @@ open class PresentationControllerTransition: UIPercentDrivenInteractiveTransitio
                 transitionContext.completeTransition(false)
             }
         }
-    }
-}
-
-extension UIViewControllerContextTransitioning {
-
-    func presentationController(isPresenting: Bool) -> UIPresentationController? {
-        viewController(forKey: isPresenting ? .to : .from)?._activePresentationController
     }
 }
 

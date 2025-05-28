@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		385326D72D9E26F600973A07 /* PushMatchedGeometryTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 385326D62D9E26F600973A07 /* PushMatchedGeometryTransition.swift */; };
 		38C26C4B2BFDA89F007E4297 /* DynamicIslandTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C26C4A2BFDA89F007E4297 /* DynamicIslandTransition.swift */; };
 		38DC6EA9293FD48F006276F8 /* ExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DC6EA8293FD48F006276F8 /* ExampleApp.swift */; };
 		38DC6EAB293FD48F006276F8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38DC6EAA293FD48F006276F8 /* ContentView.swift */; };
@@ -177,7 +176,6 @@
 				38C26C4B2BFDA89F007E4297 /* DynamicIslandTransition.swift in Sources */,
 				38DC6EAB293FD48F006276F8 /* ContentView.swift in Sources */,
 				38DC6EA9293FD48F006276F8 /* ExampleApp.swift in Sources */,
-				385326D72D9E26F600973A07 /* PushMatchedGeometryTransition.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
