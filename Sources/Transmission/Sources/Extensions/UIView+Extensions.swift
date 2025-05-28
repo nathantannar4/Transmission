@@ -19,15 +19,13 @@ extension UIView {
         return responder as? UIViewController
     }
 
-    var idealSize: CGSize {
-        let idealHeight = idealHeight(for: frame.width)
-        if idealHeight == 0 {
-            return intrinsicContentSize
+    func idealSize(for width: CGFloat) -> CGSize {
+        var size = intrinsicContentSize
+        if size.height <= 0 {
+            size.width = width
+            size.height = idealHeight(for: width)
         }
-        return CGSize(
-            width: frame.width,
-            height: idealHeight
-        )
+        return size
     }
 
     func idealHeight(for width: CGFloat) -> CGFloat {

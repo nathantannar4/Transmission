@@ -2,6 +2,8 @@
 // Copyright (c) Nathan Tannar
 //
 
+#if os(iOS)
+
 import SwiftUI
 import Engine
 
@@ -166,3 +168,5 @@ private class AnimationTimingCurveProvider: NSObject, UITimingCurveProvider {
         }
     }
 }
+
+#endif

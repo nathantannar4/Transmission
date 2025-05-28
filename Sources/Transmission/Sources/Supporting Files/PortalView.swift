@@ -2,6 +2,8 @@
 // Copyright (c) Nathan Tannar
 //
 
+#if os(iOS)
+
 import UIKit
 
 open class PortalView: UIView {
@@ -51,3 +53,5 @@ open class PortalView: UIView {
         contentView.frame = bounds
     }
 }
+
+#endif

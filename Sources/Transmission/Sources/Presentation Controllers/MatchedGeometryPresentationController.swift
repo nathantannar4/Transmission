@@ -147,7 +147,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         forPresented presented: UIViewController,
         presenting: UIViewController,
         context: Context
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> MatchedGeometryPresentationControllerTransition? {
         let transition = MatchedGeometryPresentationControllerTransition(
             sourceView: context.sourceView,
             prefersScaleEffect: options.prefersScaleEffect,
@@ -165,7 +165,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
     public func animationController(
         forDismissed dismissed: UIViewController,
         context: Context
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> MatchedGeometryPresentationControllerTransition? {
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }

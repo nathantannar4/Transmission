@@ -25,6 +25,11 @@ extension CGFloat {
 
 extension UIGestureRecognizer {
 
+    var isInteracting: Bool {
+        let isInteracting = state == .began || state == .changed
+        return isInteracting
+    }
+
     var isSimultaneousWithTransition: Bool {
         isScrollViewPanGesture || isWebViewPanGesture
             || delaysTouchesBegan
@@ -49,6 +54,13 @@ extension UIGestureRecognizer {
 
     var isSheetDismissPanGesture: Bool {
         guard name == "_UISheetInteractionBackgroundDismissRecognizer" else {
+            return false
+        }
+        return self is UIPanGestureRecognizer
+    }
+
+    var isZoomDismissPanGesture: Bool {
+        guard name == "com.apple.UIKit.ZoomInteractiveDismissSwipeDown" else {
             return false
         }
         return self is UIPanGestureRecognizer

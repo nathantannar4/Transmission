@@ -25,21 +25,16 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     /// When true, custom view controller presentation animators should be set to want an interactive start
     open var wantsInteractiveTransition: Bool {
-        func isInteracting(gesture: UIGestureRecognizer?) -> Bool {
-            guard let gesture else { return false }
-            let isInteracting = gesture.state == .began || gesture.state == .changed
-            return isInteracting
-        }
-        return isInteracting(gesture: trackingScrollView?.panGestureRecognizer) || isInteracting(gesture: panGesture)
+        panGesture.isInteracting || (trackingScrollView?.panGestureRecognizer.isInteracting ?? false)
     }
 
     /// When true, dismissal of the presented view controller will be deferred until the pan gesture ends
     open var wantsInteractiveDismissal: Bool {
         if keyboardOffset > 0 {
-            return true
+            return panGesture.isEnabled
         }
         if prefersInteractiveDismissal {
-            return true
+            return panGesture.isEnabled
         }
         return false
     }
@@ -47,7 +42,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     public var prefersInteractiveDismissal: Bool = false
 
     open override var shouldAutoLayoutPresentedView: Bool {
-        transition == nil && panGesture.state == .possible && super.shouldAutoLayoutPresentedView
+        transition == nil && !panGesture.isInteracting && super.shouldAutoLayoutPresentedView
     }
 
     public override init(
@@ -77,6 +72,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
+
+        if #available(iOS 18.0, *), presentedViewController.preferredTransition != nil {
+            panGesture.isEnabled = false
+        }
 
         if completed {
             panGesture.delegate = self
@@ -256,20 +255,29 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 // Dismiss if:
                 // - Drag over 50% and not moving up
                 // - Large enough down vector
-                let gestureVelocity = gestureRecognizer.velocity(in: presentedView)
-                var velocity: CGPoint = .zero
-                if edges.contains(.top) || edges.contains(.bottom) {
-                    velocity.y = abs(gestureVelocity.y)
-                }
-                if edges.contains(.leading) || edges.contains(.trailing) {
-                    velocity.x = abs(gestureVelocity.x)
-                }
+                var shouldFinish = false
+                let velocity = gestureRecognizer.velocity(in: presentedView)
                 let magnitude = sqrt(pow(velocity.x, 2) + pow(velocity.y, 2))
-                let shouldFinish = (percentage >= 0.5 && magnitude > 0) || (percentage > 0 && magnitude >= 1000)
-                if shouldFinish, gestureRecognizer.state == .ended {
+                if gestureRecognizer.state == .ended {
+                    if edges.contains(.top), !shouldFinish {
+                        shouldFinish = (percentage >= 0.5 && velocity.y < 0) || (percentage > 0 && velocity.y <= -1000)
+                    }
+                    if edges.contains(.bottom), !shouldFinish {
+                        shouldFinish = (percentage >= 0.5 && velocity.y > 0) || (percentage > 0 && velocity.y >= 1000)
+                    }
+                    if edges.contains(.leading), !shouldFinish {
+                        shouldFinish = (percentage >= 0.5 && velocity.x < 0) || (percentage > 0 && velocity.x <= -1000)
+                    }
+                    if edges.contains(.trailing), !shouldFinish {
+                        shouldFinish = (percentage >= 0.5 && velocity.x > 0) || (percentage > 0 && velocity.x >= 1000)
+                    }
+                }
+                if shouldFinish {
                     transition.finish()
                 } else {
-                    transition.completionSpeed = max(percentage, 0.1)
+                    if magnitude <= 1000 {
+                        transition.completionSpeed = percentage >= 0.5 ? 1 - percentage : percentage
+                    }
                     transition.cancel()
                 }
                 self.transition = nil
@@ -473,6 +481,9 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
+        if otherGestureRecognizer.isZoomDismissPanGesture {
+            return false
+        }
         if trackingScrollView == nil,
             otherGestureRecognizer.state != .failed,
             otherGestureRecognizer.state != .cancelled,

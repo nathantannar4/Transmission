@@ -101,7 +101,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         forPresented presented: UIViewController,
         presenting: UIViewController,
         context: Context
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> ToastPresentationControllerTransition? {
         let transition = ToastPresentationControllerTransition(
             edge: options.edge,
             isPresenting: true,
@@ -114,7 +114,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
     public func animationController(
         forDismissed dismissed: UIViewController,
         context: Context
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> ToastPresentationControllerTransition? {
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }

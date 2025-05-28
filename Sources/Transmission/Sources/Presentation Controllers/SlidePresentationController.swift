@@ -110,7 +110,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         forPresented presented: UIViewController,
         presenting: UIViewController,
         context: Context
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> SlidePresentationControllerTransition? {
         let transition = SlidePresentationControllerTransition(
             edge: options.edge,
             prefersScaleEffect: options.prefersScaleEffect,
@@ -126,7 +126,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     public func animationController(
         forDismissed dismissed: UIViewController,
         context: Context
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> SlidePresentationControllerTransition? {
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }

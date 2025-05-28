@@ -123,7 +123,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         forPresented presented: UIViewController,
         presenting: UIViewController,
         context: Context
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> CardPresentationControllerTransition? {
         let transition = CardPresentationControllerTransition(
             preferredEdgeInset: options.preferredEdgeInset,
             preferredCornerRadius: options.preferredCornerRadius,
@@ -137,7 +137,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
     public func animationController(
         forDismissed dismissed: UIViewController,
         context: Context
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> CardPresentationControllerTransition? {
         guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
             return nil
         }
@@ -272,6 +272,27 @@ open class CardPresentationController: InteractivePresentationController {
         preferredCornerRadius ?? (CardPresentationLinkTransition.defaultCornerRadius - edgeInset)
     }
 
+    private var needsCustomCornerRadiusPath: Bool {
+        edgeInset > 0 && cornerRadius > 0 && (cornerRadius + edgeInset) < UIScreen.main.displayCornerRadius()
+    }
+
+    private var customCornerRadiusPath: CGPath? {
+        guard needsCustomCornerRadiusPath, let bounds = presentedView?.bounds, bounds != .zero else { return nil }
+        return .roundedRect(
+            bounds: presentedView?.bounds ?? .zero,
+            topLeft: cornerRadius,
+            topRight: cornerRadius,
+            bottomLeft: 0,
+            bottomRight: 0
+        )
+    }
+
+    private var cornerRadiusMask: CAShapeLayer? {
+        didSet {
+            presentedView?.layer.mask = cornerRadiusMask
+        }
+    }
+
     public init(
         preferredEdgeInset: CGFloat? = nil,
         preferredCornerRadius: CGFloat? = nil,
@@ -308,15 +329,10 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
-    open override func presentationTransitionWillBegin() {
-        super.presentationTransitionWillBegin()
-        presentedViewController.view.layer.cornerCurve = cornerRadius > 0 && cornerRadius == UIScreen.main.displayCornerRadius() ? .continuous : .circular
-    }
-
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
         if completed {
-            presentedViewController.view.layer.cornerRadius = cornerRadius
+            setCornerRadius()
         }
     }
 
@@ -336,8 +352,55 @@ open class CardPresentationController: InteractivePresentationController {
         return edgeInsets
     }
 
+    open override func layoutPresentedView(frame: CGRect) {
+        super.layoutPresentedView(frame: frame)
+        if let cornerRadiusMask {
+            cornerRadiusMask.path = customCornerRadiusPath
+        }
+    }
+
+    open override func transitionAlongsidePresentation(isPresented: Bool) {
+        super.transitionAlongsidePresentation(isPresented: isPresented)
+
+        if isPresented, needsCustomCornerRadiusPath {
+            setCornerRadius(force: true)
+        }
+    }
+
+    open override func containerViewDidLayoutSubviews() {
+        super.containerViewDidLayoutSubviews()
+        setCornerRadius()
+    }
+
     private func cornerRadiusDidChange() {
         presentedViewController.additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
+        setCornerRadius()
+    }
+
+    private func setCornerRadius(force: Bool = false) {
+        guard !presentedViewController.isBeingDismissed else { return }
+        guard !presentedViewController.isBeingPresented || presentedViewController.view.layer.cornerRadius == 0 || force else { return }
+        if let maskPath = customCornerRadiusPath {
+            if cornerRadiusMask == nil {
+                let shapeLayer = CAShapeLayer()
+                self.cornerRadiusMask = shapeLayer
+            }
+            cornerRadiusMask?.path = maskPath
+            let isCompact = traitCollection.verticalSizeClass == .compact
+            if isCompact {
+                presentedViewController.view.layer.cornerRadius = cornerRadius
+            } else {
+                presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius() - edgeInset
+            }
+            presentedViewController.view.layer.cornerCurve = .continuous
+            presentedViewController.view.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+        } else {
+            if cornerRadiusMask != nil {
+                cornerRadiusMask = nil
+            }
+            presentedViewController.view.layer.cornerRadius = cornerRadius
+            presentedViewController.view.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .continuous : .circular
+        }
     }
 }
 
@@ -378,7 +441,9 @@ open class CardPresentationControllerTransition: PresentationControllerTransitio
         using transitionContext: any UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
     ) {
-        if let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from) {
+        if let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
+            !(presented.presentationController is CardPresentationController)
+        {
             let edgeInset = preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
             let cornerRadius = preferredCornerRadius ?? (CardPresentationLinkTransition.defaultCornerRadius - edgeInset)
             presented.view.layer.cornerRadius = cornerRadius

@@ -304,12 +304,10 @@ private struct PresentationLinkAdapterBody<
                         adapter.viewController.preferredTransition = .zoom { [weak uiView] context in
                             return uiView
                         }
-                        adapter.viewController.presentationController?.delegate = context.coordinator
-                    } else {
-                        context.coordinator.sourceView = uiView
-                        context.coordinator.overrideTraitCollection = traits
-                        adapter.viewController.modalPresentationStyle = .custom
                     }
+                    context.coordinator.sourceView = uiView
+                    context.coordinator.overrideTraitCollection = traits
+                    adapter.viewController.modalPresentationStyle = .custom
 
                 case .representable(_, let transition):
                     assert(!swift_getIsClassType(transition), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
@@ -724,15 +722,6 @@ private struct PresentationLinkAdapterBody<
                     presentationController.delegate = self
                     return presentationController
                     #endif
-                } else {
-                    // Fallback on earlier versions
-                    let presentationController = PresentationController(
-                        presentedViewController: presented,
-                        presenting: presenting
-                    )
-                    presentationController.overrideTraitCollection = overrideTraitCollection
-                    presentationController.delegate = self
-                    return presentationController
                 }
 
             case .popover(let options):
@@ -760,8 +749,16 @@ private struct PresentationLinkAdapterBody<
                 return presentationController
 
             default:
-                return nil
+                break
             }
+
+            let presentationController = PresentationController(
+                presentedViewController: presented,
+                presenting: presenting
+            )
+            presentationController.overrideTraitCollection = overrideTraitCollection
+            presentationController.delegate = self
+            return presentationController
         }
 
         func presentationController(
@@ -893,7 +890,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             )
             transition.update(
                 viewController,
-                context: .init(
+                context: PresentationLinkTransitionRepresentableContext(
                     sourceView: sourceView,
                     options: transition.options,
                     environment: context.environment,

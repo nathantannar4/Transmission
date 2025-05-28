@@ -6,6 +6,7 @@ let package = Package(
     name: "Transmission",
     platforms: [
         .iOS(.v13),
+        .macOS(.v10_15),
         .macCatalyst(.v13),
         .visionOS(.v1),
     ],
@@ -16,7 +17,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "2.1.6"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "2.1.9"),
     ],
     targets: [
         .target(

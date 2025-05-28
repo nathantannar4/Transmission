@@ -86,6 +86,7 @@ open class PresentationController: UIPresentationController {
         shouldIgnoreContainerViewTouches = true
 
         containerView?.addSubview(dimmingView)
+        dimmingView.frame = containerView?.bounds ?? .zero
         dimmingView.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
         )
