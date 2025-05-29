@@ -3,5 +3,3 @@ builder:
   configs:
     - documentation_targets: [Transmission]
       platform: ios
-    - documentation_targets: [Transmission]
-      platform: visionos
