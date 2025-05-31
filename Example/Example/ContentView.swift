@@ -90,14 +90,14 @@ struct ContentView: View {
                             ),
                             presenting: MatchedGeometryPresentationLinkTransition(
                                 options: .init(
-                                    preferredFromCornerRadius: -1,
+                                    preferredFromCornerRadius: .circle,
                                     preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
                                     initialOpacity: 1
                                 )
                             ),
                             dismissing: MatchedGeometryPresentationLinkTransition(
                                 options: .init(
-                                    preferredFromCornerRadius: -1,
+                                    preferredFromCornerRadius: .circle,
                                     preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
                                     initialOpacity: 1
                                 )
@@ -206,19 +206,19 @@ struct ContentView: View {
                         }
                     } label: {
                         HStack {
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .fill(Color.blue)
                                 .aspectRatio(1, contentMode: .fit)
                                 .frame(width: 44, height: 44)
                                 .presentation(
                                     transition: .matchedGeometry(
-                                        preferredCornerRadius: 10
+                                        preferredFromCornerRadius: .rounded(cornerRadius: 10, style: .continuous)
                                     ),
                                     isPresented: $isMatchedGeometryPresented
                                 ) {
                                     TransitionReader { proxy in
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color.blue)
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .fill(Color.red)
                                             .aspectRatio(1, contentMode: .fit)
                                             .padding(proxy.progress * 16)
                                             .frame(maxHeight: .infinity, alignment: .top)
@@ -309,7 +309,7 @@ struct ContentView: View {
                     PresentationLink(
                         transition: .card(
                             preferredEdgeInset: 6,
-                            preferredCornerRadius: 20
+                            preferredCornerRadius: .rounded(cornerRadius: 20)
                         )
                     ) {
                         CardView()
@@ -323,7 +323,7 @@ struct ContentView: View {
                         }
                     } label: {
                         HStack {
-                            RoundedRectangle(cornerRadius: 10)
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
                                 .fill(Color.blue)
                                 .frame(width: 44, height: 44)
                                 .presentation(
@@ -335,7 +335,7 @@ struct ContentView: View {
                                         ),
                                         presenting: MatchedGeometryPresentationLinkTransition(
                                             options: .init(
-                                                preferredFromCornerRadius: 10,
+                                                preferredFromCornerRadius: .rounded(cornerRadius: 10, style: .continuous),
                                                 preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
                                                 prefersZoomEffect: true,
                                                 initialOpacity: 1
@@ -964,14 +964,14 @@ struct InfoCardView: View {
                         ),
                         presenting: MatchedGeometryPresentationLinkTransition(
                             options: .init(
-                                preferredFromCornerRadius: -1,
+                                preferredFromCornerRadius: .circle,
                                 preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
                                 initialOpacity: 1
                             )
                         ),
                         dismissing: MatchedGeometryPresentationLinkTransition(
                             options: .init(
-                                preferredFromCornerRadius: -1,
+                                preferredFromCornerRadius: .circle,
                                 preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
                                 initialOpacity: 1
                             )

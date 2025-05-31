@@ -7,190 +7,6 @@
 import UIKit
 import SwiftUI
 
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-
-    /// The matched geometry presentation style.
-    public static let matchedGeometry: PresentationLinkTransition = .matchedGeometry()
-
-    /// The matched geometry presentation style.
-    public static func matchedGeometry(
-        _ transitionOptions: MatchedGeometryPresentationLinkTransition.Options,
-        options: PresentationLinkTransition.Options = .init()
-    ) -> PresentationLinkTransition {
-        .custom(
-            options: options,
-            MatchedGeometryPresentationLinkTransition(options: transitionOptions)
-        )
-    }
-
-    /// The matched geometry presentation style.
-    public static func matchedGeometry(
-        preferredCornerRadius: CGFloat? = nil,
-        prefersScaleEffect: Bool = false,
-        prefersZoomEffect: Bool = false,
-        minimumScaleFactor: CGFloat = 0.5,
-        initialOpacity: CGFloat = 1,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        .matchedGeometry(
-            .init(
-                preferredFromCornerRadius: preferredCornerRadius,
-                prefersScaleEffect: prefersScaleEffect,
-                prefersZoomEffect: prefersZoomEffect,
-                minimumScaleFactor: minimumScaleFactor,
-                initialOpacity: initialOpacity,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
-            ),
-            options: .init(
-                isInteractive: isInteractive,
-                modalPresentationCapturesStatusBarAppearance: true,
-                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-            )
-        )
-    }
-
-    /// The matched geometry zoom presentation style.
-    public static let matchedGeometryZoom: PresentationLinkTransition = .matchedGeometryZoom()
-
-    /// The matched geometry zoom presentation style.
-    public static func matchedGeometryZoom(
-        preferredCornerRadius: CGFloat? = nil
-    ) -> PresentationLinkTransition {
-        .matchedGeometry(
-            preferredCornerRadius: preferredCornerRadius,
-            prefersScaleEffect: true,
-            prefersZoomEffect: true,
-            initialOpacity: 0
-        )
-    }
-}
-
-@frozen
-@available(iOS 14.0, *)
-public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransitionRepresentable {
-
-    /// The transition options for a card transition.
-    @frozen
-    public struct Options {
-
-        public var edges: Edge.Set
-        public var preferredFromCornerRadius: CGFloat?
-        public var preferredToCornerRadius: CGFloat?
-        public var prefersScaleEffect: Bool
-        public var prefersZoomEffect: Bool
-        public var minimumScaleFactor: CGFloat
-        public var initialOpacity: CGFloat
-        public var preferredPresentationShadow: PresentationLinkTransition.Shadow
-
-        public init(
-            edges: Edge.Set = .all,
-            preferredFromCornerRadius: CGFloat? = nil,
-            preferredToCornerRadius: CGFloat? = nil,
-            prefersScaleEffect: Bool = false,
-            prefersZoomEffect: Bool = false,
-            minimumScaleFactor: CGFloat = 0.5,
-            initialOpacity: CGFloat = 1,
-            preferredPresentationShadow: PresentationLinkTransition.Shadow = .minimal
-        ) {
-            self.edges = edges
-            self.preferredFromCornerRadius = preferredFromCornerRadius
-            self.preferredToCornerRadius = preferredToCornerRadius
-            self.prefersScaleEffect = prefersScaleEffect
-            self.prefersZoomEffect = prefersZoomEffect
-            self.minimumScaleFactor = minimumScaleFactor
-            self.initialOpacity = initialOpacity
-            self.preferredPresentationShadow = preferredPresentationShadow
-        }
-    }
-    public var options: Options
-
-    public init(options: Options = .init()) {
-        self.options = options
-    }
-
-    public func makeUIPresentationController(
-        presented: UIViewController,
-        presenting: UIViewController?,
-        context: Context
-    ) -> MatchedGeometryPresentationController {
-        let presentationController = MatchedGeometryPresentationController(
-            edges: options.edges,
-            minimumScaleFactor: options.minimumScaleFactor,
-            prefersZoomEffect: options.prefersZoomEffect,
-            presentedViewController: presented,
-            presenting: presenting
-        )
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
-        return presentationController
-    }
-
-    public func updateUIPresentationController(
-        presentationController: MatchedGeometryPresentationController,
-        context: Context
-    ) {
-        presentationController.edges = options.edges
-        presentationController.minimumScaleFactor = options.minimumScaleFactor
-        presentationController.prefersZoomEffect = options.prefersZoomEffect
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
-    }
-
-    public func updateHostingController<Content>(
-        presenting: PresentationHostingController<Content>,
-        context: Context
-    ) where Content: View {
-        presenting.tracksContentSize = true
-    }
-
-    public func animationController(
-        forPresented presented: UIViewController,
-        presenting: UIViewController,
-        context: Context
-    ) -> MatchedGeometryPresentationControllerTransition? {
-        let transition = MatchedGeometryPresentationControllerTransition(
-            sourceView: context.sourceView,
-            prefersScaleEffect: options.prefersScaleEffect,
-            prefersZoomEffect: options.prefersZoomEffect,
-            preferredFromCornerRadius: options.preferredFromCornerRadius,
-            preferredToCornerRadius: options.preferredToCornerRadius,
-            initialOpacity: options.initialOpacity,
-            isPresenting: true,
-            animation: context.transaction.animation
-        )
-        transition.wantsInteractiveStart = false
-        return transition
-    }
-
-    public func animationController(
-        forDismissed dismissed: UIViewController,
-        context: Context
-    ) -> MatchedGeometryPresentationControllerTransition? {
-        guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
-            return nil
-        }
-        let animation: Animation? = {
-            guard context.transaction.animation == .default else {
-                return context.transaction.animation
-            }
-            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
-        }()
-        let transition = MatchedGeometryPresentationControllerTransition(
-            sourceView: context.sourceView,
-            prefersScaleEffect: options.prefersScaleEffect,
-            prefersZoomEffect: options.prefersZoomEffect,
-            preferredFromCornerRadius: options.preferredFromCornerRadius,
-            preferredToCornerRadius: options.preferredToCornerRadius,
-            initialOpacity: options.initialOpacity,
-            isPresenting: false,
-            animation: animation
-        )
-        transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-        presentationController.transition(with: transition)
-        return transition
-    }
-}
-
 /// A presentation controller that presents the view from a source view rect
 @available(iOS 14.0, *)
 open class MatchedGeometryPresentationController: InteractivePresentationController {
@@ -334,8 +150,8 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
 
     public let prefersScaleEffect: Bool
     public let prefersZoomEffect: Bool
-    public let preferredFromCornerRadius: CGFloat?
-    public let preferredToCornerRadius: CGFloat?
+    public let preferredFromCornerRadius: CornerRadiusOptions?
+    public let preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
     public let initialOpacity: CGFloat
     public weak var sourceView: UIView?
 
@@ -343,8 +159,8 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
         sourceView: UIView?,
         prefersScaleEffect: Bool,
         prefersZoomEffect: Bool,
-        preferredFromCornerRadius: CGFloat?,
-        preferredToCornerRadius: CGFloat?,
+        preferredFromCornerRadius: CornerRadiusOptions?,
+        preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         initialOpacity: CGFloat,
         isPresenting: Bool,
         animation: Animation?
@@ -440,12 +256,12 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
             sourceViewController?.view.transform = scaleEffect
         }
 
-        let fromCornerRadius = preferredFromCornerRadius.map { $0 > 0 ? $0 : sourceFrame.height / 2 } ?? 0
-        let toCornerRadius = preferredToCornerRadius ?? UIScreen.main.displayCornerRadius(min: 0)
+        let fromCornerRadius = preferredFromCornerRadius ?? .rounded(cornerRadius: 0)
+        let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
 
         if isPresenting {
             transitionContext.containerView.addSubview(presented.view)
-            presented.view.layer.cornerRadius = fromCornerRadius
+            fromCornerRadius.apply(to: presented.view.layer, height: sourceFrame.height)
 
             sourceView?.alpha = 1 - initialOpacity
 
@@ -487,7 +303,7 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
 
         } else {
             if presented.view.layer.cornerRadius == 0 {
-                presented.view.layer.cornerRadius = toCornerRadius
+                toCornerRadius.apply(to: presented.view.layer)
             }
             presented.view.layoutIfNeeded()
             hostingController?.render()
@@ -528,7 +344,11 @@ open class MatchedGeometryPresentationControllerTransition: PresentationControll
                 hostingController?.disableSafeArea = true
             }
 
-            presented.view.layer.cornerRadius = isPresenting ? toCornerRadius : fromCornerRadius
+            if isPresenting {
+                toCornerRadius.apply(to: presented.view.layer)
+            } else {
+                fromCornerRadius.apply(to: presented.view.layer, height: sourceFrame.height)
+            }
 
             if prefersZoomEffect {
                 portalView?.transform = isPresenting ? .identity : CGAffineTransform(to: presentedFrame, from: sourceFrame)

@@ -8,15 +8,6 @@ import UIKit
 import SwiftUI
 
 @available(iOS 14.0, *)
-open class InteractiveViewControllerTransition: ViewControllerTransition {
-
-    public override init(isPresenting: Bool, animation: Animation?) {
-        super.init(isPresenting: isPresenting, animation: animation)
-        wantsInteractiveStart = true
-    }
-}
-
-@available(iOS 14.0, *)
 open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
 
     public let isPresenting: Bool
