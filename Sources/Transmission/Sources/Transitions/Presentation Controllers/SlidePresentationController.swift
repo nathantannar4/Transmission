@@ -182,11 +182,23 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
                 dzTransform = dzTransform.translatedBy(x: 0, y: safeAreaInsets.left / 2)
             }
         }
+        
+        let presentingOverlayView = UIView(frame: frame)
+        presentingOverlayView.isUserInteractionEnabled = false
+        presentingOverlayView.backgroundColor = UIColor(dynamicProvider: { traitCollection in
+            if traitCollection.userInterfaceStyle == .dark {
+                return UIColor.white.withAlphaComponent(0.1)
+            } else {
+                return UIColor.black.withAlphaComponent(0.1)
+            }
+        })
+        presentingOverlayView.alpha = isPresenting ? 0 : 1
 
         #if !targetEnvironment(macCatalyst)
         if isScaleEnabled {
             presenting.view.layer.cornerCurve = .continuous
             presenting.view.layer.masksToBounds = true
+            presenting.view.addSubview(presentingOverlayView)
         }
         #endif
 
@@ -227,6 +239,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
             (isPresenting ? toCornerRadius : fromCornerRadius).apply(to: presented.view.layer)
             if isScaleEnabled {
                 presenting.view.layer.cornerRadius = isPresenting ? scaledCornerRadius : UIScreen.main.displayCornerRadius()
+                presentingOverlayView.alpha = isPresenting ? 1 : 0
             }
         }
         animator.addCompletion { animatingPosition in
@@ -234,6 +247,7 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
                 presenting.view.layer.cornerRadius = 0
                 presenting.view.layer.masksToBounds = true
                 presenting.view.transform = .identity
+                presentingOverlayView.removeFromSuperview()
             }
             presented.view.layer.cornerRadius = 0
             switch animatingPosition {
