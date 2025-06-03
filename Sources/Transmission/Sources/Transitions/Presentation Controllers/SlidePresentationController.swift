@@ -215,12 +215,18 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
             frame: frame
         )
         let presentingTransform = isPresenting && isScaleEnabled ? dzTransform : .identity
+        let scaledCornerRadius = UIScreen.main.displayCornerRadius() == 0 ? 16 : UIScreen.main.displayCornerRadius()/2
+        
+        if isScaleEnabled {
+            presenting.view.layer.cornerRadius = isPresenting ? UIScreen.main.displayCornerRadius() : scaledCornerRadius
+        }
+        
         animator.addAnimations {
             presented.view.transform = presentedTransform
             presenting.view.transform = presentingTransform
             (isPresenting ? toCornerRadius : fromCornerRadius).apply(to: presented.view.layer)
             if isScaleEnabled {
-                presenting.view.layer.cornerRadius = isPresenting ? UIScreen.main.displayCornerRadius() : 0
+                presenting.view.layer.cornerRadius = isPresenting ? scaledCornerRadius : UIScreen.main.displayCornerRadius()
             }
         }
         animator.addCompletion { animatingPosition in
