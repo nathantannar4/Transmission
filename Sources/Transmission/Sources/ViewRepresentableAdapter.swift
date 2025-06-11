@@ -37,10 +37,7 @@ public struct ViewRepresentableAdapter<
         in proposedSize: _ProposedSize,
         uiView: UIViewType
     ) {
-        let sizeThatFits = uiView.sizeThatFits(ProposedSize(proposedSize).toCoreGraphics())
-        if sizeThatFits != .zero {
-            size = sizeThatFits
-        }
+        size = uiView.sizeThatFits(ProposedSize(proposedSize).replacingUnspecifiedDimensions(by: UIView.layoutFittingExpandedSize))
     }
 }
 

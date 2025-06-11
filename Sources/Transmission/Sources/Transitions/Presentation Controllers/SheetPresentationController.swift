@@ -24,8 +24,8 @@ open class MacSheetTransition: SlidePresentationControllerTransition {
         super.init(
             edge: .bottom,
             prefersScaleEffect: false,
-            preferredFromCornerRadius: cornerRadius,
-            preferredToCornerRadius: cornerRadius,
+            preferredFromCornerRadius: .rounded(cornerRadius: cornerRadius),
+            preferredToCornerRadius: .rounded(cornerRadius: cornerRadius),
             isPresenting: isPresenting,
             animation: animation
         )
@@ -249,9 +249,20 @@ open class SheetPresentationController: UISheetPresentationController {
 
     private func updateBackgroundColor() {
         presentedView?.backgroundColor = preferredBackgroundColor
-        if let preferredBackgroundColor {
-            containerView?.subviews.last?.layer.shadowColor = preferredBackgroundColor.cgColor
+        if let preferredBackgroundColor, let lastSubview = containerView?.subviews.last, lastSubview.isDropShadowView {
+            lastSubview.layer.shadowColor = preferredBackgroundColor.cgColor
         }
+    }
+}
+
+extension UIView {
+
+    private static let UIDropShadowView: AnyClass? = NSClassFromString("UIDropShadowView")
+    var isDropShadowView: Bool {
+        guard let aClass = Self.UIDropShadowView else {
+            return false
+        }
+        return isKind(of: aClass)
     }
 }
 #endif

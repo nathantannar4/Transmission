@@ -1,8 +1,5 @@
 //
-//  ExampleApp.swift
-//  Example
-//
-//  Created by Nathan Tannar on 2022-12-06.
+// Copyright (c) Nathan Tannar
 //
 
 import SwiftUI
@@ -11,10 +8,18 @@ import SwiftUI
 struct ExampleApp: App {
     var body: some Scene {
         WindowGroup {
-            NavigationView {
-                ContentView()
-            }
-            .navigationViewStyle(.stack)
+            AppContentView()
         }
+    }
+}
+
+struct AppContentView: View {
+    var body: some View {
+        NavigationView {
+            ContentView()
+                .navigationBarTitleDisplayMode(.inline)
+                .navigationTitle("Transmission")
+        }
+        .navigationViewStyle(.stack)
     }
 }

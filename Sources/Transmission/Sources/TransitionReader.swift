@@ -175,7 +175,7 @@ final class TransitionReaderCoordinator: NSObject {
             withTransaction(transaction) {
                 proxy.wrappedValue.progress = newValue
             }
-        } else if isInProgress || transitionContext.isCancelled {
+        } else if isInProgress || transitionContext.isCancelled || transitionContext.presentationStyle == .none {
             let newValue: CGFloat = transitionContext.isCancelled
                 ? isPresenting ? 0 : 1
                 : isPresenting ? 1 : 0

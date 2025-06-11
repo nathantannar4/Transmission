@@ -32,8 +32,8 @@ public struct QuickLookPreviewTransition: Equatable {
     /// The default transition effect
     public static let `default` = QuickLookPreviewTransition(rawValue: 0)
 
-    /// A scaled transition effect from the presenting source view
-    public static let scale = QuickLookPreviewTransition(rawValue: 1 << 0)
+    /// The matched geometry transition effect
+    public static let matchedGeometry = QuickLookPreviewTransition(rawValue: 1 << 0)
 }
 
 /// A button that presents a `QLPreviewController`
@@ -145,7 +145,7 @@ extension View {
 @available(iOS 14.0, *)
 @frozen
 public struct QuickLookPreviewLinkModifier: ViewModifier {
- 
+
     var items: [QuickLookPreviewItem]
     var transition: QuickLookPreviewTransition
     var isPresented: Binding<Bool>
@@ -166,94 +166,104 @@ public struct QuickLookPreviewLinkModifier: ViewModifier {
                 PresentationLinkModifier(
                     transition: .default,
                     isPresented: isPresented,
-                    destination: Destination(
+                    destination: QuickLookPreviewView(
                         items: items,
                         transition: transition
                     )
                 )
             )
     }
+}
 
-    private struct Destination: UIViewControllerRepresentable {
-        var items: [QuickLookPreviewItem]
-        var transition: QuickLookPreviewTransition
+@available(iOS 14.0, *)
+public struct QuickLookPreviewView: UIViewControllerRepresentable {
+    var items: [QuickLookPreviewItem]
+    var transition: QuickLookPreviewTransition
 
-        func makeUIViewController(
-            context: Context
-        ) -> PreviewController {
-            let uiViewController = PreviewController()
-            return uiViewController
+    public init(
+        items: [QuickLookPreviewItem],
+        transition: QuickLookPreviewTransition
+    ) {
+        self.items = items
+        self.transition = transition
+    }
+
+    public func makeUIViewController(
+        context: Context
+    ) -> UIViewController {
+        let uiViewController = PreviewController()
+        return uiViewController
+    }
+
+    public func updateUIViewController(
+        _ uiViewController: UIViewController,
+        context: Context
+    ) {
+        let items = items.map { $0.resolve(in: context.environment) }
+        let uiViewController = uiViewController as! PreviewController
+        uiViewController.openURL = context.environment.openURL
+        uiViewController.sourceView = transition == .default ? nil : context.environment.presentationCoordinator.sourceView
+        uiViewController.items = items
+    }
+
+    class PreviewController: QLPreviewController, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
+        var openURL: OpenURLAction?
+        weak var sourceView: UIView?
+        var items: [QuickLookPreviewItem.Resolved] = [] {
+            didSet {
+                guard oldValue != items else { return }
+                previewItems = items.map { $0.makeQLPreviewItem() }
+                if viewIfLoaded != nil {
+                    reloadData()
+                }
+            }
         }
 
-        func updateUIViewController(
-            _ uiViewController: PreviewController,
-            context: Context
-        ) { 
-            let items = items.map { $0.resolve(in: context.environment) }
-            uiViewController.openURL = context.environment.openURL
-            uiViewController.sourceView = transition == .default ? nil : context.environment.presentationCoordinator.sourceView
-            uiViewController.items = items
+        private var previewItems: [QuickLookPreviewItem.Resolved.PreviewItem] = []
+
+        init() {
+            super.init(nibName: nil, bundle: nil)
+            dataSource = self
+            delegate = self
         }
 
-        class PreviewController: QLPreviewController, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
-            var openURL: OpenURLAction?
-            weak var sourceView: UIView?
-            var items: [QuickLookPreviewItem.Resolved] = [] {
-                didSet {
-                    guard oldValue != items else { return }
-                    previewItems = items.map { $0.makeQLPreviewItem() }
-                    if viewIfLoaded != nil {
-                        reloadData()
-                    }
-                }
-            }
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
 
-            private var previewItems: [QuickLookPreviewItem.Resolved.PreviewItem] = []
+        func numberOfPreviewItems(
+            in controller: QLPreviewController
+        ) -> Int {
+            previewItems.count
+        }
 
-            init() {
-                super.init(nibName: nil, bundle: nil)
-                dataSource = self
-                delegate = self
-            }
-            
-            required init?(coder: NSCoder) {
-                fatalError("init(coder:) has not been implemented")
-            }
+        func previewController(
+            _ controller: QLPreviewController,
+            previewItemAt index: Int
+        ) -> QLPreviewItem {
+            previewItems[index]
+        }
 
-            func numberOfPreviewItems(
-                in controller: QLPreviewController
-            ) -> Int {
-                previewItems.count
+        func previewController(
+            _ controller: QLPreviewController,
+            shouldOpen url: URL,
+            for item: QLPreviewItem
+        ) -> Bool {
+            if let openURL {
+                openURL(url)
+                return false
             }
+            return true
+        }
 
-            func previewController(
-                _ controller: QLPreviewController,
-                previewItemAt index: Int
-            ) -> QLPreviewItem {
-                previewItems[index]
+        func previewController(
+            _ controller: QLPreviewController,
+            transitionViewFor item: QLPreviewItem
+        ) -> UIView? {
+            if item === previewItems.first {
+                return sourceView
             }
-
-            func previewController(
-                _ controller: QLPreviewController,
-                shouldOpen url: URL,
-                for item: QLPreviewItem
-            ) -> Bool {
-                if let openURL {
-                    openURL(url)
-                    return false
-                }
-                return true
-            }
-
-            func previewController(
-                _ controller: QLPreviewController,
-                transitionViewFor item: QLPreviewItem
-            ) -> UIView? {
-                if item === previewItems.first {
-                    return sourceView
-                }
-                return nil
-            }
+            return nil
         }
     }
 }

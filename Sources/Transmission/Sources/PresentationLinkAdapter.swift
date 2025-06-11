@@ -350,11 +350,17 @@ private struct PresentationLinkAdapterBody<
                     }
                 }
                 if let presentedViewController = presentingViewController.presentedViewController {
-                    let shouldDismiss =
-                        isTransitioningPresentationController ||
-                        presentedViewController.presentationController.map {
+                    let shouldDismiss = {
+                        if presentedViewController.isBeingDismissed {
+                            return false
+                        }
+                        if isTransitioningPresentationController {
+                            return true
+                        }
+                        return presentedViewController.presentationController.map {
                             $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
                         } ?? true
+                    }()
                     if shouldDismiss {
                         presentedViewController.dismiss(
                             animated: isAnimated,
@@ -391,7 +397,7 @@ private struct PresentationLinkAdapterBody<
         in proposedSize: _ProposedSize,
         uiView: UIViewType
     ) {
-        size = uiView.sizeThatFits(ProposedSize(proposedSize).toCoreGraphics())
+        size = uiView.sizeThatFits(ProposedSize(proposedSize).replacingUnspecifiedDimensions(by: UIView.layoutFittingExpandedSize))
     }
 
     func makeCoordinator() -> Coordinator {
@@ -463,8 +469,10 @@ private struct PresentationLinkAdapterBody<
             if isPresented.wrappedValue {
                 var transaction = Transaction(animation: animated ? .default : nil)
                 transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    self.isPresented.wrappedValue = false
+                withCATransaction {
+                    withTransaction(transaction) {
+                        self.isPresented.wrappedValue = false
+                    }
                 }
             }
 
@@ -627,8 +635,12 @@ private struct PresentationLinkAdapterBody<
                     forDismissed: dismissed,
                     context: makeContext(options: options)
                 )
-                if let transition = animationController as? UIPercentDrivenInteractiveTransition {
-                    transition.wantsInteractiveStart = options.isInteractive && transition.wantsInteractiveStart
+                if let transition = animationController as? UIPercentDrivenInteractiveTransition, transition.wantsInteractiveStart {
+                    if let presentationController = dismissed.presentationController as? InteractivePresentationController {
+                        transition.wantsInteractiveStart = options.isInteractive && presentationController.wantsInteractiveTransition
+                    } else if !options.isInteractive {
+                        transition.wantsInteractiveStart = false
+                    }
                 }
                 return animationController
 
@@ -1105,6 +1117,47 @@ extension PresentationLinkTransition.Value {
 
         default:
             break
+        }
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct PresentationLinkAdapter_Previews: PreviewProvider {
+    struct Preview: View {
+        var body: some View {
+            VStack {
+                PresentationLinkAdapter(transition: .default, isPresented: .constant(false)) {
+
+                } content: {
+                    Color.yellow
+                        .aspectRatio(1, contentMode: .fit)
+                }
+                .border(Color.red)
+
+                PresentationLinkAdapter(transition: .default, isPresented: .constant(false)) {
+
+                } content: {
+                    Color.yellow
+                        .frame(width: 44, height: 44)
+                }
+                .border(Color.red)
+
+                PresentationLinkAdapter(transition: .default, isPresented: .constant(false)) {
+
+                } content: {
+                    Text("Hello, World")
+                }
+                .border(Color.red)
+            }
+        }
+    }
+    static var previews: some View {
+        Preview()
+
+        ScrollView {
+            Preview()
         }
     }
 }

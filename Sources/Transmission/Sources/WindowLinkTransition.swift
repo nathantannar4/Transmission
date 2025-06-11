@@ -8,8 +8,8 @@ import SwiftUI
 
 /// The window level for a presented ``WindowLink`` destination
 @available(iOS 14.0, *)
-public struct WindowLinkLevel: Sendable {
-    enum Value {
+public struct WindowLinkLevel: Hashable, Sendable {
+    enum Value: Hashable, Sendable {
         case relative(Int)
         case fixed(CGFloat)
     }
