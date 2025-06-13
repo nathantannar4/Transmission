@@ -55,7 +55,7 @@ struct PresentationLinkExamples: View {
         case .zoom:
             if #available(iOS 18.0, *) {
                 return .zoom(
-                    options: .init(isInteractive: isInteractive)
+                    options: .init(options: .init(isInteractive: isInteractive))
                 )
             }
             return .default
@@ -326,6 +326,23 @@ struct PresentationLinkExamples: View {
                 VStack(alignment: .leading) {
                     Text("Popover")
                     Text("w/ `.popover` Transition")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+
+            PresentationLink(
+                transition: .zoomIfAvailable(
+                    options: .init(
+                        dimmingVisualEffect: .systemThickMaterial
+                    )
+                )
+            ) {
+                ScrollableView()
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("Zoom w/ visual effect")
+                    Text("w/ `.zoom` Transition")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)

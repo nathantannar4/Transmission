@@ -16,7 +16,7 @@ public struct PresentationLinkTransition: Sendable {
         case currentContext(Options)
         case fullscreen(Options)
         case popover(PopoverTransitionOptions)
-        case zoom(Options)
+        case zoom(ZoomOptions)
         case representable(Options, any PresentationLinkTransitionRepresentable)
 
         var options: Options {
@@ -27,10 +27,11 @@ public struct PresentationLinkTransition: Sendable {
                 return options.options
             case .popover(let options):
                 return options.options
+            case .zoom(let options):
+                return options.options
             case .currentContext(let options),
                 .fullscreen(let options),
-                .representable(let options, _),
-                .zoom(let options):
+                .representable(let options, _):
                 return options
             }
         }
@@ -546,6 +547,24 @@ extension PresentationLinkTransition {
             return directions
         }
     }
+
+    /// The transition options for a zoom transition.
+    @frozen
+    public struct ZoomOptions {
+        public var options: Options
+        public var dimmingColor: Color?
+        public var dimmingVisualEffect: UIBlurEffect.Style?
+
+        public init(
+            dimmingColor: Color? = nil,
+            dimmingVisualEffect: UIBlurEffect.Style? = nil,
+            options: Options = .init()
+        ) {
+            self.options = options
+            self.dimmingColor = dimmingColor
+            self.dimmingVisualEffect = dimmingVisualEffect
+        }
+    }
 }
 
 @available(iOS 14.0, *)
@@ -640,14 +659,34 @@ extension PresentationLinkTransition {
     /// The zoom presentation style.
     @available(iOS 18.0, *)
     public static func zoom(
-        options: Options
+        dimmingColor: Color? = nil,
+        dimmingVisualEffect: UIBlurEffect.Style? = nil,
+        isInteractive: Bool = true
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(
+            value: .zoom(
+                .init(
+                    dimmingColor: dimmingColor,
+                    dimmingVisualEffect: dimmingVisualEffect,
+                    options: .init(
+                        isInteractive: isInteractive
+                    )
+                )
+            )
+        )
+    }
+
+    /// The zoom presentation style.
+    @available(iOS 18.0, *)
+    public static func zoom(
+        options: ZoomOptions
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(value: .zoom(options))
     }
 
     /// The zoom presentation style if available, otherwise a backwards compatible variant of the matched geometry presentation style.
     public static func zoomIfAvailable(
-        options: Options
+        options: ZoomOptions
     ) -> PresentationLinkTransition {
         if #available(iOS 18.0, *) {
             return .zoom(options: options)
@@ -657,15 +696,15 @@ extension PresentationLinkTransition {
                 prefersScaleEffect: true,
                 prefersZoomEffect: true,
                 initialOpacity: 0,
-                preferredPresentationShadow: options.preferredPresentationBackgroundColor == .clear ? .clear : .prominent
+                preferredPresentationShadow: options.options.preferredPresentationBackgroundColor == .clear ? .clear : .prominent
             ),
-            options: options
+            options: options.options
         )
     }
 
     /// The zoom presentation style if available, otherwise a fallback transition style.
     public static func zoomIfAvailable(
-        options: Options,
+        options: ZoomOptions,
         otherwise fallback: PresentationLinkTransition
     ) -> PresentationLinkTransition {
         if #available(iOS 18.0, *) {

@@ -135,15 +135,17 @@ private struct DestinationLinkAdapterBody<
                 case .`default`:
                     break
 
-                case .zoom:
+                case .zoom(let options):
                     if #available(iOS 18.0, *) {
                         let zoomOptions = UIViewController.Transition.ZoomOptions()
+                        zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
+                        zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
                         zoomOptions.interactiveDismissShouldBegin = { [weak adapter] context in
                             adapter?.transition.options.isInteractive ?? true
                         }
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions, sourceViewProvider: { [weak uiView] _ in
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] _ in
                             return uiView
-                        })
+                        }
                     }
 
                 case .representable(_, let transition):
@@ -456,6 +458,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         guard
             let navigationController = navigationController,
             navigationController.viewControllers.count > 1,
+            navigationController.presentedViewController == nil,
             let fromVC = navigationController.topViewController
         else {
             return false

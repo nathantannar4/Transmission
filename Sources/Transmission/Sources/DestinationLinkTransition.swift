@@ -12,12 +12,14 @@ import Engine
 public struct DestinationLinkTransition: Sendable {
     enum Value: @unchecked Sendable {
         case `default`(Options)
-        case zoom(Options)
+        case zoom(ZoomOptions)
         case representable(Options, any DestinationLinkTransitionRepresentable)
 
         var options: Options {
             switch self {
-            case .default(let options), .zoom(let options), .representable(let options, _):
+            case .zoom(let options):
+                return options.options
+            case .default(let options), .representable(let options, _):
                 return options
             }
         }
@@ -73,6 +75,24 @@ extension DestinationLinkTransition {
             preferredPresentationBackgroundColor?.toUIColor()
         }
     }
+
+    /// The transition options for a zoom transition.
+    @frozen
+    public struct ZoomOptions {
+        public var options: Options
+        public var dimmingColor: Color?
+        public var dimmingVisualEffect: UIBlurEffect.Style?
+
+        public init(
+            dimmingColor: Color? = nil,
+            dimmingVisualEffect: UIBlurEffect.Style? = nil,
+            options: Options = .init()
+        ) {
+            self.options = options
+            self.dimmingColor = dimmingColor
+            self.dimmingVisualEffect = dimmingVisualEffect
+        }
+    }
 }
 
 @available(iOS 14.0, *)
@@ -87,14 +107,34 @@ extension DestinationLinkTransition {
     /// The zoom presentation style.
     @available(iOS 18.0, *)
     public static func zoom(
-        options: Options
+        dimmingColor: Color? = nil,
+        dimmingVisualEffect: UIBlurEffect.Style? = nil,
+        isInteractive: Bool = true
+    ) -> DestinationLinkTransition {
+        DestinationLinkTransition(
+            value: .zoom(
+                .init(
+                    dimmingColor: dimmingColor,
+                    dimmingVisualEffect: dimmingVisualEffect,
+                    options: .init(
+                        isInteractive: isInteractive
+                    )
+                )
+            )
+        )
+    }
+
+    /// The zoom presentation style.
+    @available(iOS 18.0, *)
+    public static func zoom(
+        options: ZoomOptions
     ) -> DestinationLinkTransition {
         DestinationLinkTransition(value: .zoom(options))
     }
 
     /// The zoom presentation style if available, otherwise a fallback transition style.
     public static func zoomIfAvailable(
-        options: Options,
+        options: ZoomOptions,
         otherwise fallback: DestinationLinkTransition = .default
     ) -> DestinationLinkTransition {
         if #available(iOS 18.0, *) {

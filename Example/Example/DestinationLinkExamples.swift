@@ -31,7 +31,7 @@ struct DestinationLinkExamples: View {
         case .zoom:
             if #available(iOS 18.0, *) {
                 return .zoom(
-                    options: .init(isInteractive: isInteractive)
+                    options: .init(options: .init(isInteractive: isInteractive))
                 )
             }
             return .default
@@ -185,7 +185,11 @@ struct DestinationLinkExamples: View {
                     // `DestinationLinkAdapter` makes the `label` view available to transition
                     // alongside as the "source view"
                     DestinationLinkAdapter(
-                        transition: .zoomIfAvailable,
+                        transition: .zoomIfAvailable(
+                            options: .init(
+                                dimmingVisualEffect: .systemThickMaterial
+                            )
+                        ),
                         isPresented: $isZoomPresented
                     ) {
                         RoundedRectangle(cornerRadius: 10, style: .circular)

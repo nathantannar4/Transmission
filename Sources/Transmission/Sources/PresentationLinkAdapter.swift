@@ -299,9 +299,12 @@ private struct PresentationLinkAdapterBody<
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
-                case .zoom:
+                case .zoom(let options):
                     if #available(iOS 18.0, *) {
-                        adapter.viewController.preferredTransition = .zoom { [weak uiView] context in
+                        let zoomOptions = UIViewController.Transition.ZoomOptions()
+                        zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
+                        zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] context in
                             return uiView
                         }
                     }
