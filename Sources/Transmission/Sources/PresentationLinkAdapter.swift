@@ -463,9 +463,11 @@ private struct PresentationLinkAdapterBody<
         // MARK: - UIViewControllerPresentationDelegate
 
         func viewControllerDidDismiss(
-            _ presentingViewController: UIViewController?,
+            _ viewController: UIViewController,
+            presentingViewController: UIViewController?,
             animated: Bool
         ) {
+            guard adapter?.viewController == viewController else { return }
             // Break the retain cycle
             adapter?.coordinator = nil
 

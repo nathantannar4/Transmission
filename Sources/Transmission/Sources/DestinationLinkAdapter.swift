@@ -141,7 +141,7 @@ private struct DestinationLinkAdapterBody<
                         zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
                         zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
                         zoomOptions.interactiveDismissShouldBegin = { [weak adapter] context in
-                            adapter?.transition.options.isInteractive ?? true
+                            context.willBegin && (adapter?.transition.options.isInteractive ?? true)
                         }
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] _ in
                             return uiView
