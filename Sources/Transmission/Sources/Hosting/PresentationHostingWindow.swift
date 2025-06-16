@@ -47,7 +47,12 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
         return result
     }
 
-    private class PresentationHostingWindowController: HostingController<Content> {
+    private class PresentationHostingWindowController: UIViewController {
+
+        var content: Content {
+            get { host.content }
+            set { host.content = newValue }
+        }
 
         override var preferredStatusBarStyle: UIStatusBarStyle {
             guard let proxy = viewControllerForStatusBarAppearance else {
@@ -98,9 +103,21 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
             return parentViewController
         }
 
-        override func viewDidLoad() {
-            super.viewDidLoad()
-            view.backgroundColor = nil
+        private let host: HostingView<Content>
+
+        init(content: Content) {
+            // Use a `HostingView` rather than `HostingController` so to utilize `HostingView`'s
+            // hitTest override to allow touches to pass through.
+            self.host = HostingView(content: content)
+            super.init(nibName: nil, bundle: nil)
+        }
+
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func loadView() {
+            view = host
         }
     }
 }

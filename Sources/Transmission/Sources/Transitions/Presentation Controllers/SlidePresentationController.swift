@@ -71,6 +71,16 @@ open class SlidePresentationController: InteractivePresentationController {
         }
     }
 
+    open override func dismissalTransitionWillBegin() {
+        super.dismissalTransitionWillBegin()
+        presentingViewController.view.isHidden = false
+    }
+
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+        presentingViewController.view.isHidden = false
+    }
+
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
 

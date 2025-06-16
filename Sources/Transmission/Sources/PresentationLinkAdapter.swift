@@ -353,6 +353,9 @@ private struct PresentationLinkAdapterBody<
                     }
                 }
                 if let presentedViewController = presentingViewController.presentedViewController {
+                    if presentedViewController.isBeingDismissed, presentedViewController.presentationDelegate == context.coordinator {
+                        presentedViewController.presentationDelegate = nil
+                    }
                     let shouldDismiss = {
                         if presentedViewController.isBeingDismissed {
                             return false
@@ -383,8 +386,11 @@ private struct PresentationLinkAdapterBody<
             let isAnimated = context.transaction.isAnimated
             let viewController = adapter.viewController!
             if viewController.presentedViewController != nil {
-                (viewController.presentingViewController ?? viewController).dismiss(animated: isAnimated)
-            } else if viewController.presentingViewController != nil {
+                let presentingViewController = viewController.presentingViewController ?? viewController
+                if !presentingViewController.isBeingDismissed {
+                    presentingViewController.dismiss(animated: isAnimated)
+                }
+            } else if viewController.presentingViewController != nil, !viewController.isBeingDismissed {
                 viewController.dismiss(animated: isAnimated)
             }
             if adapter.transition.options.isDestinationReusable {
@@ -467,7 +473,6 @@ private struct PresentationLinkAdapterBody<
             presentingViewController: UIViewController?,
             animated: Bool
         ) {
-            guard adapter?.viewController == viewController else { return }
             // Break the retain cycle
             adapter?.coordinator = nil
 
