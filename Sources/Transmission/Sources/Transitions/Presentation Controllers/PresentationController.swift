@@ -122,6 +122,8 @@ open class PresentationController: UIPresentationController {
                     name: UIResponder.keyboardWillHideNotification,
                     object: nil
                 )
+
+            presentedViewController.fixSwiftUIHitTesting()
         } else {
             transitionAlongsidePresentation(isPresented: false)
         }

@@ -240,18 +240,22 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 if let scrollView {
                     if edges.contains(.top), translation.y < 0 {
                         scrollView.contentOffset.y = max(-scrollView.adjustedContentInset.top, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.frame.height)
+                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
 
                     if edges.contains(.bottom), translation.y > 0 {
                         scrollView.contentOffset.y = -scrollView.adjustedContentInset.top
+                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
 
                     if edges.contains(.leading), translation.x < 0 {
                         scrollView.contentOffset.x = max(-scrollView.adjustedContentInset.left, scrollView.contentSize.width + scrollView.adjustedContentInset.left - scrollView.frame.width)
+                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
 
                     if edges.contains(.trailing), translation.x > 0 {
                         scrollView.contentOffset.x = -scrollView.adjustedContentInset.right
+                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
                 }
                 transition.update(percentage)
@@ -280,7 +284,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 if shouldFinish {
                     transition.finish()
                 } else {
-                    if magnitude <= 1000 {
+                    if magnitude <= 1000, #available(iOS 17, *) {
                         transition.completionSpeed = percentage >= 0.5 ? 1 - percentage : percentage
                     }
                     transition.cancel()
@@ -345,6 +349,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 {
                     lastTranslation = .zero
                     keyboardOffset = 0
+                    scrollView?.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                 } else if gestureRecognizer.state == .changed,
                     isScrollViewAtTop || trackingScrollView?.isTracking == false
                 {

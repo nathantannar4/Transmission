@@ -438,7 +438,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             if shouldFinish {
                 transition.finish()
             } else {
-                if abs(velocity.x) <= 1000 {
+                if abs(velocity.x) <= 1000, #available(iOS 17, *) {
                     transition.completionSpeed = percentage >= 0.5 ? 1 - percentage : percentage
                 }
                 transition.cancel()
