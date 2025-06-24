@@ -22,6 +22,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     private var lastTranslation: CGPoint = .zero
     var keyboardOffset: CGFloat = 0
 
+    open var dismissalHapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
+    private var feedbackGenerator: UIImpactFeedbackGenerator?
+    private var isDismissReady = false
+
     /// When true, custom view controller presentation animators should be set to want an interactive start
     open var wantsInteractiveTransition: Bool {
         panGesture.isInteracting || (trackingScrollView?.panGestureRecognizer.isInteracting ?? false)
@@ -259,6 +263,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     }
                 }
                 transition.update(percentage)
+                triggerHapticsIfNeeded(panGesture: gestureRecognizer, isActivationThresholdSatisfied: percentage >= 0.5)
 
             case .ended, .cancelled, .failed:
                 // Dismiss if:
@@ -364,15 +369,14 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         scrollView.showsHorizontalScrollIndicator = showsHorizontalScrollIndicator
                         trackingScrollView = nil
                     }
-                    if wantsInteractiveDismissal,
-                       panGestureDismissalShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
-                       dismissIfNeeded()
-                    {
-                        panGestureDidEnd()
-                    } else {
-                        let transform = presentedViewTransform(for: gestureTranslation)
-                        transformPresentedView(transform: transform)
-                    }
+                    let transform = presentedViewTransform(for: gestureTranslation)
+                    transformPresentedView(transform: transform)
+                    let isActivationThresholdSatisfied = dismissalTransitionShouldBegin(
+                        translation: translation,
+                        delta: delta,
+                        velocity: .zero
+                    )
+                    triggerHapticsIfNeeded(panGesture: gestureRecognizer, isActivationThresholdSatisfied: isActivationThresholdSatisfied)
                 }
 
             case .ended:
@@ -421,6 +425,53 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         trackingScrollView = nil
         keyboardOffset = 0
         dismissalTransitionDidCancel()
+        isDismissReady = false
+    }
+
+    private func triggerHapticsIfNeeded(
+        panGesture: UIPanGestureRecognizer,
+        isActivationThresholdSatisfied: Bool
+    ) {
+        switch panGesture.state {
+        case .ended, .cancelled:
+            isDismissReady = false
+            feedbackGenerator = nil
+        default:
+            guard
+                let hapticsStyle = dismissalHapticsStyle,
+                let view = panGesture.view
+            else {
+                return
+            }
+            func impactOccurred(
+                intensity: CGFloat,
+                location: @autoclosure () -> CGPoint
+            ) {
+                if #available(iOS 17.5, *) {
+                    feedbackGenerator?.impactOccurred(intensity: intensity, at: location())
+                } else {
+                    feedbackGenerator?.impactOccurred(intensity: intensity)
+                }
+            }
+
+            if feedbackGenerator == nil {
+                let feedbackGenerator: UIImpactFeedbackGenerator
+                if #available(iOS 17.5, *) {
+                    feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle, view: view)
+                } else {
+                    feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle)
+                }
+                feedbackGenerator.prepare()
+                self.feedbackGenerator = feedbackGenerator
+            } else if !isDismissReady, isActivationThresholdSatisfied {
+                isDismissReady = true
+                impactOccurred(intensity: 1, location: panGesture.location(in: view))
+            } else if isDismissReady, !isActivationThresholdSatisfied
+            {
+                impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
+                isDismissReady = false
+            }
+        }
     }
 
     private func isAtTop(

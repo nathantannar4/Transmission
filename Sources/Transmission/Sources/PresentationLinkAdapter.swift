@@ -307,6 +307,12 @@ private struct PresentationLinkAdapterBody<
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] context in
                             return uiView
                         }
+                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
+                            zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomPanGestureDidChange(_:)))
+                        }
+                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
+                            zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomEdgePanGestureDidChange(_:)))
+                        }
                     }
                     context.coordinator.sourceView = uiView
                     context.coordinator.overrideTraitCollection = traits
@@ -427,6 +433,9 @@ private struct PresentationLinkAdapterBody<
         var didPresentAnimated = false
         weak var sourceView: UIView?
         var overrideTraitCollection: UITraitCollection?
+
+        var isZoomTransitionDismissReady = false
+        var feedbackGenerator: UIImpactFeedbackGenerator?
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
@@ -839,6 +848,68 @@ private struct PresentationLinkAdapterBody<
             _ popoverPresentationController: UIPopoverPresentationController
         ) {
             popoverPresentationController.presentedViewController.view.layoutIfNeeded()
+        }
+
+        // MARK: - Zoom Transition
+
+        @objc
+        func zoomPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
+            zoomGestureDidChange(panGesture: panGesture, isDismiss: true)
+        }
+
+        @objc
+        func zoomEdgePanGestureDidChange(_ edgePanGesture: UIScreenEdgePanGestureRecognizer) {
+            zoomGestureDidChange(panGesture: edgePanGesture, isDismiss: false)
+        }
+
+        private func zoomGestureDidChange(
+            panGesture: UIPanGestureRecognizer,
+            isDismiss: Bool
+        ) {
+            switch panGesture.state {
+            case .ended, .cancelled:
+                isZoomTransitionDismissReady = false
+                feedbackGenerator = nil
+            default:
+                guard
+                    case .zoom(let options) = adapter?.transition,
+                    let hapticsStyle = options.hapticsStyle,
+                    let view = panGesture.view
+                else {
+                    return
+                }
+                let velocity = isDismiss ? panGesture.velocity(in: view).y : panGesture.velocity(in: view).x
+                let translation = isDismiss ? panGesture.translation(in: view).y : panGesture.translation(in: view).x
+                let threshold = isDismiss ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
+                func impactOccurred(
+                    intensity: CGFloat,
+                    location: @autoclosure () -> CGPoint
+                ) {
+                    if #available(iOS 17.5, *) {
+                        feedbackGenerator?.impactOccurred(intensity: intensity, at: location())
+                    } else {
+                        feedbackGenerator?.impactOccurred(intensity: intensity)
+                    }
+                }
+
+                if feedbackGenerator == nil {
+                    let feedbackGenerator: UIImpactFeedbackGenerator
+                    if #available(iOS 17.5, *) {
+                        feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle, view: view)
+                    } else {
+                        feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle)
+                    }
+                    feedbackGenerator.prepare()
+                    self.feedbackGenerator = feedbackGenerator
+                } else if !isZoomTransitionDismissReady, translation >= threshold, velocity >= 0 {
+                    isZoomTransitionDismissReady = true
+                    impactOccurred(intensity: 1, location: panGesture.location(in: view))
+                } else if isZoomTransitionDismissReady, translation < threshold, velocity < 0
+                {
+                    impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
+                    isZoomTransitionDismissReady = false
+                }
+            }
         }
     }
 

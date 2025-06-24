@@ -40,18 +40,20 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
         delta: CGPoint,
         velocity: CGPoint
     ) -> Bool {
-        guard panGesture.state == .ended else {
-            return false
+        var shouldBegin = false
+        if !shouldBegin, edges.contains(.bottom), translation.y > 0 {
+            shouldBegin = (translation.y >= UIGestureRecognizer.zoomGestureActivationThreshold.height && velocity.y >= 0) || velocity.y >= 1000
         }
-        let dz = sqrt(pow(translation.y, 2) + pow(translation.x, 2))
-        let magnitude = sqrt(pow(velocity.y, 2) + pow(velocity.x, 2))
-        let canFinish = (dz >= 200 && magnitude > 0) || magnitude >= 1000
-        guard canFinish else { return false }
-        return super.dismissalTransitionShouldBegin(
-            translation: translation,
-            delta: delta,
-            velocity: velocity
-        )
+        if !shouldBegin, edges.contains(.top), translation.y < 0 {
+            shouldBegin = (abs(translation.y) >= UIGestureRecognizer.zoomGestureActivationThreshold.height && velocity.y <= 0) || velocity.y <= -1000
+        }
+        if !shouldBegin, edges.contains(.leading), translation.x < 0 {
+            shouldBegin = (abs(translation.x) >= UIGestureRecognizer.zoomGestureActivationThreshold.width && velocity.x <= 0) || velocity.x <= -1000
+        }
+        if !shouldBegin, edges.contains(.trailing), translation.x > 0 {
+            shouldBegin = (translation.x >= UIGestureRecognizer.zoomGestureActivationThreshold.height && velocity.x >= 0) || velocity.x >= 1000
+        }
+        return shouldBegin
     }
 
     open override func presentationTransitionWillBegin() {

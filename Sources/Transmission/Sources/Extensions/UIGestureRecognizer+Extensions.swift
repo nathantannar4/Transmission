@@ -65,6 +65,26 @@ extension UIGestureRecognizer {
         }
         return self is UIPanGestureRecognizer
     }
+
+    var isZoomDismissEdgeGesture: Bool {
+        guard name == "com.apple.UIKit.ZoomInteractiveDismissLeadingEdgePan" else {
+            return false
+        }
+        return self is UIScreenEdgePanGestureRecognizer
+    }
+
+    var isZoomDismissPinchGesture: Bool {
+        guard name == "com.apple.UIKit.ZoomInteractiveDismissPinch" else {
+            return false
+        }
+        return true
+    }
+
+    var isZoomDismissGesture: Bool {
+        isZoomDismissPanGesture || isZoomDismissEdgeGesture || isZoomDismissPinchGesture
+    }
+
+    static let zoomGestureActivationThreshold = CGSize(width: 200, height: 150)
 }
 
 #endif

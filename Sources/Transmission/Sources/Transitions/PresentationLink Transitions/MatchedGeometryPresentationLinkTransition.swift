@@ -32,6 +32,7 @@ extension PresentationLinkTransition {
         prefersZoomEffect: Bool = false,
         minimumScaleFactor: CGFloat = 0.5,
         initialOpacity: CGFloat = 1,
+        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
@@ -43,7 +44,8 @@ extension PresentationLinkTransition {
                 prefersZoomEffect: prefersZoomEffect,
                 minimumScaleFactor: minimumScaleFactor,
                 initialOpacity: initialOpacity,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
+                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal,
+                hapticsStyle: hapticsStyle
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -59,6 +61,7 @@ extension PresentationLinkTransition {
     /// The matched geometry zoom presentation style.
     public static func matchedGeometryZoom(
         preferredFromCornerRadius: CornerRadiusOptions? = nil,
+        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
@@ -67,6 +70,7 @@ extension PresentationLinkTransition {
             prefersScaleEffect: true,
             prefersZoomEffect: true,
             initialOpacity: 0,
+            hapticsStyle: hapticsStyle,
             isInteractive: isInteractive,
             preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
         )
@@ -125,6 +129,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         public var minimumScaleFactor: CGFloat
         public var initialOpacity: CGFloat
         public var preferredPresentationShadow: ShadowOptions
+        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
             edges: Edge.Set = .all,
@@ -134,7 +139,8 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             prefersZoomEffect: Bool = false,
             minimumScaleFactor: CGFloat = 0.5,
             initialOpacity: CGFloat = 1,
-            preferredPresentationShadow: ShadowOptions = .minimal
+            preferredPresentationShadow: ShadowOptions = .minimal,
+            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.edges = edges
             self.preferredFromCornerRadius = preferredFromCornerRadius
@@ -144,6 +150,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             self.minimumScaleFactor = minimumScaleFactor
             self.initialOpacity = initialOpacity
             self.preferredPresentationShadow = preferredPresentationShadow
+            self.hapticsStyle = hapticsStyle
         }
     }
     public var options: Options
@@ -165,6 +172,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             presenting: presenting
         )
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.dismissalHapticsStyle = options.hapticsStyle
         return presentationController
     }
 
@@ -176,6 +184,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         presentationController.minimumScaleFactor = options.minimumScaleFactor
         presentationController.prefersZoomEffect = options.prefersZoomEffect
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.dismissalHapticsStyle = options.hapticsStyle
     }
 
     public func updateHostingController<Content>(

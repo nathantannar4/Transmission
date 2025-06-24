@@ -31,6 +31,7 @@ extension PresentationLinkTransition {
         preferredEdgeInset: CGFloat? = nil,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         preferredAspectRatio: CGFloat? = 1,
+        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
@@ -39,7 +40,8 @@ extension PresentationLinkTransition {
                 preferredEdgeInset: preferredEdgeInset,
                 preferredCornerRadius: preferredCornerRadius,
                 preferredAspectRatio: preferredAspectRatio,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
+                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal,
+                hapticsStyle: hapticsStyle
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -85,17 +87,20 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         /// A `nil` aspect ratio will size the cards height to it's ideal size
         public var preferredAspectRatio: CGFloat?
         public var preferredPresentationShadow: ShadowOptions
+        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
             preferredEdgeInset: CGFloat? = nil,
             preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             preferredAspectRatio: CGFloat? = 1,
-            preferredPresentationShadow: ShadowOptions = .minimal
+            preferredPresentationShadow: ShadowOptions = .minimal,
+            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.preferredEdgeInset = preferredEdgeInset
             self.preferredCornerRadius = preferredCornerRadius
             self.preferredAspectRatio = preferredAspectRatio
             self.preferredPresentationShadow = preferredPresentationShadow
+            self.hapticsStyle = hapticsStyle
         }
     }
     public var options: Options
@@ -121,6 +126,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
             presenting: presenting
         )
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.dismissalHapticsStyle = options.hapticsStyle
         return presentationController
     }
 
@@ -132,6 +138,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         presentationController.preferredCornerRadius = options.preferredCornerRadius
         presentationController.preferredAspectRatio = options.preferredAspectRatio
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.dismissalHapticsStyle = options.hapticsStyle
     }
 
     public func updateHostingController<Content>(

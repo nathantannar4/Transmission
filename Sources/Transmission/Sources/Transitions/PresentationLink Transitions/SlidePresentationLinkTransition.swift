@@ -32,6 +32,7 @@ extension PresentationLinkTransition {
         prefersScaleEffect: Bool = true,
         preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
@@ -41,7 +42,8 @@ extension PresentationLinkTransition {
                 prefersScaleEffect: prefersScaleEffect,
                 preferredFromCornerRadius: preferredFromCornerRadius,
                 preferredToCornerRadius: preferredToCornerRadius,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
+                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal,
+                hapticsStyle: hapticsStyle
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -89,19 +91,22 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         public var preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle?
         public var preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
         public var preferredPresentationShadow: ShadowOptions
+        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
             edge: Edge = .bottom,
             prefersScaleEffect: Bool = true,
             preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-            preferredPresentationShadow: ShadowOptions = .minimal
+            preferredPresentationShadow: ShadowOptions = .minimal,
+            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.edge = edge
             self.prefersScaleEffect = prefersScaleEffect
             self.preferredFromCornerRadius = preferredFromCornerRadius
             self.preferredToCornerRadius = preferredToCornerRadius
             self.preferredPresentationShadow = preferredPresentationShadow
+            self.hapticsStyle = hapticsStyle
         }
     }
     public var options: Options
@@ -121,6 +126,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
             presenting: presenting
         )
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.dismissalHapticsStyle = options.hapticsStyle
         return presentationController
     }
 
@@ -130,6 +136,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) {
         presentationController.edge = options.edge
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.dismissalHapticsStyle = options.hapticsStyle
     }
 
     public func animationController(
