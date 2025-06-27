@@ -8,6 +8,12 @@ import UIKit
 
 open class PortalView: UIView {
 
+    public var sourceView: UIView? {
+        let aSelector = NSSelectorFromString("sourceView")
+        guard contentView.responds(to: aSelector) else { return nil }
+        return contentView.perform(aSelector).takeUnretainedValue() as? UIView
+    }
+
     let contentView: UIView
 
     public var hidesSourceView: Bool {

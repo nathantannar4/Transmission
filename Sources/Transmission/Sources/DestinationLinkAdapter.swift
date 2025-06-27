@@ -587,9 +587,6 @@ final class DestinationLinkDelegateProxy: NSObject,
         shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if gestureRecognizer == interactivePopGestureRecognizer {
-            if otherGestureRecognizer.isZoomDismissPanGesture {
-                return true
-            }
             return false
         } else {
             let shouldRequireFailureOf = popGestureDelegate?.gestureRecognizer?(
@@ -605,10 +602,10 @@ final class DestinationLinkDelegateProxy: NSObject,
         shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if gestureRecognizer == interactivePopGestureRecognizer {
-            if otherGestureRecognizer.isZoomDismissPanGesture {
-                return false
+            if otherGestureRecognizer == navigationController?.interactivePopGestureRecognizer || otherGestureRecognizer.isZoomDismissGesture {
+                return true
             }
-            return true
+            return false
         } else {
             let shouldBeRequiredToFailBy = popGestureDelegate?.gestureRecognizer?(
                 gestureRecognizer,
