@@ -61,6 +61,7 @@ extension PresentationLinkTransition {
     /// The matched geometry zoom presentation style.
     public static func matchedGeometryZoom(
         preferredFromCornerRadius: CornerRadiusOptions? = nil,
+        minimumScaleFactor: CGFloat = 0.5,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
@@ -69,6 +70,7 @@ extension PresentationLinkTransition {
             preferredFromCornerRadius: preferredFromCornerRadius,
             prefersScaleEffect: true,
             prefersZoomEffect: true,
+            minimumScaleFactor: minimumScaleFactor,
             initialOpacity: 0,
             hapticsStyle: hapticsStyle,
             isInteractive: isInteractive,
@@ -167,7 +169,6 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         let presentationController = MatchedGeometryPresentationController(
             edges: options.edges,
             minimumScaleFactor: options.minimumScaleFactor,
-            prefersZoomEffect: options.prefersZoomEffect,
             presentedViewController: presented,
             presenting: presenting
         )
@@ -182,7 +183,6 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
     ) {
         presentationController.edges = options.edges
         presentationController.minimumScaleFactor = options.minimumScaleFactor
-        presentationController.prefersZoomEffect = options.prefersZoomEffect
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
     }

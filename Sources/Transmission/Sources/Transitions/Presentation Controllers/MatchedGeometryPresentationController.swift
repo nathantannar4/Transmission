@@ -11,8 +11,6 @@ import SwiftUI
 @available(iOS 14.0, *)
 open class MatchedGeometryPresentationController: InteractivePresentationController {
 
-    public var prefersZoomEffect: Bool
-
     public var minimumScaleFactor: CGFloat
 
     open override var wantsInteractiveDismissal: Bool {
@@ -22,12 +20,10 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
     public init(
         edges: Edge.Set = .all,
         minimumScaleFactor: CGFloat = 0.5,
-        prefersZoomEffect: Bool = false,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.minimumScaleFactor = minimumScaleFactor
-        self.prefersZoomEffect = prefersZoomEffect
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
@@ -69,44 +65,24 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
     }
 
     open override func transformPresentedView(transform: CGAffineTransform) {
-        if prefersZoomEffect {
-            if transform.isIdentity {
-                presentedViewController.view.layer.cornerRadius = 0
-            } else {
-                presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius()
-            }
-            presentedViewController.view.transform = transform
-            layoutBackgroundViews()
-
+        super.transformPresentedView(transform: transform)
+        if transform.isIdentity {
+            presentedViewController.view.layer.cornerRadius = 0
         } else {
-            super.transformPresentedView(transform: transform)
-
-            if transform.isIdentity {
-                presentedViewController.view.layer.cornerRadius = 0
-            } else {
-                let progress = prefersZoomEffect ? 0 : max(0, min(transform.d, 1))
-                let cornerRadius = progress * UIScreen.main.displayCornerRadius()
-                presentedViewController.view.layer.cornerRadius = cornerRadius
-            }
+            let progress = max(0, min(transform.d, 1))
+            let cornerRadius = progress * UIScreen.main.displayCornerRadius()
+            presentedViewController.view.layer.cornerRadius = cornerRadius
         }
     }
 
     open override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
         let frame = frameOfPresentedViewInContainerView
-        if prefersZoomEffect {
-            let dx = frictionCurve(translation.x, distance: frame.width, coefficient: 0.4)
-            let dy = frictionCurve(translation.y, distance: frame.height, coefficient: 0.3)
-            let scale = min(max(1 - dy / frame.width, minimumScaleFactor), 1)
-            return CGAffineTransform(translationX: dx, y: min(dy, frame.width * minimumScaleFactor))
-                .scaledBy(x: scale, y: scale)
-        } else {
-            let dx = frictionCurve(translation.x, distance: frame.width, coefficient: 1)
-            let dy = frictionCurve(translation.y, distance: frame.height, coefficient: 0.5)
-            let scale = max(minimumScaleFactor, min(1 - (abs(dx) / frame.width), 1 - (abs(dy) / frame.height)))
-            return CGAffineTransform(translationX: dx, y: dy * 0.25)
-                .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * frame.height)
-                .scaledBy(x: scale, y: scale)
-        }
+        let dx = frictionCurve(translation.x, distance: frame.width, coefficient: 0.35)
+        let dy = frictionCurve(translation.y, distance: frame.height, coefficient: 1)
+        let scale = min(max(minimumScaleFactor, 1 - (dy / frame.height)), 1)
+        return CGAffineTransform(translationX: dx, y: dy * 0.25)
+            .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * frame.height)
+            .scaledBy(x: scale, y: scale)
     }
 
     open override func updateShadow(progress: Double) {

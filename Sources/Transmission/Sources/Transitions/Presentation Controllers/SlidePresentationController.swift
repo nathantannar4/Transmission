@@ -164,8 +164,11 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         let fromCornerRadius = preferredFromCornerRadius ?? .rounded(cornerRadius: 0)
         #else
         let isTranslucentBackground = presented.view.backgroundColor?.isTranslucent ?? false
-        let isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
+        var isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
             frame.origin.y == 0
+        if isScaleEnabled, #available(iOS 18.0, *) {
+            isScaleEnabled = presenting.preferredTransition == nil
+        }
         let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
         let fromCornerRadius = preferredFromCornerRadius ?? preferredToCornerRadius ?? .screen()
         #endif
