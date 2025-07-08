@@ -28,7 +28,7 @@ extension PresentationLinkTransition {
     public static func toast(
         edge: Edge = .bottom,
         isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = .clear
+        preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .toast(
             .init(

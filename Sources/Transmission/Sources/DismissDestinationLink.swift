@@ -8,19 +8,19 @@ import SwiftUI
 
 /// A button that's action dismisses the presented view.
 ///
-/// Compatible with ``PresentationLink`` and ``WindowLink``.
+/// Compatible with ``DestinationLink``.
 ///
 /// > Note: The button is disabled if there is no presented view
 /// 
 @available(iOS 14.0, *)
 @frozen
-public struct DismissPresentationLink<Label: View>: View {
+public struct DismissDestinationLink<Label: View>: View {
 
     var animation: Animation?
     var label: Label
     var onDismiss: (() -> Void)?
 
-    @Environment(\.presentationCoordinator) var presentationCoordinator
+    @Environment(\.destinationCoordinator) var destinationCoordinator
 
     public init(
         animation: Animation? = .default,
@@ -35,11 +35,11 @@ public struct DismissPresentationLink<Label: View>: View {
     public var body: some View {
         Button {
             onDismiss?()
-            presentationCoordinator.dismiss(animation: animation)
+            destinationCoordinator.pop(animation: animation)
         } label: {
             label
         }
-        .disabled(!presentationCoordinator.isPresented)
+        .disabled(!destinationCoordinator.isPresented)
     }
 }
 

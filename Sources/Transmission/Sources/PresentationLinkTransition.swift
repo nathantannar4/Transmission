@@ -469,6 +469,7 @@ extension PresentationLinkTransition {
         public var prefersEdgeAttachedInCompactHeight: Bool
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
         public var prefersPageSizing: Bool
+        public var prefersZoomTransition: Bool
 
         public init(
             selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
@@ -482,6 +483,7 @@ extension PresentationLinkTransition {
             prefersEdgeAttachedInCompactHeight: Bool = false,
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
             prefersPageSizing: Bool = false,
+            prefersZoomTransition: Bool = false,
             options: Options = .init()
         ) {
             self.options = options
@@ -496,12 +498,20 @@ extension PresentationLinkTransition {
             }
             self.largestUndimmedDetentIdentifier = largestUndimmedDetentIdentifier
             self.prefersGrabberVisible = prefersGrabberVisible
-            self.preferredCornerRadius = preferredCornerRadius
+            self.preferredCornerRadius = {
+                if let preferredCornerRadius {
+                    return preferredCornerRadius
+                }
+                guard prefersZoomTransition else { return nil }
+                let displayCornerRadius = UIScreen.main.displayCornerRadius
+                return displayCornerRadius > 15 ? displayCornerRadius : nil
+            }()
             self.prefersSourceViewAlignment = prefersSourceViewAlignment
             self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
             self.prefersEdgeAttachedInCompactHeight = prefersEdgeAttachedInCompactHeight
             self.widthFollowsPreferredContentSizeWhenEdgeAttached = widthFollowsPreferredContentSizeWhenEdgeAttached
             self.prefersPageSizing = prefersPageSizing
+            self.prefersZoomTransition = prefersZoomTransition
         }
     }
 
@@ -582,12 +592,24 @@ extension PresentationLinkTransition {
 
     /// The sheet presentation style.
     public static func sheet(
-        detent: SheetTransitionOptions.Detent
+        detent: SheetTransitionOptions.Detent,
+        prefersGrabberVisible: Bool = false,
+        preferredCornerRadius: CGFloat? = nil,
+        prefersZoomTransition: Bool = false,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(
             value: .sheet(
                 .init(
-                    detents: [detent]
+                    detents: [detent],
+                    prefersGrabberVisible: prefersGrabberVisible,
+                    preferredCornerRadius: preferredCornerRadius,
+                    prefersZoomTransition: prefersZoomTransition,
+                    options: .init(
+                        isInteractive: isInteractive,
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                    )
                 )
             )
         )
@@ -597,14 +619,26 @@ extension PresentationLinkTransition {
     public static func sheet(
         selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
         detents: [SheetTransitionOptions.Detent],
-        largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil
+        prefersGrabberVisible: Bool = false,
+        preferredCornerRadius: CGFloat? = nil,
+        largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
+        prefersZoomTransition: Bool = false,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(
             value: .sheet(
                 .init(
                     selected: selected,
                     detents: detents,
-                    largestUndimmedDetentIdentifier: largestUndimmedDetentIdentifier
+                    largestUndimmedDetentIdentifier: largestUndimmedDetentIdentifier,
+                    prefersGrabberVisible: prefersGrabberVisible,
+                    preferredCornerRadius: preferredCornerRadius,
+                    prefersZoomTransition: prefersZoomTransition,
+                    options: .init(
+                        isInteractive: isInteractive,
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                    )
                 )
             )
         )

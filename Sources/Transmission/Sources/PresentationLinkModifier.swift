@@ -126,11 +126,10 @@ extension View {
     ///     isPresented = true
     /// }
     /// ```
-    /// 
+    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///
-    @_disfavoredOverload
     public func presentation<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
         isPresented: Binding<Bool>,
@@ -138,6 +137,61 @@ extension View {
     ) -> some View {
         presentation(transition: transition, isPresented: isPresented) {
             ViewControllerRepresentableAdapter(destination)
+        }
+    }
+
+    /// A modifier that presents a destination `UIViewController`.
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``PresentationLinkModifier``
+    ///
+    public func presentation<ViewController: UIViewController>(
+        transition: PresentationLinkTransition = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController
+    ) -> some View {
+        presentation(
+            transition: transition,
+            isPresented: isPresented,
+            destination: { _ in
+                destination()
+            }
+        )
+    }
+
+    /// A modifier that presents a destination view in a new `UIViewController`.
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``PresentationLinkModifier``
+    ///
+    public func presentation<T, ViewController: UIViewController>(
+        _ value: Binding<T?>,
+        transition: PresentationLinkTransition = .default,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+    ) -> some View {
+        presentation(transition: transition, isPresented: value.isNotNil()) {
+            ViewControllerRepresentableAdapter<ViewController> { context in
+                guard let value = value.unwrap() else { fatalError() }
+                return destination(value, context)
+            }
         }
     }
 
@@ -155,18 +209,89 @@ extension View {
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///
-    @_disfavoredOverload
     public func presentation<T, ViewController: UIViewController>(
         _ value: Binding<T?>,
         transition: PresentationLinkTransition = .default,
-        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<UIViewController>.Context) -> UIViewController
+        destination: @escaping (Binding<T>) -> ViewController
     ) -> some View {
-        presentation(transition: transition, isPresented: value.isNotNil()) {
-            ViewControllerRepresentableAdapter { context in
-                guard let value = value.unwrap() else { return UIViewController() }
-                return destination(value, context)
+        presentation(
+            value,
+            transition: transition,
+            destination: { value, _ in
+                destination(value)
+            }
+        )
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct PresentationLinkModifier_Previews: PreviewProvider {
+    struct Preview: View {
+        @State var value = 0
+
+        func binding(for index: Int) -> Binding<Bool> {
+            Binding(
+                get: { value == index },
+                set: { value = $0 ? index : 0 }
+            )
+        }
+
+        var body: some View {
+            HStack {
+                ForEach(1...5, id: \.self) { index in
+                    Button(index.description) {
+                        withAnimation {
+                            value = index
+                        }
+                    }
+                }
+            }
+            .presentation(
+                isPresented: binding(for: 1)
+            ) {
+                Color.blue
+            }
+            .presentation(
+                isPresented: binding(for: 2)
+            ) {
+                let uiViewController = UIViewController()
+                uiViewController.view.backgroundColor = .blue
+                return uiViewController
+            }
+            .presentation(
+                isPresented: binding(for: 3)
+            ) { ctx in
+                let uiViewController = UIViewController()
+                uiViewController.view.backgroundColor = .red
+                return uiViewController
+            }
+            .presentation(
+                Binding<Int?>(
+                    get: { value == 4 ? value : nil },
+                    set: { value = $0 ?? 0 }
+                )
+            ) { value in
+                let uiViewController = UIViewController()
+                uiViewController.view.backgroundColor = .yellow
+                return uiViewController
+            }
+            .presentation(
+                Binding<Int?>(
+                    get: { value == 5 ? value : nil },
+                    set: { value = $0 ?? 0 }
+                )
+            ) { value, ctx in
+                let uiViewController = UIViewController()
+                uiViewController.view.backgroundColor = .orange
+                return uiViewController
             }
         }
+    }
+
+    static var previews: some View {
+        Preview()
     }
 }
 

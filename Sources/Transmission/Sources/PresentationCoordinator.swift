@@ -23,6 +23,29 @@ public struct PresentationCoordinator {
     @usableFromInline
     var dismissBlock: (Int, Transaction) -> Void
 
+    @inlinable
+    public init(
+        isPresented: Bool,
+        dismiss: @escaping (Transaction) -> Void
+    ) {
+        self.isPresented = isPresented
+        self.dismissBlock = { count, transaction in
+            precondition(count == 1, "custom PresentationCoordinator only supports dismissing one view at a time")
+            dismiss(transaction)
+        }
+    }
+
+    @inlinable
+    init(
+        isPresented: Bool,
+        sourceView: UIView?,
+        dismissBlock: @escaping (Int, Transaction) -> Void
+    ) {
+        self.isPresented = isPresented
+        self.sourceView = sourceView
+        self.dismissBlock = dismissBlock
+    }
+
     /// Dismisses all presented views with an optional animation
     @inlinable
     public func dismissToRoot(animation: Animation? = .default) {
@@ -82,7 +105,7 @@ extension EnvironmentValues {
                 let dismissAction = dismiss
                 return PresentationCoordinator(
                     isPresented: isPresented,
-                    dismissBlock: { _, transaction in
+                    dismiss: { transaction in
                         withTransaction(transaction) {
                             dismissAction()
                         }
@@ -92,7 +115,7 @@ extension EnvironmentValues {
                 let presentationMode = presentationMode
                 return PresentationCoordinator(
                     isPresented: presentationMode.wrappedValue.isPresented,
-                    dismissBlock: { _, transaction in
+                    dismiss: { transaction in
                         withTransaction(transaction) {
                             presentationMode.wrappedValue.dismiss()
                         }

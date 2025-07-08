@@ -805,6 +805,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
                     DestinationBridgeAdapter(
                         destinationCoordinator: DestinationCoordinator(
                             isPresented: isPresented.wrappedValue,
+                            sourceView: sourceView,
                             dismissBlock: { [weak self] in self?.pop($0, $1) }
                         )
                     )
@@ -828,6 +829,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
             var visitor = Visitor(
                 destination: nil,
                 isPresented: .constant(false),
+                sourceView: nil,
                 context: nil,
                 adapter: self
             )
@@ -847,6 +849,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
             var visitor = Visitor(
                 destination: destination,
                 isPresented: isPresented,
+                sourceView: sourceView,
                 context: context,
                 adapter: self
             )
@@ -857,6 +860,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
                 DestinationBridgeAdapter(
                     destinationCoordinator: DestinationCoordinator(
                         isPresented: isPresented.wrappedValue,
+                        sourceView: sourceView,
                         dismissBlock: { [weak self] in self?.pop($0, $1) }
                     )
                 )
@@ -919,6 +923,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
     private struct Visitor: ViewVisitor {
         var destination: Destination?
         var isPresented: Binding<Bool>
+        var sourceView: UIView?
         var context: DestinationLinkAdapterBody<Destination, SourceView>.Context?
         var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, SourceView>
 
@@ -961,6 +966,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
             func project<T>(_ value: T) -> Content.Context {
                 let destinationCoordinator = DestinationCoordinator(
                     isPresented: isPresented.wrappedValue,
+                    sourceView: sourceView,
                     dismissBlock: { [weak adapter] in
                         adapter?.pop($0, $1)
                     }

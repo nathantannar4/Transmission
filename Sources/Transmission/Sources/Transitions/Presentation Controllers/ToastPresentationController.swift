@@ -32,28 +32,15 @@ open class ToastPresentationController: InteractivePresentationController {
             return .zero
         }
 
-        let inset: CGFloat = 16
-
-        // Make sure to account for the safe area insets
-        let safeAreaFrame = containerView.bounds
-            .inset(by: containerView.safeAreaInsets)
-
-        let targetWidth = safeAreaFrame.width - 2 * inset
-        var sizeThatFits = CGSize(
-            width: targetWidth,
-            height: presentedView.idealHeight(for: targetWidth)
-        )
-        if sizeThatFits.height <= 0 {
-            sizeThatFits.height = targetWidth
-        }
-        var frame = safeAreaFrame
+        var frame = containerView.bounds.inset(by: containerView.layoutMargins)
+        var sizeThatFits = presentedView.idealSize(for: frame.width)
+        sizeThatFits.height = min(sizeThatFits.height, frame.height)
         frame.origin.x = (containerView.bounds.width - sizeThatFits.width) / 2
         switch edge {
         case .top, .leading:
-            frame.origin.y = max(frame.origin.y, inset)
+            break
         case .bottom, .trailing:
-            frame.origin.y += frame.size.height - sizeThatFits.height - inset
-            frame.origin.y = min(frame.origin.y, containerView.frame.height - inset)
+            frame.origin.y = (frame.size.height + frame.origin.y - sizeThatFits.height)
         }
         frame.size = sizeThatFits
         return frame

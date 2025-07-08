@@ -115,7 +115,7 @@ open class PresentationHostingController<
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {
-                    let contentSize = CGRect(origin: .zero, size: view.idealSize(for: containerView.bounds.width)).inset(by: view.safeAreaInsets).size
+                    let contentSize = CGRect(origin: .zero, size: view.preferredContentSize(for: containerView.bounds.width)).inset(by: view.safeAreaInsets).size
                     guard preferredContentSize != contentSize else { return }
 
                     let isAnimated = isAnimated && !isBeingPresented
@@ -167,7 +167,7 @@ open class PresentationHostingController<
                         presentationController.layoutPresentedView(frame: frame)
                     }
                 } else if let containerView = presentationController?.containerView {
-                    let contentSize = CGRect(origin: .zero, size: view.idealSize(for: containerView.bounds.width)).inset(by: view.safeAreaInsets).size
+                    let contentSize = CGRect(origin: .zero, size: view.preferredContentSize(for: containerView.bounds.width)).inset(by: view.safeAreaInsets).size
                     preferredContentSize = contentSize
                 } else {
                     let contentSize = CGRect(origin: .zero, size: view.intrinsicContentSize).inset(by: view.safeAreaInsets).size

@@ -17,8 +17,33 @@ import Engine
 public struct DestinationCoordinator {
     public var isPresented: Bool
 
+    public weak var sourceView: UIView?
+
     @usableFromInline
     var dismissBlock: (Int, Transaction) -> Void
+
+    @inlinable
+    public init(
+        isPresented: Bool,
+        dismiss: @escaping (Transaction) -> Void
+    ) {
+        self.isPresented = isPresented
+        self.dismissBlock = { count, transaction in
+            precondition(count == 1, "custom DestinationCoordinator only supports dismissing one view at a time")
+            dismiss(transaction)
+        }
+    }
+
+    @inlinable
+    init(
+        isPresented: Bool,
+        sourceView: UIView?,
+        dismissBlock: @escaping (Int, Transaction) -> Void
+    ) {
+        self.isPresented = isPresented
+        self.sourceView = sourceView
+        self.dismissBlock = dismissBlock
+    }
 
     /// Dismisses all presented views with an optional animation
     @inlinable
@@ -71,10 +96,27 @@ extension EnvironmentValues {
             if let coordinator = self[DestinationCoordinatorKey.self] {
                 return coordinator
             }
-            return DestinationCoordinator(
-                isPresented: false,
-                dismissBlock: { _, _ in }
-            )
+            if #available(iOS 15.0, *) {
+                let dismissAction = dismiss
+                return DestinationCoordinator(
+                    isPresented: isPresented,
+                    dismiss: { transaction in
+                        withTransaction(transaction) {
+                            dismissAction()
+                        }
+                    }
+                )
+            } else {
+                let presentationMode = presentationMode
+                return DestinationCoordinator(
+                    isPresented: presentationMode.wrappedValue.isPresented,
+                    dismiss: { transaction in
+                        withTransaction(transaction) {
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                    }
+                )
+            }
         }
         set { self[DestinationCoordinatorKey.self] = newValue }
     }

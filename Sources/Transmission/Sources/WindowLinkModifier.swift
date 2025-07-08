@@ -134,7 +134,6 @@ extension View {
     /// See Also:
     ///  - ``WindowLinkModifier``
     ///
-    @_disfavoredOverload
     public func window<ViewController: UIViewController>(
         level: WindowLinkLevel = .default,
         transition: WindowLinkTransition = .opacity,
@@ -144,6 +143,94 @@ extension View {
         window(level: level, transition: transition, isPresented: isPresented) {
             ViewControllerRepresentableAdapter(destination)
         }
+    }
+
+    /// A modifier that presents a destination `UIViewController` in a new `UIWindow`
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``WindowLinkModifier``
+    ///
+    public func window<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController
+    ) -> some View {
+        window(
+            level: level,
+            transition: transition,
+            isPresented: isPresented,
+            destination: { _ in
+                destination()
+            }
+        )
+    }
+
+    /// A modifier that presents a destination view in a new `UIWindow`
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``WindowLinkModifier``
+    ///
+    public func window<T, ViewController: UIViewController>(
+        _ value: Binding<T?>,
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+    ) -> some View {
+        window(level: level, transition: transition, isPresented: value.isNotNil()) {
+            ViewControllerRepresentableAdapter<ViewController> { context in
+                guard let value = value.unwrap() else { fatalError() }
+                return destination(value, context)
+            }
+        }
+    }
+
+    /// A modifier that presents a destination view in a new `UIWindow`
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``WindowLinkModifier``
+    ///
+    public func window<T, ViewController: UIViewController>(
+        _ value: Binding<T?>,
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        destination: @escaping (Binding<T>) -> ViewController
+    ) -> some View {
+        window(
+            value,
+            level: level,
+            transition: transition,
+            destination: { value, _ in
+                destination(value)
+            }
+        )
     }
 }
 
@@ -331,6 +418,7 @@ private class WindowLinkDestinationWindowAdapter<
                 WindowBridgeAdapter(
                     presentationCoordinator: PresentationCoordinator(
                         isPresented: isPresented.wrappedValue,
+                        sourceView: nil,
                         dismissBlock: { [weak self] in
                             self?.dismiss($0, $1)
                         }
@@ -351,6 +439,7 @@ private class WindowLinkDestinationWindowAdapter<
             WindowBridgeAdapter(
                 presentationCoordinator: PresentationCoordinator(
                     isPresented: isPresented.wrappedValue,
+                    sourceView: nil,
                     dismissBlock: { [weak self] in
                         self?.dismiss($0, $1)
                     }

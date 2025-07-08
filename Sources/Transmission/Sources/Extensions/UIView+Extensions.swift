@@ -19,7 +19,7 @@ extension UIView {
         return responder as? UIViewController
     }
 
-    func idealSize(for width: CGFloat) -> CGSize {
+    func preferredContentSize(for width: CGFloat) -> CGSize {
         var size = intrinsicContentSize
         if size.height <= 0 {
             size.width = width
@@ -29,18 +29,22 @@ extension UIView {
     }
 
     func idealHeight(for width: CGFloat) -> CGFloat {
-        var height = systemLayoutSizeFitting(
+        idealSize(for: width).height
+    }
+
+    func idealSize(for width: CGFloat) -> CGSize {
+        var fittingSize = systemLayoutSizeFitting(
             CGSize(width: width, height: UIView.layoutFittingExpandedSize.height),
             withHorizontalFittingPriority: .fittingSizeLevel,
             verticalFittingPriority: .defaultLow
-        ).height
-        if height >= UIView.layoutFittingExpandedSize.height {
+        )
+        if fittingSize.height >= UIView.layoutFittingExpandedSize.height {
             let sizeThatFits = sizeThatFits(CGSize(width: width, height: .infinity))
             if sizeThatFits.height > 0 {
-                height = sizeThatFits.height
+                fittingSize.height = sizeThatFits.height
             }
         }
-        return height
+        return fittingSize
     }
 }
 
