@@ -455,6 +455,8 @@ private struct PresentationLinkAdapterBody<
         var isZoomTransitionDismissReady = false
         var feedbackGenerator: UIImpactFeedbackGenerator?
 
+        weak var presentationController: UIPresentationController?
+
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
         }
@@ -525,8 +527,23 @@ private struct PresentationLinkAdapterBody<
         func presentationControllerDidDismiss(
             _ presentationController: UIPresentationController
         ) {
+            if adapter?.viewController == presentationController.presentedViewController,
+               adapter?.viewController.isBeingPresented == true,
+               isPresented.wrappedValue
+            {
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    self.isPresented.wrappedValue = false
+                }
+            }
+
             // Break the retain cycle
             adapter?.coordinator = nil
+
+            if self.presentationController === presentationController {
+                self.presentationController = nil
+            }
 
             presentationController.presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: true)
             presentationController.presentingViewController.fixSwiftUIHitTesting()
@@ -634,11 +651,14 @@ private struct PresentationLinkAdapterBody<
                 return nil
 
             case .representable(let options, let transition):
-                return transition.animationController(
+                guard let presentationController else { return nil }
+                let animationController = transition.animationController(
                     forPresented: presented,
                     presenting: presenting,
+                    presentationController: presentationController,
                     context: makeContext(options: options)
                 )
+                return animationController
 
             default:
                 return nil
@@ -661,15 +681,17 @@ private struct PresentationLinkAdapterBody<
                         animation: animation
                     )
                     transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-                    presentationController.transition(with: transition)
+                    presentationController.transition = transition
                     return transition
                 }
                 #endif
                 return nil
 
             case .representable(let options, let transition):
+                guard let presentationController else { return nil }
                 let animationController = transition.animationController(
                     forDismissed: dismissed,
+                    presentationController: presentationController,
                     context: makeContext(options: options)
                 )
                 if let transition = animationController as? UIPercentDrivenInteractiveTransition, transition.wantsInteractiveStart {
@@ -727,6 +749,20 @@ private struct PresentationLinkAdapterBody<
         }
 
         func presentationController(
+            forPresented presented: UIViewController,
+            presenting: UIViewController?,
+            source: UIViewController
+        ) -> UIPresentationController? {
+            let presentationController = makePresentationController(
+                forPresented: presented,
+                presenting: presenting,
+                source: source
+            )
+            self.presentationController = presentationController
+            return presentationController
+        }
+
+        func makePresentationController(
             forPresented presented: UIViewController,
             presenting: UIViewController?,
             source: UIViewController
@@ -791,6 +827,7 @@ private struct PresentationLinkAdapterBody<
                 let presentationController = transition.makeUIPresentationController(
                     presented: presented,
                     presenting: presenting,
+                    source: source,
                     context: makeContext(options: options)
                 )
                 presentationController.overrideTraitCollection = overrideTraitCollection

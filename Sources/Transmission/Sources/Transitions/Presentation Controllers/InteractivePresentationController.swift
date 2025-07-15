@@ -14,7 +14,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     /// The edges the presented view can be interactively dismissed towards.
     open var edges: Edge.Set = [.bottom]
 
-    public private(set) weak var transition: UIPercentDrivenInteractiveTransition?
     public private(set) lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
     private weak var trackingScrollView: UIScrollView?
 
@@ -27,7 +26,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     private var isDismissReady = false
 
     /// When true, custom view controller presentation animators should be set to want an interactive start
-    open var wantsInteractiveTransition: Bool {
+    open override var wantsInteractiveTransition: Bool {
         panGesture.isInteracting || (trackingScrollView?.panGestureRecognizer.isInteracting ?? false)
     }
 
@@ -45,7 +44,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     public var prefersInteractiveDismissal: Bool = false
 
     open override var shouldAutoLayoutPresentedView: Bool {
-        transition == nil && !panGesture.isInteracting && super.shouldAutoLayoutPresentedView
+        !panGesture.isInteracting && super.shouldAutoLayoutPresentedView
     }
 
     public override init(
@@ -55,13 +54,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
     }
 
-    /// Links an interactive transition to the pan gesture of the presentation controller
-    public func transition(with transition: UIPercentDrivenInteractiveTransition) {
-        self.transition = transition
-    }
-
-    open func preferredDefaultAnimation() -> Animation? {
-        guard panGesture.state == .ended else { return nil }
+    open override func preferredDefaultAnimation() -> Animation? {
+        guard panGesture.state == .ended else { return super.preferredDefaultAnimation() }
         let velocity = panGesture.velocity(in: panGesture.view)
         let initialVelocity = min(abs(velocity.y) / presentedViewController.view.frame.height, 1)
         return Animation.interpolatingSpring(duration: 0.35, bounce: 0, initialVelocity: initialVelocity)

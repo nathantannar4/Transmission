@@ -60,6 +60,7 @@ public protocol PresentationLinkPresentedTransitionRepresentable: Sendable {
     @MainActor @preconcurrency func makeUIPresentationController(
         presented: UIViewController,
         presenting: UIViewController?,
+        source: UIViewController,
         context: Context
     ) -> UIPresentationControllerType
 
@@ -92,6 +93,7 @@ public struct PresentationLinkDefaultPresentedTransition: PresentationLinkPresen
     public func makeUIPresentationController(
         presented: UIViewController,
         presenting: UIViewController?,
+        source: UIViewController,
         context: Context
     ) -> InteractivePresentationController {
         let presentationController = InteractivePresentationController(
@@ -131,6 +133,7 @@ public protocol PresentationLinkPresentingTransitionRepresentable: Sendable {
     @MainActor @preconcurrency func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> UIPresentingAnimationControllerType?
 
@@ -151,7 +154,7 @@ extension PresentationLinkPresentingTransitionRepresentable {
         using animator: UIViewControllerAnimatedTransitioning,
         context: Context
     ) -> UIViewControllerInteractiveTransitioning? {
-        return nil
+        return animator as? UIViewControllerInteractiveTransitioning
     }
 }
 
@@ -162,21 +165,19 @@ public struct PresentationLinkDefaultPresentingTransition: PresentationLinkPrese
     public func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> PresentationControllerTransition? {
         let transition = PresentationControllerTransition(
             isPresenting: true,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = false
+        if let presentationController = presentationController as? PresentationController {
+            presentationController.attach(to: transition)
+        } else {
+            transition.wantsInteractiveStart = false
+        }
         return transition
-    }
-
-    public func interactionControllerForPresentation(
-        using animator: any UIViewControllerAnimatedTransitioning,
-        context: Context
-    ) -> PresentationControllerTransition? {
-        nil
     }
 }
 
@@ -199,6 +200,7 @@ public protocol PresentationLinkDismissingTransitionRepresentable: Sendable {
     ///
     @MainActor @preconcurrency func animationController(
         forDismissed dismissed: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> UIDismissingAnimationControllerType?
 
@@ -229,23 +231,18 @@ public struct PresentationLinkDefaultDismissingTransition: PresentationLinkDismi
 
     public func animationController(
         forDismissed dismissed: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> PresentationControllerTransition? {
-        guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
-            return nil
-        }
-        let animation: Animation? = {
-            guard context.transaction.animation == .default else {
-                return context.transaction.animation
-            }
-            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
-        }()
         let transition = PresentationControllerTransition(
             isPresenting: false,
-            animation: animation
+            animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-        presentationController.transition(with: transition)
+        if let presentationController = presentationController as? PresentationController {
+            presentationController.attach(to: transition)
+        } else {
+            transition.wantsInteractiveStart = false
+        }
         return transition
     }
 }
@@ -268,6 +265,7 @@ extension PresentationLinkTransitionRepresentable {
     public func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> UIViewControllerAnimatedTransitioning? {
         return nil
@@ -275,6 +273,7 @@ extension PresentationLinkTransitionRepresentable {
 
     public func animationController(
         forDismissed dismissed: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> UIViewControllerAnimatedTransitioning? {
         return nil
@@ -297,34 +296,40 @@ extension PresentationLinkTransitionRepresentable {
 
 @available(iOS 14.0, *)
 extension PresentationLinkTransitionRepresentable
-    where UIPresentationControllerType: InteractivePresentationController
+    where UIPresentationControllerType: PresentationController
 {
     public func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> UIViewControllerAnimatedTransitioning? {
         let transition = PresentationControllerTransition(
             isPresenting: true,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = false
+        if let presentationController = presentationController as? PresentationController {
+            presentationController.attach(to: transition)
+        } else {
+            transition.wantsInteractiveStart = false
+        }
         return transition
     }
 
     public func animationController(
         forDismissed dismissed: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> UIViewControllerAnimatedTransitioning? {
-        guard let presentationController = dismissed.presentationController as? UIPresentationControllerType else {
-            return nil
-        }
         let transition = PresentationControllerTransition(
             isPresenting: false,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-        presentationController.transition(with: transition)
+        if let presentationController = presentationController as? PresentationController {
+            presentationController.attach(to: transition)
+        } else {
+            transition.wantsInteractiveStart = false
+        }
         return transition
     }
 

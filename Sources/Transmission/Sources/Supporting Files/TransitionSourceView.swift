@@ -44,8 +44,10 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
             let hostingView = HostingView(content: content)
             addSubview(hostingView)
             hostingView.disablesSafeArea = true
+            hostingView.translatesAutoresizingMaskIntoConstraints = false
             self.hostingView = hostingView
         }
+        clipsToBounds = false
     }
 
     required init?(coder: NSCoder) {

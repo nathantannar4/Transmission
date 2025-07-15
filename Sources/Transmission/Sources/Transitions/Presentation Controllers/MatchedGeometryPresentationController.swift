@@ -92,37 +92,6 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 }
 
 /// An interactive transition built for the ``MatchedGeometryPresentationController``.
-///
-/// ```
-/// func animationController(
-///     forPresented presented: UIViewController,
-///     presenting: UIViewController,
-///     source: UIViewController
-/// ) -> UIViewControllerAnimatedTransitioning? {
-///     let transition = MatchedGeometryPresentationControllerTransition(...)
-///     transition.wantsInteractiveStart = false
-///     return transition
-/// }
-///
-/// func animationController(
-///     forDismissed dismissed: UIViewController
-/// ) -> UIViewControllerAnimatedTransitioning? {
-///     guard let presentationController = dismissed.presentationController as? MatchedGeometryPresentationController else {
-///         return nil
-///     }
-///     let transition = MatchedGeometryPresentationControllerTransition(...)
-///     transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-///     presentationController.transition(with: transition)
-///     return transition
-/// }
-///
-/// func interactionControllerForDismissal(
-///     using animator: UIViewControllerAnimatedTransitioning
-/// ) -> UIViewControllerInteractiveTransitioning? {
-///     return animator as? MatchedGeometryPresentationControllerTransition
-/// }
-/// ```
-///
 @available(iOS 14.0, *)
 open class MatchedGeometryPresentationControllerTransition: MatchedGeometryViewControllerTransition {
 

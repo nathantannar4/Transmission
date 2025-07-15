@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import UIKit
+import SwiftUI
 
 /// A presentation controller base class
 @available(iOS 14.0, *)
@@ -32,14 +33,22 @@ open class PresentationController: UIPresentationController {
     public let shadowView = ShadowView()
 
     open var shouldAutoLayoutPresentedView: Bool {
-        !isTransitioningSize
+        transition == nil
+            && !isTransitioningSize
             && !presentedViewController.isBeingPresented
             && !presentedViewController.isBeingDismissed
     }
 
+    /// The interactive transition driving the presentation or dismissal animation
+    public var transition: UIPercentDrivenInteractiveTransition?
+
+    open var wantsInteractiveTransition: Bool {
+        return false
+    }
+
     public var shouldIgnoreContainerViewTouches: Bool {
         get { containerView?.value(forKey: "ignoreDirectTouchEvents") as? Bool ?? false }
-        set { containerView?.setValue(true, forKey: "ignoreDirectTouchEvents") }
+        set { containerView?.setValue(newValue, forKey: "ignoreDirectTouchEvents") }
     }
 
     public var shouldAutomaticallyAdjustFrameForKeyboard: Bool = false {
@@ -78,6 +87,18 @@ open class PresentationController: UIPresentationController {
         presenting presentingViewController: UIViewController?
     ) {
         super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
+    }
+
+    open func preferredDefaultAnimation() -> Animation? {
+        return nil
+    }
+
+    open func attach(to transition: ViewControllerTransition) {
+        if transition.animation == .default, let preferredDefaultAnimation = preferredDefaultAnimation() {
+            transition.animation = preferredDefaultAnimation
+        }
+        transition.wantsInteractiveStart = wantsInteractiveTransition
+        self.transition = transition
     }
 
     open override func presentationTransitionWillBegin() {
@@ -126,6 +147,7 @@ open class PresentationController: UIPresentationController {
             presentedViewController.fixSwiftUIHitTesting()
         } else {
             transitionAlongsidePresentation(isPresented: false)
+            delegate?.presentationControllerDidDismiss?(self)
         }
     }
 
@@ -294,8 +316,16 @@ open class PresentationController: UIPresentationController {
 
     @objc
     private func didSelectBackground() {
-        if let next = presentedViewController.presentedViewController,
-           let presentationController = next._activePresentationController as? PresentationController
+        if presentedViewController.isBeingPresented {
+            if let transition {
+                let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
+                if shouldDismiss {
+                    transition.cancel()
+                    self.transition = nil
+                }
+            }
+        } else if let next = presentedViewController.presentedViewController,
+            let presentationController = next._activePresentationController as? PresentationController
         {
             presentationController.didSelectBackground()
         } else {

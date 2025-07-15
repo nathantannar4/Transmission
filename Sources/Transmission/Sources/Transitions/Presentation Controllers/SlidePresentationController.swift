@@ -89,37 +89,6 @@ open class SlidePresentationController: InteractivePresentationController {
 }
 
 /// An interactive transition built for the ``SlidePresentationController``.
-///
-/// ```
-/// func animationController(
-///     forPresented presented: UIViewController,
-///     presenting: UIViewController,
-///     source: UIViewController
-/// ) -> UIViewControllerAnimatedTransitioning? {
-///     let transition = SlidePresentationControllerTransition(...)
-///     transition.wantsInteractiveStart = false
-///     return transition
-/// }
-///
-/// func animationController(
-///     forDismissed dismissed: UIViewController
-/// ) -> UIViewControllerAnimatedTransitioning? {
-///     guard let presentationController = dismissed.presentationController as? SlidePresentationController else {
-///         return nil
-///     }
-///     let transition = SlidePresentationControllerTransition(...)
-///     transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-///     presentationController.transition(with: transition)
-///     return transition
-/// }
-///
-/// func interactionControllerForDismissal(
-///     using animator: UIViewControllerAnimatedTransitioning
-/// ) -> UIViewControllerInteractiveTransitioning? {
-///     return animator as? SlidePresentationControllerTransition
-/// }
-/// ```
-///
 @available(iOS 14.0, *)
 open class SlidePresentationControllerTransition: PresentationControllerTransition {
 

@@ -11,12 +11,16 @@ import SwiftUI
 open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
 
     public let isPresenting: Bool
-    public let animation: Animation?
+    public var animation: Animation?
     private var animator: UIViewPropertyAnimator?
 
     private var transitionDuration: CGFloat = 0
     open override var duration: CGFloat {
         transitionDuration
+    }
+
+    var isInterruptible: Bool {
+        (animation?.delay ?? 0) == 0
     }
 
     public init(
@@ -78,13 +82,14 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         using transitionContext: UIViewControllerContextTransitioning
     ) -> UIViewImplicitlyAnimating {
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
+        animatedStarted(transitionContext: transitionContext)
         return animator
     }
 
     open override func responds(to aSelector: Selector!) -> Bool {
         let responds = super.responds(to: aSelector)
         if aSelector == #selector(interruptibleAnimator(using:)) {
-            return responds && wantsInteractiveStart
+            return responds && (wantsInteractiveStart || isInterruptible)
         }
         return responds
     }

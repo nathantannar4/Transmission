@@ -259,21 +259,6 @@ open class CardPresentationController: InteractivePresentationController {
 }
 
 /// An interactive transition built for the ``CardPresentationController``.
-///
-/// ```
-/// func animationController(
-///     forDismissed dismissed: UIViewController
-/// ) -> UIViewControllerAnimatedTransitioning? {
-///     guard let presentationController = dismissed.presentationController as? CardPresentationController else {
-///         return nil
-///     }
-///     let transition = CardPresentationControllerTransition(...)
-///     transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-///     presentationController.transition(with: transition)
-///     return transition
-/// }
-/// ```
-///
 @available(iOS 14.0, *)
 open class CardPresentationControllerTransition: PresentationControllerTransition {
 

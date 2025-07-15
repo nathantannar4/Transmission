@@ -118,6 +118,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     public func makeUIPresentationController(
         presented: UIViewController,
         presenting: UIViewController?,
+        source: UIViewController,
         context: Context
     ) -> SlidePresentationController {
         let presentationController = SlidePresentationController(
@@ -142,6 +143,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     public func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> SlidePresentationControllerTransition? {
         let transition = SlidePresentationControllerTransition(
@@ -152,33 +154,32 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
             isPresenting: true,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = false
+        if let presentationController = presentationController as? PresentationController {
+            presentationController.attach(to: transition)
+        } else {
+            transition.wantsInteractiveStart = false
+        }
         return transition
     }
 
     public func animationController(
         forDismissed dismissed: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> SlidePresentationControllerTransition? {
-        guard let presentationController = dismissed.presentationController as? InteractivePresentationController else {
-            return nil
-        }
-        let animation: Animation? = {
-            guard context.transaction.animation == .default else {
-                return context.transaction.animation
-            }
-            return presentationController.preferredDefaultAnimation() ?? context.transaction.animation
-        }()
         let transition = SlidePresentationControllerTransition(
             edge: options.edge,
             prefersScaleEffect: options.prefersScaleEffect,
             preferredFromCornerRadius: options.preferredFromCornerRadius,
             preferredToCornerRadius: options.preferredToCornerRadius,
             isPresenting: false,
-            animation: animation
+            animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-        presentationController.transition(with: transition)
+        if let presentationController = presentationController as? PresentationController {
+            presentationController.attach(to: transition)
+        } else {
+            transition.wantsInteractiveStart = false
+        }
         return transition
     }
 }

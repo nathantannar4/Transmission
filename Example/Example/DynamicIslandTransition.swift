@@ -23,6 +23,7 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
     func makeUIPresentationController(
         presented: UIViewController,
         presenting: UIViewController?,
+        source: UIViewController,
         context: Context
     ) -> DynamicIslandPresentationController {
         DynamicIslandPresentationController(
@@ -41,6 +42,7 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
     func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> DynamicIslandPresentationControllerTransition? {
         DynamicIslandPresentationControllerTransition(
@@ -51,6 +53,7 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
 
     func animationController(
         forDismissed dismissed: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> DynamicIslandPresentationControllerTransition? {
         let transition = DynamicIslandPresentationControllerTransition(

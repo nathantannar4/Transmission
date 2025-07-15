@@ -63,11 +63,13 @@ public struct PresentationLinkAsymmetricTransition<
     public func makeUIPresentationController(
         presented: UIViewController,
         presenting: UIViewController?,
+        source: UIViewController,
         context: Context
     ) -> UIPresentationControllerType {
         let presentationController = presentedController.makeUIPresentationController(
             presented: presented,
             presenting: presenting,
+            source: source,
             context: context
         )
         if DismissingAnimationController.self != PresentedController.self,
@@ -101,11 +103,13 @@ public struct PresentationLinkAsymmetricTransition<
     public func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> UIPresentingAnimationControllerType? {
         presentingAnimationController.animationController(
             forPresented: presented,
             presenting: presenting,
+            presentationController: presentationController,
             context: context
         )
     }
@@ -122,10 +126,12 @@ public struct PresentationLinkAsymmetricTransition<
 
     public func animationController(
         forDismissed dismissed: UIViewController,
+        presentationController: UIPresentationController,
         context: Context
     ) -> UIDismissingAnimationControllerType? {
         let animationController = dismissingAnimationController.animationController(
             forDismissed: dismissed,
+            presentationController: presentationController,
             context: context
         )
         if UIPresentingAnimationControllerType.self == MatchedGeometryPresentationControllerTransition.self,

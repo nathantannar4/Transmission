@@ -238,7 +238,13 @@ private struct DestinationLinkAdapterBody<
         func navigationControllerShouldBeginInteractivePop(
             _ navigationController: UINavigationController
         ) -> Bool {
-            return adapter?.transition.options.isInteractive ?? true
+            guard let transition = adapter?.transition else { return true }
+            switch transition {
+            case .zoom:
+                return false
+            default:
+                return transition.options.isInteractive
+            }
         }
 
         // MARK: - UINavigationControllerDelegate

@@ -9,17 +9,27 @@ import EngineCore
 
 public protocol AnyHostingView: UIView {
     func render()
+    func renderAsync()
 }
 
 extension _UIHostingView: AnyHostingView {
     public func render() {
         _renderForTest(interval: 1 / 60)
     }
+
+    public func renderAsync() {
+        if #available(iOS 15.0, *) {
+            _renderAsyncForTest(interval: 1 / 60)
+        } else {
+            _renderForTest(interval: 1 / 60)
+        }
+    }
 }
 
 public protocol AnyHostingController: UIViewController {
     var disableSafeArea: Bool { get set }
     func render()
+    func renderAsync()
 }
 
 extension UIHostingController: AnyHostingController {
@@ -35,6 +45,10 @@ extension UIHostingController: AnyHostingController {
     
     public func render() {
         (view as! AnyHostingView).render()
+    }
+
+    public func renderAsync() {
+        (view as! AnyHostingView).renderAsync()
     }
 }
 
