@@ -10,57 +10,50 @@ import SwiftUI
 @available(iOS 14.0, *)
 extension DestinationLinkTransition {
 
-    /// The slide transition style.
-    public static var slide: DestinationLinkTransition {
-        .slide(.init())
+    /// The push transition style.
+    public static var push: DestinationLinkTransition {
+        .push(.init())
     }
 
-    /// The slide transition style.
-    public static func slide(
-        _ transitionOptions: SlideDestinationLinkTransition.Options,
+    /// The push transition style.
+    public static func push(
+        _ transitionOptions: PushDestinationLinkTransition.Options,
         options: DestinationLinkTransition.Options = .init(
             prefersPanGesturePop: true
         )
     ) -> DestinationLinkTransition {
         .custom(
             options: options,
-            SlideDestinationLinkTransition(options: transitionOptions)
+            PushDestinationLinkTransition(options: transitionOptions)
         )
     }
 
-    /// The slide transition style.
-    public static func slide(
-        initialOpacity: CGFloat = 1,
+    /// The push transition style.
+    public static func push(
         prefersPanGesturePop: Bool = true,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> DestinationLinkTransition {
-        .slide(
+        .push(
             .init(
-                initialOpacity: initialOpacity
             ),
             options: .init(
                 isInteractive: isInteractive,
                 prefersPanGesturePop: prefersPanGesturePop,
-                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor,
             )
         )
     }
 }
 
 @available(iOS 14.0, *)
-public struct SlideDestinationLinkTransition: DestinationLinkTransitionRepresentable {
+public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresentable {
 
-    /// The transition options for a slide transition.
+    /// The transition options for a push transition.
     @frozen
     public struct Options {
 
-        public var initialOpacity: CGFloat
-
-        public init(
-            initialOpacity: CGFloat = 1
-        ) {
-            self.initialOpacity = initialOpacity
+        public init() {
         }
     }
     public var options: Options
@@ -74,9 +67,8 @@ public struct SlideDestinationLinkTransition: DestinationLinkTransitionRepresent
         pushing toVC: UIViewController,
         from fromVC: UIViewController,
         context: Context
-    ) -> SlideNavigationControllerTransition? {
-        let transition = SlideNavigationControllerTransition(
-            initialOpacity: options.initialOpacity,
+    ) -> PushNavigationControllerTransition? {
+        let transition = PushNavigationControllerTransition(
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -89,9 +81,8 @@ public struct SlideDestinationLinkTransition: DestinationLinkTransitionRepresent
         popping fromVC: UIViewController,
         to toVC: UIViewController,
         context: Context
-    ) -> SlideNavigationControllerTransition? {
-        let transition = SlideNavigationControllerTransition(
-            initialOpacity: options.initialOpacity,
+    ) -> PushNavigationControllerTransition? {
+        let transition = PushNavigationControllerTransition(
             isPresenting: false,
             animation: context.transaction.animation
         )
@@ -101,18 +92,7 @@ public struct SlideDestinationLinkTransition: DestinationLinkTransitionRepresent
 }
 
 @available(iOS 14.0, *)
-open class SlideNavigationControllerTransition: ViewControllerTransition {
-
-    public let initialOpacity: CGFloat
-
-    public init(
-        initialOpacity: CGFloat,
-        isPresenting: Bool,
-        animation: Animation?
-    ) {
-        self.initialOpacity = initialOpacity
-        super.init(isPresenting: isPresenting, animation: animation)
-    }
+open class PushNavigationControllerTransition: ViewControllerTransition {
 
     open override func configureTransitionAnimator(
         using transitionContext: any UIViewControllerContextTransitioning,
@@ -126,34 +106,52 @@ open class SlideNavigationControllerTransition: ViewControllerTransition {
             return
         }
 
+
         let width = transitionContext.containerView.frame.width
+        let offset = width * 0.3
+        let isPresenting = isPresenting
         if isPresenting {
             transitionContext.containerView.addSubview(toVC.view)
         } else {
             transitionContext.containerView.insertSubview(toVC.view, belowSubview: fromVC.view)
         }
+
         toVC.view.frame = transitionContext.finalFrame(for: toVC)
-        toVC.view.transform = CGAffineTransform(
-            translationX: isPresenting ? width : -width,
-            y: 0
-        )
         toVC.view.layoutIfNeeded()
-        toVC.view.alpha = initialOpacity
 
+        let dimmingView = UIView()
+        dimmingView.backgroundColor = UIColor.black.withAlphaComponent(0.12)
+        dimmingView.alpha = isPresenting ? 0 : 1
+        dimmingView.isUserInteractionEnabled = false
+        transitionContext.containerView.insertSubview(
+            dimmingView,
+            aboveSubview: isPresenting ? fromVC.view : toVC.view
+        )
+        dimmingView.frame = isPresenting ? fromVC.view.frame : toVC.view.frame
+
+        let toVCTransform = CGAffineTransform(
+            translationX: isPresenting ? width : -offset,
+            y: 0
+        )
+        toVC.view.transform = toVCTransform
+        if !isPresenting {
+            dimmingView.transform = toVCTransform
+        }
         let fromVCTransform = CGAffineTransform(
-            translationX: isPresenting ? -width : width,
+            translationX: isPresenting ? -offset : width,
             y: 0
         )
 
-        animator.addAnimations { [initialOpacity] in
+        animator.addAnimations {
             toVC.view.transform = .identity
-            toVC.view.alpha = 1
             fromVC.view.transform = fromVCTransform
-            fromVC.view.alpha = initialOpacity
+            dimmingView.alpha = isPresenting ? 1 : 0
+            dimmingView.transform = isPresenting ? fromVCTransform : .identity
         }
         animator.addCompletion { animatingPosition in
             toVC.view.transform = .identity
             fromVC.view.transform = .identity
+            dimmingView.removeFromSuperview()
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

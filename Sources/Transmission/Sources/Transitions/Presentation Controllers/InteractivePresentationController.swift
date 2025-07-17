@@ -280,6 +280,13 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         shouldFinish = (percentage >= 0.5 && velocity.x > 0) || (percentage > 0 && velocity.x >= 1000)
                     }
                 }
+                transition.timingCurve = UISpringTimingParameters(
+                    dampingRatio: 0.92,
+                    initialVelocity: CGVector(
+                        dx: velocity.y / (percentage * frameOfPresentedView.width),
+                        dy: velocity.x / (percentage * frameOfPresentedView.height)
+                    )
+                )
                 if shouldFinish {
                     transition.finish()
                 } else {

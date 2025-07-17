@@ -54,6 +54,10 @@ extension DestinationLinkTransition {
     public struct Options {
         /// Used when the presentation delegate asks if it should dismiss
         public var isInteractive: Bool
+        /// When `true` a regular pan gesture anywhere on the destination view can begin a pop
+        ///
+        /// > Note: Does not work with the `.default` transition, use `.push` instead
+        public var prefersPanGesturePop: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
         public var preferredPresentationBackgroundColor: Color?
@@ -61,11 +65,13 @@ extension DestinationLinkTransition {
 
         public init(
             isInteractive: Bool = true,
+            prefersPanGesturePop: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
             preferredPresentationBackgroundColor: Color? = nil,
             hidesBottomBarWhenPushed: Bool = false
         ) {
             self.isInteractive = isInteractive
+            self.prefersPanGesturePop = prefersPanGesturePop
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
             self.hidesBottomBarWhenPushed = hidesBottomBarWhenPushed

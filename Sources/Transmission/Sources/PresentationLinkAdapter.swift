@@ -260,6 +260,7 @@ private struct PresentationLinkAdapterBody<
                     if let presentationController = adapter.viewController.presentationController {
                         presentationController.delegate = context.coordinator
                         presentationController.overrideTraitCollection = traits
+                        context.coordinator.presentationController = presentationController
 
                         if #available(iOS 15.0, *),
                            let sheetPresentationController = presentationController as? UISheetPresentationController
@@ -359,27 +360,28 @@ private struct PresentationLinkAdapterBody<
                     }
                 }
                 let present: () -> Void = {
-                    guard let viewController = adapter.viewController else { return }
+                    guard
+                        isPresented.wrappedValue,
+                        let viewController = context.coordinator.adapter?.viewController
+                    else {
+                        context.coordinator.didDismiss()
+                        return
+                    }
                     presentingViewController.present(
                         viewController,
                         animated: isAnimated
                     ) {
                         context.coordinator.animation = nil
                         context.coordinator.didPresentAnimated = isAnimated
-                        if !isPresented.wrappedValue {
-                            // Handle `isPresented` changing mid presentation
-                            viewController.dismiss(animated: isAnimated)
-                        } else {
-                            viewController
-                                .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
-                            if isTransitioningPresentationController {
-                                viewController.presentationDelegate = context.coordinator
-                            }
+                        viewController
+                            .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+                        if isTransitioningPresentationController {
+                            viewController.presentationDelegate = context.coordinator
                         }
                     }
                 }
                 if let presentedViewController = presentingViewController.presentedViewController {
-                    if presentedViewController.isBeingDismissed, presentedViewController.presentationDelegate == context.coordinator {
+                    if presentedViewController.presentationDelegate == context.coordinator {
                         presentedViewController.presentationDelegate = nil
                     }
                     let shouldDismiss = {
@@ -405,25 +407,8 @@ private struct PresentationLinkAdapterBody<
                     present()
                 }
             }
-        } else if let adapter = context.coordinator.adapter,
-                  !isPresented.wrappedValue,
-                  !context.coordinator.isBeingReused
-        {
-            let isAnimated = context.transaction.isAnimated
-            let viewController = adapter.viewController!
-            if viewController.presentedViewController != nil {
-                let presentingViewController = viewController.presentingViewController ?? viewController
-                if !presentingViewController.isBeingDismissed {
-                    presentingViewController.dismiss(animated: isAnimated)
-                }
-            } else if viewController.presentingViewController != nil, !viewController.isBeingDismissed {
-                viewController.dismiss(animated: isAnimated)
-            }
-            if adapter.transition.options.isDestinationReusable {
-                context.coordinator.isBeingReused = true
-            } else {
-                context.coordinator.adapter = nil
-            }
+        } else if !isPresented.wrappedValue, !context.coordinator.isBeingReused {
+            context.coordinator.onDismiss(1, transaction: context.transaction)
         }
     }
 
@@ -476,24 +461,27 @@ private struct PresentationLinkAdapterBody<
 
         func onDismiss(_ count: Int, transaction: Transaction) {
             guard let viewController = adapter?.viewController, count > 0 else { return }
-            let presentingViewController = {
-                var remaining = count
-                var presentingViewController = viewController
-                if remaining == 1, presentingViewController.presentedViewController == nil {
-                    remaining -= 1
-                }
-                while remaining > 0, let next = presentingViewController.presentingViewController {
-                    presentingViewController = next
-                    remaining -= 1
-                }
-                return presentingViewController
-            }()
             animation = transaction.animation
             didPresentAnimated = false
-            presentingViewController.dismiss(animated: transaction.isAnimated) {
+            viewController._dismiss(count: count, animated: transaction.isAnimated) {
+                self.onDismiss(transaction)
+            }
+        }
+
+        private func onDismiss(_ transaction: Transaction) {
+            if isPresented.wrappedValue == true {
                 withTransaction(transaction) {
-                    self.isPresented.wrappedValue = false
+                    isPresented.wrappedValue = false
                 }
+            }
+            didDismiss()
+        }
+
+        func didDismiss() {
+            if adapter?.transition.options.isDestinationReusable == true {
+                isBeingReused = true
+            } else {
+                adapter = nil
             }
         }
 
@@ -508,13 +496,14 @@ private struct PresentationLinkAdapterBody<
             adapter?.coordinator = nil
 
             if isPresented.wrappedValue {
-                var transaction = Transaction(animation: animated ? .default : nil)
+                var transaction = Transaction(animation: nil)
                 transaction.disablesAnimations = true
                 withCATransaction {
                     withTransaction(transaction) {
                         self.isPresented.wrappedValue = false
                     }
                 }
+                didDismiss()
             }
 
             // Dismiss already handled by the presentation controller below
@@ -526,26 +515,43 @@ private struct PresentationLinkAdapterBody<
 
         // MARK: - UIAdaptivePresentationControllerDelegate
 
+        func presentationControllerWillDismiss(
+            _ presentationController: UIPresentationController
+        ) {
+            guard presentationController == self.presentationController else { return }
+            var transaction = Transaction(animation: animation ?? .default)
+            transaction.disablesAnimations = true
+            transaction.disablesAnimations = true
+            if let transitionCoordinator = adapter?.viewController?.transitionCoordinator, transitionCoordinator.isInteractive {
+                transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                    if !ctx.isCancelled {
+                        self.onDismiss(transaction)
+                    }
+                }
+            } else {
+                withCATransaction {
+                    self.onDismiss(transaction)
+                }
+            }
+        }
+
         func presentationControllerDidDismiss(
             _ presentationController: UIPresentationController
         ) {
-            if adapter?.viewController == presentationController.presentedViewController,
-               adapter?.viewController.isBeingPresented == true,
-               isPresented.wrappedValue
-            {
+            guard presentationController == self.presentationController else { return }
+            if isPresented.wrappedValue {
                 var transaction = Transaction(animation: nil)
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
                     self.isPresented.wrappedValue = false
                 }
+                didDismiss()
             }
 
             // Break the retain cycle
             adapter?.coordinator = nil
 
-            if self.presentationController === presentationController {
-                self.presentationController = nil
-            }
+            self.presentationController = nil
 
             presentationController.presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: true)
             presentationController.presentingViewController.fixSwiftUIHitTesting()
@@ -554,8 +560,42 @@ private struct PresentationLinkAdapterBody<
         func presentationControllerShouldDismiss(
             _ presentationController: UIPresentationController
         ) -> Bool {
+            guard presentationController == self.presentationController else { return true }
             guard let transition = adapter?.transition else { return true }
-            return transition.options.isInteractive
+            switch transition {
+            case .zoom(let options):
+                guard options.options.isInteractive else { return false }
+                // By default, zoom is too easy to dismiss a presented view rather than pop
+                let zoomPanGesture = presentationController.presentedViewController
+                    .view
+                    .gestureRecognizers?
+                    .compactMap({ $0.isZoomDismissPanGesture ? $0 as? UIPanGestureRecognizer : nil })
+                    .first
+                if let zoomPanGesture, zoomPanGesture.state == .possible {
+                    let navigationController = presentationController.presentedViewController as? UINavigationController ?? presentationController.presentedViewController.firstDescendent(ofType: UINavigationController.self)
+                    if let navigationController,
+                        navigationController.viewControllers.count > 1,
+                        let edgeGesture = navigationController.interactivePopGestureRecognizer as? UIScreenEdgePanGestureRecognizer
+                    {
+                        let translation = zoomPanGesture.location(in: presentationController.presentedViewController.view)
+                        let edgeDistance: CGFloat = 16
+                        if edgeGesture.edges.contains(.left) {
+                            if translation.x <= edgeDistance {
+                                return false
+                            }
+                        }
+                        if edgeGesture.edges.contains(.right) {
+                            let width = presentationController.presentedViewController.view.bounds.width
+                            if translation.x >= (width - edgeDistance) {
+                                return false
+                            }
+                        }
+                    }
+                }
+                return true
+            default:
+                return transition.options.isInteractive
+            }
         }
 
         func presentationControllerDidAttemptToDismiss(
@@ -577,7 +617,8 @@ private struct PresentationLinkAdapterBody<
             for controller: UIPresentationController,
             traitCollection: UITraitCollection
         ) -> UIModalPresentationStyle {
-            switch adapter?.transition {
+            guard let adapter, presentationController == self.presentationController else { return .none }
+            switch adapter.transition {
             case .popover(let options):
                 return options.adaptiveTransition != nil && traitCollection.horizontalSizeClass == .compact ? .pageSheet : .none
 
@@ -596,7 +637,7 @@ private struct PresentationLinkAdapterBody<
             _ presentationController: UIPresentationController,
             prepare adaptivePresentationController: UIPresentationController
         ) {
-            guard let adapter else { return }
+            guard let adapter, presentationController == self.presentationController else { return }
             switch adapter.transition {
             case .popover(let options):
                 if #available(iOS 15.0, *) {
@@ -769,8 +810,7 @@ private struct PresentationLinkAdapterBody<
             presenting: UIViewController?,
             source: UIViewController
         ) -> UIPresentationController? {
-            guard let adapter else { return nil }
-            switch adapter.transition {
+            switch adapter?.transition {
             case .sheet(let options):
                 if #available(iOS 15.0, *) {
                     #if targetEnvironment(macCatalyst)
@@ -973,10 +1013,11 @@ private struct PresentationLinkAdapterBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                var transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
+                transaction.disablesAnimations = true
                 withCATransaction {
-                    adapter.viewController.dismiss(animated: coordinator.didPresentAnimated)
+                    coordinator.onDismiss(1, transaction: transaction)
                 }
-                coordinator.adapter = nil
             } else {
                 adapter.coordinator = coordinator
             }

@@ -86,6 +86,27 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         return animator
     }
 
+    open override func pause() {
+        super.pause()
+        animator?.pauseAnimation()
+    }
+
+    open override func update(_ percentComplete: CGFloat) {
+        super.update(percentComplete)
+        animator?.fractionComplete = percentComplete
+    }
+
+    open override func finish() {
+        super.finish()
+        animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
+    }
+
+    open override func cancel() {
+        super.cancel()
+        animator?.isReversed = true
+        animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
+    }
+
     open override func responds(to aSelector: Selector!) -> Bool {
         let responds = super.responds(to: aSelector)
         if aSelector == #selector(interruptibleAnimator(using:)) {
