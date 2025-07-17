@@ -168,20 +168,8 @@ private struct DestinationLinkAdapterBody<
                     context.coordinator.isPushing = false
                 }
             }
-        } else if let adapter = context.coordinator.adapter,
-                  !isPresented.wrappedValue
-        {
-            let viewController = adapter.viewController!
-            let isAnimated = context.transaction.isAnimated
-                || viewController.transitionCoordinator?.isAnimated == true
-            if let presented = viewController.presentedViewController {
-                presented.dismiss(animated: isAnimated) {
-                    viewController._popViewController(animated: isAnimated)
-                }
-            } else {
-                viewController._popViewController(animated: isAnimated)
-            }
-            context.coordinator.adapter = nil
+        } else if let adapter = context.coordinator.adapter, !isPresented.wrappedValue {
+            context.coordinator.onPop(1, transaction: context.transaction)
         }
     }
 
@@ -229,22 +217,68 @@ private struct DestinationLinkAdapterBody<
             guard let viewController = adapter?.viewController else { return }
             animation = transaction.animation
             didPresentAnimated = false
-            viewController._popViewController(count: count, animated: transaction.isAnimated) {
-                withTransaction(transaction) {
-                    self.isPresented.wrappedValue = false
+            if let presented = viewController.presentedViewController {
+                presented.dismiss(animated: transaction.isAnimated) {
+                    viewController._popViewController(animated: transaction.isAnimated) {
+                        self.onPop(transaction)
+                    }
+                }
+            } else {
+                viewController._popViewController(count: count, animated: transaction.isAnimated) {
+                    self.onPop(transaction)
                 }
             }
         }
 
+        private func onPop(_ transaction: Transaction) {
+            if isPresented.wrappedValue == true {
+                withTransaction(transaction) {
+                    self.isPresented.wrappedValue = false
+                }
+            }
+            onPop()
+        }
+
+        func onPop() {
+            adapter = nil
+        }
+
         func navigationControllerShouldBeginInteractivePop(
-            _ navigationController: UINavigationController
+            _ navigationController: UINavigationController,
+            edge: Bool
         ) -> Bool {
             guard let transition = adapter?.transition else { return true }
             switch transition {
             case .zoom:
                 return false
             default:
-                return transition.options.isInteractive
+                guard transition.options.isInteractive else { return false }
+                if !edge, !transition.options.prefersPanGesturePop {
+                    return false
+                }
+                return true
+            }
+        }
+
+        func navigationController(
+            _ navigationController: UINavigationController,
+            didPop viewController: UIViewController,
+            animated: Bool
+        ) {
+            guard viewController == adapter?.viewController else { return }
+
+            var transaction = Transaction(animation: animated ? animation ?? .default : nil)
+            transaction.disablesAnimations = true
+            if let transitionCoordinator = viewController.transitionCoordinator, transitionCoordinator.isInteractive {
+                transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                    if !ctx.isCancelled {
+                        self.onPop(transaction)
+                    }
+                }
+            } else {
+                withCATransaction {
+                    self.onPop(transaction)
+                }
             }
         }
 
@@ -262,12 +296,10 @@ private struct DestinationLinkAdapterBody<
                 // Break the retain cycle
                 adapter?.coordinator = nil
 
+                var transaction = Transaction(animation: animated ? .default : nil)
+                transaction.disablesAnimations = true
                 withCATransaction {
-                    var transaction = Transaction(animation: animated ? .default : nil)
-                    transaction.disablesAnimations = true
-                    withTransaction(transaction) {
-                        self.isPresented.wrappedValue = false
-                    }
+                    self.onPop(transaction)
                 }
             }
         }
@@ -413,10 +445,9 @@ private struct DestinationLinkAdapterBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                withCATransaction {
-                    adapter.viewController._popViewController(animated: coordinator.didPresentAnimated)
-                }
-                coordinator.adapter = nil
+                var transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
+                transaction.disablesAnimations = true
+                coordinator.onPop(1, transaction: transaction)
             } else {
                 adapter.coordinator = coordinator
             }
@@ -428,14 +459,22 @@ private struct DestinationLinkAdapterBody<
 protocol DestinationLinkDelegate: UINavigationControllerDelegate{
 
     func navigationControllerShouldBeginInteractivePop(
-        _ navigationController: UINavigationController
+        _ navigationController: UINavigationController,
+        edge: Bool
     ) -> Bool
+
+    func navigationController(
+        _ navigationController: UINavigationController,
+        didPop viewController: UIViewController,
+        animated: Bool
+    )
 }
 
 @available(iOS 14.0, *)
 final class DestinationLinkDelegateProxy: NSObject,
     UINavigationControllerDelegate,
-    UIGestureRecognizerDelegate
+    UIGestureRecognizerDelegate,
+    UINavigationControllerPresentationDelegate
 {
 
     private weak var navigationController: UINavigationController?
@@ -443,9 +482,10 @@ final class DestinationLinkDelegateProxy: NSObject,
     private var delegates = [ObjectIdentifier: ObjCWeakBox<DestinationLinkDelegate>]()
 
     var transitioningId: ObjectIdentifier?
-    var transition: UIPercentDrivenInteractiveTransition?
+    weak var transition: UIPercentDrivenInteractiveTransition?
     private weak var popGestureDelegate: UIGestureRecognizerDelegate?
-    private var interactivePopGestureRecognizer: UIScreenEdgePanGestureRecognizer!
+    private var interactivePopEdgeGestureRecognizer: UIScreenEdgePanGestureRecognizer!
+    private var interactivePopPanGestureRecognizer: UIPanGestureRecognizer!
 
     private var wantsInteractiveTransition = false
 
@@ -456,17 +496,29 @@ final class DestinationLinkDelegateProxy: NSObject,
         self.navigationController = navigationController
         navigationController.delegate = self
         navigationController.interactivePopGestureRecognizer?.delegate = self
-        interactivePopGestureRecognizer = UIScreenEdgePanGestureRecognizer(
+        interactivePopEdgeGestureRecognizer = UIScreenEdgePanGestureRecognizer(
             target: self,
             action: #selector(panGestureDidChange(_:))
         )
-        interactivePopGestureRecognizer.delegate = self
+        interactivePopEdgeGestureRecognizer.delegate = self
         if let builtinGesture = navigationController.interactivePopGestureRecognizer as? UIScreenEdgePanGestureRecognizer {
-            interactivePopGestureRecognizer.edges = builtinGesture.edges
+            interactivePopEdgeGestureRecognizer.edges = builtinGesture.edges
+            interactivePopEdgeGestureRecognizer.delaysTouchesBegan = builtinGesture.delaysTouchesBegan
+            interactivePopEdgeGestureRecognizer.delaysTouchesEnded = builtinGesture.delaysTouchesEnded
         } else {
-            interactivePopGestureRecognizer.edges = [.left]
+            interactivePopEdgeGestureRecognizer.edges = [.left]
+            interactivePopEdgeGestureRecognizer.delaysTouchesBegan = true
         }
-        navigationController.view.addGestureRecognizer(interactivePopGestureRecognizer)
+        navigationController.view.addGestureRecognizer(interactivePopEdgeGestureRecognizer)
+
+        interactivePopPanGestureRecognizer = UIPanGestureRecognizer(
+            target: self,
+            action: #selector(panGestureDidChange(_:))
+        )
+        interactivePopPanGestureRecognizer.delegate = self
+        navigationController.view.addGestureRecognizer(interactivePopPanGestureRecognizer)
+
+        navigationController.pushDelegate = self
     }
 
     func add(
@@ -478,7 +530,7 @@ final class DestinationLinkDelegateProxy: NSObject,
 
     @objc
     private func panGestureDidChange(
-        _ gestureRecognizer: UIScreenEdgePanGestureRecognizer
+        _ gestureRecognizer: UIPanGestureRecognizer
     ) {
         guard
             let view = gestureRecognizer.view,
@@ -506,10 +558,10 @@ final class DestinationLinkDelegateProxy: NSObject,
             let velocity = gestureRecognizer.velocity(in: view)
             var shouldFinish = false
             if gestureRecognizer.state == .ended {
-                if gestureRecognizer.edges.contains(.left), !shouldFinish {
+                if interactivePopEdgeGestureRecognizer.edges.contains(.left), !shouldFinish {
                     shouldFinish = (percentage >= 0.5 && velocity.x > 0) || (percentage > 0 && velocity.x >= 1000)
                 }
-                if gestureRecognizer.edges.contains(.right), !shouldFinish {
+                if interactivePopEdgeGestureRecognizer.edges.contains(.right), !shouldFinish {
                     shouldFinish = (percentage >= 0.5 && velocity.x < 0) || (percentage > 0 && velocity.x <= -1000)
                 }
             }
@@ -528,6 +580,17 @@ final class DestinationLinkDelegateProxy: NSObject,
         }
     }
 
+    // MARK: - UINavigationControllerPresentationDelegate
+
+    func navigationController(
+        _ navigationController: UINavigationController,
+        didPop viewController: UIViewController,
+        animated: Bool
+    ) {
+        let delegate = delegates[ObjectIdentifier(viewController)]?.value
+        delegate?.navigationController(navigationController, didPop: viewController, animated: animated)
+    }
+
     // MARK: - UIGestureRecognizerDelegate
 
     func gestureRecognizerShouldBegin(
@@ -536,20 +599,27 @@ final class DestinationLinkDelegateProxy: NSObject,
         guard
             let navigationController = navigationController,
             navigationController.viewControllers.count > 1,
+            navigationController.transitionCoordinator == nil,
             navigationController.presentedViewController == nil,
             let fromVC = navigationController.topViewController
         else {
             return false
         }
 
-        guard
-            let delegate = delegates[ObjectIdentifier(fromVC)]?.value,
-            delegate.navigationControllerShouldBeginInteractivePop(navigationController)
-        else {
-            return false
-        }
+        let shouldBegin: Bool? = {
+            guard let delegate = delegates[ObjectIdentifier(fromVC)]?.value else {
+                return nil
+            }
+            let isEdge = gestureRecognizer != interactivePopPanGestureRecognizer
+            let shouldBegin = delegate.navigationControllerShouldBeginInteractivePop(
+                navigationController,
+                edge: isEdge
+            )
+            return shouldBegin
+        }()
 
-        if gestureRecognizer == interactivePopGestureRecognizer {
+        if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
+            guard shouldBegin == true else { return false }
             wantsInteractiveTransition = true; defer { wantsInteractiveTransition = false }
             let animationController = self.navigationController(
                 navigationController,
@@ -567,6 +637,9 @@ final class DestinationLinkDelegateProxy: NSObject,
             transition = interactiveTransition
             return true
         } else {
+            if shouldBegin == false {
+                return false
+            }
             let canBegin = popGestureDelegate?.gestureRecognizerShouldBegin?(
                 gestureRecognizer
             )
@@ -578,7 +651,12 @@ final class DestinationLinkDelegateProxy: NSObject,
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        if gestureRecognizer == interactivePopGestureRecognizer {
+        if gestureRecognizer == interactivePopEdgeGestureRecognizer {
+            return true
+        } else if gestureRecognizer == interactivePopPanGestureRecognizer {
+            if otherGestureRecognizer is UIPanGestureRecognizer {
+                return false
+            }
             return true
         } else {
             let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
@@ -593,7 +671,12 @@ final class DestinationLinkDelegateProxy: NSObject,
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        if gestureRecognizer == interactivePopGestureRecognizer {
+        if gestureRecognizer == interactivePopEdgeGestureRecognizer {
+            return false
+        } else if gestureRecognizer == interactivePopPanGestureRecognizer {
+            if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer {
+                return true
+            }
             return false
         } else {
             let shouldRequireFailureOf = popGestureDelegate?.gestureRecognizer?(
@@ -608,10 +691,12 @@ final class DestinationLinkDelegateProxy: NSObject,
         _ gestureRecognizer: UIGestureRecognizer,
         shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        if gestureRecognizer == interactivePopGestureRecognizer {
-            if otherGestureRecognizer == navigationController?.interactivePopGestureRecognizer || otherGestureRecognizer.isZoomDismissGesture {
+        if gestureRecognizer == interactivePopEdgeGestureRecognizer {
+            if otherGestureRecognizer == navigationController?.interactivePopGestureRecognizer || otherGestureRecognizer.isZoomDismissGesture || otherGestureRecognizer is UIPanGestureRecognizer {
                 return true
             }
+            return false
+        } else if gestureRecognizer == interactivePopPanGestureRecognizer {
             return false
         } else {
             let shouldBeRequiredToFailBy = popGestureDelegate?.gestureRecognizer?(
@@ -626,7 +711,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         _ gestureRecognizer: UIGestureRecognizer,
         shouldReceive touch: UITouch
     ) -> Bool {
-        if gestureRecognizer == interactivePopGestureRecognizer {
+        if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
             return true
         } else {
             let shouldReceive = popGestureDelegate?.gestureRecognizer?(
@@ -641,7 +726,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         _ gestureRecognizer: UIGestureRecognizer,
         shouldReceive press: UIPress
     ) -> Bool {
-        if gestureRecognizer == interactivePopGestureRecognizer {
+        if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
             return true
         } else {
             let shouldReceive = popGestureDelegate?.gestureRecognizer?(
@@ -656,7 +741,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         _ gestureRecognizer: UIGestureRecognizer,
         shouldReceive event: UIEvent
     ) -> Bool {
-        if gestureRecognizer == interactivePopGestureRecognizer {
+        if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
             return true
         } else {
             let shouldReceive = popGestureDelegate?.gestureRecognizer?(

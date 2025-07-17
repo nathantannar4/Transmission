@@ -34,6 +34,35 @@ extension UIViewController {
         }
     }
 
+    func _dismiss(
+        count: Int = 1,
+        animated: Bool,
+        completion: (() -> Void)? = nil
+    ) {
+        let targetViewController = {
+            var remaining = count
+            var presentingViewController = self
+            if remaining == 1, presentingViewController.presentedViewController == nil {
+                remaining -= 1
+            }
+            while remaining > 0, let next = presentingViewController.presentingViewController {
+                presentingViewController = next
+                remaining -= 1
+            }
+            return presentingViewController
+        }()
+        if animated {
+            CATransaction.begin()
+            CATransaction.setCompletionBlock(completion)
+        }
+        targetViewController.dismiss(animated: animated)
+        if animated {
+            CATransaction.commit()
+        } else {
+            completion?()
+        }
+    }
+
     var _transitionCoordinator: UIViewControllerTransitionCoordinator? {
         guard let transitionCoordinator = transitionCoordinator else {
             for child in children {
@@ -56,6 +85,40 @@ extension UIViewController {
         }()
         guard active?.presentedViewController == self else { return nil }
         return active
+    }
+
+    func firstDescendent<T: UIViewController>(ofType type: T.Type) -> T? {
+        for child in children {
+            if let match = child as? T {
+                return match
+            } else if let match = child.firstDescendent(ofType: type) {
+                return match
+            }
+        }
+        return nil
+    }
+
+    func fixSwiftUIHitTesting() {
+        if let tabBarController = self as? UITabBarController {
+            tabBarController.selectedViewController?.fixSwiftUIHitTesting()
+        } else if let navigationController = self as? UINavigationController {
+            navigationController.topViewController?.fixSwiftUIHitTesting()
+        } else if let splitViewController = self as? UISplitViewController {
+            for viewController in splitViewController.viewControllers {
+                viewController.fixSwiftUIHitTesting()
+            }
+        } else if let pageViewController = self as? UIPageViewController {
+            for viewController in pageViewController.viewControllers ?? [] {
+                viewController.fixSwiftUIHitTesting()
+            }
+        } else if let view = viewIfLoaded {
+            // This fixes SwiftUI's gesture handling that can get messed up when applying
+            // transforms and/or frame changes during an interactive presentation. This resets
+            // SwiftUI's geometry in a clean way, fixing hit testing.
+            let frame = view.frame
+            view.frame = .zero
+            view.frame = frame
+        }
     }
 }
 

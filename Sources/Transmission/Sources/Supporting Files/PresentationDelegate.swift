@@ -79,28 +79,53 @@ extension UIViewController {
             completion?()
         }
     }
+}
 
-    func fixSwiftUIHitTesting() {
-        if let tabBarController = self as? UITabBarController {
-            tabBarController.selectedViewController?.fixSwiftUIHitTesting()
-        } else if let navigationController = self as? UINavigationController {
-            navigationController.topViewController?.fixSwiftUIHitTesting()
-        } else if let splitViewController = self as? UISplitViewController {
-            for viewController in splitViewController.viewControllers {
-                viewController.fixSwiftUIHitTesting()
+protocol UINavigationControllerPresentationDelegate: NSObject {
+    func navigationController(_ navigationController: UINavigationController, didPop viewController: UIViewController, animated: Bool)
+}
+
+
+extension UINavigationController {
+
+    private static var pushDelegateKey: Bool = false
+
+    var pushDelegate: UINavigationControllerPresentationDelegate? {
+        get {
+            guard let obj = objc_getAssociatedObject(self, &Self.pushDelegateKey) as? ObjCWeakBox<NSObject> else {
+                return nil
             }
-        } else if let pageViewController = self as? UIPageViewController {
-            for viewController in pageViewController.viewControllers ?? [] {
-                viewController.fixSwiftUIHitTesting()
-            }
-        } else if let view = viewIfLoaded {
-            // This fixes SwiftUI's gesture handling that can get messed up when applying
-            // transforms and/or frame changes during an interactive presentation. This resets
-            // SwiftUI's geometry in a clean way, fixing hit testing.
-            let frame = view.frame
-            view.frame = .zero
-            view.frame = frame
+            return obj.value as? UINavigationControllerPresentationDelegate
         }
+        set {
+            if !Self.pushDelegateKey {
+                Self.pushDelegateKey = true
+
+                let original = #selector(UINavigationController.popViewController(animated:))
+                let swizzled = #selector(UINavigationController.swizzled_popViewController(animated:))
+                if let originalMethod = class_getInstanceMethod(UINavigationController.self, original),
+                   let swizzledMethod = class_getInstanceMethod(UINavigationController.self, swizzled)
+                {
+                    method_exchangeImplementations(originalMethod, swizzledMethod)
+                }
+            }
+
+            if let box = objc_getAssociatedObject(self, &Self.pushDelegateKey) as? ObjCWeakBox<NSObject> {
+                box.value = newValue
+            } else {
+                let box = ObjCWeakBox<NSObject>(value: newValue)
+                objc_setAssociatedObject(self, &Self.pushDelegateKey, box, .OBJC_ASSOCIATION_RETAIN)
+            }
+        }
+    }
+
+    @objc
+    func swizzled_popViewController(animated: Bool) -> UIViewController? {
+        let vc = swizzled_popViewController(animated: animated)
+        if let vc {
+            pushDelegate?.navigationController(self, didPop: vc, animated: animated)
+        }
+        return vc
     }
 }
 
