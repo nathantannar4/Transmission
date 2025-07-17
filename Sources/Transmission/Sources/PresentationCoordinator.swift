@@ -30,7 +30,7 @@ public struct PresentationCoordinator {
     ) {
         self.isPresented = isPresented
         self.dismissBlock = { count, transaction in
-            precondition(count == 1, "custom PresentationCoordinator only supports dismissing one view at a time")
+            assert(count == 1, "custom PresentationCoordinator only supports dismissing one view at a time")
             dismiss(transaction)
         }
     }

@@ -144,6 +144,7 @@ private struct DestinationLinkAdapterBody<
                             context.willBegin && (adapter?.transition.options.isInteractive ?? true)
                         }
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] _ in
+                            guard uiView?.window != nil else { return nil }
                             return uiView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {

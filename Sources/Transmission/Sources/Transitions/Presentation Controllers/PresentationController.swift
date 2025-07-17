@@ -40,7 +40,7 @@ open class PresentationController: UIPresentationController {
     }
 
     /// The interactive transition driving the presentation or dismissal animation
-    public var transition: UIPercentDrivenInteractiveTransition?
+    public weak var transition: UIPercentDrivenInteractiveTransition?
 
     open var wantsInteractiveTransition: Bool {
         return false
@@ -209,7 +209,6 @@ open class PresentationController: UIPresentationController {
         super.containerViewDidLayoutSubviews()
         if shouldAutoLayoutPresentedView {
             layoutPresentedView(frame: frameOfPresentedViewInContainerView)
-            layoutBackgroundViews()
         }
     }
 
@@ -240,11 +239,29 @@ open class PresentationController: UIPresentationController {
     }
 
     open func layoutBackgroundViews() {
-        let dimmingViewFrame = presentingViewController.view.convert(presentingViewController.view.bounds, to: containerView)
+        layoutDimmingView()
+        layoutShadowView()
+    }
+
+    open func layoutDimmingView() {
+        let dimmingViewFrame: CGRect = {
+            if let presentationController = presentingViewController._activePresentationController {
+                let frame = presentationController.frameOfPresentedViewInContainerView
+                return presentingViewController.view.convert(
+                    presentingViewController.view.convert(
+                        frame,
+                        from: presentationController.containerView
+                    ),
+                    to: containerView
+                )
+            }
+            return presentingViewController.view.convert(
+                presentingViewController.view.bounds,
+                to: containerView
+            )
+        }()
         dimmingView.frame = dimmingViewFrame
         dimmingView.layer.cornerRadius = presentingViewController.view.layer.cornerRadius
-
-        layoutShadowView()
     }
 
     open func layoutShadowView() {
@@ -320,6 +337,7 @@ open class PresentationController: UIPresentationController {
             if let transition {
                 let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
                 if shouldDismiss {
+                    delegate?.presentationControllerWillDismiss?(self)
                     transition.cancel()
                     self.transition = nil
                 }

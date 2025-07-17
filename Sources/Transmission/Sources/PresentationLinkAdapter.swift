@@ -307,6 +307,7 @@ private struct PresentationLinkAdapterBody<
                     if options.prefersZoomTransition, #available(iOS 18.0, *) {
                         let zoomOptions = UIViewController.Transition.ZoomOptions()
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] context in
+                            guard uiView?.window != nil else { return nil }
                             return uiView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
@@ -323,6 +324,7 @@ private struct PresentationLinkAdapterBody<
                         zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
                         zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] context in
+                            guard uiView?.window != nil else { return nil }
                             return uiView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {

@@ -29,7 +29,7 @@ public struct DestinationCoordinator {
     ) {
         self.isPresented = isPresented
         self.dismissBlock = { count, transaction in
-            precondition(count == 1, "custom DestinationCoordinator only supports dismissing one view at a time")
+            assert(count == 1, "custom DestinationCoordinator only supports dismissing one view at a time")
             dismiss(transaction)
         }
     }

@@ -52,7 +52,7 @@ open class CardPresentationController: InteractivePresentationController {
             let presentedViewAdditionalSafeAreaInsets = presentedViewController.additionalSafeAreaInsets
             if let preferredAspectRatio {
                 let insets = presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets : presentedView.safeAreaInsets
-                let dx = containerView?.safeAreaInsets.bottom == 0 ? 0 : insets.top - min(insets.bottom, (containerView?.safeAreaInsets.bottom ?? 0) - edgeInset)
+                let dx = min(insets.top, max(0, (containerView?.safeAreaInsets.top ?? 0) - edgeInset)) - min(insets.bottom, max(0, (containerView?.safeAreaInsets.bottom ?? 0) - edgeInset))
                 return (preferredAspectRatio * (width - dx)).rounded(scale: containerView?.window?.screen.scale ?? 1)
             }
             let fittingWidth = width - (presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets.left + presentedViewAdditionalSafeAreaInsets.right : 0) - (2 * edgeInset)
