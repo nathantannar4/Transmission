@@ -268,20 +268,20 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 let magnitude = sqrt(pow(velocity.x, 2) + pow(velocity.y, 2))
                 if gestureRecognizer.state == .ended {
                     if edges.contains(.top), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && velocity.y < 0) || (percentage > 0 && velocity.y <= -1000)
+                        shouldFinish = (percentage >= 0.5 && velocity.y < 0) || (percentage > 0 && velocity.y <= -800)
                     }
                     if edges.contains(.bottom), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && velocity.y > 0) || (percentage > 0 && velocity.y >= 1000)
+                        shouldFinish = (percentage >= 0.5 && velocity.y > 0) || (percentage > 0 && velocity.y >= 800)
                     }
                     if edges.contains(.leading), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && velocity.x < 0) || (percentage > 0 && velocity.x <= -1000)
+                        shouldFinish = (percentage >= 0.5 && velocity.x < 0) || (percentage > 0 && velocity.x <= -800)
                     }
                     if edges.contains(.trailing), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && velocity.x > 0) || (percentage > 0 && velocity.x >= 1000)
+                        shouldFinish = (percentage >= 0.5 && velocity.x > 0) || (percentage > 0 && velocity.x >= 800)
                     }
                 }
                 transition.timingCurve = UISpringTimingParameters(
-                    dampingRatio: 0.92,
+                    dampingRatio: 1.0,
                     initialVelocity: CGVector(
                         dx: velocity.y / (percentage * frameOfPresentedView.width),
                         dy: velocity.x / (percentage * frameOfPresentedView.height)
@@ -290,8 +290,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 if shouldFinish {
                     transition.finish()
                 } else {
-                    if magnitude <= 1000, #available(iOS 17, *) {
-                        transition.completionSpeed = percentage >= 0.5 ? 1 - percentage : percentage
+                    if magnitude <= 800 {
+                        transition.completionSpeed = percentage
                     }
                     transition.cancel()
                 }
@@ -427,6 +427,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         keyboardOffset = 0
         dismissalTransitionDidCancel()
         isDismissReady = false
+        feedbackGenerator = nil
     }
 
     private func triggerHapticsIfNeeded(

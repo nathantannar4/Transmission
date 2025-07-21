@@ -32,7 +32,8 @@ extension DestinationLinkTransition {
     public static func push(
         prefersPanGesturePop: Bool = true,
         isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
+        preferredPresentationBackgroundColor: Color? = nil,
+        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
     ) -> DestinationLinkTransition {
         .push(
             .init(
@@ -41,6 +42,7 @@ extension DestinationLinkTransition {
                 isInteractive: isInteractive,
                 prefersPanGesturePop: prefersPanGesturePop,
                 preferredPresentationBackgroundColor: preferredPresentationBackgroundColor,
+                hapticsStyle: hapticsStyle
             )
         )
     }
@@ -94,6 +96,20 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
 @available(iOS 14.0, *)
 open class PushNavigationControllerTransition: ViewControllerTransition {
 
+    weak var dimmingView: DimmingView?
+
+    open override func finish() {
+        super.finish()
+        dimmingView?.shouldBlockTouches = false
+        dimmingView?.isUserInteractionEnabled = false
+    }
+
+    open override func cancel() {
+        super.cancel()
+        dimmingView?.shouldBlockTouches = false
+        dimmingView?.isUserInteractionEnabled = false
+    }
+
     open override func configureTransitionAnimator(
         using transitionContext: any UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
@@ -119,18 +135,22 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
         toVC.view.frame = transitionContext.finalFrame(for: toVC)
         toVC.view.layoutIfNeeded()
 
-        let dimmingView = UIView()
-        dimmingView.backgroundColor = UIColor.black.withAlphaComponent(0.12)
+        let dimmingView = DimmingView()
         dimmingView.alpha = isPresenting ? 0 : 1
-        dimmingView.isUserInteractionEnabled = false
+        dimmingView.shouldBlockTouches = !transitionContext.isInteractive && !isPresenting
+        self.dimmingView = dimmingView
         transitionContext.containerView.insertSubview(
             dimmingView,
             aboveSubview: isPresenting ? fromVC.view : toVC.view
         )
         dimmingView.frame = isPresenting ? fromVC.view.frame : toVC.view.frame
 
+        var multiplier: CGFloat = 1
+        if transitionContext.containerView.effectiveUserInterfaceLayoutDirection == .rightToLeft {
+            multiplier = -1
+        }
         let toVCTransform = CGAffineTransform(
-            translationX: isPresenting ? width : -offset,
+            translationX: (isPresenting ? width : -offset) * multiplier,
             y: 0
         )
         toVC.view.transform = toVCTransform
@@ -138,7 +158,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             dimmingView.transform = toVCTransform
         }
         let fromVCTransform = CGAffineTransform(
-            translationX: isPresenting ? -offset : width,
+            translationX: (isPresenting ? -offset : width) * multiplier,
             y: 0
         )
 

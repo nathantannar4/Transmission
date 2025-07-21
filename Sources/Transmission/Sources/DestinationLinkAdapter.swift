@@ -260,6 +260,13 @@ private struct DestinationLinkAdapterBody<
             }
         }
 
+        func navigationControllerHapticsForInteractivePop(
+            _ navigationController: UINavigationController
+        ) -> Int {
+            guard let hapticsStyle = adapter?.transition.options.hapticsStyle else { return -1 }
+            return hapticsStyle.rawValue
+        }
+
         func navigationController(
             _ navigationController: UINavigationController,
             didPop viewController: UIViewController,
@@ -289,7 +296,7 @@ private struct DestinationLinkAdapterBody<
             didShow viewController: UIViewController,
             animated: Bool
         ) {
-            guard let viewController = adapter?.viewController else { return }
+            guard viewController == adapter?.viewController else { return }
             if navigationController.viewControllers.contains(viewController) {
                 viewController.fixSwiftUIHitTesting()
             } else if !isPushing, isPresented.wrappedValue {
@@ -463,6 +470,10 @@ protocol DestinationLinkDelegate: UINavigationControllerDelegate{
         edge: Bool
     ) -> Bool
 
+    func navigationControllerHapticsForInteractivePop(
+        _ navigationController: UINavigationController
+    ) -> Int
+
     func navigationController(
         _ navigationController: UINavigationController,
         didPop viewController: UIViewController,
@@ -492,6 +503,10 @@ final class DestinationLinkDelegateProxy: NSObject,
     private var queuedTransition: UIPercentDrivenInteractiveTransition?
     private var isInterruptedInteractiveTransition: Bool = false
 
+    private var feedbackGenerator: UIImpactFeedbackGenerator?
+    private var isPopReady = false
+    private let threshold: CGFloat = 0.55
+
     init(for navigationController: UINavigationController) {
         super.init()
         self.delegate = navigationController.delegate
@@ -508,6 +523,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             interactivePopEdgeGestureRecognizer.edges = builtinGesture.edges
             interactivePopEdgeGestureRecognizer.delaysTouchesBegan = builtinGesture.delaysTouchesBegan
             interactivePopEdgeGestureRecognizer.delaysTouchesEnded = builtinGesture.delaysTouchesEnded
+            builtinGesture.addTarget(self, action: #selector(interactivePopGestureDidChange(_:)))
         } else {
             interactivePopEdgeGestureRecognizer.edges = [.left]
             interactivePopEdgeGestureRecognizer.delaysTouchesBegan = true
@@ -532,6 +548,16 @@ final class DestinationLinkDelegateProxy: NSObject,
     }
 
     @objc
+    private func interactivePopGestureDidChange(
+        _ gestureRecognizer: UIScreenEdgePanGestureRecognizer
+    ) {
+        guard let view = gestureRecognizer.view else { return }
+        let translation = gestureRecognizer.translation(in: view)
+        let percentage = min(max(0, translation.x / view.bounds.width), 1)
+        triggerHapticsIfNeeded(panGesture: gestureRecognizer, isActivationThresholdSatisfied: percentage >= threshold)
+    }
+
+    @objc
     private func panGestureDidChange(
         _ gestureRecognizer: UIPanGestureRecognizer
     ) {
@@ -548,7 +574,8 @@ final class DestinationLinkDelegateProxy: NSObject,
         }
 
         let location = gestureRecognizer.location(in: view)
-        let percentage: CGFloat
+        let velocity = gestureRecognizer.velocity(in: view)
+        var percentage: CGFloat
         if isInterruptedInteractiveTransition {
             percentage = 1 - min(max(0, location.x / view.bounds.width), 1)
         } else {
@@ -558,46 +585,66 @@ final class DestinationLinkDelegateProxy: NSObject,
 
         switch gestureRecognizer.state {
         case .began:
-            if isInterruptedInteractiveTransition {
-                transition.pause()
-            } else {
+            if !isInterruptedInteractiveTransition {
                 navigationController.popViewController(animated: true)
             }
 
         case .changed:
-            if let topViewController = navigationController.topViewController,
-               let frame = topViewController.view.layer.presentation()?.frame,
-               !frame.insetBy(dx: -8, dy: -8).contains(location)
-            {
+            if isInterruptedInteractiveTransition, abs(velocity.y) > abs(velocity.x) {
                 return
             }
+            if isInterruptedInteractiveTransition,
+               let topViewController = navigationController.topViewController,
+               let frame = topViewController.view.layer.presentation()?.frame
+            {
+                if !frame.insetBy(dx: -8, dy: -8).contains(location) {
+                    if location.x < frame.minX, velocity.x > 0 {
+                        return
+                    }
+                    if location.x > frame.maxX, velocity.x < 0 {
+                        return
+                    }
+                } else if frame.insetBy(dx: 8, dy: 8).contains(location) {
+                    if topViewController.view.effectiveUserInterfaceLayoutDirection == .leftToRight, velocity.x < 0 {
+                        return
+                    }
+                    if topViewController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft, velocity.x > 0 {
+                        return
+                    }
+                }
+            }
+            transition.pause()
             transition.update(percentage)
+            let isActivationThresholdSatisfied = isInterruptedInteractiveTransition
+                ? percentage <= threshold
+                : percentage >= threshold
+            triggerHapticsIfNeeded(panGesture: gestureRecognizer, isActivationThresholdSatisfied: isActivationThresholdSatisfied)
 
         case .cancelled, .ended, .failed:
             // Dismiss if:
             // - Drag over 50% and not moving up
             // - Large enough down vector
-            var velocity = gestureRecognizer.velocity(in: view).x
+            var delta = velocity.x
             if isInterruptedInteractiveTransition {
-                velocity = -velocity
+                delta = -delta
+            }
+            if navigationController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft {
+                delta = -delta
             }
             var shouldFinish = false
             if gestureRecognizer.state == .ended {
                 if interactivePopEdgeGestureRecognizer.edges.contains(.left), !shouldFinish {
-                    shouldFinish = (percentage >= 0.5 && velocity >= 0) || (percentage > 0 && velocity >= 1000)
+                    shouldFinish = (percentage >= threshold && delta >= 0) || (percentage > 0 && delta >= 800)
                 }
                 if interactivePopEdgeGestureRecognizer.edges.contains(.right), !shouldFinish {
-                    shouldFinish = (percentage >= 0.5 && velocity <= 0) || (percentage > 0 && velocity <= -1000)
+                    shouldFinish = (percentage >= threshold && delta <= 0) || (percentage > 0 && delta <= -800)
                 }
-            }
-            if isInterruptedInteractiveTransition, !shouldFinish {
-                velocity = -velocity
             }
             let dx = percentage * view.bounds.width
             transition.timingCurve = UISpringTimingParameters(
-                dampingRatio: 0.92,
+                dampingRatio: 1.0,
                 initialVelocity: CGVector(
-                    dx: velocity / dx,
+                    dx: velocity.x / dx,
                     dy: 0
                 )
             )
@@ -607,11 +654,8 @@ final class DestinationLinkDelegateProxy: NSObject,
                 }
                 transition.finish()
             } else {
-                if !isInterruptedInteractiveTransition,
-                    abs(velocity) <= 1000,
-                    #available(iOS 17, *)
-                {
-                    transition.completionSpeed = percentage >= 0.5 ? 1 - percentage : percentage
+                if !isInterruptedInteractiveTransition, abs(delta) <= 800 {
+                    transition.completionSpeed = percentage
                 }
                 transition.cancel()
                 if isInterruptedInteractiveTransition,
@@ -626,11 +670,67 @@ final class DestinationLinkDelegateProxy: NSObject,
                 }
             }
             self.transition = nil
-            self.queuedTransition = nil
-            self.isInterruptedInteractiveTransition = false
+            queuedTransition = nil
+            isInterruptedInteractiveTransition = false
+            isPopReady = true
+            feedbackGenerator = nil
 
         default:
             break
+        }
+    }
+
+    private func triggerHapticsIfNeeded(
+        panGesture: UIPanGestureRecognizer,
+        isActivationThresholdSatisfied: Bool
+    ) {
+        switch panGesture.state {
+        case .ended, .cancelled:
+            isPopReady = false
+            feedbackGenerator = nil
+        default:
+            guard
+                let navigationController,
+                let fromVC = navigationController.transitionCoordinator?.viewController(forKey: .from),
+                let delegate = delegates[ObjectIdentifier(fromVC)]?.value,
+                let view = panGesture.view
+            else {
+                return
+            }
+            let hapticsStyleValue = delegate.navigationControllerHapticsForInteractivePop(navigationController)
+            guard
+                let hapticsStyle = UIImpactFeedbackGenerator.FeedbackStyle(rawValue: hapticsStyleValue)
+            else {
+                return
+            }
+            func impactOccurred(
+                intensity: CGFloat,
+                location: @autoclosure () -> CGPoint
+            ) {
+                if #available(iOS 17.5, *) {
+                    feedbackGenerator?.impactOccurred(intensity: intensity, at: location())
+                } else {
+                    feedbackGenerator?.impactOccurred(intensity: intensity)
+                }
+            }
+
+            if feedbackGenerator == nil {
+                let feedbackGenerator: UIImpactFeedbackGenerator
+                if #available(iOS 17.5, *) {
+                    feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle, view: view)
+                } else {
+                    feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle)
+                }
+                feedbackGenerator.prepare()
+                self.feedbackGenerator = feedbackGenerator
+            } else if !isPopReady, isActivationThresholdSatisfied {
+                isPopReady = true
+                impactOccurred(intensity: 1, location: panGesture.location(in: view))
+            } else if isPopReady, !isActivationThresholdSatisfied
+            {
+                impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
+                isPopReady = false
+            }
         }
     }
 
@@ -676,9 +776,9 @@ final class DestinationLinkDelegateProxy: NSObject,
             if let transition, transition != queuedTransition {
                 guard gestureRecognizer == interactivePopPanGestureRecognizer else { return false }
                 isInterruptedInteractiveTransition = true
-                panGestureDidChange(interactivePopPanGestureRecognizer)
                 return true
             }
+            isInterruptedInteractiveTransition = false
             guard navigationController.transitionCoordinator == nil else { return false }
             wantsInteractiveTransition = true; defer { wantsInteractiveTransition = false }
             let animationController = self.navigationController(

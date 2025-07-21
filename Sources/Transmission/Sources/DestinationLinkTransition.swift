@@ -62,19 +62,22 @@ extension DestinationLinkTransition {
         public var shouldAutomaticallyDismissDestination: Bool
         public var preferredPresentationBackgroundColor: Color?
         public var hidesBottomBarWhenPushed: Bool
+        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
             isInteractive: Bool = true,
             prefersPanGesturePop: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
             preferredPresentationBackgroundColor: Color? = nil,
-            hidesBottomBarWhenPushed: Bool = false
+            hidesBottomBarWhenPushed: Bool = false,
+            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.isInteractive = isInteractive
             self.prefersPanGesturePop = prefersPanGesturePop
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
             self.hidesBottomBarWhenPushed = hidesBottomBarWhenPushed
+            self.hapticsStyle = hapticsStyle
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {

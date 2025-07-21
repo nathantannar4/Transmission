@@ -19,9 +19,8 @@ open class PresentationController: UIPresentationController {
         }
     }
 
-    public let dimmingView: UIView = {
-        let view = UIView()
-        view.backgroundColor = UIColor.black.withAlphaComponent(0.12)
+    public let dimmingView: DimmingView = {
+        let view = DimmingView()
         view.alpha = 0
         view.isHidden = true
         return view
