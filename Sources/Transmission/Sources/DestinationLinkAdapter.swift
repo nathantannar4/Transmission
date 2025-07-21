@@ -699,6 +699,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             }
             let hapticsStyleValue = delegate.navigationControllerHapticsForInteractivePop(navigationController)
             guard
+                hapticsStyleValue >= 0,
                 let hapticsStyle = UIImpactFeedbackGenerator.FeedbackStyle(rawValue: hapticsStyleValue)
             else {
                 return

@@ -30,6 +30,7 @@ extension DestinationLinkTransition {
 
     /// The push transition style.
     public static func push(
+        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         prefersPanGesturePop: Bool = true,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil,
@@ -37,6 +38,7 @@ extension DestinationLinkTransition {
     ) -> DestinationLinkTransition {
         .push(
             .init(
+                preferredCornerRadius: preferredCornerRadius
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -55,7 +57,12 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
     @frozen
     public struct Options {
 
-        public init() {
+        public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
+
+        public init(
+            preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil
+        ) {
+            self.preferredCornerRadius = preferredCornerRadius
         }
     }
     public var options: Options
@@ -71,6 +78,7 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
         context: Context
     ) -> PushNavigationControllerTransition? {
         let transition = PushNavigationControllerTransition(
+            preferredCornerRadius: options.preferredCornerRadius,
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -85,6 +93,7 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
         context: Context
     ) -> PushNavigationControllerTransition? {
         let transition = PushNavigationControllerTransition(
+            preferredCornerRadius: options.preferredCornerRadius,
             isPresenting: false,
             animation: context.transaction.animation
         )
@@ -96,7 +105,18 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
 @available(iOS 14.0, *)
 open class PushNavigationControllerTransition: ViewControllerTransition {
 
+    public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
+
     weak var dimmingView: DimmingView?
+
+    public init(
+        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        isPresenting: Bool,
+        animation: Animation?
+    ) {
+        self.preferredCornerRadius = preferredCornerRadius
+        super.init(isPresenting: isPresenting, animation: animation)
+    }
 
     open override func finish() {
         super.finish()
@@ -161,7 +181,16 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             translationX: (isPresenting ? -offset : width) * multiplier,
             y: 0
         )
-
+        let presentedVC = isPresenting ? toVC : fromVC
+        let cornerRadius = preferredCornerRadius ?? {
+            if #available(iOS 26.0, *) {
+                return .screen()
+            }
+            return nil
+        }()
+        if let cornerRadius {
+            cornerRadius.apply(to: presentedVC.view.layer)
+        }
         animator.addAnimations {
             toVC.view.transform = .identity
             fromVC.view.transform = fromVCTransform
@@ -172,6 +201,9 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             toVC.view.transform = .identity
             fromVC.view.transform = .identity
             dimmingView.removeFromSuperview()
+            if cornerRadius != nil {
+                presentedVC.view.layer.cornerRadius = 0
+            }
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)
