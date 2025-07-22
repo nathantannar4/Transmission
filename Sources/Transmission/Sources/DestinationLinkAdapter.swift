@@ -839,6 +839,9 @@ final class DestinationLinkDelegateProxy: NSObject,
             if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer {
                 return true
             }
+            if otherGestureRecognizer is UIPanGestureRecognizer {
+                return !otherGestureRecognizer.isSimultaneousWithTransition
+            }
             return false
         } else {
             let shouldRequireFailureOf = popGestureDelegate?.gestureRecognizer?(
