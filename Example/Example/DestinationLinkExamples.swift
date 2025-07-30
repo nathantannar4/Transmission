@@ -286,6 +286,16 @@ struct DestinationLinkExamples: View {
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             }
 
+            DestinationLink(transition: .push) {
+                ContentView()
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("Push Destination")
+                    Text("w/ `.push` Transition")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
         }
     }
 }

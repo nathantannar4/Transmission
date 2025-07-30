@@ -168,7 +168,7 @@ private struct DestinationLinkAdapterBody<
                     context.coordinator.isPushing = false
                 }
             }
-        } else if let adapter = context.coordinator.adapter, !isPresented.wrappedValue {
+        } else if !isPresented.wrappedValue {
             context.coordinator.onPop(1, transaction: context.transaction)
         }
     }
@@ -454,7 +454,9 @@ private struct DestinationLinkAdapterBody<
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
                 var transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
                 transaction.disablesAnimations = true
-                coordinator.onPop(1, transaction: transaction)
+                withCATransaction {
+                    coordinator.onPop(1, transaction: transaction)
+                }
             } else {
                 adapter.coordinator = coordinator
             }

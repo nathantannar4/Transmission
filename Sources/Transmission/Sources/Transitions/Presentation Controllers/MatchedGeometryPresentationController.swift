@@ -95,6 +95,10 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 @available(iOS 14.0, *)
 open class MatchedGeometryPresentationControllerTransition: MatchedGeometryViewControllerTransition {
 
+    open override var isInterruptible: Bool {
+        return false
+    }
+
     public override init(
         sourceView: UIView?,
         prefersScaleEffect: Bool,

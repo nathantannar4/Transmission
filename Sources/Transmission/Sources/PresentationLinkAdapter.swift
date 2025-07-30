@@ -542,8 +542,10 @@ private struct PresentationLinkAdapterBody<
             if isPresented.wrappedValue {
                 var transaction = Transaction(animation: nil)
                 transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    self.isPresented.wrappedValue = false
+                withCATransaction {
+                    withTransaction(transaction) {
+                        self.isPresented.wrappedValue = false
+                    }
                 }
                 didDismiss()
             }

@@ -265,7 +265,8 @@ struct PresentationLinkExamples: View {
             PresentationLink(
                 transition: .toast(
                     edge: .top,
-                    isInteractive: isInteractive
+                    isInteractive: isInteractive,
+                    preferredPresentationBackgroundColor: .clear
                 ),
                 animation: .spring(duration: 0.5, bounce: 0.35)
             ) {

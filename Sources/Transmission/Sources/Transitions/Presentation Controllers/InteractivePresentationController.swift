@@ -61,6 +61,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         return Animation.interpolatingSpring(duration: 0.35, bounce: 0, initialVelocity: initialVelocity)
     }
 
+    open override func attach(to transition: ViewControllerTransition) {
+        super.attach(to: transition)
+        panGesture.isEnabled = transition.isInterruptible
+    }
+
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
 
@@ -68,6 +73,13 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
             presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
         }
+
+        if transition == nil {
+            panGesture.isEnabled = false
+        }
+        panGesture.delegate = self
+        panGesture.allowedScrollTypesMask = .all
+        presentedView?.addGestureRecognizer(panGesture)
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -75,12 +87,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
         if #available(iOS 18.0, *), presentedViewController.preferredTransition != nil {
             panGesture.isEnabled = false
-        }
-
-        if completed {
-            panGesture.delegate = self
-            panGesture.allowedScrollTypesMask = .all
-            presentedView?.addGestureRecognizer(panGesture)
+        } else {
+            panGesture.isEnabled = completed
         }
     }
 
@@ -232,9 +240,23 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             if edges.contains(.trailing) {
                 percentage = max(percentage, translation.x / frameOfPresentedView.width)
             }
+            if presentedViewController.isBeingPresented {
+                percentage = 1 - percentage
+            }
+
+            let velocity = gestureRecognizer.velocity(in: presentedView)
 
             switch gestureRecognizer.state {
             case .began, .changed:
+                if presentedViewController.isBeingPresented,
+                    let frame = presentedViewController.view.layer.presentation()?.frame
+                {
+                    let location = gestureRecognizer.location(in: presentedView)
+                    if !frame.insetBy(dx: -8, dy: -8).contains(location) {
+                        return
+                    }
+                }
+
                 if let scrollView {
                     if edges.contains(.top), translation.y < 0 {
                         scrollView.contentOffset.y = max(-scrollView.adjustedContentInset.top, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.frame.height)
@@ -256,6 +278,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
                 }
+                transition.pause()
                 transition.update(percentage)
                 triggerHapticsIfNeeded(panGesture: gestureRecognizer, isActivationThresholdSatisfied: percentage >= 0.5)
 
@@ -264,33 +287,39 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 // - Drag over 50% and not moving up
                 // - Large enough down vector
                 var shouldFinish = false
-                let velocity = gestureRecognizer.velocity(in: presentedView)
+                var delta = velocity
+                if presentedViewController.isBeingPresented {
+                    delta = CGPoint(x: -delta.x, y: -delta.y)
+                }
                 let magnitude = sqrt(pow(velocity.x, 2) + pow(velocity.y, 2))
                 if gestureRecognizer.state == .ended {
                     if edges.contains(.top), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && velocity.y < 0) || (percentage > 0 && velocity.y <= -800)
+                        shouldFinish = (percentage >= 0.5 && delta.y < 0) || (percentage > 0 && delta.y <= -800)
                     }
                     if edges.contains(.bottom), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && velocity.y > 0) || (percentage > 0 && velocity.y >= 800)
+                        shouldFinish = (percentage >= 0.5 && delta.y > 0) || (percentage > 0 && delta.y >= 800)
                     }
                     if edges.contains(.leading), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && velocity.x < 0) || (percentage > 0 && velocity.x <= -800)
+                        shouldFinish = (percentage >= 0.5 && delta.x < 0) || (percentage > 0 && delta.x <= -800)
                     }
                     if edges.contains(.trailing), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && velocity.x > 0) || (percentage > 0 && velocity.x >= 800)
+                        shouldFinish = (percentage >= 0.5 && delta.x > 0) || (percentage > 0 && delta.x >= 800)
                     }
                 }
                 transition.timingCurve = UISpringTimingParameters(
                     dampingRatio: 1.0,
                     initialVelocity: CGVector(
-                        dx: velocity.y / (percentage * frameOfPresentedView.width),
-                        dy: velocity.x / (percentage * frameOfPresentedView.height)
+                        dx: velocity.x / (percentage * frameOfPresentedView.width),
+                        dy: velocity.y / (percentage * frameOfPresentedView.height)
                     )
                 )
                 if shouldFinish {
+                    if presentedViewController.isBeingPresented {
+                        transition.completionSpeed = 1 - percentage
+                    }
                     transition.finish()
                 } else {
-                    if magnitude <= 800 {
+                    if !presentedViewController.isBeingPresented, magnitude <= 800 {
                         transition.completionSpeed = percentage
                     }
                     transition.cancel()

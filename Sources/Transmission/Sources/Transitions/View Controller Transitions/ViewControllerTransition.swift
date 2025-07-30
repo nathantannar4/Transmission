@@ -18,8 +18,8 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     open override var duration: CGFloat {
         transitionDuration
     }
-
-    var isInterruptible: Bool {
+    
+    open var isInterruptible: Bool {
         (animation?.delay ?? 0) == 0
     }
 
@@ -43,6 +43,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             presenting.transitionReaderAnimation = animation
         }
         transitionDuration = transitionDuration(using: transitionContext)
+        animatedStarted(transitionContext: transitionContext)
     }
 
     open func transitionDuration(
@@ -58,8 +59,8 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         transitionDuration = transitionDuration(using: transitionContext)
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
         let delay = animation?.delay ?? 0
-        animatedStarted(transitionContext: transitionContext)
         animator.startAnimation(afterDelay: delay)
+        animatedStarted(transitionContext: transitionContext)
 
         if !transitionContext.isAnimated {
             animator.stopAnimation(false)
@@ -82,7 +83,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         using transitionContext: UIViewControllerContextTransitioning
     ) -> UIViewImplicitlyAnimating {
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
-        animatedStarted(transitionContext: transitionContext)
         return animator
     }
 

@@ -45,10 +45,16 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
         presentationController: UIPresentationController,
         context: Context
     ) -> DynamicIslandPresentationControllerTransition? {
-        DynamicIslandPresentationControllerTransition(
+        let transition = DynamicIslandPresentationControllerTransition(
             isPresenting: true,
             animation: context.transaction.animation
         )
+        if let presentationController = presentationController as? PresentationController {
+            presentationController.attach(to: transition)
+        } else {
+            transition.wantsInteractiveStart = false
+        }
+        return transition
     }
 
     func animationController(
@@ -60,7 +66,11 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
             isPresenting: false,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = false
+        if let presentationController = presentationController as? PresentationController {
+            presentationController.attach(to: transition)
+        } else {
+            transition.wantsInteractiveStart = false
+        }
         return transition
     }
 }
