@@ -208,7 +208,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             y: gestureTranslation.y - translationOffset.y
         )
 
-        if transition != nil {
+        if transition != nil, !presentedViewController.isBeingPresented {
             let shouldCancel = dismissalTransitionShouldCancel(
                 translation: gestureTranslation,
                 delta: delta
@@ -281,6 +281,12 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 transition.pause()
                 transition.update(percentage)
                 triggerHapticsIfNeeded(panGesture: gestureRecognizer, isActivationThresholdSatisfied: percentage >= 0.5)
+                if presentedViewController.isBeingPresented {
+                    transitionAlongsidePresentation(progress: percentage)
+                } else {
+                    transitionAlongsidePresentation(progress: 1 - percentage)
+                }
+
 
             case .ended, .cancelled, .failed:
                 // Dismiss if:
@@ -326,6 +332,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 }
                 self.transition = nil
                 panGestureDidEnd()
+                transitionAlongsidePresentation(progress: presentedViewController.isBeingPresented ? (shouldFinish ? 1 : 0) : (shouldFinish ? 0 : 1))
 
             default:
                 break

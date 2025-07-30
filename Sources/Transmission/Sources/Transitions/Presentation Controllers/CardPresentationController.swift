@@ -207,10 +207,10 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
-    open override func transitionAlongsidePresentation(isPresented: Bool) {
-        super.transitionAlongsidePresentation(isPresented: isPresented)
+    open override func transitionAlongsidePresentation(progress: CGFloat) {
+        super.transitionAlongsidePresentation(progress: progress)
 
-        if isPresented, needsCustomCornerRadiusPath {
+        if progress == 1, needsCustomCornerRadiusPath {
             setCornerRadius(force: true)
         }
     }

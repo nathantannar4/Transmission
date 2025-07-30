@@ -116,7 +116,7 @@ open class PresentationController: UIPresentationController {
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
-                self.transitionAlongsidePresentation(isPresented: true)
+                self.transitionAlongsidePresentation(progress: 1)
             }
         }
     }
@@ -125,7 +125,7 @@ open class PresentationController: UIPresentationController {
         super.presentationTransitionDidEnd(completed)
 
         if completed {
-            transitionAlongsidePresentation(isPresented: true)
+            transitionAlongsidePresentation(progress: 1)
 
             NotificationCenter.default
                 .addObserver(
@@ -145,7 +145,7 @@ open class PresentationController: UIPresentationController {
 
             presentedViewController.fixSwiftUIHitTesting()
         } else {
-            transitionAlongsidePresentation(isPresented: false)
+            transitionAlongsidePresentation(progress: 0)
             delegate?.presentationControllerDidDismiss?(self)
         }
     }
@@ -158,7 +158,7 @@ open class PresentationController: UIPresentationController {
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
-                self.transitionAlongsidePresentation(isPresented: false)
+                self.transitionAlongsidePresentation(progress: 0)
             }
         }
     }
@@ -167,7 +167,7 @@ open class PresentationController: UIPresentationController {
         super.dismissalTransitionDidEnd(completed)
 
         if completed {
-            transitionAlongsidePresentation(isPresented: false)
+            transitionAlongsidePresentation(progress: 0)
             delegate?.presentationControllerDidDismiss?(self)
 
             NotificationCenter.default
@@ -184,15 +184,15 @@ open class PresentationController: UIPresentationController {
                     object: nil
                 )
         } else {
-            transitionAlongsidePresentation(isPresented: true)
+            transitionAlongsidePresentation(progress: 1)
             delegate?.presentationControllerDidAttemptToDismiss?(self)
         }
     }
 
-    open func transitionAlongsidePresentation(isPresented: Bool) {
-        dimmingView.alpha = isPresented ? 1 : 0
+    open func transitionAlongsidePresentation(progress: CGFloat) {
+        dimmingView.alpha = progress
         layoutBackgroundViews()
-        updateShadow(progress: isPresented ? 1 : 0)
+        updateShadow(progress: progress)
     }
 
     open func updateShadow(progress: Double) {
