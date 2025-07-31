@@ -312,21 +312,33 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         shouldFinish = (percentage >= 0.5 && delta.x > 0) || (percentage > 0 && delta.x >= 800)
                     }
                 }
-                transition.timingCurve = UISpringTimingParameters(
-                    dampingRatio: 1.0,
-                    initialVelocity: CGVector(
-                        dx: velocity.x / (percentage * frameOfPresentedView.width),
-                        dy: velocity.y / (percentage * frameOfPresentedView.height)
+                if !presentedViewController.isBeingPresented {
+                    transition.timingCurve = UISpringTimingParameters(
+                        dampingRatio: 1.0,
+                        initialVelocity: CGVector(
+                            dx: velocity.x / (percentage * frameOfPresentedView.width),
+                            dy: velocity.y / (percentage * frameOfPresentedView.height)
+                        )
                     )
-                )
+                }
                 if shouldFinish {
                     if presentedViewController.isBeingPresented {
+                        transition.completionSpeed = percentage
+                    } else {
                         transition.completionSpeed = 1 - percentage
                     }
                     transition.finish()
                 } else {
-                    if !presentedViewController.isBeingPresented, magnitude <= 800 {
-                        transition.completionSpeed = percentage
+                    if magnitude <= 800 {
+                        if presentedViewController.isBeingPresented {
+                            transition.completionSpeed = percentage
+                        } else {
+                            if #available(iOS 17.0, *) {
+                                transition.completionSpeed = percentage
+                            } else {
+                                transition.completionSpeed = 1 - percentage
+                            }
+                        }
                     }
                     transition.cancel()
                 }

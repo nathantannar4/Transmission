@@ -242,9 +242,21 @@ open class SheetPresentationController: UISheetPresentationController {
         updateBackgroundColor()
     }
 
+    open override func presentationTransitionDidEnd(_ completed: Bool) {
+        super.presentationTransitionDidEnd(completed)
+        presentedViewController.fixSwiftUIHitTesting()
+    }
+
     open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
         updateBackgroundColor()
+    }
+
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+        if !completed {
+            presentedViewController.fixSwiftUIHitTesting()
+        }
     }
 
     private func updateBackgroundColor() {

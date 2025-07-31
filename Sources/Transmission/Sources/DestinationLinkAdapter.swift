@@ -168,7 +168,7 @@ private struct DestinationLinkAdapterBody<
                     context.coordinator.isPushing = false
                 }
             }
-        } else if !isPresented.wrappedValue {
+        } else if context.coordinator.adapter != nil, !isPresented.wrappedValue {
             context.coordinator.onPop(1, transaction: context.transaction)
         }
     }
@@ -570,8 +570,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         else {
             gestureRecognizer.isEnabled = false
             gestureRecognizer.isEnabled = true
-            queuedTransition = nil
-            isInterruptedInteractiveTransition = false
+            panGestureDidEnd()
             return
         }
 
@@ -642,22 +641,33 @@ final class DestinationLinkDelegateProxy: NSObject,
                     shouldFinish = (percentage >= threshold && delta <= 0) || (percentage > 0 && delta <= -800)
                 }
             }
-            let dx = percentage * view.bounds.width
-            transition.timingCurve = UISpringTimingParameters(
-                dampingRatio: 1.0,
-                initialVelocity: CGVector(
-                    dx: velocity.x / dx,
-                    dy: 0
+            if !isInterruptedInteractiveTransition {
+                transition.timingCurve = UISpringTimingParameters(
+                    dampingRatio: 1.0,
+                    initialVelocity: CGVector(
+                        dx: velocity.x / (percentage * view.bounds.width),
+                        dy: 0
+                    )
                 )
-            )
+            }
             if shouldFinish {
                 if isInterruptedInteractiveTransition {
+                    transition.completionSpeed = percentage
+                } else {
                     transition.completionSpeed = 1 - percentage
                 }
                 transition.finish()
             } else {
-                if !isInterruptedInteractiveTransition, abs(delta) <= 800 {
-                    transition.completionSpeed = percentage
+                if abs(delta) <= 800 {
+                    if isInterruptedInteractiveTransition {
+                        transition.completionSpeed = percentage
+                    } else {
+                        if #available(iOS 17.0, *) {
+                            transition.completionSpeed = percentage
+                        } else {
+                            transition.completionSpeed = 1 - percentage
+                        }
+                    }
                 }
                 transition.cancel()
                 if isInterruptedInteractiveTransition,
@@ -671,15 +681,20 @@ final class DestinationLinkDelegateProxy: NSObject,
                     )
                 }
             }
-            self.transition = nil
-            queuedTransition = nil
-            isInterruptedInteractiveTransition = false
-            isPopReady = true
-            feedbackGenerator = nil
+            panGestureDidEnd()
 
         default:
             break
         }
+    }
+
+    private func panGestureDidEnd() {
+        transition = nil
+        transitioningId = nil
+        queuedTransition = nil
+        isInterruptedInteractiveTransition = false
+        isPopReady = true
+        feedbackGenerator = nil
     }
 
     private func triggerHapticsIfNeeded(
@@ -693,7 +708,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         default:
             guard
                 let navigationController,
-                let fromVC = navigationController.transitionCoordinator?.viewController(forKey: .from),
+                let fromVC = navigationController.transitionCoordinator?.viewController(forKey: isInterruptedInteractiveTransition ? .to : .from),
                 let delegate = delegates[ObjectIdentifier(fromVC)]?.value,
                 let view = panGesture.view
             else {
@@ -838,7 +853,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer {
             return false
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
-            if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer {
+            if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer || otherGestureRecognizer is UILongPressGestureRecognizer {
                 return true
             }
             if otherGestureRecognizer is UIPanGestureRecognizer {
@@ -982,6 +997,9 @@ final class DestinationLinkDelegateProxy: NSObject,
         to toVC: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
 
+        if queuedTransition != nil, !interactivePopEdgeGestureRecognizer.isInteracting && !interactivePopPanGestureRecognizer.isInteracting {
+            queuedTransition = nil
+        }
         let id = ObjectIdentifier(operation == .push ? toVC : fromVC)
         if let transition, transitioningId == id {
             return transition as? UIViewControllerAnimatedTransitioning
