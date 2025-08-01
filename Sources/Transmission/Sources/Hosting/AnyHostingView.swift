@@ -19,7 +19,7 @@ extension _UIHostingView: AnyHostingView {
 
     public func renderAsync() {
         if #available(iOS 15.0, *) {
-            _renderAsyncForTest(interval: 1 / 60)
+            _ = _renderAsyncForTest(interval: 1 / 60)
         } else {
             _renderForTest(interval: 1 / 60)
         }

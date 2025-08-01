@@ -165,7 +165,6 @@ private struct DestinationLinkAdapterBody<
                 navigationController.pushViewController(adapter.viewController, animated: isAnimated) {
                     context.coordinator.animation = nil
                     context.coordinator.didPresentAnimated = isAnimated
-                    context.coordinator.isPushing = false
                 }
             }
         } else if context.coordinator.adapter != nil, !isPresented.wrappedValue {
@@ -296,9 +295,10 @@ private struct DestinationLinkAdapterBody<
             didShow viewController: UIViewController,
             animated: Bool
         ) {
-            guard viewController == adapter?.viewController else { return }
+            guard let viewController = adapter?.viewController else { return }
             if navigationController.viewControllers.contains(viewController) {
                 viewController.fixSwiftUIHitTesting()
+                isPushing = false
             } else if !isPushing, isPresented.wrappedValue {
                 // Break the retain cycle
                 adapter?.coordinator = nil
@@ -316,8 +316,9 @@ private struct DestinationLinkAdapterBody<
             willShow viewController: UIViewController,
             animated: Bool
         ) {
-            guard !isPushing, navigationController.interactivePopGestureRecognizer?.isInteracting == true else { return }
-            sourceView?.alpha = 1
+            if !isPushing, navigationController.interactivePopGestureRecognizer?.isInteracting == true {
+                sourceView?.alpha = 1
+            }
         }
 
         func navigationController(
@@ -693,7 +694,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         transitioningId = nil
         queuedTransition = nil
         isInterruptedInteractiveTransition = false
-        isPopReady = true
+        isPopReady = false
         feedbackGenerator = nil
     }
 
@@ -1258,6 +1259,10 @@ private class DestinationLinkDestinationViewControllerAdapter<
                 adapter.viewController = destination.makeUIViewController(context: ctx)
             }
             let viewController = adapter.viewController as! Content.UIViewControllerType
+            viewController.hidesBottomBarWhenPushed = adapter.transition.options.hidesBottomBarWhenPushed
+            if let preferredPresentationBackgroundUIColor = adapter.transition.options.preferredPresentationBackgroundUIColor {
+                viewController.view.backgroundColor = preferredPresentationBackgroundUIColor
+            }
             destination.updateUIViewController(viewController, context: ctx)
         }
     }
