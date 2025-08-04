@@ -282,9 +282,7 @@ private struct DestinationLinkAdapterBody<
                     }
                 }
             } else {
-                withCATransaction {
-                    self.onPop(transaction)
-                }
+                onPop(transaction)
             }
         }
 
