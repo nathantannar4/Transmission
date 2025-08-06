@@ -373,8 +373,14 @@ private struct PresentationLinkAdapterBody<
                     ) {
                         context.coordinator.animation = nil
                         context.coordinator.didPresentAnimated = isAnimated
-                        if context.coordinator.adapter !== adapter || !isPresented.wrappedValue {
+                        if context.coordinator.adapter !== adapter {
                             viewController.dismiss(animated: isAnimated)
+                        } else if !isPresented.wrappedValue {
+                            var transaction = Transaction(animation: nil)
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                isPresented.wrappedValue = false
+                            }
                         } else {
                             viewController
                                 .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
@@ -467,15 +473,11 @@ private struct PresentationLinkAdapterBody<
         }
 
         func onDismiss(_ count: Int, transaction: Transaction) {
-            guard let viewController = adapter?.viewController, count > 0 else { return }
-            if presentationController == nil {
-                isBeingReused = true
-            } else {
-                animation = transaction.animation
-                didPresentAnimated = false
-                viewController._dismiss(count: count, animated: transaction.isAnimated) {
-                    self.onDismiss(transaction)
-                }
+            guard let viewController = adapter?.viewController, count > 0, presentationController != nil else { return }
+            animation = transaction.animation
+            didPresentAnimated = false
+            viewController._dismiss(count: count, animated: transaction.isAnimated) {
+                self.onDismiss(transaction)
             }
         }
 

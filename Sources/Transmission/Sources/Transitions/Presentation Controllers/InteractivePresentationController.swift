@@ -312,7 +312,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         shouldFinish = (percentage >= 0.5 && delta.x > 0) || (percentage > 0 && delta.x >= 800)
                     }
                 }
-                if !presentedViewController.isBeingPresented {
+                if !presentedViewController.isBeingPresented, percentage > 0 {
                     transition.timingCurve = UISpringTimingParameters(
                         dampingRatio: 1.0,
                         initialVelocity: CGVector(

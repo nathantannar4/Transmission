@@ -640,7 +640,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                     shouldFinish = (percentage >= threshold && delta <= 0) || (percentage > 0 && delta <= -800)
                 }
             }
-            if !isInterruptedInteractiveTransition {
+            if !isInterruptedInteractiveTransition, percentage > 0 {
                 transition.timingCurve = UISpringTimingParameters(
                     dampingRatio: 1.0,
                     initialVelocity: CGVector(
