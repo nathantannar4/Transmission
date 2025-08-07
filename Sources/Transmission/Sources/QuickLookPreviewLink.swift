@@ -206,7 +206,7 @@ public struct QuickLookPreviewView: UIViewControllerRepresentable {
         uiViewController.items = items
     }
 
-    class PreviewController: QLPreviewController, QLPreviewControllerDataSource, QLPreviewControllerDelegate {
+    class PreviewController: QLPreviewController, QLPreviewControllerDataSource, @preconcurrency QLPreviewControllerDelegate {
         var openURL: OpenURLAction?
         weak var sourceView: UIView?
         var items: [QuickLookPreviewItem.Resolved] = [] {

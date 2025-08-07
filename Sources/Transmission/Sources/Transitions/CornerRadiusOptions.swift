@@ -7,9 +7,11 @@
 import UIKit
 
 @frozen
+@MainActor @preconcurrency
 public enum CornerRadiusOptions: Equatable, Sendable {
 
     @frozen
+    @MainActor @preconcurrency
     public struct RoundedRectangle: Equatable, Sendable {
         public var cornerRadius: CGFloat
         public var mask: CACornerMask

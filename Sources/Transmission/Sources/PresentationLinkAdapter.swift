@@ -370,7 +370,7 @@ private struct PresentationLinkAdapterBody<
                     presentingViewController.present(
                         viewController,
                         animated: isAnimated
-                    ) {
+                    ) { [isAnimated, isTransitioningPresentationController] in
                         context.coordinator.animation = nil
                         context.coordinator.didPresentAnimated = isAnimated
                         if context.coordinator.adapter !== adapter {
@@ -1039,6 +1039,7 @@ private struct PresentationLinkAdapterBody<
 }
 
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 private class PresentationLinkDestinationViewControllerAdapter<
     Destination: View,
     SourceView: View
@@ -1215,12 +1216,13 @@ private class PresentationLinkDestinationViewControllerAdapter<
         }
     }
 
-    private struct Visitor: ViewVisitor {
-        var destination: Destination?
-        var isPresented: Binding<Bool>
-        var sourceView: UIView?
-        var context: PresentationLinkAdapterBody<Destination, SourceView>.Context?
-        var adapter: PresentationLinkDestinationViewControllerAdapter<Destination, SourceView>
+    @MainActor
+    private struct Visitor: @preconcurrency ViewVisitor {
+        nonisolated(unsafe) var destination: Destination?
+        nonisolated(unsafe) var isPresented: Binding<Bool>
+        nonisolated(unsafe) var sourceView: UIView?
+        nonisolated(unsafe) var context: PresentationLinkAdapterBody<Destination, SourceView>.Context?
+        nonisolated(unsafe) var adapter: PresentationLinkDestinationViewControllerAdapter<Destination, SourceView>
 
         mutating func visit<Content>(type: Content.Type) where Content: UIViewControllerRepresentable {
             guard

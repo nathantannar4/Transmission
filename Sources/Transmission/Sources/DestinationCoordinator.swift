@@ -14,18 +14,18 @@ import Engine
 ///
 @available(iOS 14.0, *)
 @frozen
-public struct DestinationCoordinator {
+public struct DestinationCoordinator: @unchecked Sendable {
     public var isPresented: Bool
 
     public weak var sourceView: UIView?
 
     @usableFromInline
-    var dismissBlock: (Int, Transaction) -> Void
+    var dismissBlock: @MainActor (Int, Transaction) -> Void
 
     @inlinable
     public init(
         isPresented: Bool,
-        dismiss: @escaping (Transaction) -> Void
+        dismiss: @MainActor @escaping (Transaction) -> Void
     ) {
         self.isPresented = isPresented
         self.dismissBlock = { count, transaction in
@@ -38,7 +38,7 @@ public struct DestinationCoordinator {
     init(
         isPresented: Bool,
         sourceView: UIView?,
-        dismissBlock: @escaping (Int, Transaction) -> Void
+        dismissBlock: @MainActor @escaping (Int, Transaction) -> Void
     ) {
         self.isPresented = isPresented
         self.sourceView = sourceView
@@ -46,36 +46,42 @@ public struct DestinationCoordinator {
     }
 
     /// Dismisses all presented views with an optional animation
+    @MainActor
     @inlinable
     public func popToRoot(animation: Animation? = .default) {
         pop(count: .max, animation: animation)
     }
 
     /// Dismisses all presented views with the transaction
+    @MainActor
     @inlinable
     public func popToRoot(transaction: Transaction) {
         pop(count: .max, transaction: transaction)
     }
 
     /// Dismisses the presented view with an optional animation
+    @MainActor
     @inlinable
     public func pop(animation: Animation? = .default) {
         pop(count: 1, animation: animation)
     }
 
     /// Dismisses the presented view with the transaction
+    @MainActor
     @inlinable
     public func pop(transaction: Transaction) {
         pop(count: 1, transaction: transaction)
     }
 
     /// Dismisses the presented view with an optional animation
+    @MainActor
     @inlinable
     public func pop(count: Int, animation: Animation? = .default) {
         pop(count: count, transaction: Transaction(animation: animation))
     }
 
     /// Dismisses the presented view with the transaction
+    @MainActor
     @inlinable
     public func pop(count: Int, transaction: Transaction) {
         dismissBlock(count, transaction)
@@ -107,14 +113,9 @@ extension EnvironmentValues {
                     }
                 )
             } else {
-                let presentationMode = presentationMode
                 return DestinationCoordinator(
-                    isPresented: presentationMode.wrappedValue.isPresented,
-                    dismiss: { transaction in
-                        withTransaction(transaction) {
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                    }
+                    isPresented: false,
+                    dismiss: { _ in }
                 )
             }
         }

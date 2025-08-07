@@ -1025,6 +1025,7 @@ extension UINavigationController {
 }
 
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 private class DestinationLinkDestinationViewControllerAdapter<
     Destination: View,
     SourceView: View
@@ -1184,12 +1185,13 @@ private class DestinationLinkDestinationViewControllerAdapter<
         }
     }
 
-    private struct Visitor: ViewVisitor {
-        var destination: Destination?
-        var isPresented: Binding<Bool>
-        var sourceView: UIView?
-        var context: DestinationLinkAdapterBody<Destination, SourceView>.Context?
-        var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, SourceView>
+    @MainActor
+    private struct Visitor: @preconcurrency ViewVisitor {
+        nonisolated(unsafe) var destination: Destination?
+        nonisolated(unsafe) var isPresented: Binding<Bool>
+        nonisolated(unsafe) var sourceView: UIView?
+        nonisolated(unsafe) var context: DestinationLinkAdapterBody<Destination, SourceView>.Context?
+        nonisolated(unsafe) var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, SourceView>
 
         mutating func visit<Content>(type: Content.Type) where Content: UIViewControllerRepresentable {
             guard

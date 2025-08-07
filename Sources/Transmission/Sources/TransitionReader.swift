@@ -69,6 +69,7 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
     }
 }
 
+@MainActor @preconcurrency
 final class TransitionReaderCoordinator: NSObject {
     let proxy: Binding<TransitionReaderProxy>
 
@@ -200,9 +201,9 @@ final class TransitionReaderCoordinator: NSObject {
     }
 }
 
-private var transitionReaderAnimationKey: UInt = 0
+private nonisolated(unsafe) var transitionReaderAnimationKey: UInt = 0
 
-private var transitionReaderCoordinatorKey: UInt = 0
+private nonisolated(unsafe) var transitionReaderCoordinatorKey: UInt = 0
 
 extension UIViewController {
 

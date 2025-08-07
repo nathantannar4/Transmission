@@ -6,6 +6,7 @@
 
 import SwiftUI
 
+@MainActor
 protocol UIViewControllerPresentationDelegate: NSObject {
     func viewControllerDidDismiss(_ viewController: UIViewController, presentingViewController: UIViewController?, animated: Bool)
 }
@@ -81,6 +82,7 @@ extension UIViewController {
     }
 }
 
+@MainActor
 protocol UINavigationControllerPresentationDelegate: NSObject {
     func navigationController(_ navigationController: UINavigationController, didPop viewController: UIViewController, animated: Bool)
 }

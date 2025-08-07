@@ -15,18 +15,18 @@ import Engine
 ///
 @available(iOS 14.0, *)
 @frozen
-public struct PresentationCoordinator {
+public struct PresentationCoordinator: @unchecked Sendable {
     public var isPresented: Bool
 
     public weak var sourceView: UIView?
 
     @usableFromInline
-    var dismissBlock: (Int, Transaction) -> Void
+    var dismissBlock: @MainActor (Int, Transaction) -> Void
 
     @inlinable
     public init(
         isPresented: Bool,
-        dismiss: @escaping (Transaction) -> Void
+        dismiss: @MainActor @escaping (Transaction) -> Void
     ) {
         self.isPresented = isPresented
         self.dismissBlock = { count, transaction in
@@ -39,7 +39,7 @@ public struct PresentationCoordinator {
     init(
         isPresented: Bool,
         sourceView: UIView?,
-        dismissBlock: @escaping (Int, Transaction) -> Void
+        dismissBlock: @MainActor @escaping (Int, Transaction) -> Void
     ) {
         self.isPresented = isPresented
         self.sourceView = sourceView
@@ -47,36 +47,42 @@ public struct PresentationCoordinator {
     }
 
     /// Dismisses all presented views with an optional animation
+    @MainActor
     @inlinable
     public func dismissToRoot(animation: Animation? = .default) {
         dismiss(count: .max, transaction: Transaction(animation: animation))
     }
 
     /// Dismisses all presented views with the transaction
+    @MainActor
     @inlinable
     public func dismissToRoot(transaction: Transaction) {
         dismiss(count: .max, transaction: transaction)
     }
 
     /// Dismisses the presented view with an optional animation
+    @MainActor
     @inlinable
     public func dismiss(animation: Animation? = .default) {
         dismiss(count: 1, transaction: Transaction(animation: animation))
     }
 
     /// Dismisses the presented view with the transaction
+    @MainActor
     @inlinable
     public func dismiss(transaction: Transaction) {
         dismiss(count: 1, transaction: transaction)
     }
 
     /// Dismisses the presented views with an optional animation
+    @MainActor
     @inlinable
     public func dismiss(count: Int, animation: Animation? = .default) {
         dismiss(count: count, transaction: Transaction(animation: animation))
     }
 
     /// Dismisses the presented views with the transaction
+    @MainActor
     @inlinable
     public func dismiss(count: Int, transaction: Transaction) {
         dismissBlock(count, transaction)
@@ -112,14 +118,9 @@ extension EnvironmentValues {
                     }
                 )
             } else {
-                let presentationMode = presentationMode
                 return PresentationCoordinator(
-                    isPresented: presentationMode.wrappedValue.isPresented,
-                    dismiss: { transaction in
-                        withTransaction(transaction) {
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                    }
+                    isPresented: false,
+                    dismiss: { _ in }
                 )
             }
         }

@@ -8,6 +8,7 @@ import UIKit
 import SwiftUI
 
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
 
     public let isPresenting: Bool
@@ -20,7 +21,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     }
     
     open var isInterruptible: Bool {
-        (animation?.delay ?? 0) == 0
+        wantsInteractiveStart || (animation?.delay ?? 0) == 0
     }
 
     public init(
@@ -119,8 +120,8 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
     open override func responds(to aSelector: Selector!) -> Bool {
         let responds = super.responds(to: aSelector)
-        if aSelector == #selector(interruptibleAnimator(using:)) {
-            return responds && (wantsInteractiveStart || isInterruptible)
+        if responds, aSelector == #selector(interruptibleAnimator(using:)) {
+            return MainActor.assumeIsolated { isInterruptible }
         }
         return responds
     }

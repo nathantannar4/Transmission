@@ -333,8 +333,10 @@ extension URL: ShareSheetItemProvider {
 
         public override func canPerform(withActivityItems activityItems: [Any]) -> Bool {
             for item in activityItems {
-                if let url = item as? URL, UIApplication.shared.canOpenURL(url) {
-                    return true
+                if let url = item as? URL {
+                    return MainActor.assumeIsolated {
+                        UIApplication.shared.canOpenURL(url)
+                    }
                 }
             }
             return false
@@ -346,11 +348,16 @@ extension URL: ShareSheetItemProvider {
 
         private func openURL(checksCanOpenURL: Bool) -> Bool {
             for item in items {
-                if let url = item as? URL, (!checksCanOpenURL || UIApplication.shared.canOpenURL(url)) {
-                    UIApplication.shared.open(url) { success in
-                        self.activityDidFinish(success)
+                if let url = item as? URL {
+                    let canOpen = MainActor.assumeIsolated {
+                        UIApplication.shared.canOpenURL(url)
                     }
-                    return true
+                    if (!checksCanOpenURL || canOpen) {
+                        MainActor.assumeIsolated {
+                            UIApplication.shared.open(url)
+                        }
+                        return true
+                    }
                 }
             }
             return false
@@ -361,9 +368,7 @@ extension URL: ShareSheetItemProvider {
             if !didOpen {
                 didOpen = openURL(checksCanOpenURL: false)
             }
-            if !didOpen {
-                activityDidFinish(false)
-            }
+            activityDidFinish(didOpen)
         }
     }
 }
@@ -498,7 +503,7 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
             UTType.image.identifier
         }
 
-        private class SnapshotRenderProvider: NSObject, NSItemProviderWriting {
+        private class SnapshotRenderProvider: NSObject, NSItemProviderWriting, @unchecked Sendable {
             let content: Content
 
             init(content: Content) {
@@ -511,9 +516,9 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
 
             func loadData(
                 withTypeIdentifier typeIdentifier: String,
-                forItemProviderCompletionHandler completionHandler: @escaping (Data?, Error?) -> Void
+                forItemProviderCompletionHandler completionHandler: @escaping @Sendable (Data?, Error?) -> Void
             ) -> Progress? {
-                DispatchQueue.main.async { [content] in
+                DispatchQueue.main.async { [self] in
                     let renderer = SnapshotRenderer(content: content)
                     guard let image = renderer.uiImage else {
                         completionHandler(nil, nil)

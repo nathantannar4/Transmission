@@ -9,7 +9,10 @@ import Engine
 
 /// The transition and presentation style for a ``DestinationLink`` or ``DestinationLinkModifier``.
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 public struct DestinationLinkTransition: Sendable {
+
+    @MainActor @preconcurrency
     enum Value: @unchecked Sendable {
         case `default`(Options)
         case zoom(ZoomOptions)
@@ -87,6 +90,7 @@ extension DestinationLinkTransition {
 
     /// The transition options for a zoom transition.
     @frozen
+    @MainActor @preconcurrency
     public struct ZoomOptions {
         public var options: Options
         public var dimmingColor: Color?

@@ -117,6 +117,7 @@ extension PresentationLinkTransition {
 
 @frozen
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransitionRepresentable {
 
     /// The transition options for a matched geometry transition.

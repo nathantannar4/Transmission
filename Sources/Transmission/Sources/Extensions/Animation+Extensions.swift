@@ -82,15 +82,17 @@ extension UIView {
     }
 }
 
+extension Animation.Resolved.TimingCurve: @retroactive @unchecked Sendable { }
+
 @objc(TransmissionAnimationTimingCurveProvider)
 private class AnimationTimingCurveProvider: NSObject, UITimingCurveProvider {
 
     let timingCurve: Animation.Resolved.TimingCurve
-    init(timingCurve: Animation.Resolved.TimingCurve) {
+    nonisolated init(timingCurve: Animation.Resolved.TimingCurve) {
         self.timingCurve = timingCurve
     }
 
-    required init?(coder: NSCoder) {
+    nonisolated required init?(coder: NSCoder) {
         if let data = coder.decodeData(),
             let timingCurve = try? JSONDecoder().decode(Animation.Resolved.TimingCurve.self, from: data) {
             self.timingCurve = timingCurve
@@ -99,13 +101,13 @@ private class AnimationTimingCurveProvider: NSObject, UITimingCurveProvider {
         }
     }
 
-    func encode(with coder: NSCoder) {
+    nonisolated func encode(with coder: NSCoder) {
         if let data = try? JSONEncoder().encode(timingCurve) {
             coder.encode(data)
         }
     }
 
-    func copy(with zone: NSZone? = nil) -> Any {
+    nonisolated func copy(with zone: NSZone? = nil) -> Any {
         AnimationTimingCurveProvider(timingCurve: timingCurve)
     }
 

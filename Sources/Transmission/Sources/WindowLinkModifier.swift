@@ -391,6 +391,7 @@ private struct WindowLinkModifierBody<
 }
 
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 private class WindowLinkDestinationWindowAdapter<
     Destination: View
 > {

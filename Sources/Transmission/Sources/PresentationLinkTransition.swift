@@ -9,7 +9,10 @@ import EngineCore
 
 /// The transition and presentation style for a ``PresentationLink`` or ``PresentationLinkModifier``.
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 public struct PresentationLinkTransition: Sendable {
+
+    @MainActor @preconcurrency
     enum Value: @unchecked Sendable {
         case `default`(Options)
         case sheet(SheetTransitionOptions)
@@ -120,6 +123,7 @@ extension PresentationLinkTransition {
 extension PresentationLinkTransition {
     /// The transition options for a sheet transition.
     @frozen
+    @MainActor @preconcurrency
     public struct SheetTransitionOptions {
         /// The detent of the sheet transition
         @frozen
@@ -341,6 +345,7 @@ extension PresentationLinkTransition {
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
+            @MainActor
             public func toUIKit(
                 in presentationController: UISheetPresentationController
             ) -> UISheetPresentationController.Detent {
@@ -353,7 +358,7 @@ extension PresentationLinkTransition {
                     if #available(iOS 18.0, *), self == .fullScreen {
                         return .fullScreen() ?? .large()
                     }
-                    let idealResolution: (UIPresentationController) -> CGFloat = { presentationController in
+                    let idealResolution: @MainActor (UIPresentationController) -> CGFloat = { presentationController in
                         guard let containerView = presentationController.containerView else {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
                             return idealHeight
@@ -362,6 +367,7 @@ extension PresentationLinkTransition {
                         if width == 0 {
                             width = containerView.frame.width
                         }
+                        @MainActor
                         func idealHeight(for viewController: UIViewController) -> CGFloat {
                             // Edge cases for when the presentedViewController does not have an ideal height
                             var height: CGFloat = 0
@@ -516,6 +522,7 @@ extension PresentationLinkTransition {
     }
 
     @frozen
+    @MainActor @preconcurrency
     public struct PopoverTransitionOptions {
         public typealias PermittedArrowDirections = Edge.Set
 
@@ -560,6 +567,7 @@ extension PresentationLinkTransition {
 
     /// The transition options for a zoom transition.
     @frozen
+    @MainActor @preconcurrency
     public struct ZoomOptions {
         public var options: Options
         public var dimmingColor: Color?

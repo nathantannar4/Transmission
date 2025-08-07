@@ -146,6 +146,7 @@ extension WindowLinkTransition.Value {
         }
     }
 
+    @MainActor
     func toUIKit(
         isPresented: Bool,
         window: UIWindow

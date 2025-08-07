@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 5.9
 
 import PackageDescription
 
@@ -17,7 +17,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "2.2.0"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "2.1.15"),
     ],
     targets: [
         .target(
