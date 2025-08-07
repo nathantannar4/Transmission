@@ -573,45 +573,30 @@ final class DestinationLinkDelegateProxy: NSObject,
             return
         }
 
-        let location = gestureRecognizer.location(in: view)
+        let translation = gestureRecognizer.translation(in: view)
         let velocity = gestureRecognizer.velocity(in: view)
         var percentage: CGFloat
         if isInterruptedInteractiveTransition {
-            percentage = 1 - min(max(0, location.x / view.bounds.width), 1)
+            percentage = 1 - min(max(0, translation.x / view.bounds.width), 1)
         } else {
-            let translation = gestureRecognizer.translation(in: view)
             percentage = min(max(0, translation.x / view.bounds.width), 1)
         }
 
         switch gestureRecognizer.state {
         case .began:
-            if !isInterruptedInteractiveTransition {
+            if isInterruptedInteractiveTransition {
+                if let topViewController = navigationController.topViewController,
+                   let frame = topViewController.view.layer.presentation()?.frame
+                {
+                    gestureRecognizer.setTranslation(frame.origin, in: nil)
+                }
+            } else {
                 navigationController.popViewController(animated: true)
             }
 
         case .changed:
             if isInterruptedInteractiveTransition, abs(velocity.y) > abs(velocity.x) {
                 return
-            }
-            if isInterruptedInteractiveTransition,
-               let topViewController = navigationController.topViewController,
-               let frame = topViewController.view.layer.presentation()?.frame
-            {
-                if !frame.insetBy(dx: -8, dy: -8).contains(location) {
-                    if location.x < frame.minX, velocity.x > 0 {
-                        return
-                    }
-                    if location.x > frame.maxX, velocity.x < 0 {
-                        return
-                    }
-                } else if frame.insetBy(dx: 8, dy: 8).contains(location) {
-                    if topViewController.view.effectiveUserInterfaceLayoutDirection == .leftToRight, velocity.x < 0 {
-                        return
-                    }
-                    if topViewController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft, velocity.x > 0 {
-                        return
-                    }
-                }
             }
             transition.pause()
             transition.update(percentage)
@@ -640,22 +625,12 @@ final class DestinationLinkDelegateProxy: NSObject,
                     shouldFinish = (percentage >= threshold && delta <= 0) || (percentage > 0 && delta <= -800)
                 }
             }
-            if !isInterruptedInteractiveTransition, percentage > 0 {
-                transition.timingCurve = UISpringTimingParameters(
-                    dampingRatio: 1.0,
-                    initialVelocity: CGVector(
-                        dx: velocity.x / (percentage * view.bounds.width),
-                        dy: 0
-                    )
-                )
-            }
             if shouldFinish {
                 if isInterruptedInteractiveTransition {
                     transition.completionSpeed = percentage
                 } else {
                     transition.completionSpeed = 1 - percentage
                 }
-                transition.finish()
             } else {
                 if abs(delta) <= 800 {
                     if isInterruptedInteractiveTransition {
@@ -668,7 +643,18 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                 }
-                transition.cancel()
+            }
+            transition.timingCurve = UISpringTimingParameters(
+                dampingRatio: 1.0,
+                initialVelocity: CGVector(
+                    dx: velocity.x / max(percentage * view.bounds.width, 100),
+                    dy: 0
+                )
+            )
+            transition.completionSpeed = max(0.25, transition.completionSpeed)
+            if shouldFinish {
+                transition.finish()
+            } else {
                 if isInterruptedInteractiveTransition,
                    let fromVC = navigationController.topViewController,
                    let delegate = delegates[ObjectIdentifier(fromVC)]?.value
@@ -679,6 +665,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                         animated: true
                     )
                 }
+                transition.cancel()
             }
             panGestureDidEnd()
 

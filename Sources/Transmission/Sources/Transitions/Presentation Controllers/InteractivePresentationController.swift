@@ -312,22 +312,12 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         shouldFinish = (percentage >= 0.5 && delta.x > 0) || (percentage > 0 && delta.x >= 800)
                     }
                 }
-                if !presentedViewController.isBeingPresented, percentage > 0 {
-                    transition.timingCurve = UISpringTimingParameters(
-                        dampingRatio: 1.0,
-                        initialVelocity: CGVector(
-                            dx: velocity.x / (percentage * frameOfPresentedView.width),
-                            dy: velocity.y / (percentage * frameOfPresentedView.height)
-                        )
-                    )
-                }
                 if shouldFinish {
                     if presentedViewController.isBeingPresented {
                         transition.completionSpeed = percentage
                     } else {
                         transition.completionSpeed = 1 - percentage
                     }
-                    transition.finish()
                 } else {
                     if magnitude <= 800 {
                         if presentedViewController.isBeingPresented {
@@ -340,6 +330,18 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                             }
                         }
                     }
+                }
+                transition.timingCurve = UISpringTimingParameters(
+                    dampingRatio: 1.0,
+                    initialVelocity: CGVector(
+                        dx: velocity.x / max(percentage * frameOfPresentedView.width, 100),
+                        dy: velocity.y / max(percentage * frameOfPresentedView.height, 100)
+                    )
+                )
+                transition.completionSpeed = max(0.25, transition.completionSpeed)
+                if shouldFinish {
+                    transition.finish()
+                } else {
                     transition.cancel()
                 }
                 self.transition = nil
