@@ -103,19 +103,20 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             animator?.stopAnimation(false)
             animator?.finishAnimation(at: .end)
         } else {
-            animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
+            animator?.continueAnimation(
+                withTimingParameters: timingCurve,
+                durationFactor: completionSpeed
+            )
         }
     }
 
     open override func cancel() {
         super.cancel()
-        if animator?.fractionComplete == 0 {
-            animator?.stopAnimation(false)
-            animator?.finishAnimation(at: .start)
-        } else {
-            animator?.isReversed = true
-            animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
-        }
+        animator?.isReversed = true
+        animator?.continueAnimation(
+            withTimingParameters: timingCurve,
+            durationFactor: completionSpeed
+        )
     }
 
     open override func responds(to aSelector: Selector!) -> Bool {

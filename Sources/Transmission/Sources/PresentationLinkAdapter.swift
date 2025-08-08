@@ -847,7 +847,7 @@ private struct PresentationLinkAdapterBody<
                     presentationController.selectedDetentIdentifier = (options.selected?.wrappedValue ?? options.detents.first?.identifier)?.toUIKit()
                     presentationController.largestUndimmedDetentIdentifier = options.largestUndimmedDetentIdentifier?.toUIKit()
                     presentationController.prefersGrabberVisible = options.prefersGrabberVisible
-                    presentationController.preferredCornerRadius = options.preferredCornerRadius
+                    presentationController.preferredCornerRadiusOptions = options.preferredCornerRadius
                     presentationController.prefersScrollingExpandsWhenScrolledToEdge = options.prefersScrollingExpandsWhenScrolledToEdge
                     presentationController.prefersEdgeAttachedInCompactHeight = options.prefersEdgeAttachedInCompactHeight
                     presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = options.widthFollowsPreferredContentSizeWhenEdgeAttached

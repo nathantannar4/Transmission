@@ -23,6 +23,7 @@ struct PresentationLinkExamples: View {
     @State var initialOpacity: CGFloat = 0
     @State var prefersZoomEffect: Bool = false
     @State var prefersScaleEffect: Bool = true
+    @State var edge: Edge = .bottom
     @State var preferredEdgeInset: Int = 4
     @State var preferredCornerRadius: Int = 10
     func makePresentationLinkTransition() -> PresentationLinkTransition {
@@ -48,7 +49,7 @@ struct PresentationLinkExamples: View {
             )
         case .slide:
             return .slide(
-                edge: .bottom,
+                edge: edge,
                 prefersScaleEffect: prefersScaleEffect,
                 isInteractive: isInteractive
             )
@@ -80,7 +81,7 @@ struct PresentationLinkExamples: View {
             )
         case .toast:
             return .toast(
-                edge: .top,
+                edge: edge,
                 isInteractive: isInteractive,
                 preferredPresentationBackgroundColor: nil
             )
@@ -123,7 +124,7 @@ struct PresentationLinkExamples: View {
             .fontWeight(.bold)
             .foregroundStyle(.blue)
 
-            if transition == .card {
+            if transition == .card || transition == .sheet {
                 Stepper(value: $preferredCornerRadius, step: 1) {
                     Text("Preferred Corner Radius: \(preferredCornerRadius)")
                 }
@@ -153,7 +154,9 @@ struct PresentationLinkExamples: View {
                 .tint(.blue)
                 .fontWeight(.bold)
                 .foregroundStyle(.blue)
+            }
 
+            if transition == .matchedGeometry || transition == .sheet {
                 Toggle(isOn: $prefersZoomEffect) {
                     Text("Prefers Zoom Effect")
                 }
@@ -165,6 +168,25 @@ struct PresentationLinkExamples: View {
             if transition == .slide || transition == .matchedGeometry {
                 Toggle(isOn: $prefersScaleEffect) {
                     Text("Prefers Scale Effect")
+                }
+                .tint(.blue)
+                .fontWeight(.bold)
+                .foregroundStyle(.blue)
+            }
+
+            if transition == .slide || transition == .toast {
+                HStack {
+                    Text("Edge")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Picker("Edge", selection: $edge) {
+                        Text(".top").tag(Edge.top)
+                        Text(".bottom").tag(Edge.bottom)
+                        Text(".leading").tag(Edge.leading)
+                        Text(".trailing").tag(Edge.trailing)
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
                 }
                 .tint(.blue)
                 .fontWeight(.bold)
@@ -248,8 +270,7 @@ struct PresentationLinkExamples: View {
             }
 
             PresentationLink(
-                transition: .sheet(detent: .ideal),
-                animation: .spring(duration: 0.5, bounce: 0.35)
+                transition: .sheet(detent: .ideal)
             ) {
                 InfoCardView()
                     .padding()

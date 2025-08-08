@@ -469,7 +469,7 @@ extension PresentationLinkTransition {
         public var detents: [Detent]
         public var largestUndimmedDetentIdentifier: Detent.Identifier?
         public var prefersGrabberVisible: Bool
-        public var preferredCornerRadius: CGFloat?
+        public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
         public var prefersSourceViewAlignment: Bool
         public var prefersScrollingExpandsWhenScrolledToEdge: Bool
         public var prefersEdgeAttachedInCompactHeight: Bool
@@ -483,7 +483,7 @@ extension PresentationLinkTransition {
             largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
             isInteractive: Bool? = nil,
             prefersGrabberVisible: Bool = false,
-            preferredCornerRadius: CGFloat? = nil,
+            preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             prefersSourceViewAlignment: Bool = false,
             prefersScrollingExpandsWhenScrolledToEdge: Bool = true,
             prefersEdgeAttachedInCompactHeight: Bool = false,
@@ -508,9 +508,7 @@ extension PresentationLinkTransition {
                 if let preferredCornerRadius {
                     return preferredCornerRadius
                 }
-                guard prefersZoomTransition else { return nil }
-                let displayCornerRadius = UIScreen.main.displayCornerRadius
-                return displayCornerRadius > 15 ? displayCornerRadius : nil
+                return prefersZoomTransition ? .screen() : nil
             }()
             self.prefersSourceViewAlignment = prefersSourceViewAlignment
             self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
@@ -599,10 +597,36 @@ extension PresentationLinkTransition {
     }
 
     /// The sheet presentation style.
+    @_disfavoredOverload
     public static func sheet(
         detent: SheetTransitionOptions.Detent,
         prefersGrabberVisible: Bool = false,
         preferredCornerRadius: CGFloat? = nil,
+        prefersZoomTransition: Bool = false,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(
+            value: .sheet(
+                .init(
+                    detents: [detent],
+                    prefersGrabberVisible: prefersGrabberVisible,
+                    preferredCornerRadius: preferredCornerRadius.map { .rounded(cornerRadius: $0) },
+                    prefersZoomTransition: prefersZoomTransition,
+                    options: .init(
+                        isInteractive: isInteractive,
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                    )
+                )
+            )
+        )
+    }
+
+    /// The sheet presentation style.
+    public static func sheet(
+        detent: SheetTransitionOptions.Detent,
+        prefersGrabberVisible: Bool = false,
+        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         prefersZoomTransition: Bool = false,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
@@ -624,11 +648,41 @@ extension PresentationLinkTransition {
     }
 
     /// The sheet presentation style.
+    @_disfavoredOverload
     public static func sheet(
         selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
         detents: [SheetTransitionOptions.Detent],
         prefersGrabberVisible: Bool = false,
         preferredCornerRadius: CGFloat? = nil,
+        largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
+        prefersZoomTransition: Bool = false,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(
+            value: .sheet(
+                .init(
+                    selected: selected,
+                    detents: detents,
+                    largestUndimmedDetentIdentifier: largestUndimmedDetentIdentifier,
+                    prefersGrabberVisible: prefersGrabberVisible,
+                    preferredCornerRadius: preferredCornerRadius.map { .rounded(cornerRadius: $0) },
+                    prefersZoomTransition: prefersZoomTransition,
+                    options: .init(
+                        isInteractive: isInteractive,
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                    )
+                )
+            )
+        )
+    }
+
+    /// The sheet presentation style.
+    public static func sheet(
+        selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
+        detents: [SheetTransitionOptions.Detent],
+        prefersGrabberVisible: Bool = false,
+        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
         prefersZoomTransition: Bool = false,
         isInteractive: Bool = true,
