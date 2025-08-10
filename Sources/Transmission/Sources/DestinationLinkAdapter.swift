@@ -609,49 +609,55 @@ final class DestinationLinkDelegateProxy: NSObject,
             // Dismiss if:
             // - Drag over 50% and not moving up
             // - Large enough down vector
-            var delta = velocity.x
+            var targetVelocity = velocity.x
             if isInterruptedInteractiveTransition {
-                delta = -delta
+                targetVelocity = -targetVelocity
             }
             if navigationController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft {
-                delta = -delta
+                targetVelocity = -targetVelocity
             }
             var shouldFinish = false
             if gestureRecognizer.state == .ended {
+                let targetVelocityThreshold: CGFloat = isInterruptedInteractiveTransition ? 100 : 0
+                if abs(velocity.y) > abs(velocity.x) {
+                    shouldFinish = true
+                }
                 if interactivePopEdgeGestureRecognizer.edges.contains(.left), !shouldFinish {
-                    shouldFinish = (percentage >= threshold && delta >= 0) || (percentage > 0 && delta >= 800)
+                    shouldFinish = (percentage >= threshold && targetVelocity >= -targetVelocityThreshold) || (percentage > 0 && targetVelocity >= 800)
                 }
                 if interactivePopEdgeGestureRecognizer.edges.contains(.right), !shouldFinish {
-                    shouldFinish = (percentage >= threshold && delta <= 0) || (percentage > 0 && delta <= -800)
+                    shouldFinish = (percentage >= threshold && targetVelocity <= targetVelocityThreshold) || (percentage > 0 && targetVelocity <= -800)
                 }
             }
-            if shouldFinish {
+            // `completionSpeed` handling seems to differ across iOS version
+            if #available(iOS 18.0, *) {
                 if isInterruptedInteractiveTransition {
-                    transition.completionSpeed = percentage
-                } else {
-                    transition.completionSpeed = 1 - percentage
-                }
-            } else {
-                if abs(delta) <= 800 {
-                    if isInterruptedInteractiveTransition {
-                        transition.completionSpeed = percentage
+                    if shouldFinish {
+                        transition.completionSpeed = 1 - percentage
                     } else {
-                        if #available(iOS 17.0, *) {
-                            transition.completionSpeed = percentage
-                        } else {
-                            transition.completionSpeed = 1 - percentage
-                        }
+                        transition.completionSpeed = percentage
+                    }
+                } else {
+                    if shouldFinish {
+                        transition.completionSpeed = 1 + percentage
+                    } else {
+                        transition.completionSpeed = max(percentage, 0.5)
                     }
                 }
+            } else {
+                transition.completionSpeed = 1 - percentage
+            }
+            let delta = max(isInterruptedInteractiveTransition ? (1 - percentage) : percentage, 0.35) * navigationController.view.frame.width
+            if isInterruptedInteractiveTransition || !shouldFinish {
+                targetVelocity = -targetVelocity
             }
             transition.timingCurve = UISpringTimingParameters(
                 dampingRatio: 1.0,
                 initialVelocity: CGVector(
-                    dx: velocity.x / max(percentage * view.bounds.width, 100),
+                    dx: delta != 0 ? targetVelocity / delta : 0,
                     dy: 0
                 )
             )
-            transition.completionSpeed = max(0.25, transition.completionSpeed)
             if shouldFinish {
                 transition.finish()
             } else {
@@ -659,13 +665,27 @@ final class DestinationLinkDelegateProxy: NSObject,
                    let fromVC = navigationController.topViewController,
                    let delegate = delegates[ObjectIdentifier(fromVC)]?.value
                 {
+                    if let transitionCoordinator = navigationController.transitionCoordinator {
+                        // Fixes bugs with a cancelled interactive push transition
+                        transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                            if !navigationController.isNavigationBarHidden, !navigationController.navigationBar.isHidden {
+                                navigationController.setNavigationBarHidden(true, animated: false)
+                                navigationController.setNavigationBarHidden(false, animated: false)
+                            }
+                            if #unavailable(iOS 18.0) {
+                                navigationController.topViewController?.fixSwiftUIHitTesting()
+                            }
+                        }
+                    }
+                    transition.cancel()
                     delegate.navigationController(
                         navigationController,
                         didPop: fromVC,
                         animated: true
                     )
+                } else {
+                    transition.cancel()
                 }
-                transition.cancel()
             }
             panGestureDidEnd()
 
@@ -820,6 +840,9 @@ final class DestinationLinkDelegateProxy: NSObject,
             return true
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
             if otherGestureRecognizer is UIPanGestureRecognizer {
+                return otherGestureRecognizer.isScrollViewPanGesture
+            }
+            if otherGestureRecognizer.isSwiftUIGestureResponder {
                 return false
             }
             return true
@@ -841,9 +864,6 @@ final class DestinationLinkDelegateProxy: NSObject,
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
             if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer || otherGestureRecognizer is UILongPressGestureRecognizer {
                 return true
-            }
-            if otherGestureRecognizer is UIPanGestureRecognizer {
-                return !otherGestureRecognizer.isSimultaneousWithTransition
             }
             return false
         } else {

@@ -52,6 +52,14 @@ extension UIGestureRecognizer {
         return view.isKind(of: aClass)
     }
 
+    private static let UIKitResponderGestureRecognizer: AnyClass? = NSClassFromString("SwiftUI.UIKitResponderGestureRecognizer")
+    var isSwiftUIGestureResponder: Bool {
+        guard let aClass = Self.UIKitResponderGestureRecognizer else {
+            return false
+        }
+        return isKind(of: aClass)
+    }
+
     var isSheetDismissPanGesture: Bool {
         guard name == "_UISheetInteractionBackgroundDismissRecognizer" else {
             return false

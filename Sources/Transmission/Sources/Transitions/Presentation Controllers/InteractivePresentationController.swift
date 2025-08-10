@@ -57,8 +57,22 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     open override func preferredDefaultAnimation() -> Animation? {
         guard panGesture.state == .ended else { return super.preferredDefaultAnimation() }
         let velocity = panGesture.velocity(in: panGesture.view)
-        let initialVelocity = min(abs(velocity.y) / presentedViewController.view.frame.height, 1)
-        return Animation.interpolatingSpring(duration: 0.35, bounce: 0, initialVelocity: initialVelocity)
+        let frame = frameOfPresentedViewInContainerView
+        let initialVelocityVector = CGVector(
+            dx: abs(velocity.y) / max(frame.height, 1),
+            dy: abs(velocity.x) / max(frame.width, 1)
+        )
+        let progressVector = CGVector(
+            dx: presentedViewController.view.frame.width / frame.width,
+            dy: presentedViewController.view.frame.height / frame.height
+        )
+        let initialVelocity = sqrt(pow(initialVelocityVector.dx, 2) + pow(initialVelocityVector.dy, 2))
+        let progress = min(progressVector.dx, progressVector.dy)
+        return Animation.interpolatingSpring(
+            duration: 0.35 * progress,
+            bounce: 0,
+            initialVelocity: initialVelocity
+        )
     }
 
     open override func attach(to transition: ViewControllerTransition) {
@@ -293,52 +307,52 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 // - Drag over 50% and not moving up
                 // - Large enough down vector
                 var shouldFinish = false
-                var delta = velocity
-                if presentedViewController.isBeingPresented {
-                    delta = CGPoint(x: -delta.x, y: -delta.y)
-                }
-                let magnitude = sqrt(pow(velocity.x, 2) + pow(velocity.y, 2))
+                let isPresenting = presentedViewController.isBeingPresented
+                let targetVelocity = isPresenting ? CGPoint(x: -velocity.x, y: -velocity.y) : velocity
                 if gestureRecognizer.state == .ended {
+                    let targetVelocityThreshold: CGFloat = isPresenting ? 100 : 0
                     if edges.contains(.top), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && delta.y < 0) || (percentage > 0 && delta.y <= -800)
+                        shouldFinish = (percentage >= 0.5 && targetVelocity.y < targetVelocityThreshold) || (percentage > 0 && targetVelocity.y <= -800)
                     }
                     if edges.contains(.bottom), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && delta.y > 0) || (percentage > 0 && delta.y >= 800)
+                        shouldFinish = (percentage >= 0.5 && targetVelocity.y > -targetVelocityThreshold) || (percentage > 0 && targetVelocity.y >= 800)
                     }
                     if edges.contains(.leading), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && delta.x < 0) || (percentage > 0 && delta.x <= -800)
+                        shouldFinish = (percentage >= 0.5 && targetVelocity.x < targetVelocityThreshold) || (percentage > 0 && targetVelocity.x <= -800)
                     }
                     if edges.contains(.trailing), !shouldFinish {
-                        shouldFinish = (percentage >= 0.5 && delta.x > 0) || (percentage > 0 && delta.x >= 800)
+                        shouldFinish = (percentage >= 0.5 && targetVelocity.x > -targetVelocityThreshold) || (percentage > 0 && targetVelocity.x >= 800)
                     }
                 }
-                if shouldFinish {
-                    if presentedViewController.isBeingPresented {
-                        transition.completionSpeed = percentage
-                    } else {
-                        transition.completionSpeed = 1 - percentage
-                    }
-                } else {
-                    if magnitude <= 800 {
-                        if presentedViewController.isBeingPresented {
-                            transition.completionSpeed = percentage
+                // `completionSpeed` handling seems to differ across iOS version
+                if #available(iOS 18.0, *) {
+                    if isPresenting {
+                        if shouldFinish {
+                            transition.completionSpeed = 1 - percentage
                         } else {
-                            if #available(iOS 17.0, *) {
-                                transition.completionSpeed = percentage
-                            } else {
-                                transition.completionSpeed = 1 - percentage
-                            }
+                            transition.completionSpeed = percentage
+                        }
+                    } else {
+                        if shouldFinish {
+                            transition.completionSpeed = 1 + percentage
+                        } else {
+                            transition.completionSpeed = percentage
                         }
                     }
+                } else {
+                    transition.completionSpeed = 1 - percentage
                 }
+                let delta = CGSize(
+                    width: percentage * (presentedViewController.view.frame.origin.x - frameOfPresentedView.origin.x),
+                    height: percentage * (presentedViewController.view.frame.origin.y - frameOfPresentedView.origin.y)
+                )
                 transition.timingCurve = UISpringTimingParameters(
                     dampingRatio: 1.0,
                     initialVelocity: CGVector(
-                        dx: velocity.x / max(percentage * frameOfPresentedView.width, 100),
-                        dy: velocity.y / max(percentage * frameOfPresentedView.height, 100)
+                        dx: delta.width != 0 ? velocity.x / delta.width : 0,
+                        dy: delta.height != 0 ? velocity.y / delta.height : 0
                     )
                 )
-                transition.completionSpeed = max(0.25, transition.completionSpeed)
                 if shouldFinish {
                     transition.finish()
                 } else {
@@ -346,7 +360,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 }
                 self.transition = nil
                 panGestureDidEnd()
-                transitionAlongsidePresentation(progress: presentedViewController.isBeingPresented ? (shouldFinish ? 1 : 0) : (shouldFinish ? 0 : 1))
+                transitionAlongsidePresentation(progress: isPresenting ? (shouldFinish ? 1 : 0) : (shouldFinish ? 0 : 1))
 
             default:
                 break

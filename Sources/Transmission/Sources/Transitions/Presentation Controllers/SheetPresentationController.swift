@@ -16,16 +16,16 @@ public typealias SheetPresentationController = MacSheetPresentationController
 open class MacSheetTransition: SlidePresentationControllerTransition {
 
     public init(
-        preferredCornerRadius: CGFloat?,
+        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         isPresenting: Bool,
         animation: Animation?
     ) {
-        let cornerRadius = preferredCornerRadius ?? 12
+        let cornerRadius = preferredCornerRadius ?? .rounded(cornerRadius: 12)
         super.init(
             edge: .bottom,
             prefersScaleEffect: false,
-            preferredFromCornerRadius: .rounded(cornerRadius: cornerRadius),
-            preferredToCornerRadius: .rounded(cornerRadius: cornerRadius),
+            preferredFromCornerRadius: cornerRadius,
+            preferredToCornerRadius: cornerRadius,
             isPresenting: isPresenting,
             animation: animation
         )
@@ -224,10 +224,23 @@ open class MacSheetPresentationController: SlidePresentationController {
 @available(iOS 15.0, *)
 open class SheetPresentationController: UISheetPresentationController {
 
+    public var preferredCornerRadiusOptions: CornerRadiusOptions.RoundedRectangle? {
+        didSet {
+            updateCornerRadius()
+        }
+    }
+
     public var preferredBackgroundColor: UIColor? {
         didSet {
             updateBackgroundColor()
         }
+    }
+
+    private var dropShadowView: UIView? {
+        if let lastSubview = containerView?.subviews.last, lastSubview.isDropShadowView {
+            return lastSubview
+        }
+        return nil
     }
 
     public override init(
@@ -259,10 +272,14 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
+    private func updateCornerRadius() {
+        preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadius
+    }
+
     private func updateBackgroundColor() {
         presentedView?.backgroundColor = preferredBackgroundColor
-        if let preferredBackgroundColor, let lastSubview = containerView?.subviews.last, lastSubview.isDropShadowView {
-            lastSubview.layer.shadowColor = preferredBackgroundColor.cgColor
+        if let preferredBackgroundColor {
+            dropShadowView?.layer.shadowColor = preferredBackgroundColor.cgColor
         }
     }
 }
@@ -335,7 +352,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
                 if let selected = newValue.selected {
                     presentationController.selectedDetentIdentifier = selected.wrappedValue?.toUIKit()
                 }
-                presentationController.preferredCornerRadius = newValue.preferredCornerRadius
+                presentationController.preferredCornerRadiusOptions = newValue.preferredCornerRadius
                 if #available(iOS 17.0, *) {
                     presentationController.prefersPageSizing = newValue.prefersPageSizing
                 }
