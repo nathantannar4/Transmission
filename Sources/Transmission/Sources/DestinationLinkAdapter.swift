@@ -839,13 +839,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer {
             return true
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
-            if otherGestureRecognizer is UIPanGestureRecognizer {
-                return otherGestureRecognizer.isScrollViewPanGesture
-            }
-            if otherGestureRecognizer.isSwiftUIGestureResponder {
-                return false
-            }
-            return true
+            return false
         } else {
             let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
                 gestureRecognizer,
