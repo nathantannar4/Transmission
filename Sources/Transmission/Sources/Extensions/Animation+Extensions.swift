@@ -82,8 +82,6 @@ extension UIView {
     }
 }
 
-extension Animation.Resolved.TimingCurve: @retroactive @unchecked Sendable { }
-
 @objc(TransmissionAnimationTimingCurveProvider)
 private class AnimationTimingCurveProvider: NSObject, UITimingCurveProvider {
 
