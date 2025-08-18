@@ -929,9 +929,16 @@ private struct PresentationLinkAdapterBody<
         ) {
             if case .sheet(let configuration) = adapter?.transition {
                 func applySelection() {
-                    configuration.selected?.wrappedValue = sheetPresentationController.selectedDetentIdentifier.map {
-                        .init($0.rawValue)
+                    guard let selected = configuration.selected else {
+                        return
                     }
+                    let newValue = sheetPresentationController.selectedDetentIdentifier.map {
+                        PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier($0.rawValue)
+                    }
+                    guard selected.wrappedValue != newValue else {
+                        return
+                    }
+                    selected.wrappedValue = newValue
                 }
 
                 if sheetPresentationController.selectedDetentIdentifier?.rawValue == PresentationLinkTransition.SheetTransitionOptions.Detent.ideal.identifier.rawValue {

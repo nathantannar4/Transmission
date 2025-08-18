@@ -326,18 +326,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 }
                 // `completionSpeed` handling seems to differ across iOS version
                 if #available(iOS 18.0, *) {
-                    if isPresenting {
-                        if shouldFinish {
-                            transition.completionSpeed = 1 - percentage
-                        } else {
-                            transition.completionSpeed = percentage
-                        }
+                    if shouldFinish {
+                        transition.completionSpeed = 1 - percentage
                     } else {
-                        if shouldFinish {
-                            transition.completionSpeed = 1 + percentage
-                        } else {
-                            transition.completionSpeed = percentage
-                        }
+                        transition.completionSpeed = percentage
                     }
                 } else {
                     transition.completionSpeed = 1 - percentage
