@@ -125,6 +125,7 @@ extension DestinationLinkTransition {
     public static func zoom(
         dimmingColor: Color? = nil,
         dimmingVisualEffect: UIBlurEffect.Style? = nil,
+        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true
     ) -> DestinationLinkTransition {
         DestinationLinkTransition(
@@ -133,7 +134,8 @@ extension DestinationLinkTransition {
                     dimmingColor: dimmingColor,
                     dimmingVisualEffect: dimmingVisualEffect,
                     options: .init(
-                        isInteractive: isInteractive
+                        isInteractive: isInteractive,
+                        hapticsStyle: hapticsStyle
                     )
                 )
             )

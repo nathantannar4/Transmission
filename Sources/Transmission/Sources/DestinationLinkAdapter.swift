@@ -275,10 +275,26 @@ private struct DestinationLinkAdapterBody<
 
             var transaction = Transaction(animation: animated ? animation ?? .default : nil)
             transaction.disablesAnimations = true
-            if let transitionCoordinator = viewController.transitionCoordinator, transitionCoordinator.isInteractive {
-                transitionCoordinator.notifyWhenInteractionChanges { ctx in
-                    if !ctx.isCancelled {
-                        self.onPop(transaction)
+            if let transitionCoordinator = viewController.transitionCoordinator {
+                if transitionCoordinator.isInteractive {
+                    transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                        if !ctx.isCancelled {
+                            self.navigationController(
+                                navigationController,
+                                didPop: viewController,
+                                animated: animated
+                            )
+                        }
+                    }
+                } else {
+                    transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                        if !ctx.isCancelled {
+                            self.navigationController(
+                                navigationController,
+                                didPop: viewController,
+                                animated: animated
+                            )
+                        }
                     }
                 }
             } else {
@@ -294,8 +310,14 @@ private struct DestinationLinkAdapterBody<
             animated: Bool
         ) {
             guard let viewController = adapter?.viewController else { return }
-            if navigationController.viewControllers.contains(viewController) {
-                viewController.fixSwiftUIHitTesting()
+            if navigationController.viewControllers.contains(viewController)
+            {
+                switch adapter?.transition {
+                case .representable:
+                    viewController.fixSwiftUIHitTesting()
+                default:
+                    break
+                }
                 isPushing = false
             } else if !isPushing, isPresented.wrappedValue {
                 // Break the retain cycle
@@ -769,8 +791,9 @@ final class DestinationLinkDelegateProxy: NSObject,
         guard
             let navigationController = navigationController,
             navigationController.viewControllers.count > 1,
-            navigationController.presentedViewController == nil,
-            let fromVC = navigationController.topViewController
+            navigationController.presentedViewController?.isBeingDismissed ?? true,
+            let fromVC = navigationController.topViewController,
+            fromVC.presentedViewController?.isBeingDismissed ?? true
         else {
             return false
         }
@@ -795,7 +818,6 @@ final class DestinationLinkDelegateProxy: NSObject,
                 return true
             }
             isInterruptedInteractiveTransition = false
-            guard navigationController.transitionCoordinator == nil else { return false }
             wantsInteractiveTransition = true; defer { wantsInteractiveTransition = false }
             let animationController = self.navigationController(
                 navigationController,
@@ -814,7 +836,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             queuedTransition = interactiveTransition
             return true
         } else {
-            if shouldBegin == false || navigationController.transitionCoordinator != nil {
+            if shouldBegin == false {
                 return false
             }
             let canBegin = popGestureDelegate?.gestureRecognizerShouldBegin?(
@@ -831,7 +853,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer {
             return true
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
-            return false
+            return otherGestureRecognizer.isZoomDismissGesture
         } else {
             let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
                 gestureRecognizer,

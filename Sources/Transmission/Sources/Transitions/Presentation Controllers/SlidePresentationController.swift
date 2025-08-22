@@ -84,7 +84,11 @@ open class SlidePresentationController: InteractivePresentationController {
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
 
-        presentingViewController.view.isHidden = presentedViewController.presentedViewController != nil
+        if let nextPresentedViewController = presentedViewController.presentedViewController {
+            presentingViewController.view.isHidden = !nextPresentedViewController.isBeingDismissed
+        } else {
+            presentingViewController.view.isHidden = false
+        }
     }
 }
 

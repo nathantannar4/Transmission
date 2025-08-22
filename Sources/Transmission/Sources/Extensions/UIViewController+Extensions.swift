@@ -51,15 +51,15 @@ extension UIViewController {
             }
             return presentingViewController
         }()
-        if animated {
-            CATransaction.begin()
-            CATransaction.setCompletionBlock(completion)
-        }
-        targetViewController.dismiss(animated: animated)
-        if animated {
-            CATransaction.commit()
-        } else {
-            completion?()
+        targetViewController.dismiss(animated: animated) {
+            guard let completion else { return }
+            if animated {
+                CATransaction.begin()
+                CATransaction.setCompletionBlock(completion)
+                CATransaction.commit()
+            } else {
+                completion()
+            }
         }
     }
 

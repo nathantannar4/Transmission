@@ -289,11 +289,17 @@ private struct PresentationLinkAdapterBody<
                 case .currentContext:
                     // transitioningDelegate + .custom breaks .overCurrentContext
                     adapter.viewController.modalPresentationStyle = .overCurrentContext
-                    adapter.viewController.presentationController?.overrideTraitCollection = traits
+                    if let presentationController = adapter.viewController.presentationController {
+                        presentationController.overrideTraitCollection = traits
+                        context.coordinator.presentationController = presentationController
+                    }
 
                 case .fullscreen:
                     adapter.viewController.modalPresentationStyle = .overFullScreen
-                    adapter.viewController.presentationController?.overrideTraitCollection = traits
+                    if let presentationController = adapter.viewController.presentationController {
+                        presentationController.overrideTraitCollection = traits
+                        context.coordinator.presentationController = presentationController
+                    }
 
                 case .popover:
                     context.coordinator.sourceView = uiView
@@ -579,18 +585,19 @@ private struct PresentationLinkAdapterBody<
             case .zoom(let options):
                 guard options.options.isInteractive else { return false }
                 // By default, zoom is too easy to dismiss a presented view rather than pop
-                let zoomPanGesture = presentationController.presentedViewController
+                let zoomEdgeGesture = presentationController.presentedViewController
                     .view
                     .gestureRecognizers?
-                    .compactMap({ $0.isZoomDismissPanGesture ? $0 as? UIPanGestureRecognizer : nil })
+                    .compactMap({ $0.isZoomDismissEdgeGesture ? $0 as? UIPanGestureRecognizer : nil })
                     .first
-                if let zoomPanGesture, zoomPanGesture.state == .possible {
+                if let zoomEdgeGesture, zoomEdgeGesture.state == .possible {
                     let navigationController = presentationController.presentedViewController as? UINavigationController ?? presentationController.presentedViewController.firstDescendent(ofType: UINavigationController.self)
                     if let navigationController,
                         navigationController.viewControllers.count > 1,
-                        let edgeGesture = navigationController.interactivePopGestureRecognizer as? UIScreenEdgePanGestureRecognizer
+                        let edgeGesture = navigationController.interactivePopGestureRecognizer as? UIScreenEdgePanGestureRecognizer,
+                        edgeGesture.isEnabled
                     {
-                        let translation = zoomPanGesture.location(in: presentationController.presentedViewController.view)
+                        let translation = zoomEdgeGesture.location(in: presentationController.presentedViewController.view)
                         let edgeDistance: CGFloat = 16
                         if edgeGesture.edges.contains(.left) {
                             if translation.x <= edgeDistance {
