@@ -210,17 +210,19 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
             }
         }
         animator.addCompletion { animatingPosition in
-            if isScaleEnabled {
-                presenting.view.layer.cornerRadius = 0
-                presenting.view.layer.masksToBounds = true
-                presenting.view.transform = .identity
-            }
-            presented.view.layer.cornerRadius = 0
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
+            Task { @MainActor in
+                if isScaleEnabled {
+                    presenting.view.layer.cornerRadius = 0
+                    presenting.view.layer.masksToBounds = true
+                    presenting.view.transform = .identity
+                }
+                presented.view.layer.cornerRadius = 0
+                switch animatingPosition {
+                case .end:
+                    transitionContext.completeTransition(true)
+                default:
+                    transitionContext.completeTransition(false)
+                }
             }
         }
     }

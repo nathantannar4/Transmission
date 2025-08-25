@@ -198,17 +198,19 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             dimmingView.transform = isPresenting ? fromVCTransform : .identity
         }
         animator.addCompletion { animatingPosition in
-            toVC.view.transform = .identity
-            fromVC.view.transform = .identity
-            dimmingView.removeFromSuperview()
-            if cornerRadius != nil {
-                presentedVC.view.layer.cornerRadius = 0
-            }
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
+            Task { @MainActor in
+                toVC.view.transform = .identity
+                fromVC.view.transform = .identity
+                dimmingView.removeFromSuperview()
+                if cornerRadius != nil {
+                    presentedVC.view.layer.cornerRadius = 0
+                }
+                switch animatingPosition {
+                case .end:
+                    transitionContext.completeTransition(true)
+                default:
+                    transitionContext.completeTransition(false)
+                }
             }
         }
     }

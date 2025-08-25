@@ -154,11 +154,13 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
             }
         }
         animator.addCompletion { animatingPosition in
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
+            Task { @MainActor in
+                switch animatingPosition {
+                case .end:
+                    transitionContext.completeTransition(true)
+                default:
+                    transitionContext.completeTransition(false)
+                }
             }
         }
     }

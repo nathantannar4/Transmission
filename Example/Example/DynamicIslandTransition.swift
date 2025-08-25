@@ -187,13 +187,15 @@ class DynamicIslandPresentationControllerTransition: PresentationControllerTrans
             }
         }
         animator.addCompletion { animatingPosition in
-            hostingController?.disableSafeArea = oldValue
-            presented.view.layoutIfNeeded()
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
+            Task { @MainActor in
+                hostingController?.disableSafeArea = oldValue
+                presented.view.layoutIfNeeded()
+                switch animatingPosition {
+                case .end:
+                    transitionContext.completeTransition(true)
+                default:
+                    transitionContext.completeTransition(false)
+                }
             }
         }
     }

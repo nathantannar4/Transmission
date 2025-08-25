@@ -245,18 +245,20 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         }, delayFactor: isPresenting ? 0 : 0.25)
 
         animator.addCompletion { animatingPosition in
-            hostingController?.disableSafeArea = disableSafeArea
-            presentedPortalView?.removeFromSuperview()
-            if !isPresenting {
-                presentingPortalView?.removeFromSuperview()
-            }
-            sourceView?.alpha = isPresenting ? 0 : 1
-            presented.view.layer.cornerRadius = 0
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
+            Task { @MainActor in
+                hostingController?.disableSafeArea = disableSafeArea
+                presentedPortalView?.removeFromSuperview()
+                if !isPresenting {
+                    presentingPortalView?.removeFromSuperview()
+                }
+                sourceView?.alpha = isPresenting ? 0 : 1
+                presented.view.layer.cornerRadius = 0
+                switch animatingPosition {
+                case .end:
+                    transitionContext.completeTransition(true)
+                default:
+                    transitionContext.completeTransition(false)
+                }
             }
         }
     }

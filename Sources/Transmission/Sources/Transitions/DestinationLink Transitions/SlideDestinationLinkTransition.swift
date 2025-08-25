@@ -152,13 +152,15 @@ open class SlideNavigationControllerTransition: ViewControllerTransition {
             fromVC.view.alpha = initialOpacity
         }
         animator.addCompletion { animatingPosition in
-            toVC.view.transform = .identity
-            fromVC.view.transform = .identity
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
+            Task { @MainActor in
+                toVC.view.transform = .identity
+                fromVC.view.transform = .identity
+                switch animatingPosition {
+                case .end:
+                    transitionContext.completeTransition(true)
+                default:
+                    transitionContext.completeTransition(false)
+                }
             }
         }
     }

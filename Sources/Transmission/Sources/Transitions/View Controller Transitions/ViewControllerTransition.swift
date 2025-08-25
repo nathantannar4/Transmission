@@ -174,11 +174,13 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             presented.view.alpha = isPresenting ? 1 : 0
         }
         animator.addCompletion { animatingPosition in
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
+            Task { @MainActor in
+                switch animatingPosition {
+                case .end:
+                    transitionContext.completeTransition(true)
+                default:
+                    transitionContext.completeTransition(false)
+                }
             }
         }
     }
