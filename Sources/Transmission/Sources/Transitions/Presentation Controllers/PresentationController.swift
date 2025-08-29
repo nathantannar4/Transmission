@@ -243,24 +243,31 @@ open class PresentationController: UIPresentationController {
     }
 
     open func layoutDimmingView() {
-        let dimmingViewFrame: CGRect = {
-            if let presentationController = presentingViewController._activePresentationController {
-                let frame = presentationController.frameOfPresentedViewInContainerView
-                return presentingViewController.view.convert(
-                    presentingViewController.view.convert(
-                        frame,
-                        from: presentationController.containerView
-                    ),
-                    to: containerView
-                )
+        if let presentationController = presentingViewController._activePresentationController {
+            let frame = presentationController.presentedView?.frame ?? presentationController.frameOfPresentedViewInContainerView
+            let dimmingViewFrame = presentingViewController.view.convert(
+                presentingViewController.view.convert(
+                    frame,
+                    from: presentationController.containerView
+                ),
+                to: containerView
+            )
+            dimmingView.frame = dimmingViewFrame.rounded(scale: containerView?.window?.screen.scale ?? 1)
+            if let presentedView = presentationController.presentedView ?? presentationController.presentedViewController.view {
+                dimmingView.layer.cornerRadius = presentedView.layer.cornerRadius
+                dimmingView.layer.cornerCurve = presentedView.layer.cornerCurve
+                dimmingView.layer.maskedCorners = presentedView.layer.maskedCorners
             }
-            return presentingViewController.view.convert(
+        } else {
+            let dimmingViewFrame = presentingViewController.view.convert(
                 presentingViewController.view.bounds,
                 to: containerView
             )
-        }()
-        dimmingView.frame = dimmingViewFrame
-        dimmingView.layer.cornerRadius = presentingViewController.view.layer.cornerRadius
+            dimmingView.frame = dimmingViewFrame.rounded(scale: containerView?.window?.screen.scale ?? 1)
+            dimmingView.layer.cornerRadius = presentingViewController.view.layer.cornerRadius
+            dimmingView.layer.cornerCurve = presentingViewController.view.layer.cornerCurve
+            dimmingView.layer.maskedCorners = presentingViewController.view.layer.maskedCorners
+        }
     }
 
     open func layoutShadowView() {

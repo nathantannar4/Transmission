@@ -37,6 +37,8 @@ public struct DestinationLinkAdapter<
 >: View {
 
     var transition: DestinationLinkTransition
+    var cornerRadius: CornerRadiusOptions?
+    var backgroundColor: Color?
     var isPresented: Binding<Bool>
     var content: Content
     var destination: Destination
@@ -46,16 +48,27 @@ public struct DestinationLinkAdapter<
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination
     ) where Content == EmptyView {
-        self.init(transition: transition, isPresented: isPresented, destination: destination, content: { EmptyView() })
+        self.init(
+            transition: transition,
+            isPresented: isPresented,
+            destination: destination,
+            content: {
+                EmptyView()
+            }
+        )
     }
 
     public init(
         transition: DestinationLinkTransition,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder content: () -> Content
     ) {
         self.transition = transition
+        self.cornerRadius = cornerRadius
+        self.backgroundColor = backgroundColor
         self.isPresented = isPresented
         self.content = content()
         self.destination = destination()
@@ -64,6 +77,8 @@ public struct DestinationLinkAdapter<
     public var body: some View {
         DestinationLinkAdapterBody(
             transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
             isPresented: isPresented,
             destination: destination,
             sourceView: content
@@ -78,6 +93,8 @@ private struct DestinationLinkAdapterBody<
 >: UIViewRepresentable {
 
     var transition: DestinationLinkTransition
+    var cornerRadius: CornerRadiusOptions?
+    var backgroundColor: Color?
     var isPresented: Binding<Bool>
     var destination: Destination
     var sourceView: SourceView
@@ -101,6 +118,8 @@ private struct DestinationLinkAdapterBody<
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
         uiView.hostingView?.content = sourceView
+        uiView.hostingView?.cornerRadius = cornerRadius
+        uiView.backgroundColor = backgroundColor?.toUIColor()
 
         if let presentingViewController = presentingViewController, isPresented.wrappedValue {
 
@@ -111,10 +130,11 @@ private struct DestinationLinkAdapterBody<
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
 
+            let sourceView = uiView.hostingView ?? uiView
             if let adapter = context.coordinator.adapter {
                 adapter.update(
                     destination: destination,
-                    sourceView: uiView,
+                    sourceView: sourceView,
                     context: context,
                     isPresented: isPresented
                 )
@@ -122,7 +142,7 @@ private struct DestinationLinkAdapterBody<
 
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
-                    sourceView: uiView,
+                    sourceView: sourceView,
                     transition: transition.value,
                     context: context,
                     isPresented: isPresented,
@@ -143,9 +163,9 @@ private struct DestinationLinkAdapterBody<
                         zoomOptions.interactiveDismissShouldBegin = { [weak adapter] context in
                             context.willBegin && (adapter?.transition.options.isInteractive ?? true)
                         }
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] _ in
-                            guard uiView?.window != nil else { return nil }
-                            return uiView
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] _ in
+                            guard sourceView?.window != nil else { return nil }
+                            return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
                             zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomPanGestureDidChange(_:)))
@@ -157,7 +177,7 @@ private struct DestinationLinkAdapterBody<
 
                 case .representable(_, let transition):
                     assert(!swift_getIsClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
-                    context.coordinator.sourceView = uiView
+                    context.coordinator.sourceView = sourceView
                 }
 
                 navigationController.delegates.add(delegate: context.coordinator, for: adapter.viewController)
@@ -310,14 +330,7 @@ private struct DestinationLinkAdapterBody<
             animated: Bool
         ) {
             guard let viewController = adapter?.viewController else { return }
-            if navigationController.viewControllers.contains(viewController)
-            {
-                switch adapter?.transition {
-                case .representable:
-                    viewController.fixSwiftUIHitTesting()
-                default:
-                    break
-                }
+            if navigationController.viewControllers.contains(viewController) {
                 isPushing = false
             } else if !isPushing, isPresented.wrappedValue {
                 // Break the retain cycle
@@ -870,7 +883,8 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer {
             return false
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
-            if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer || otherGestureRecognizer is UILongPressGestureRecognizer {
+            if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer || otherGestureRecognizer is UILongPressGestureRecognizer ||
+                otherGestureRecognizer.isSwiftUIGestureResponder {
                 return true
             }
             return false

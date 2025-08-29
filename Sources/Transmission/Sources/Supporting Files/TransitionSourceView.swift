@@ -32,7 +32,21 @@ class ViewControllerReader: UIView {
 
 class TransitionSourceView<Content: View>: ViewControllerReader {
 
-    var hostingView: HostingView<Content>?
+    var hostingView: TransitionSourceHostingView<Content>?
+
+    override var backgroundColor: UIColor? {
+        get {
+            hostingView?.backgroundColor ?? super.backgroundColor
+        }
+        set {
+            if let hostingView {
+                hostingView.backgroundColor = newValue
+            } else {
+                super.backgroundColor = newValue
+                isHidden = newValue == nil
+            }
+        }
+    }
 
     init(
         onDidMoveToWindow: @escaping (UIViewController?) -> Void,
@@ -41,10 +55,9 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
         super.init(onDidMoveToWindow: onDidMoveToWindow)
         if Content.self != EmptyView.self {
             isHidden = false
-            let hostingView = HostingView(content: content)
+            let hostingView = TransitionSourceHostingView(content: content)
             addSubview(hostingView)
             hostingView.disablesSafeArea = true
-            hostingView.translatesAutoresizingMaskIntoConstraints = false
             self.hostingView = hostingView
         }
         clipsToBounds = false
@@ -64,5 +77,24 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
     }
 }
 
+class TransitionSourceHostingView<Content: View>: HostingView<Content> {
+
+    var cornerRadius: CornerRadiusOptions? {
+        didSet {
+            guard cornerRadius != oldValue else { return }
+            layer.setNeedsLayout()
+        }
+    }
+
+    override func layoutSublayers(of layer: CALayer) {
+        super.layoutSublayers(of: layer)
+        updateLayerCornerRadius()
+    }
+
+    private func updateLayerCornerRadius() {
+        let cornerRadius = cornerRadius ?? .identity
+        cornerRadius.apply(to: layer, height: bounds.height)
+    }
+}
 
 #endif

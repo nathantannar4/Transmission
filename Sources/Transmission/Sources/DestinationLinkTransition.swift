@@ -126,7 +126,8 @@ extension DestinationLinkTransition {
         dimmingColor: Color? = nil,
         dimmingVisualEffect: UIBlurEffect.Style? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-        isInteractive: Bool = true
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
     ) -> DestinationLinkTransition {
         DestinationLinkTransition(
             value: .zoom(
@@ -135,6 +136,7 @@ extension DestinationLinkTransition {
                     dimmingVisualEffect: dimmingVisualEffect,
                     options: .init(
                         isInteractive: isInteractive,
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor,
                         hapticsStyle: hapticsStyle
                     )
                 )

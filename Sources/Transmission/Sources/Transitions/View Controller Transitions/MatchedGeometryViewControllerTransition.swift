@@ -129,7 +129,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             ? transitionContext.finalFrame(for: presented)
             : (presented.view.transform.isIdentity ? presented.view.frame : transitionContext.initialFrame(for: presented))
 
-        let fromCornerRadius = preferredFromCornerRadius ?? .rounded(cornerRadius: 0)
+        let fromCornerRadius = preferredFromCornerRadius ?? .identity
         let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
 
         if isPresenting {

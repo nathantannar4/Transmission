@@ -9,7 +9,8 @@ import UIKit
 open class PortalView: UIView {
 
     public var sourceView: UIView? {
-        let aSelector = NSSelectorFromString("sourceView")
+        // sourceView
+        let aSelector = NSSelectorFromBase64EncodedString("c291cmNlVmlldw==")
         guard contentView.responds(to: aSelector) else { return nil }
         return contentView.perform(aSelector).takeUnretainedValue() as? UIView
     }
@@ -18,12 +19,18 @@ open class PortalView: UIView {
 
     public var hidesSourceView: Bool {
         get {
-            let aSelector = NSSelectorFromString("hidesSourceView")
-            guard contentView.responds(to: aSelector) else { return false }
-            return contentView.perform(aSelector).takeUnretainedValue() as? Bool ?? false
+            // hidesSourceView
+            guard
+                let aSelector = NSStringFromBase64EncodedString("aGlkZXNTb3VyY2VWaWV3"),
+                contentView.responds(to: NSSelectorFromString(aSelector))
+            else {
+                return false
+            }
+            return contentView.value(forKey: aSelector) as? Bool ?? false
         }
         set {
-            let aSelector = NSSelectorFromString("setHidesSourceView:")
+            // setHidesSourceView:
+            let aSelector = NSSelectorFromBase64EncodedString("c2V0SGlkZXNTb3VyY2VWaWV3Og==")
             guard contentView.responds(to: aSelector) else { return }
             contentView.perform(aSelector, with: newValue)
         }
@@ -31,9 +38,12 @@ open class PortalView: UIView {
 
     public init?(sourceView: UIView) {
         let allocSelector = NSSelectorFromString("alloc")
-        let initSelector = NSSelectorFromString("initWithSourceView:")
+        // initWithSourceView:
+        let initSelector = NSSelectorFromBase64EncodedString("aW5pdFdpdGhTb3VyY2VWaWV3Og==")
+        // _UIPortalView
+        let portalViewClassName = NSStringFromBase64EncodedString("X1VJUG9ydGFsVmlldw==")
         guard
-            let portalViewClassName = String(data: Data(base64Encoded: "X1VJUG9ydGFsVmlldw==")!, encoding: .utf8), // _UIPortalView
+            let portalViewClassName = portalViewClassName,
             let portalViewClass = NSClassFromString(portalViewClassName) as? UIView.Type
         else {
             return nil

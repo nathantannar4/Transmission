@@ -27,24 +27,24 @@ private class _UISheetPresentationControllerDetentResolver: NSObject {
 
 @available(iOS 15.0, *)
 extension UISheetPresentationController.Detent {
+
     var id: String? {
         if #available(iOS 16.0, *) {
             return identifier.rawValue
         } else {
-            if responds(to: NSSelectorFromString("_identifier")),
-               let identifier = value(forKey: "_identifier") as? String
-            {
-                return identifier
-            } else {
+            // _identifier
+            guard
+                let aSelector = NSStringFromBase64EncodedString("X2lkZW50aWZpZXI="),
+                responds(to: NSSelectorFromString(aSelector))
+            else {
                 return nil
             }
+            return value(forKey: aSelector) as? String
         }
     }
 
     var isDynamic: Bool {
-        guard let id = id else {
-            return false
-        }
+        guard let id else { return false }
         switch id {
         case UISheetPresentationController.Detent.Identifier.large.rawValue,
             UISheetPresentationController.Detent.Identifier.medium.rawValue:
@@ -53,8 +53,10 @@ extension UISheetPresentationController.Detent {
             return true
         default:
             if #available(iOS 16.0, *) {
-                if responds(to: NSSelectorFromString("_type")),
-                    let type = value(forKey: "_type") as? Int
+                // _type
+                if let aSelector = NSStringFromBase64EncodedString("X3R5cGU="),
+                    responds(to: NSSelectorFromString(aSelector)),
+                    let type = value(forKey: aSelector) as? Int
                 {
                     return type == 0
                 }
@@ -65,10 +67,10 @@ extension UISheetPresentationController.Detent {
 
     @available(iOS 18.0, *)
     static func fullScreen() -> UISheetPresentationController.Detent? {
-        // https://x.com/SebJVidal/status/1924721754074714258
-        let aSelector = String("tneteDlluf_".reversed())
-        guard responds(to: NSSelectorFromString(aSelector)) else { return nil }
-        return value(forKey: aSelector) as? UISheetPresentationController.Detent
+        // _fullDetent
+        let aSelector = NSSelectorFromBase64EncodedString("X2Z1bGxEZXRlbnQ=")
+        guard responds(to: aSelector) else { return nil }
+        return perform(aSelector).takeUnretainedValue() as? UISheetPresentationController.Detent
     }
 
     static var legacyResolutionKey: UInt = 0
@@ -90,8 +92,9 @@ extension UISheetPresentationController.Detent {
     }
 
     var constant: CGFloat? {
-        if responds(to: NSSelectorFromString("_constant")),
-            let constant = value(forKey: "_constant") as? CGFloat,
+        if let aSelector = NSStringFromBase64EncodedString("X2NvbnN0YW50"),
+            responds(to: NSSelectorFromString(aSelector)),
+            let constant = value(forKey: aSelector) as? CGFloat,
             constant > 0
         {
             return constant

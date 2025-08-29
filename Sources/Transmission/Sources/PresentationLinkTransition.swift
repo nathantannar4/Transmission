@@ -419,7 +419,6 @@ extension PresentationLinkTransition {
                             return min(ceil(resolution(ctx) ?? max), max)
                         }
                     }
-                    let sel = NSSelectorFromString(String(":tnatsnoc:reifitnedIhtiWtneted_".reversed()))
                     var constant: CGFloat?
                     if let resolution, let containerView = presentationController.containerView {
                         // This seems to match the `maximumDetentValue` computed by UIKit
@@ -435,11 +434,13 @@ extension PresentationLinkTransition {
                     } else {
                         constant = height
                     }
-                    guard let constant, UISheetPresentationController.Detent.responds(to: sel) else {
+                    // _detentWithIdentifier:constant:
+                    let aSelector = NSSelectorFromBase64EncodedString("X2RldGVudFdpdGhJZGVudGlmaWVyOmNvbnN0YW50Og==")
+                    guard let constant, UISheetPresentationController.Detent.responds(to: aSelector) else {
                         return .large()
                     }
                     let result = UISheetPresentationController.Detent.perform(
-                        sel,
+                        aSelector,
                         with: identifier.rawValue,
                         with: constant
                     )
@@ -761,7 +762,8 @@ extension PresentationLinkTransition {
         dimmingColor: Color? = nil,
         dimmingVisualEffect: UIBlurEffect.Style? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-        isInteractive: Bool = true
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(
             value: .zoom(
@@ -770,7 +772,8 @@ extension PresentationLinkTransition {
                     dimmingVisualEffect: dimmingVisualEffect,
                     hapticsStyle: hapticsStyle,
                     options: .init(
-                        isInteractive: isInteractive
+                        isInteractive: isInteractive,
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
                     )
                 )
             )

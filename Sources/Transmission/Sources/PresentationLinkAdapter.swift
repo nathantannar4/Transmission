@@ -38,6 +38,8 @@ public struct PresentationLinkAdapter<
 >: View {
 
     var transition: PresentationLinkTransition
+    var cornerRadius: CornerRadiusOptions?
+    var backgroundColor: Color?
     var isPresented: Binding<Bool>
     var content: Content
     var destination: Destination
@@ -47,16 +49,27 @@ public struct PresentationLinkAdapter<
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination
     ) where Content == EmptyView {
-        self.init(transition: transition, isPresented: isPresented, destination: destination, content: { EmptyView() })
+        self.init(
+            transition: transition,
+            isPresented: isPresented,
+            destination: destination,
+            content: {
+                EmptyView()
+            }
+        )
     }
 
     public init(
         transition: PresentationLinkTransition,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder content: () -> Content
     ) {
         self.transition = transition
+        self.cornerRadius = cornerRadius
+        self.backgroundColor = backgroundColor
         self.isPresented = isPresented
         self.content = content()
         self.destination = destination()
@@ -65,6 +78,8 @@ public struct PresentationLinkAdapter<
     public var body: some View {
         PresentationLinkAdapterBody(
             transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
             isPresented: isPresented,
             destination: destination,
             sourceView: content
@@ -79,6 +94,8 @@ private struct PresentationLinkAdapterBody<
 >: UIViewRepresentable {
 
     var transition: PresentationLinkTransition
+    var cornerRadius: CornerRadiusOptions?
+    var backgroundColor: Color?
     var isPresented: Binding<Bool>
     var destination: Destination
     var sourceView: SourceView
@@ -102,6 +119,8 @@ private struct PresentationLinkAdapterBody<
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
         uiView.hostingView?.content = sourceView
+        uiView.hostingView?.cornerRadius = cornerRadius
+        uiView.backgroundColor = backgroundColor?.toUIColor()
 
         if let presentingViewController = presentingViewController, isPresented.wrappedValue {
 
@@ -126,6 +145,7 @@ private struct PresentationLinkAdapterBody<
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
             var isTransitioningPresentationController = false
+            let sourceView = uiView.hostingView ?? uiView
 
             if let adapter = context.coordinator.adapter,
                !context.coordinator.isBeingReused
@@ -174,7 +194,7 @@ private struct PresentationLinkAdapterBody<
                             _ transition: T
                         ) {
                             let context = PresentationLinkTransitionRepresentableContext(
-                                sourceView: uiView,
+                                sourceView: sourceView,
                                 options: options,
                                 environment: context.environment,
                                 transaction: Transaction(animation: animation)
@@ -232,7 +252,7 @@ private struct PresentationLinkAdapterBody<
                     adapter.transition = transition.value
                     adapter.update(
                         destination: destination,
-                        sourceView: uiView,
+                        sourceView: sourceView,
                         context: context,
                         isPresented: isPresented
                     )
@@ -240,7 +260,7 @@ private struct PresentationLinkAdapterBody<
                 } else {
                     adapter = PresentationLinkDestinationViewControllerAdapter(
                         destination: destination,
-                        sourceView: uiView,
+                        sourceView: sourceView,
                         transition: transition.value,
                         context: context,
                         isPresented: isPresented,
@@ -269,11 +289,11 @@ private struct PresentationLinkAdapterBody<
                             if case .sheet(let options) = adapter.transition,
                                options.prefersSourceViewAlignment
                             {
-                                sheetPresentationController.sourceView = uiView
+                                sheetPresentationController.sourceView = sourceView
                             }
                         } else if let popoverPresentationController = presentationController as? UIPopoverPresentationController {
                             popoverPresentationController.delegate = context.coordinator
-                            popoverPresentationController.sourceView = uiView
+                            popoverPresentationController.sourceView = sourceView
                             if case .popover(let options) = adapter.transition {
                                 let permittedArrowDirections = options.permittedArrowDirections(
                                     layoutDirection: traits.layoutDirection
@@ -302,20 +322,20 @@ private struct PresentationLinkAdapterBody<
                     }
 
                 case .popover:
-                    context.coordinator.sourceView = uiView
+                    context.coordinator.sourceView = sourceView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
                 case .sheet(let options):
-                    context.coordinator.sourceView = uiView
+                    context.coordinator.sourceView = sourceView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
                     if options.prefersZoomTransition, #available(iOS 18.0, *) {
                         let zoomOptions = UIViewController.Transition.ZoomOptions()
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] context in
-                            guard uiView?.window != nil else { return nil }
-                            return uiView
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] context in
+                            guard sourceView?.window != nil else { return nil }
+                            return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
                             zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomPanGestureDidChange(_:)))
@@ -330,9 +350,9 @@ private struct PresentationLinkAdapterBody<
                         let zoomOptions = UIViewController.Transition.ZoomOptions()
                         zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
                         zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak uiView] context in
-                            guard uiView?.window != nil else { return nil }
-                            return uiView
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] context in
+                            guard sourceView?.window != nil else { return nil }
+                            return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
                             zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomPanGestureDidChange(_:)))
@@ -341,13 +361,13 @@ private struct PresentationLinkAdapterBody<
                             zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomEdgePanGestureDidChange(_:)))
                         }
                     }
-                    context.coordinator.sourceView = uiView
+                    context.coordinator.sourceView = sourceView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
                 case .representable(_, let transition):
                     assert(!swift_getIsClassType(transition), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
-                    context.coordinator.sourceView = uiView
+                    context.coordinator.sourceView = sourceView
                     context.coordinator.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
                 }

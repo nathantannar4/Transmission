@@ -20,6 +20,15 @@ extension CGRect {
             abs(size.width - rect.size.width) <= tolerance &&
             abs(size.height - rect.size.height) <= tolerance
     }
+
+    func rounded(scale: CGFloat) -> CGRect {
+        CGRect(
+            x: origin.x.rounded(scale: scale),
+            y: origin.y.rounded(scale: scale),
+            width: size.width.rounded(scale: scale),
+            height: size.height.rounded(scale: scale)
+        )
+    }
 }
 
 #endif

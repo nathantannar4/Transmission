@@ -133,8 +133,8 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         let frame = transitionContext.finalFrame(for: presented)
         #if targetEnvironment(macCatalyst)
         let isScaleEnabled = false
-        let toCornerRadius = preferredToCornerRadius ?? .rounded(cornerRadius: 0)
-        let fromCornerRadius = preferredFromCornerRadius ?? .rounded(cornerRadius: 0)
+        let toCornerRadius = preferredToCornerRadius ?? .identity
+        let fromCornerRadius = preferredFromCornerRadius ?? .identity
         #else
         let isTranslucentBackground = presented.view.backgroundColor?.isTranslucent ?? false
         var isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&

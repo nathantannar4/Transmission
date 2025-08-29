@@ -41,12 +41,16 @@ public struct DestinationSourceViewLink<
     var label: Label
     var destination: Destination
     var transition: DestinationLinkTransition
+    var cornerRadius: CornerRadiusOptions?
+    var backgroundColor: Color?
     var animation: Animation?
 
     @StateOrBinding var isPresented: Bool
 
     public init(
         transition: DestinationLinkTransition = .zoomIfAvailable,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         animation: Animation? = .default,
         @ViewBuilder destination: () -> Destination,
         @ViewBuilder label: () -> Label
@@ -54,12 +58,16 @@ public struct DestinationSourceViewLink<
         self.label = label()
         self.destination = destination()
         self.transition = transition
+        self.cornerRadius = cornerRadius
+        self.backgroundColor = backgroundColor
         self.animation = animation
         self._isPresented = .init(false)
     }
 
     public init(
         transition: DestinationLinkTransition = .zoomIfAvailable,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         animation: Animation? = .default,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
@@ -68,6 +76,8 @@ public struct DestinationSourceViewLink<
         self.label = label()
         self.destination = destination()
         self.transition = transition
+        self.cornerRadius = cornerRadius
+        self.backgroundColor = backgroundColor
         self.animation = animation
         self._isPresented = .init(isPresented)
     }
@@ -75,6 +85,8 @@ public struct DestinationSourceViewLink<
     public var body: some View {
         DestinationLinkAdapter(
             transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
             isPresented: $isPresented
         ) {
             destination

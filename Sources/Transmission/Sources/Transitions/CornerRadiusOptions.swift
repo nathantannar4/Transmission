@@ -27,6 +27,8 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             self.style = style
         }
 
+        public static let identity: RoundedRectangle = .rounded(cornerRadius: 0)
+
         public static func rounded(
             cornerRadius: CGFloat,
             mask: CACornerMask,
@@ -114,6 +116,8 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             )
         )
     }
+
+    public static let identity: CornerRadiusOptions = .rounded(cornerRadius: 0)
 
     public func apply(to layer: CALayer, height: CGFloat) {
         switch self {

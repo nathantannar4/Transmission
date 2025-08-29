@@ -273,7 +273,7 @@ struct PresentationLinkExamples: View {
                 transition: .sheet(detent: .ideal)
             ) {
                 InfoCardView()
-                    .padding()
+                    .padding([.horizontal, .top])
             } label: {
                 VStack(alignment: .leading) {
                     Text("Self sizing sheet")
