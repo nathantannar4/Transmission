@@ -471,6 +471,7 @@ extension PresentationLinkTransition {
         public var largestUndimmedDetentIdentifier: Detent.Identifier?
         public var prefersGrabberVisible: Bool
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
+        public var preferredBackground: BackgroundOptions?
         public var prefersSourceViewAlignment: Bool
         public var prefersScrollingExpandsWhenScrolledToEdge: Bool
         public var prefersEdgeAttachedInCompactHeight: Bool
@@ -485,6 +486,7 @@ extension PresentationLinkTransition {
             isInteractive: Bool? = nil,
             prefersGrabberVisible: Bool = false,
             preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+            preferredBackground: BackgroundOptions? = nil,
             prefersSourceViewAlignment: Bool = false,
             prefersScrollingExpandsWhenScrolledToEdge: Bool = true,
             prefersEdgeAttachedInCompactHeight: Bool = false,
@@ -511,6 +513,7 @@ extension PresentationLinkTransition {
                 }
                 return prefersZoomTransition ? .screen() : nil
             }()
+            self.preferredBackground = preferredBackground
             self.prefersSourceViewAlignment = prefersSourceViewAlignment
             self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
             self.prefersEdgeAttachedInCompactHeight = prefersEdgeAttachedInCompactHeight
@@ -613,6 +616,12 @@ extension PresentationLinkTransition {
                     detents: [detent],
                     prefersGrabberVisible: prefersGrabberVisible,
                     preferredCornerRadius: preferredCornerRadius.map { .rounded(cornerRadius: $0) },
+                    prefersEdgeAttachedInCompactHeight: {
+                        if #available(iOS 26.0, *) {
+                            return detent.identifier == .ideal
+                        }
+                        return false
+                    }(),
                     prefersZoomTransition: prefersZoomTransition,
                     options: .init(
                         isInteractive: isInteractive,
@@ -628,6 +637,7 @@ extension PresentationLinkTransition {
         detent: SheetTransitionOptions.Detent,
         prefersGrabberVisible: Bool = false,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        preferredBackground: BackgroundOptions? = nil,
         prefersZoomTransition: Bool = false,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
@@ -638,10 +648,11 @@ extension PresentationLinkTransition {
                     detents: [detent],
                     prefersGrabberVisible: prefersGrabberVisible,
                     preferredCornerRadius: preferredCornerRadius,
+                    preferredBackground: preferredBackground,
                     prefersZoomTransition: prefersZoomTransition,
                     options: .init(
                         isInteractive: isInteractive,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor ?? (preferredBackground != nil ? .clear : nil)
                     )
                 )
             )
@@ -684,6 +695,7 @@ extension PresentationLinkTransition {
         detents: [SheetTransitionOptions.Detent],
         prefersGrabberVisible: Bool = false,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        preferredBackground: BackgroundOptions? = nil,
         largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
         prefersZoomTransition: Bool = false,
         isInteractive: Bool = true,
@@ -697,10 +709,11 @@ extension PresentationLinkTransition {
                     largestUndimmedDetentIdentifier: largestUndimmedDetentIdentifier,
                     prefersGrabberVisible: prefersGrabberVisible,
                     preferredCornerRadius: preferredCornerRadius,
+                    preferredBackground: preferredBackground,
                     prefersZoomTransition: prefersZoomTransition,
                     options: .init(
                         isInteractive: isInteractive,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor ?? (preferredBackground != nil ? .clear : nil)
                     )
                 )
             )

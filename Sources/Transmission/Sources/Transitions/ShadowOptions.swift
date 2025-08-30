@@ -11,6 +11,7 @@ import Engine
 @frozen
 @available(iOS 14.0, *)
 public struct ShadowOptions: Equatable, Sendable {
+
     public var shadowOpacity: Float
     public var shadowRadius: CGFloat
     public var shadowOffset: CGSize

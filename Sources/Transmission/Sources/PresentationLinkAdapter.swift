@@ -310,6 +310,7 @@ private struct PresentationLinkAdapterBody<
                     // transitioningDelegate + .custom breaks .overCurrentContext
                     adapter.viewController.modalPresentationStyle = .overCurrentContext
                     if let presentationController = adapter.viewController.presentationController {
+                        presentationController.delegate = context.coordinator
                         presentationController.overrideTraitCollection = traits
                         context.coordinator.presentationController = presentationController
                     }
@@ -317,6 +318,7 @@ private struct PresentationLinkAdapterBody<
                 case .fullscreen:
                     adapter.viewController.modalPresentationStyle = .overFullScreen
                     if let presentationController = adapter.viewController.presentationController {
+                        presentationController.delegate = context.coordinator
                         presentationController.overrideTraitCollection = traits
                         context.coordinator.presentationController = presentationController
                     }
@@ -362,8 +364,11 @@ private struct PresentationLinkAdapterBody<
                         }
                     }
                     context.coordinator.sourceView = sourceView
-                    context.coordinator.overrideTraitCollection = traits
-                    adapter.viewController.modalPresentationStyle = .custom
+                    if let presentationController = adapter.viewController.presentationController {
+                        presentationController.delegate = context.coordinator
+                        presentationController.overrideTraitCollection = traits
+                        context.coordinator.presentationController = presentationController
+                    }
 
                 case .representable(_, let transition):
                     assert(!swift_getIsClassType(transition), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
@@ -432,10 +437,20 @@ private struct PresentationLinkAdapterBody<
                         } ?? true
                     }()
                     if shouldDismiss {
-                        presentedViewController.dismiss(
-                            animated: isAnimated,
-                            completion: present
-                        )
+                        if let firstResponder = presentedViewController.firstResponder {
+                            withCATransaction {
+                                firstResponder.resignFirstResponder()
+                                presentedViewController.dismiss(
+                                    animated: isAnimated,
+                                    completion: present
+                                )
+                            }
+                        } else {
+                            presentedViewController.dismiss(
+                                animated: isAnimated,
+                                completion: present
+                            )
+                        }
                     } else {
                         present()
                     }
@@ -617,7 +632,7 @@ private struct PresentationLinkAdapterBody<
                         let edgeGesture = navigationController.interactivePopGestureRecognizer as? UIScreenEdgePanGestureRecognizer,
                         edgeGesture.isEnabled
                     {
-                        let translation = zoomEdgeGesture.location(in: presentationController.presentedViewController.view)
+                        let translation = zoomEdgeGesture.location(in: presentationController.presentedView)
                         let edgeDistance: CGFloat = 16
                         if edgeGesture.edges.contains(.left) {
                             if translation.x <= edgeDistance {
@@ -625,7 +640,7 @@ private struct PresentationLinkAdapterBody<
                             }
                         }
                         if edgeGesture.edges.contains(.right) {
-                            let width = presentationController.presentedViewController.view.bounds.width
+                            let width = presentationController.presentedView?.bounds.width ?? 0
                             if translation.x >= (width - edgeDistance) {
                                 return false
                             }
@@ -884,7 +899,7 @@ private struct PresentationLinkAdapterBody<
                     if #available(iOS 17.0, *) {
                         presentationController.prefersPageSizing = options.prefersPageSizing
                     }
-                    presentationController.preferredBackgroundColor = options.options.preferredPresentationBackgroundUIColor
+                    presentationController.preferredBackground = options.preferredBackground ?? options.options.preferredPresentationBackgroundColor.map { .color($0) }
                     presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
                     return presentationController
@@ -915,6 +930,9 @@ private struct PresentationLinkAdapterBody<
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
+
+            case .zoom:
+                return nil
 
             default:
                 break
@@ -991,7 +1009,7 @@ private struct PresentationLinkAdapterBody<
         func prepareForPopoverPresentation(
             _ popoverPresentationController: UIPopoverPresentationController
         ) {
-            popoverPresentationController.presentedViewController.view.layoutIfNeeded()
+            popoverPresentationController.presentedView?.layoutIfNeeded()
         }
 
         // MARK: - Zoom Transition
@@ -1178,11 +1196,9 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 adapter: self
             )
             conformance.visit(visitor: &visitor)
-            switch transition {
-            case .representable(let options, _):
-                viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
-            default:
-                break
+            viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
+            if let backgroundColor = transition.options.preferredPresentationBackgroundUIColor {
+                viewController.view.backgroundColor = backgroundColor
             }
         } else {
             let viewController = viewController as! DestinationController
@@ -1327,6 +1343,8 @@ extension PresentationLinkTransition.Value {
         viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
         if let backgroundColor = options.preferredPresentationBackgroundUIColor {
             viewController.view.backgroundColor = backgroundColor
+        } else {
+            viewController.view.backgroundColor = .systemBackground
         }
 
         switch self {

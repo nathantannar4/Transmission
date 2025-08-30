@@ -80,7 +80,6 @@ class DynamicIslandPresentationController: InteractivePresentationController {
     let dynamicIslandTopInset: CGFloat = 11
 
     override var frameOfPresentedViewInContainerView: CGRect {
-        guard let presentedView else { return .zero }
         var frame = super.frameOfPresentedViewInContainerView
         frame = frame.inset(
             by: UIEdgeInsets(
@@ -94,12 +93,12 @@ class DynamicIslandPresentationController: InteractivePresentationController {
             width: frame.size.width,
             height: UIView.layoutFittingCompressedSize.height
         )
-        let targetHeight = presentedView.systemLayoutSizeFitting(
+        let targetHeight = presentedViewController.view.systemLayoutSizeFitting(
             fittingSize,
             withHorizontalFittingPriority: .required,
             verticalFittingPriority: .defaultLow
         ).height
-        frame.size.height = max(targetHeight - presentedView.safeAreaInsets.top, 0)
+        frame.size.height = max(targetHeight - presentedViewController.view.safeAreaInsets.top, 0)
         return frame
     }
 
@@ -164,7 +163,9 @@ class DynamicIslandPresentationControllerTransition: PresentationControllerTrans
 
         if isPresenting {
             let finalFrame = transitionContext.finalFrame(for: presented)
-            transitionContext.containerView.addSubview(presented.view)
+            if presented.view.superview == nil {
+                transitionContext.containerView.addSubview(presented.view)
+            }
             presented.view.frame = dynamicIslandFrame
             presented.view.layer.cornerRadius = dynamicIslandFrame.height / 2
             presented.view.clipsToBounds = true

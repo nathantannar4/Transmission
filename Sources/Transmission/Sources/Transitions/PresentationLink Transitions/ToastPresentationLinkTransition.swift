@@ -27,17 +27,22 @@ extension PresentationLinkTransition {
     /// The toast presentation style.
     public static func toast(
         edge: Edge = .bottom,
+        preferredCornerRadius: CornerRadiusOptions? = nil,
+        preferredPresentationShadow: ShadowOptions? = nil,
+        preferredBackground: BackgroundOptions? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .toast(
             .init(
                 edge: edge,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
+                preferredCornerRadius: preferredCornerRadius,
+                preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear || preferredBackground?.effect != nil ? .clear : .minimal),
+                preferredBackground: preferredBackground,
             ),
             options: .init(
                 isInteractive: isInteractive,
-                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor ?? (preferredBackground != nil ? .clear : nil)
             )
         )
     }
@@ -52,14 +57,20 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
     public struct Options {
 
         public var edge: Edge
+        public var preferredCornerRadius: CornerRadiusOptions?
         public var preferredPresentationShadow: ShadowOptions
+        public var preferredBackground: BackgroundOptions?
 
         public init(
             edge: Edge = .bottom,
-            preferredPresentationShadow: ShadowOptions = .minimal
+            preferredCornerRadius: CornerRadiusOptions? = nil,
+            preferredPresentationShadow: ShadowOptions = .minimal,
+            preferredBackground: BackgroundOptions? = nil
         ) {
             self.edge = edge
+            self.preferredCornerRadius = preferredCornerRadius
             self.preferredPresentationShadow = preferredPresentationShadow
+            self.preferredBackground = preferredBackground
         }
     }
     public var options: Options
@@ -76,10 +87,12 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
     ) -> ToastPresentationController {
         let presentationController = ToastPresentationController(
             edge: options.edge,
+            preferredCornerRadius: options.preferredCornerRadius,
             presentedViewController: presented,
             presenting: presenting
         )
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         return presentationController
     }
 
@@ -88,7 +101,9 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) {
         presentationController.edge = options.edge
+        presentationController.preferredCornerRadius = options.preferredCornerRadius
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
     }
 
     public func updateHostingController<Content>(

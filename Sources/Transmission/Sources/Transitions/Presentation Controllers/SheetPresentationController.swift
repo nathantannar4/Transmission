@@ -230,11 +230,13 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
-    public var preferredBackgroundColor: UIColor? {
+    public var preferredBackground: BackgroundOptions? {
         didSet {
             updateBackgroundColor()
         }
     }
+
+    public let backgroundView = PresentedContainerView()
 
     private var dropShadowView: UIView? {
         if let lastSubview = containerView?.subviews.last, lastSubview.isDropShadowView {
@@ -272,14 +274,36 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
+    open override func containerViewDidLayoutSubviews() {
+        super.containerViewDidLayoutSubviews()
+        if backgroundView.superview == nil {
+            presentedViewController.view.superview?.insertSubview(backgroundView, belowSubview: presentedViewController.view)
+        }
+        backgroundView.frame = presentedViewController.view.bounds
+    }
+
     private func updateCornerRadius() {
         preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadius
     }
 
     private func updateBackgroundColor() {
-        presentedView?.backgroundColor = preferredBackgroundColor
-        if let preferredBackgroundColor {
-            dropShadowView?.layer.shadowColor = preferredBackgroundColor.cgColor
+        dropShadowView?.layer.shadowColor = (preferredBackground?.color ?? .black).cgColor
+        if #available(iOS 26.0, *) {
+            let shouldHideDefaultBackground = preferredBackground?.color != nil || preferredBackground?.effect != nil
+            let value = shouldHideDefaultBackground ? UIColor.clear : nil
+            // _setLargeBackground:
+            let aSelectorSetLargeBackground = NSSelectorFromBase64EncodedString("X3NldExhcmdlQmFja2dyb3VuZDo=")
+            if responds(to: aSelectorSetLargeBackground) {
+                perform(aSelectorSetLargeBackground, with: value)
+            }
+            // _setNonLargeBackground:
+            let aSelectorSetNonLargeBackground = NSSelectorFromBase64EncodedString("X3NldE5vbkxhcmdlQmFja2dyb3VuZDo=")
+            if responds(to: aSelectorSetNonLargeBackground) {
+                perform(aSelectorSetNonLargeBackground, with: value)
+            }
+            backgroundView.preferredBackground = preferredBackground
+        } else {
+            backgroundView.preferredBackground = preferredBackground
         }
     }
 }
@@ -319,7 +343,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             return false
         }()
         #else
-        presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
+        presentationController.preferredBackground = newValue.preferredBackground ?? newValue.options.preferredPresentationBackgroundColor.map { .color($0) }
         let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
         let hasChanges: Bool = {
             if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {

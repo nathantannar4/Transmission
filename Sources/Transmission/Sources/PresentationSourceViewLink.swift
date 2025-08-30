@@ -108,10 +108,16 @@ extension PresentationSourceViewLink {
     @_disfavoredOverload
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         destination: @escaping () -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: transition) {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor
+        ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
@@ -120,10 +126,16 @@ extension PresentationSourceViewLink {
 
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: transition) {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor
+        ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
@@ -133,11 +145,18 @@ extension PresentationSourceViewLink {
     @_disfavoredOverload
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         isPresented: Binding<Bool>,
         destination: @escaping () -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: transition, isPresented: isPresented) {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            isPresented: isPresented
+        ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
@@ -146,11 +165,18 @@ extension PresentationSourceViewLink {
 
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         isPresented: Binding<Bool>,
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: transition, isPresented: isPresented) {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            isPresented: isPresented
+        ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {
             label()

@@ -18,14 +18,6 @@ open class PresentationControllerTransition: ViewControllerTransition {
         wantsInteractiveStart = true
     }
 
-    open override func animatedStarted(
-        transitionContext: UIViewControllerContextTransitioning
-    ) {
-        if let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? PresentationController {
-            presentationController.layoutBackgroundViews()
-        }
-    }
-
     open override func configureTransitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
@@ -33,7 +25,9 @@ open class PresentationControllerTransition: ViewControllerTransition {
 
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
-            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
+            let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
         else {
             transitionContext.completeTransition(false)
             return
@@ -41,23 +35,25 @@ open class PresentationControllerTransition: ViewControllerTransition {
 
         if isPresenting {
             let presentedFrame = transitionContext.finalFrame(for: presented)
-            transitionContext.containerView.addSubview(presented.view)
-            presented.view.frame = presentedFrame
-            presented.view.layoutIfNeeded()
+            if presentedView.superview == nil {
+                transitionContext.containerView.addSubview(presentedView)
+            }
+            presentedView.frame = presentedFrame
+            presentedView.layoutIfNeeded()
 
             let transform = CGAffineTransform(
                 translationX: 0,
                 y: presentedFrame.size.height + transitionContext.containerView.safeAreaInsets.bottom
             )
-            presented.view.transform = transform
+            presentedView.transform = transform
             animator.addAnimations {
-                presented.view.transform = .identity
+                presentedView.transform = .identity
             }
         } else {
-            if presenting.view.superview == nil {
-                transitionContext.containerView.insertSubview(presenting.view, at: 0)
-                presenting.view.frame = transitionContext.finalFrame(for: presenting)
-                presenting.view.layoutIfNeeded()
+            if presentingView.superview == nil {
+                transitionContext.containerView.insertSubview(presentingView, at: 0)
+                presentingView.frame = transitionContext.finalFrame(for: presenting)
+                presentingView.layoutIfNeeded()
             }
             let frame = transitionContext.finalFrame(for: presented)
             let dy = transitionContext.containerView.frame.height - frame.origin.y
@@ -65,10 +61,10 @@ open class PresentationControllerTransition: ViewControllerTransition {
                 translationX: 0,
                 y: dy
             )
-            presented.view.layoutIfNeeded()
+            presentedView.layoutIfNeeded()
 
             animator.addAnimations {
-                presented.view.transform = transform
+                presentedView.transform = transform
             }
         }
         animator.addCompletion { animatingPosition in

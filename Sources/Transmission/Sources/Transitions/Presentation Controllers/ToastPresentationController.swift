@@ -24,23 +24,30 @@ open class ToastPresentationController: InteractivePresentationController {
         }
     }
 
-    open override var frameOfPresentedViewInContainerView: CGRect {
-        guard
-            let containerView = containerView,
-            let presentedView = presentedView
-        else { 
-            return .zero
+    public var preferredCornerRadius: CornerRadiusOptions? {
+        didSet {
+            guard preferredCornerRadius != oldValue else { return }
+            setCornerRadius()
         }
+    }
 
-        var frame = containerView.bounds.inset(by: containerView.layoutMargins)
-        var sizeThatFits = presentedView.idealSize(for: frame.width)
+    open override var frameOfPresentedViewInContainerView: CGRect {
+        var insets = containerView?.layoutMargins ?? .zero
+        insets.bottom = max(insets.bottom, keyboardHeight + (insets.bottom - (containerView?.safeAreaInsets.bottom ?? 0)))
+        var frame = super.frameOfPresentedViewInContainerView
+            .inset(by: insets)
+
+        var sizeThatFits = presentedView?.idealSize(for: frame.width) ?? .zero
+        if sizeThatFits == .zero {
+            sizeThatFits = presentedViewController.view.idealSize(for: frame.width)
+        }
         sizeThatFits.height = min(sizeThatFits.height, frame.height)
-        frame.origin.x = (containerView.bounds.width - sizeThatFits.width) / 2
+        frame.origin.x = frame.midX - sizeThatFits.width / 2
         switch edge {
         case .top, .leading:
             break
         case .bottom, .trailing:
-            frame.origin.y = (frame.size.height + frame.origin.y - sizeThatFits.height)
+            frame.origin.y = frame.maxY - sizeThatFits.height
         }
         frame.size = sizeThatFits
         return frame
@@ -48,19 +55,29 @@ open class ToastPresentationController: InteractivePresentationController {
 
     public init(
         edge: Edge = .top,
+        preferredCornerRadius: CornerRadiusOptions? = nil,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.edge = edge
+        self.preferredCornerRadius = preferredCornerRadius
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
         edges = Edge.Set(edge)
+        prefersInteractiveDismissal = true
+    }
+    
+    open override func containerViewDidLayoutSubviews() {
+        super.containerViewDidLayoutSubviews()
+        setCornerRadius()
     }
 
-    open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
-        .zero
+    private func setCornerRadius() {
+        guard let presentedView else { return }
+        let cornerRadius = preferredCornerRadius ?? .identity
+        cornerRadius.apply(to: presentedView.layer, height: presentedView.bounds.height)
     }
 }
 
@@ -85,7 +102,8 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
     ) {
 
         guard
-            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
+            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view
         else {
             transitionContext.completeTransition(false)
             return
@@ -93,26 +111,28 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
 
         if isPresenting {
             var presentedFrame = transitionContext.finalFrame(for: presented)
-            transitionContext.containerView.addSubview(presented.view)
-            presented.view.frame = presentedFrame
-            presented.view.isHidden = true
-            presented.view.layoutIfNeeded()
+            if presentedView.superview == nil {
+                transitionContext.containerView.addSubview(presentedView)
+            }
+            presentedView.frame = presentedFrame
+            presentedView.isHidden = true
+            presentedView.layoutIfNeeded()
 
             (presented as? AnyHostingController)?.render()
 
             if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
                 transitionReaderCoordinator.update(isPresented: true)
 
-                presented.view.setNeedsLayout()
-                presented.view.layoutIfNeeded()
+                presentedView.setNeedsLayout()
+                presentedView.layoutIfNeeded()
 
                 if let presentationController = presented.presentationController as? PresentationController {
                     presentedFrame = presentationController.frameOfPresentedViewInContainerView
                 }
 
                 transitionReaderCoordinator.update(isPresented: false)
-                presented.view.setNeedsLayout()
-                presented.view.layoutIfNeeded()
+                presentedView.setNeedsLayout()
+                presentedView.layoutIfNeeded()
                 transitionReaderCoordinator.update(isPresented: true)
             }
 
@@ -122,35 +142,35 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
                     translationX: 0,
                     y: -presented.view.frame.maxY
                 )
-                presented.view.frame = presentedFrame.applying(transform)
+                presentedView.frame = presentedFrame.applying(transform)
             case .bottom, .trailing:
                 let transform = CGAffineTransform(
                     translationX: 0,
                     y: transitionContext.containerView.frame.height - presentedFrame.minY
                 )
-                presented.view.frame = presentedFrame.applying(transform)
+                presentedView.frame = presentedFrame.applying(transform)
             }
-            presented.view.isHidden = false
+            presentedView.isHidden = false
             animator.addAnimations {
-                presented.view.frame = presentedFrame
+                presentedView.frame = presentedFrame
             }
         } else {
-            presented.view.layoutIfNeeded()
+            presentedView.layoutIfNeeded()
 
             let finalFrame: CGRect
             switch edge {
             case .top, .leading:
-                let transform = CGAffineTransform(translationX: 0, y: -presented.view.frame.maxY)
-                finalFrame = presented.view.frame.applying(transform)
+                let transform = CGAffineTransform(translationX: 0, y: -presentedView.frame.maxY)
+                finalFrame = presentedView.frame.applying(transform)
             case .bottom, .trailing:
                 let transform = CGAffineTransform(
                     translationX: 0,
-                    y: transitionContext.containerView.frame.height - presented.view.frame.minY
+                    y: transitionContext.containerView.frame.height - presentedView.frame.minY
                 )
-                finalFrame = presented.view.frame.applying(transform)
+                finalFrame = presentedView.frame.applying(transform)
             }
             animator.addAnimations {
-                presented.view.frame = finalFrame
+                presentedView.frame = finalFrame
             }
         }
         animator.addCompletion { animatingPosition in
