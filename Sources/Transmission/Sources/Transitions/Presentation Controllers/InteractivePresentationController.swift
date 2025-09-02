@@ -21,6 +21,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     private var lastTranslation: CGPoint = .zero
     var keyboardOffset: CGFloat = 0
 
+    private var resignedFirstResponder: UIResponder?
+
     open var dismissalHapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
     private var feedbackGenerator: UIImpactFeedbackGenerator?
     private var isDismissReady = false
@@ -43,6 +45,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     public var prefersInteractiveDismissal: Bool = false
 
+    public var isKeyboardSessionActive: Bool {
+        keyboardHeight > 0 || keyboardOffset > 0
+    }
+
     open override var shouldAutoLayoutPresentedView: Bool {
         !panGesture.isInteracting && super.shouldAutoLayoutPresentedView
     }
@@ -55,7 +61,9 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     }
 
     open override func preferredDefaultAnimation() -> Animation? {
-        guard panGesture.state == .ended else { return super.preferredDefaultAnimation() }
+        guard panGesture.state == .ended , let presentedView else {
+            return super.preferredDefaultAnimation()
+        }
         let velocity = panGesture.velocity(in: panGesture.view)
         let frame = frameOfPresentedViewInContainerView
         let initialVelocityVector = CGVector(
@@ -63,8 +71,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             dy: abs(velocity.x) / max(frame.width, 1)
         )
         let progressVector = CGVector(
-            dx: presentedViewController.view.frame.width / frame.width,
-            dy: presentedViewController.view.frame.height / frame.height
+            dx: presentedView.frame.width / frame.width,
+            dy: presentedView.frame.height / frame.height
         )
         let initialVelocity = sqrt(pow(initialVelocityVector.dx, 2) + pow(initialVelocityVector.dy, 2))
         let progress = min(progressVector.dx, progressVector.dy)
@@ -82,11 +90,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-
-        let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
-        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
-            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
-        }
 
         if transition == nil {
             panGesture.isEnabled = false
@@ -158,7 +161,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     }
 
     open func transformPresentedView(transform: CGAffineTransform) {
-        let scale = presentedViewController.view.window?.screen.scale ?? 1
+        let scale = presentedView?.window?.screen.scale ?? 1
         var frame = frameOfPresentedViewInContainerView.applying(transform)
         frame.origin.y -= keyboardOffset
         frame.origin.x = frame.origin.x.rounded(scale: scale)
@@ -166,37 +169,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         frame.size.width = frame.size.width.rounded(scale: scale)
         frame.size.height = frame.size.height.rounded(scale: scale)
         layoutPresentedView(frame: frame)
-    }
-
-    open func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
-        // SwiftUI automatically reduces safe area during a view transform,
-        // which causes layout changes. Add back the difference so it stays
-        // consistent.
-        guard let presentedView, presentedView.frame != .zero else { return .zero }
-        let frameOfPresentedViewInContainerView = frameOfPresentedViewInContainerView
-        let frame = presentedViewController.view.frame
-        let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
-        let dyTop = (frame.origin.y - frameOfPresentedViewInContainerView.origin.y)
-            .rounded(scale: presentedView.window?.screen.scale ?? 1)
-        let dyBottom = (-dyTop + frameOfPresentedViewInContainerView.size.height - frame.size.height)
-            .rounded(scale: presentedView.window?.screen.scale ?? 1)
-        let overlapsTopSafeArea = frameOfPresentedViewInContainerView.origin.y <= safeAreaInsets.top
-        let overlapsBottomSafeArea = (containerView?.frame.height ?? 0) - frameOfPresentedViewInContainerView.maxY <= safeAreaInsets.bottom
-        let additionalSafeAreaInsets = UIEdgeInsets(
-            top: overlapsTopSafeArea ? max(0, min(dyTop, safeAreaInsets.top)) : 0,
-            left: 0,
-            bottom: overlapsBottomSafeArea ? max(0, min(dyBottom, safeAreaInsets.bottom)) : 0,
-            right: 0
-        )
-        return additionalSafeAreaInsets
-    }
-
-    open override func layoutPresentedView(frame: CGRect) {
-        super.layoutPresentedView(frame: frame)
-        let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
-        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
-            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
-        }
     }
 
     @objc
@@ -230,6 +202,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             if shouldCancel {
                 transition?.cancel()
                 transition = nil
+                resignedFirstResponder?.becomeFirstResponder()
             }
         }
 
@@ -263,7 +236,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             switch gestureRecognizer.state {
             case .began, .changed:
                 if presentedViewController.isBeingPresented,
-                    let frame = presentedViewController.view.layer.presentation()?.frame
+                    let frame = presentedView.layer.presentation()?.frame
                 {
                     let location = gestureRecognizer.location(in: presentedView)
                     if !frame.insetBy(dx: -8, dy: -8).contains(location) {
@@ -335,8 +308,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     transition.completionSpeed = 1 - percentage
                 }
                 let delta = CGSize(
-                    width: percentage * (presentedViewController.view.frame.origin.x - frameOfPresentedView.origin.x),
-                    height: percentage * (presentedViewController.view.frame.origin.y - frameOfPresentedView.origin.y)
+                    width: percentage * (presentedView.frame.origin.x - frameOfPresentedView.origin.x),
+                    height: percentage * (presentedView.frame.origin.y - frameOfPresentedView.origin.y)
                 )
                 transition.timingCurve = UISpringTimingParameters(
                     dampingRatio: 1.0,
@@ -358,39 +331,46 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 break
             }
         } else {
+            func dismissKeyboard() -> Bool {
+                #if !targetEnvironment(macCatalyst)
+                let didResign: Bool
+                if keyboardHeight > 0 {
+                    var views = gestureRecognizer.view.map { [$0] } ?? []
+                    var firstResponder: UIView?
+                    var index = 0
+                    repeat {
+                        let view = views[index]
+                        if view.isFirstResponder {
+                            firstResponder = view
+                        } else {
+                            views.append(contentsOf: view.subviews)
+                            index += 1
+                        }
+                    } while index < views.count && firstResponder == nil
+                    if let firstResponder {
+                        let keyboardHeight = keyboardHeight
+                        didResign = firstResponder.resignFirstResponder()
+                        if didResign {
+                            resignedFirstResponder = firstResponder
+                        }
+                        keyboardOffset = keyboardOverlapInContainerView(
+                            of: frameOfPresentedViewInContainerView,
+                            keyboardHeight: keyboardHeight
+                        )
+                    } else {
+                        didResign = true
+                    }
+                } else {
+                    didResign = true
+                }
+                return didResign
+                #else
+                return true
+                #endif
+            }
             func dismissIfNeeded() -> Bool {
                 let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
-                if shouldDismiss {
-                    #if !targetEnvironment(macCatalyst)
-                    let canStart: Bool
-                    if keyboardHeight > 0 {
-                        var views = gestureRecognizer.view.map { [$0] } ?? []
-                        var firstResponder: UIView?
-                        var index = 0
-                        repeat {
-                            let view = views[index]
-                            if view.isFirstResponder {
-                                firstResponder = view
-                            } else {
-                                views.append(contentsOf: view.subviews)
-                                index += 1
-                            }
-                        } while index < views.count && firstResponder == nil
-                        if let firstResponder {
-                            let keyboardHeight = keyboardHeight
-                            canStart = firstResponder.resignFirstResponder()
-                            keyboardOffset = keyboardOverlapInContainerView(
-                                of: frameOfPresentedViewInContainerView,
-                                keyboardHeight: keyboardHeight
-                            )
-                        } else {
-                            canStart = true
-                        }
-                    } else {
-                        canStart = true
-                    }
-                    guard canStart else { return false }
-                    #endif
+                if shouldDismiss, dismissKeyboard() {
                     presentedViewController.dismiss(animated: true)
                     return true
                 }
@@ -412,9 +392,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     lastTranslation = .zero
                     keyboardOffset = 0
                     scrollView?.panGestureRecognizer.setTranslation(.zero, in: scrollView)
-                } else if gestureRecognizer.state == .changed,
-                    isScrollViewAtTop || trackingScrollView?.isTracking == false
+                } else if isScrollViewAtTop || trackingScrollView?.isTracking == false
                 {
+                    if prefersInteractiveDismissal {
+                        guard dismissKeyboard() else { return }
+                    }
                     if wantsInteractiveDismissal, let scrollView = trackingScrollView {
                         scrollView.isScrollEnabled = false
                         scrollView.isScrollEnabled = true
@@ -444,6 +426,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 {
                     panGestureDidEnd()
                 } else {
+                    keyboardOffset = 0
+                    resignedFirstResponder?.becomeFirstResponder()
                     UIView.animate(
                         withDuration: 0.35,
                         delay: 0,
@@ -483,6 +467,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         keyboardOffset = 0
         dismissalTransitionDidCancel()
         isDismissReady = false
+        resignedFirstResponder = nil
         feedbackGenerator = nil
     }
 

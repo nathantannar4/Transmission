@@ -88,12 +88,8 @@ class TransitionSourceHostingView<Content: View>: HostingView<Content> {
 
     override func layoutSublayers(of layer: CALayer) {
         super.layoutSublayers(of: layer)
-        updateLayerCornerRadius()
-    }
-
-    private func updateLayerCornerRadius() {
         let cornerRadius = cornerRadius ?? .identity
-        cornerRadius.apply(to: layer, height: bounds.height)
+        cornerRadius.apply(to: layer, height: layer.bounds.height)
     }
 }
 

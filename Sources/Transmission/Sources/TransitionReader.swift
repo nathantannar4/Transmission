@@ -165,6 +165,7 @@ final class TransitionReaderCoordinator: NSObject {
     ) {
         let isPresenting = transitionContext.viewController(forKey: .to) == presentingViewController
         let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
+        let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented?.view
 
         if transitionContext.isInteractive {
             let newValue = isPresenting
@@ -195,7 +196,7 @@ final class TransitionReaderCoordinator: NSObject {
                 proxy.wrappedValue.progress = newValue
             }
             if isInProgress {
-                presented?.view.layoutIfNeeded()
+                presentedView?.layoutIfNeeded()
             }
         }
     }
