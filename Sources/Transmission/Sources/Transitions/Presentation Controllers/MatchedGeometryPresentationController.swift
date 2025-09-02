@@ -54,24 +54,24 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-        presentedViewController.view.layer.cornerCurve = .continuous
+        presentedView?.layer.cornerCurve = .continuous
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
         if completed {
-            presentedViewController.view.layer.cornerRadius = 0
+            presentedView?.layer.cornerRadius = 0
         }
     }
 
     open override func transformPresentedView(transform: CGAffineTransform) {
         super.transformPresentedView(transform: transform)
         if transform.isIdentity {
-            presentedViewController.view.layer.cornerRadius = 0
+            presentedView?.layer.cornerRadius = 0
         } else {
             let progress = max(0, min(transform.d, 1))
             let cornerRadius = progress * UIScreen.main.displayCornerRadius()
-            presentedViewController.view.layer.cornerRadius = cornerRadius
+            presentedView?.layer.cornerRadius = cornerRadius
         }
     }
 
@@ -87,7 +87,7 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 
     open override func updateShadow(progress: Double) {
         super.updateShadow(progress: progress)
-        dimmingView.isHidden = presentedViewShadow.shadowOpacity > 0
+        dimmingView.isHidden = presentedContainerView.layer.shadowOpacity > 0
     }
 }
 
@@ -120,16 +120,6 @@ open class MatchedGeometryPresentationControllerTransition: MatchedGeometryViewC
             animation: animation
         )
         wantsInteractiveStart = true
-    }
-
-    open override func animatedStarted(
-        transitionContext: UIViewControllerContextTransitioning
-    ) {
-        super.animatedStarted(transitionContext: transitionContext)
-
-        if let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? PresentationController {
-            presentationController.layoutBackgroundViews()
-        }
     }
 }
 

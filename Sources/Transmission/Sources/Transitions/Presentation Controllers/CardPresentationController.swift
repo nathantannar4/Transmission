@@ -33,8 +33,22 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
+    public var insetSafeAreaByCornerRadius: Bool = true {
+        didSet {
+            guard insetSafeAreaByCornerRadius != oldValue else { return }
+            updateAdditionalSafeAreaInsets()
+        }
+    }
+
     open override var frameOfPresentedViewInContainerView: CGRect {
         var frame = super.frameOfPresentedViewInContainerView
+        if keyboardHeight > 0 {
+            let dy = keyboardOverlapInContainerView(
+                of: frame,
+                keyboardHeight: keyboardHeight
+            )
+            frame.size.height -= dy
+        }
         guard let presentedView else { return frame }
         if traitCollection.horizontalSizeClass == .regular {
             let width = min(frame.width, 430)
@@ -49,25 +63,31 @@ open class CardPresentationController: InteractivePresentationController {
         let isCompact = traitCollection.verticalSizeClass == .compact
         let width = isCompact ? frame.height : frame.width
         let height: CGFloat = {
-            let presentedViewAdditionalSafeAreaInsets = presentedViewController.additionalSafeAreaInsets
+            var fittingWidth = width - (2 * edgeInset)
+            let inset = (isKeyboardSessionActive ? cornerRadius / 2 : max((containerView?.safeAreaInsets.bottom ?? 0) - cornerRadius / 2, 0))
             if let preferredAspectRatio {
-                let insets = presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets : presentedView.safeAreaInsets
-                let dx = min(insets.top, max(0, (containerView?.safeAreaInsets.top ?? 0) - edgeInset)) - min(insets.bottom, max(0, (containerView?.safeAreaInsets.bottom ?? 0) - edgeInset))
-                return (preferredAspectRatio * (width - dx)).rounded(scale: containerView?.window?.screen.scale ?? 1)
+                let height = (preferredAspectRatio * fittingWidth).rounded(scale: containerView?.window?.screen.scale ?? 1) + inset + edgeInset
+                return height
             }
-            let fittingWidth = width - (presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets.left + presentedViewAdditionalSafeAreaInsets.right : 0) - (2 * edgeInset)
+            if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
+                fittingWidth -= presentedViewController.additionalSafeAreaInsets.left
+                fittingWidth -= presentedViewController.additionalSafeAreaInsets.right
+            }
             var sizeThatFits = CGSize(
                 width: fittingWidth,
-                height: presentedView.idealHeight(for: fittingWidth)
+                height: presentedViewController.view.idealHeight(for: fittingWidth)
             )
             if sizeThatFits.height <= 0 {
                 sizeThatFits.height = width
             }
             sizeThatFits.height += (2 * edgeInset)
-            if presentedView.safeAreaInsets == .zero {
-                sizeThatFits.height += (presentedViewAdditionalSafeAreaInsets.top + presentedViewAdditionalSafeAreaInsets.bottom)
+            sizeThatFits.height -= max(presentedViewController.view.safeAreaInsets.bottom - presentedView.safeAreaInsets.bottom, 0)
+            if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
+                sizeThatFits.height += max((containerView?.safeAreaInsets.bottom ?? 0) - edgeInset, 0)
+                sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.top
+                sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.bottom
             }
-            return min(frame.height, sizeThatFits.height).rounded(.down)
+            return min(frame.height, sizeThatFits.height).rounded(scale: containerView?.window?.screen.scale ?? 1)
         }()
         frame = CGRect(
             x: frame.origin.x + (frame.width - width) / 2,
@@ -76,18 +96,10 @@ open class CardPresentationController: InteractivePresentationController {
             height: height
         )
 
-        var keyboardOverlap: CGFloat = 0
-        if shouldAutomaticallyAdjustFrameForKeyboard {
-            keyboardOverlap = keyboardOverlapInContainerView(
-                of: frame,
-                keyboardHeight: keyboardHeight
-            )
-
-            if keyboardHeight > 0 {
-                frame.origin.y += presentedViewController.additionalSafeAreaInsets.bottom
-            }
-        }
-
+        let keyboardOverlap = keyboardOverlapInContainerView(
+            of: frame,
+            keyboardHeight: keyboardHeight
+        )
         frame.origin.y -= keyboardOverlap
         if presentedView.safeAreaInsets == .zero {
             if keyboardOverlap == 0, presentedViewController.isBeingPresented {
@@ -121,17 +133,21 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     private var needsCustomCornerRadiusPath: Bool {
-        edgeInset > 0 && cornerRadius > 0 && (cornerRadius + edgeInset) < UIScreen.main.displayCornerRadius()
+        guard cornerRadius > 0, !isKeyboardSessionActive else { return false }
+        let inset = cornerRadius + edgeInset
+        guard inset < (containerView?.safeAreaInsets.bottom ?? 0) || !insetSafeAreaByCornerRadius else { return false }
+        return inset < UIScreen.main.displayCornerRadius()
     }
 
     private var customCornerRadiusPath: CGPath? {
-        guard needsCustomCornerRadiusPath, let bounds = presentedView?.bounds, bounds != .zero else { return nil }
+        guard needsCustomCornerRadiusPath else { return nil }
+        let bottomCornerRadius = UIScreen.main.displayCornerRadius() - edgeInset
         return .roundedRect(
-            bounds: presentedView?.bounds ?? .zero,
+            bounds: presentedView?.bounds ?? .init(origin: .zero, size: frameOfPresentedViewInContainerView.size),
             topLeft: cornerRadius,
             topRight: cornerRadius,
-            bottomLeft: 0,
-            bottomRight: 0
+            bottomLeft: bottomCornerRadius,
+            bottomRight: bottomCornerRadius
         )
     }
 
@@ -144,19 +160,21 @@ open class CardPresentationController: InteractivePresentationController {
     public init(
         preferredEdgeInset: CGFloat? = nil,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        insetSafeAreaByCornerRadius: Bool = true,
         preferredAspectRatio: CGFloat? = 1,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.preferredEdgeInset = preferredEdgeInset
         self.preferredCornerRadius = preferredCornerRadius
+        self.insetSafeAreaByCornerRadius = insetSafeAreaByCornerRadius
         self.preferredAspectRatio = preferredAspectRatio
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-        shouldAutomaticallyAdjustFrameForKeyboard = true
         dimmingView.isHidden = false
+        prefersInteractiveDismissal = true
     }
 
     open override func dismissalTransitionShouldBegin(
@@ -165,7 +183,7 @@ open class CardPresentationController: InteractivePresentationController {
         velocity: CGPoint
     ) -> Bool {
         if wantsInteractiveDismissal {
-            let percentage = translation.y / presentedViewController.view.frame.height
+            let percentage = translation.y / max(presentedView?.frame.height ?? 0, 1)
             let magnitude = sqrt(pow(velocity.y, 2) + pow(velocity.x, 2))
             return (percentage >= 0.5 && magnitude > 0) || (magnitude >= 1000 && velocity.y > 0)
         } else {
@@ -177,83 +195,109 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
+    open override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        updateCornerRadius()
+    }
+
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
         if completed {
-            setCornerRadius()
+            updateCornerRadius()
         }
-    }
-
-    open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
-        var edgeInsets = super.presentedViewAdditionalSafeAreaInsets()
-        let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
-        let inset = (cornerRadius / 2).rounded(scale: containerView?.window?.screen.scale ?? 1)
-        edgeInsets.top = max(edgeInsets.top, inset)
-        edgeInsets.left = max(edgeInsets.left, inset)
-        edgeInsets.right = max(edgeInsets.right, inset)
-        edgeInsets.bottom = max(0, min(safeAreaInsets.bottom - edgeInset, edgeInsets.bottom))
-        if keyboardHeight > 0 {
-            edgeInsets.bottom = max(edgeInsets.bottom, cornerRadius)
-        } else {
-            edgeInsets.bottom += max(0, inset - safeAreaInsets.bottom)
-        }
-        return edgeInsets
     }
 
     open override func layoutPresentedView(frame: CGRect) {
         super.layoutPresentedView(frame: frame)
         if let cornerRadiusMask {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
             cornerRadiusMask.path = customCornerRadiusPath
-        }
-    }
-
-    open override func transitionAlongsidePresentation(progress: CGFloat) {
-        super.transitionAlongsidePresentation(progress: progress)
-
-        if progress == 1, needsCustomCornerRadiusPath {
-            setCornerRadius(force: true)
+            CATransaction.commit()
         }
     }
 
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
-        setCornerRadius()
+        updateCornerRadius()
     }
 
     private func cornerRadiusDidChange() {
-        let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
-        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
-            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
-        }
-        setCornerRadius()
+        updateCornerRadius()
     }
 
-    private func setCornerRadius(force: Bool = false) {
-        guard !presentedViewController.isBeingDismissed else { return }
-        guard !presentedViewController.isBeingPresented || presentedViewController.view.layer.cornerRadius == 0 || force else { return }
-        if let maskPath = customCornerRadiusPath {
-            if cornerRadiusMask == nil {
-                let shapeLayer = CAShapeLayer()
-                self.cornerRadiusMask = shapeLayer
-            }
-            cornerRadiusMask?.path = maskPath
-            cornerRadiusMask?.cornerCurve = preferredCornerRadius?.style ?? .circular
-            cornerRadiusMask?.maskedCorners = (preferredCornerRadius?.mask ?? .all).intersection([.layerMinXMinYCorner, .layerMaxXMinYCorner])
-            let isCompact = traitCollection.verticalSizeClass == .compact
-            if isCompact {
-                presentedViewController.view.layer.cornerRadius = cornerRadius
+    private func updateCornerRadius() {
+        updateAdditionalSafeAreaInsets()
+        let cornerRadius = cornerRadius
+        let needsCustomCornerRadiusPath = needsCustomCornerRadiusPath
+        let isCompact = traitCollection.verticalSizeClass == .compact
+        let bottomCornerRadius = isCompact || isKeyboardSessionActive ? cornerRadius : UIScreen.main.displayCornerRadius() - edgeInset
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            if needsCustomCornerRadiusPath {
+                let cornerConfiguration = UICornerConfiguration.corners(
+                    topLeftRadius: .fixed(cornerRadius),
+                    topRightRadius: .fixed(cornerRadius),
+                    bottomLeftRadius: .containerConcentric(minimum: bottomCornerRadius),
+                    bottomRightRadius: .containerConcentric(minimum: bottomCornerRadius)
+                )
+                if let presentedView {
+                    CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView.layer)
+                }
+                presentedContainerView.updateCornerConfiguration(cornerConfiguration)
             } else {
-                presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius() - edgeInset
+                let mask = preferredCornerRadius?.mask ?? .all
+                presentedContainerView.updateCornerConfiguration(
+                    UICornerConfiguration.corners(
+                        topLeftRadius: .fixed(mask.contains(.layerMinXMinYCorner) ? cornerRadius : 0),
+                        topRightRadius: .fixed(mask.contains(.layerMaxXMinYCorner) ? cornerRadius : 0),
+                        bottomLeftRadius: .fixed(mask.contains(.layerMinXMaxYCorner) ? cornerRadius : 0),
+                        bottomRightRadius: .fixed(mask.contains(.layerMaxXMaxYCorner) ? cornerRadius : 0),
+                    )
+                )
             }
-            presentedViewController.view.layer.cornerCurve = .continuous
-            presentedViewController.view.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
-        } else {
-            if cornerRadiusMask != nil {
-                cornerRadiusMask = nil
+            presentedView?.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .continuous : (preferredCornerRadius?.style ?? .circular)
+        }
+        #endif
+        if #unavailable(iOS 26.0) {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            if let maskPath = customCornerRadiusPath {
+                presentedView?.layer.cornerRadius = bottomCornerRadius
+                presentedView?.layer.cornerCurve = .continuous
+                presentedView?.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+                if cornerRadiusMask == nil {
+                    let shapeLayer = CAShapeLayer()
+                    self.cornerRadiusMask = shapeLayer
+                }
+                cornerRadiusMask?.path = maskPath
+            } else if !needsCustomCornerRadiusPath {
+                presentedView?.layer.cornerRadius = cornerRadius
+                presentedView?.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .continuous : (preferredCornerRadius?.style ?? .circular)
+                presentedView?.layer.maskedCorners = preferredCornerRadius?.mask ?? .all
+                if cornerRadiusMask != nil {
+                    cornerRadiusMask = nil
+                }
             }
-            presentedViewController.view.layer.cornerRadius = cornerRadius
-            presentedViewController.view.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .continuous : (preferredCornerRadius?.style ?? .circular)
-            presentedViewController.view.layer.maskedCorners = preferredCornerRadius?.mask ?? .all
+            CATransaction.commit()
+        }
+    }
+
+    private func additionalSafeAreaInsets() -> UIEdgeInsets {
+        let inset = insetSafeAreaByCornerRadius ? cornerRadius / 2 : 0
+        let additionalSafeAreaInsets = UIEdgeInsets(
+            top: inset,
+            left: inset,
+            bottom: isKeyboardSessionActive ? inset : max(0, (inset + edgeInset) - (containerView?.safeAreaInsets.bottom ?? 0)),
+            right: inset
+        )
+        return additionalSafeAreaInsets
+    }
+
+    private func updateAdditionalSafeAreaInsets() {
+        let additionalSafeAreaInsets = additionalSafeAreaInsets()
+        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
+            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
         }
     }
 }
@@ -281,11 +325,12 @@ open class CardPresentationControllerTransition: PresentationControllerTransitio
         animator: UIViewPropertyAnimator
     ) {
         if let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
             !(presented.presentationController is CardPresentationController)
         {
             let edgeInset = preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
             let cornerRadius = preferredCornerRadius ?? .rounded(cornerRadius: (CardPresentationLinkTransition.defaultCornerRadius - edgeInset), style: .continuous)
-            cornerRadius.apply(to: presented.view.layer)
+            cornerRadius.apply(to: presentedView.layer)
         }
         return super.configureTransitionAnimator(using: transitionContext, animator: animator)
     }

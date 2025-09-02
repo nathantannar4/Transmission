@@ -9,15 +9,10 @@ import SwiftUI
 
 /// A presentation controller base class
 @available(iOS 14.0, *)
-open class PresentationController: UIPresentationController {
+open class PresentationController: DelegatedPresentationController {
 
     public private(set) var isTransitioningSize = false
-    public private(set) var keyboardHeight: CGFloat = 0 {
-        didSet {
-            guard keyboardHeight != oldValue else { return }
-            keyboardHeightDidChange()
-        }
-    }
+    public private(set) var keyboardHeight: CGFloat = 0
 
     public let dimmingView: DimmingView = {
         let view = DimmingView()
@@ -26,10 +21,7 @@ open class PresentationController: UIPresentationController {
         return view
     }()
 
-    public class ShadowView: UIView {
-        public weak var preferredSourceView: UIView?
-    }
-    public let shadowView = ShadowView()
+    public let presentedContainerView = PresentedContainerView()
 
     open var shouldAutoLayoutPresentedView: Bool {
         transition == nil
@@ -50,42 +42,29 @@ open class PresentationController: UIPresentationController {
         set { containerView?.setValue(newValue, forKey: "ignoreDirectTouchEvents") }
     }
 
-    public var shouldAutomaticallyAdjustFrameForKeyboard: Bool = false {
+    public var preferredShadow: ShadowOptions? {
         didSet {
-            guard oldValue != shouldAutomaticallyAdjustFrameForKeyboard else { return }
-            containerView?.setNeedsLayout()
-        }
-    }
-
-    public var presentedViewShadow: ShadowOptions = .clear {
-        didSet {
+            guard oldValue != preferredShadow else { return }
             guard presentedViewController.isBeingPresented, presentedViewController.isBeingDismissed else { return }
             updateShadow(progress: 1)
         }
     }
 
-    open override var frameOfPresentedViewInContainerView: CGRect {
-        let frame = super.frameOfPresentedViewInContainerView
-        if shouldAutomaticallyAdjustFrameForKeyboard, keyboardHeight > 0 {
-            let dy = keyboardOverlapInContainerView(
-                of: frame,
-                keyboardHeight: keyboardHeight
-            )
-            return CGRect(
-                x: frame.origin.x,
-                y: frame.origin.y,
-                width: frame.size.width,
-                height: frame.size.height - dy
-            )
+    open override var presentedView: UIView? {
+        if presentedContainerView.presentedView == nil {
+            presentedContainerView.presentedView = presentedViewController.view
         }
-        return frame
+        return presentedContainerView
     }
 
     public override init(
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
-        super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
+        super.init(
+            presentedViewController: presentedViewController,
+            presenting: presentingViewController
+        )
     }
 
     open func preferredDefaultAnimation() -> Animation? {
@@ -110,8 +89,7 @@ open class PresentationController: UIPresentationController {
         dimmingView.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
         )
-        containerView?.addSubview(shadowView)
-        containerView?.addSubview(presentedViewController.view)
+        containerView?.addSubview(presentedContainerView)
         updateShadow(progress: 0)
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
@@ -146,14 +124,12 @@ open class PresentationController: UIPresentationController {
             presentedViewController.fixSwiftUIHitTesting()
         } else {
             transitionAlongsidePresentation(progress: 0)
-            delegate?.presentationControllerDidDismiss?(self)
         }
     }
 
     open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
 
-        delegate?.presentationControllerWillDismiss?(self)
         updateShadow(progress: 1)
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
@@ -168,7 +144,6 @@ open class PresentationController: UIPresentationController {
 
         if completed {
             transitionAlongsidePresentation(progress: 0)
-            delegate?.presentationControllerDidDismiss?(self)
 
             NotificationCenter.default
                 .removeObserver(
@@ -185,23 +160,18 @@ open class PresentationController: UIPresentationController {
                 )
         } else {
             transitionAlongsidePresentation(progress: 1)
-            delegate?.presentationControllerDidAttemptToDismiss?(self)
         }
     }
 
     open func transitionAlongsidePresentation(progress: CGFloat) {
         dimmingView.alpha = progress
-        layoutBackgroundViews()
+        layoutDimmingView()
         updateShadow(progress: progress)
     }
 
     open func updateShadow(progress: Double) {
-        if presentedViewShadow == .clear {
-            shadowView.isHidden = true
-        } else {
-            shadowView.isHidden = false
-            presentedViewShadow.apply(to: shadowView.layer, progress: progress)
-        }
+        let shadow = preferredShadow ?? .minimal
+        shadow.apply(to: presentedContainerView.layer, progress: progress)
     }
 
     open override func containerViewDidLayoutSubviews() {
@@ -234,12 +204,7 @@ open class PresentationController: UIPresentationController {
             x: frame.minX + (frame.width * anchor.x),
             y: frame.minY + (frame.height * anchor.y)
         )
-        layoutBackgroundViews()
-    }
-
-    open func layoutBackgroundViews() {
         layoutDimmingView()
-        layoutShadowView()
     }
 
     open func layoutDimmingView() {
@@ -268,20 +233,6 @@ open class PresentationController: UIPresentationController {
             dimmingView.layer.cornerCurve = presentingViewController.view.layer.cornerCurve
             dimmingView.layer.maskedCorners = presentingViewController.view.layer.maskedCorners
         }
-    }
-
-    open func layoutShadowView() {
-        guard let sourceView = shadowView.preferredSourceView ?? presentedView else { return }
-        guard !shadowView.isHidden else { return }
-        shadowView.transform = sourceView.transform
-        shadowView.bounds = sourceView.bounds
-        shadowView.center = sourceView.center
-        shadowView.layer.shadowPath = CGPath(
-            roundedRect: sourceView.bounds,
-            cornerWidth: sourceView.layer.cornerRadius,
-            cornerHeight: sourceView.layer.cornerRadius,
-            transform: nil
-        )
     }
 
     open func keyboardHeightDidChange() {
@@ -314,7 +265,10 @@ open class PresentationController: UIPresentationController {
 
         guard keyboardHeight != dy else { return }
         keyboardHeight = dy
-        guard shouldAutoLayoutPresentedView, shouldAutomaticallyAdjustFrameForKeyboard, let containerView else { return }
+        guard shouldAutoLayoutPresentedView, let containerView else {
+            keyboardHeightDidChange()
+            return
+        }
         containerView.setNeedsLayout()
 
         guard
@@ -322,6 +276,7 @@ open class PresentationController: UIPresentationController {
             duration > 0,
             let curve = userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt
         else {
+            keyboardHeightDidChange()
             containerView.layoutIfNeeded()
             return
         }
@@ -333,6 +288,7 @@ open class PresentationController: UIPresentationController {
                 .beginFromCurrentState,
             ]
         ) {
+            self.keyboardHeightDidChange()
             containerView.layoutIfNeeded()
         }
     }

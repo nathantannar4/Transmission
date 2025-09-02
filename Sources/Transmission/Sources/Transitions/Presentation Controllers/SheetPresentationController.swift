@@ -148,7 +148,7 @@ open class MacSheetPresentationController: SlidePresentationController {
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-        presentedViewShadow = .minimal
+        preferredShadow = .minimal
     }
 
     open override func presentationTransitionWillBegin() {
@@ -226,22 +226,51 @@ open class SheetPresentationController: UISheetPresentationController {
 
     public var preferredCornerRadiusOptions: CornerRadiusOptions.RoundedRectangle? {
         didSet {
+            guard oldValue != preferredCornerRadiusOptions else { return }
             updateCornerRadius()
         }
     }
 
-    public var preferredBackgroundColor: UIColor? {
+    public var preferredBackground: BackgroundOptions? {
         didSet {
-            updateBackgroundColor()
+            guard oldValue != preferredBackground else { return }
+            updateBackground()
+            updateShadow()
         }
     }
 
-    private var dropShadowView: UIView? {
-        if let lastSubview = containerView?.subviews.last, lastSubview.isDropShadowView {
-            return lastSubview
+    public var preferredPresentationBackgroundColor: UIColor? {
+        didSet {
+            guard oldValue != preferredPresentationBackgroundColor else { return }
+            updateBackground()
         }
-        return nil
     }
+
+    public var preferredShadow: ShadowOptions? {
+        didSet {
+            guard oldValue != preferredShadow else { return }
+            updateShadow()
+        }
+    }
+
+    public let presentedContainerView = PresentedContainerView()
+
+    open override var selectedDetentIdentifier: UISheetPresentationController.Detent.Identifier? {
+        didSet {
+            guard oldValue != selectedDetentIdentifier else { return }
+            lastSelectedDetentIdentifier = nil
+            updateBackgroundInteraction()
+        }
+    }
+    private var lastSelectedDetentIdentifier: UISheetPresentationController.Detent.Identifier?
+
+//    open override var presentedView: UIView? {
+//        let presentedView = super.presentedView
+//        if let presentedView {
+//            presentedContainerView.presentedView = presentedView
+//        }
+//        return presentedContainerView
+//    }
 
     public override init(
         presentedViewController: UIViewController,
@@ -252,17 +281,16 @@ open class SheetPresentationController: UISheetPresentationController {
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-        updateBackgroundColor()
+        updateBackground()
+        updateCornerRadius()
+        updateShadow()
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
-        presentedViewController.fixSwiftUIHitTesting()
-    }
-
-    open override func dismissalTransitionWillBegin() {
-        super.dismissalTransitionWillBegin()
-        updateBackgroundColor()
+        if completed {
+            presentedViewController.fixSwiftUIHitTesting()
+        }
     }
 
     open override func dismissalTransitionDidEnd(_ completed: Bool) {
@@ -272,28 +300,82 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
+    open override func containerViewWillLayoutSubviews() {
+        super.containerViewWillLayoutSubviews()
+        if lastSelectedDetentIdentifier != selectedDetentIdentifier {
+            updateBackgroundInteraction()
+        }
+    }
+
+    open override func containerViewDidLayoutSubviews() {
+        super.containerViewDidLayoutSubviews()
+        updateCornerRadius()
+        lastSelectedDetentIdentifier = selectedDetentIdentifier
+    }
+
+    private func updateBackgroundInteraction() {
+        presentedContainerView.prefersInteractiveBackground = selectedDetentIdentifier != .large
+    }
+
+    private func updateShadow() {
+        if case .glass = preferredBackground?.effect?.storage {
+            ShadowOptions.clear.apply(to: presentedContainerView.layer)
+        } else {
+            (preferredShadow ?? .feather).apply(to: presentedContainerView.layer)
+        }
+    }
+
     private func updateCornerRadius() {
         preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadius
+        var didUseCornerConfiguration = false
+        if #available(iOS 26.0, *) {
+            #if canImport(FoundationModels) // Xcode 26
+            let topCornerRadius = preferredCornerRadiusOptions?.cornerRadius ?? 38
+            let cornerConfiguration = UICornerConfiguration.corners(
+                topLeftRadius: .containerConcentric(minimum: topCornerRadius),
+                topRightRadius: .containerConcentric(minimum: topCornerRadius),
+                bottomLeftRadius: .containerConcentric(),
+                bottomRightRadius: .containerConcentric()
+            )
+            presentedContainerView.updateCornerConfiguration(cornerConfiguration)
+            presentedContainerView.layer.cornerCurve = .continuous
+            didUseCornerConfiguration = true
+            #endif
+        }
+        if !didUseCornerConfiguration {
+            var cornerRadius = preferredCornerRadiusOptions ?? .rounded(cornerRadius: 10, style: .continuous)
+            cornerRadius.mask = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+            presentedContainerView.updateCornerRadius(cornerRadius)
+        }
     }
 
-    private func updateBackgroundColor() {
-        presentedView?.backgroundColor = preferredBackgroundColor
-        if let preferredBackgroundColor {
-            dropShadowView?.layer.shadowColor = preferredBackgroundColor.cgColor
+    private func updateBackground() {
+        if #available(iOS 26.0, *) {
+            var hasBackgroundEffect = preferredBackground?.effect != nil
+            let hasTranslucentBackground = preferredPresentationBackgroundColor?.isTranslucent == true && !hasBackgroundEffect
+            if case .glass(let glassEffect) = preferredBackground?.effect?.storage, glassEffect == .regular {
+                // Use default system effect
+                hasBackgroundEffect = false
+            }
+            let hasBackgroundColor = preferredBackground?.color != nil
+            let hasBackground = hasBackgroundEffect || hasBackgroundColor
+            // _setLargeBackground:
+            let aSelectorSetLargeBackground = NSSelectorFromBase64EncodedString("X3NldExhcmdlQmFja2dyb3VuZDo=")
+            if responds(to: aSelectorSetLargeBackground) {
+                perform(aSelectorSetLargeBackground, with: hasBackground ? UIColor.clear : nil)
+            }
+            // _setNonLargeBackground:
+            let aSelectorSetNonLargeBackground = NSSelectorFromBase64EncodedString("X3NldE5vbkxhcmdlQmFja2dyb3VuZDo=")
+            if responds(to: aSelectorSetNonLargeBackground) {
+                perform(aSelectorSetNonLargeBackground, with: hasBackground || hasTranslucentBackground ? UIColor.clear : nil)
+            }
+            presentedContainerView.preferredBackground = preferredBackground
+        } else {
+            presentedContainerView.preferredBackground = preferredBackground
         }
     }
 }
 
-extension UIView {
-
-    private static let UIDropShadowView: AnyClass? = NSClassFromString("UIDropShadowView")
-    var isDropShadowView: Bool {
-        guard let aClass = Self.UIDropShadowView else {
-            return false
-        }
-        return isKind(of: aClass)
-    }
-}
 #endif
 
 @available(iOS 15.0, *)
@@ -319,7 +401,9 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             return false
         }()
         #else
-        presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
+        presentationController.preferredBackground = newValue.preferredBackground
+        presentationController.preferredPresentationBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
+        presentationController.preferredShadow = newValue.preferredPresentationShadow
         let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
         let hasChanges: Bool = {
             if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {

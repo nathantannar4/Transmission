@@ -43,7 +43,9 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
 
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
-            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
+            let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
         else {
             transitionContext.completeTransition(false)
             return
@@ -63,7 +65,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
 
         lazy var presentedPortalView: PortalView? = {
             if prefersZoomEffect {
-                let portalView = PortalView(sourceView: presented.view)
+                let portalView = PortalView(sourceView: presentedView)
                 portalView?.hidesSourceView = true
                 return portalView
             }
@@ -73,8 +75,8 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         #if targetEnvironment(macCatalyst)
         var isScaleEnabled = false
         #else
-        let isTranslucentBackground = presented.view.backgroundColor?.isTranslucent ?? false
-        var isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
+        let isTranslucentBackground = presentedView.backgroundColor?.isTranslucent ?? false
+        var isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presentingView.convert(presentingView.frame.origin, to: nil).y == 0 &&
             (isPresenting ? transitionContext.finalFrame(for: presenting).origin.y : transitionContext.initialFrame(for: presenting).origin.y) == 0
         if isScaleEnabled, #available(iOS 18.0, *) {
             isScaleEnabled = presenting.preferredTransition == nil
@@ -82,10 +84,11 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         #endif
 
         lazy var presentingPortalView: PortalView? = {
-            let sourceView = sourceView?.viewController?.view ?? presenting.view!
+            let sourceView = sourceView?.viewController?.view ?? presentingView
             for subview in transitionContext.containerView.subviews {
-                if let portalView = subview as? PortalView, portalView.sourceView == sourceView {
-                    return portalView
+                if let portalView = subview as? PortalView, portalView.sourceView == sourceView
+                {
+                    portalView.removeFromSuperview()
                 }
             }
             if isScaleEnabled {
@@ -127,64 +130,63 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
 
         var presentedFrame = isPresenting
             ? transitionContext.finalFrame(for: presented)
-            : (presented.view.transform.isIdentity ? presented.view.frame : transitionContext.initialFrame(for: presented))
+            : (presentedView.transform.isIdentity ? presentedView.frame : transitionContext.initialFrame(for: presented))
 
         let fromCornerRadius = preferredFromCornerRadius ?? .identity
         let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
 
         if isPresenting {
-            transitionContext.containerView.addSubview(presented.view)
-            fromCornerRadius.apply(to: presented.view.layer, height: sourceFrame.height)
+            if presentedView.superview == nil {
+                transitionContext.containerView.addSubview(presentedView)
+            }
+            fromCornerRadius.apply(to: presentedView.layer, height: sourceFrame.height)
 
             sourceView?.alpha = 1 - initialOpacity
 
             if prefersZoomEffect {
-                presented.view.frame = presentedFrame
-                presented.view.layoutIfNeeded()
+                presentedView.frame = presentedFrame
+                presentedView.layoutIfNeeded()
                 if let presentedPortalView {
                     transitionContext.containerView.addSubview(presentedPortalView)
                 }
                 presentedPortalView?.frame = presentedFrame
                 presentedPortalView?.alpha = initialOpacity
                 presentedPortalView?.transform = CGAffineTransform(to: presentedFrame, from: sourceFrame)
-                if let presentationController = presented._activePresentationController as? PresentationController {
-                    presentationController.shadowView.preferredSourceView = presentedPortalView
-                }
 
             } else {
-                presented.view.frame = sourceFrame
-                presented.view.alpha = initialOpacity
-                presented.view.layoutIfNeeded()
+                presentedView.frame = sourceFrame
+                presentedView.alpha = initialOpacity
+                presentedView.layoutIfNeeded()
                 hostingController?.render()
 
                 if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
                     transitionReaderCoordinator.update(isPresented: true)
 
-                    presented.view.setNeedsLayout()
-                    presented.view.layoutIfNeeded()
+                    presentedView.setNeedsLayout()
+                    presentedView.layoutIfNeeded()
 
                     if let presentationController = presented._activePresentationController as? PresentationController {
                         presentedFrame = presentationController.frameOfPresentedViewInContainerView
                     }
 
                     transitionReaderCoordinator.update(isPresented: false)
-                    presented.view.setNeedsLayout()
-                    presented.view.layoutIfNeeded()
+                    presentedView.setNeedsLayout()
+                    presentedView.layoutIfNeeded()
                     transitionReaderCoordinator.update(isPresented: true)
                 }
             }
 
         } else {
-            if presented.view.layer.cornerRadius == 0 {
-                toCornerRadius.apply(to: presented.view.layer)
+            if presentedView.layer.cornerRadius == 0 {
+                toCornerRadius.apply(to: presentedView.layer)
             }
-            presented.view.layoutIfNeeded()
+            presentedView.layoutIfNeeded()
             hostingController?.render()
 
             presented.transitionReaderCoordinator?.update(isPresented: false)
 
-            if presenting.view.superview == nil {
-                transitionContext.containerView.insertSubview(presenting.view, belowSubview: presented.view)
+            if presentingView.superview == nil {
+                transitionContext.containerView.insertSubview(presentingView, belowSubview: presentedView)
             }
 
             sourceView?.alpha = initialOpacity
@@ -198,10 +200,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         if !isPresenting, prefersZoomEffect, let presentedPortalView {
             transitionContext.containerView.addSubview(presentedPortalView)
             presentedPortalView.frame = presentedFrame
-            presentedPortalView.transform = presented.view.transform
-            if let presentationController = presented._activePresentationController as? PresentationController {
-                presentationController.shadowView.preferredSourceView = presentedPortalView
-            }
+            presentedPortalView.transform = presentedView.transform
         }
 
         animator.addAnimations {
@@ -216,16 +215,16 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             }
 
             if isPresenting {
-                toCornerRadius.apply(to: presented.view.layer)
+                toCornerRadius.apply(to: presentedView.layer)
             } else {
-                fromCornerRadius.apply(to: presented.view.layer, height: sourceFrame.height)
+                fromCornerRadius.apply(to: presentedView.layer, height: sourceFrame.height)
             }
 
             if prefersZoomEffect {
                 presentedPortalView?.transform = isPresenting ? .identity : CGAffineTransform(to: presentedFrame, from: sourceFrame)
             } else {
-                presented.view.frame = isPresenting ? presentedFrame : sourceFrame
-                presented.view.layoutIfNeeded()
+                presentedView.frame = isPresenting ? presentedFrame : sourceFrame
+                presentedView.layoutIfNeeded()
             }
 
             if isScaleEnabled {
@@ -240,7 +239,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             if prefersZoomEffect {
                 presentedPortalView?.alpha = isPresenting ? 1 : initialOpacity
             } else {
-                presented.view.alpha = isPresenting ? 1 : initialOpacity
+                presentedView.alpha = isPresenting ? 1 : initialOpacity
             }
         }, delayFactor: isPresenting ? 0 : 0.25)
 
@@ -251,7 +250,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
                 presentingPortalView?.removeFromSuperview()
             }
             sourceView?.alpha = isPresenting ? 0 : 1
-            presented.view.layer.cornerRadius = 0
+            presentedView.layer.cornerRadius = 0
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

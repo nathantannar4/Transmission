@@ -7,11 +7,9 @@
 import UIKit
 
 @frozen
-@MainActor @preconcurrency
 public enum CornerRadiusOptions: Equatable, Sendable {
 
     @frozen
-    @MainActor @preconcurrency
     public struct RoundedRectangle: Equatable, Sendable {
         public var cornerRadius: CGFloat
         public var mask: CACornerMask
@@ -52,6 +50,7 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             )
         }
 
+        @MainActor @preconcurrency
         public static func screen(
             min: CGFloat = 12
         ) -> RoundedRectangle {
@@ -62,14 +61,21 @@ public enum CornerRadiusOptions: Equatable, Sendable {
         }
     }
 
+    @frozen
+    public struct Capsule: Equatable, Sendable {
+        public var maxCornerRadius: CGFloat?
+        public var style: CALayerCornerCurve
+    }
+
     case rounded(RoundedRectangle)
     case circle
+    case capsule(Capsule)
 
     public var mask: CACornerMask {
         switch self {
         case .rounded(let options):
             return options.mask
-        case .circle:
+        case .circle, .capsule:
             return .all
         }
     }
@@ -80,6 +86,8 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             return options.style
         case .circle:
             return .circular
+        case .capsule(let options):
+            return options.style
         }
     }
 
@@ -89,6 +97,8 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             return options.cornerRadius
         case .circle:
             return height / 2
+        case .capsule(let options):
+            return min(height / 2, options.maxCornerRadius ?? height)
         }
     }
 
@@ -117,28 +127,46 @@ public enum CornerRadiusOptions: Equatable, Sendable {
         )
     }
 
+    public static var capsule: CornerRadiusOptions {
+        .capsule(maxCornerRadius: nil)
+    }
+
+    public static func capsule(
+        maxCornerRadius: CGFloat?,
+        style: CALayerCornerCurve = .circular
+    ) -> CornerRadiusOptions {
+        .capsule(
+            Capsule(
+                maxCornerRadius: maxCornerRadius,
+                style: style
+            )
+        )
+    }
+
+
     public static let identity: CornerRadiusOptions = .rounded(cornerRadius: 0)
 
+    @MainActor @preconcurrency
     public func apply(to layer: CALayer, height: CGFloat) {
         switch self {
         case .rounded(let options):
             options.apply(to: layer)
-        case .circle:
+        case .circle, .capsule:
             layer.cornerRadius = cornerRadius(for: height)
             layer.maskedCorners = mask
             layer.cornerCurve = style
-            layer.masksToBounds = true
         }
     }
 }
 
 extension CornerRadiusOptions.RoundedRectangle {
+
+    @MainActor @preconcurrency
     public func apply(to layer: CALayer) {
         let cornerRadius = cornerRadius
         layer.cornerRadius = cornerRadius
         layer.maskedCorners = mask
         layer.cornerCurve = style
-        layer.masksToBounds = cornerRadius > 0
     }
 }
 

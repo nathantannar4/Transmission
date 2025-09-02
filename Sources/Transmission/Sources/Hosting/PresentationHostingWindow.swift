@@ -110,6 +110,7 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
             // hitTest override to allow touches to pass through.
             self.host = HostingView(content: content)
             super.init(nibName: nil, bundle: nil)
+            host.isHitTestingPassthrough = true
         }
 
         required init?(coder: NSCoder) {

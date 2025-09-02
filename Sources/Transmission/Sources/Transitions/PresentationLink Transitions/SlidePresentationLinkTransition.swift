@@ -32,6 +32,8 @@ extension PresentationLinkTransition {
         prefersScaleEffect: Bool = true,
         preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        preferredPresentationShadow: ShadowOptions? = nil,
+        preferredBackground: BackgroundOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
@@ -42,13 +44,14 @@ extension PresentationLinkTransition {
                 prefersScaleEffect: prefersScaleEffect,
                 preferredFromCornerRadius: preferredFromCornerRadius,
                 preferredToCornerRadius: preferredToCornerRadius,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal,
+                preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .minimal),
+                preferredBackground: preferredBackground,
                 hapticsStyle: hapticsStyle
             ),
             options: .init(
                 isInteractive: isInteractive,
                 modalPresentationCapturesStatusBarAppearance: true,
-                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor ?? (preferredBackground != nil ? .clear : nil)
             )
         )
     }
@@ -90,7 +93,8 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         public var prefersScaleEffect: Bool
         public var preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle?
         public var preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
-        public var preferredPresentationShadow: ShadowOptions
+        public var preferredPresentationShadow: ShadowOptions?
+        public var preferredBackground: BackgroundOptions?
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
@@ -98,7 +102,8 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
             prefersScaleEffect: Bool = true,
             preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-            preferredPresentationShadow: ShadowOptions = .minimal,
+            preferredPresentationShadow: ShadowOptions? = nil,
+            preferredBackground: BackgroundOptions? = nil,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.edge = edge
@@ -106,6 +111,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
             self.preferredFromCornerRadius = preferredFromCornerRadius
             self.preferredToCornerRadius = preferredToCornerRadius
             self.preferredPresentationShadow = preferredPresentationShadow
+            self.preferredBackground = preferredBackground
             self.hapticsStyle = hapticsStyle
         }
     }
@@ -126,7 +132,8 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.preferredShadow = options.preferredPresentationShadow
+        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         presentationController.dismissalHapticsStyle = options.hapticsStyle
         return presentationController
     }
@@ -136,7 +143,8 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) {
         presentationController.edge = options.edge
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.preferredShadow = options.preferredPresentationShadow
+        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         presentationController.dismissalHapticsStyle = options.hapticsStyle
     }
 

@@ -100,7 +100,7 @@ public struct PresentationLinkDefaultPresentedTransition: PresentationLinkPresen
             presentedViewController: presented,
             presenting: presented
         )
-        presentationController.presentedViewShadow = .minimal
+        presentationController.preferredShadow = .minimal
         presentationController.dimmingView.isHidden = false
         return presentationController
     }

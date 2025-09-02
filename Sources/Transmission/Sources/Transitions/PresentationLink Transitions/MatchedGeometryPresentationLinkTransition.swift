@@ -32,6 +32,8 @@ extension PresentationLinkTransition {
         prefersZoomEffect: Bool = false,
         minimumScaleFactor: CGFloat = 0.5,
         initialOpacity: CGFloat = 1,
+        preferredPresentationShadow: ShadowOptions? = nil,
+        preferredBackground: BackgroundOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
@@ -44,13 +46,14 @@ extension PresentationLinkTransition {
                 prefersZoomEffect: prefersZoomEffect,
                 minimumScaleFactor: minimumScaleFactor,
                 initialOpacity: initialOpacity,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal,
+                preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .minimal),
+                preferredBackground: preferredBackground,
                 hapticsStyle: hapticsStyle
             ),
             options: .init(
                 isInteractive: isInteractive,
                 modalPresentationCapturesStatusBarAppearance: true,
-                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor ?? (preferredBackground != nil ? .clear : nil)
             )
         )
     }
@@ -62,6 +65,8 @@ extension PresentationLinkTransition {
     public static func matchedGeometryZoom(
         preferredFromCornerRadius: CornerRadiusOptions? = nil,
         minimumScaleFactor: CGFloat = 0.5,
+        preferredPresentationShadow: ShadowOptions? = nil,
+        preferredBackground: BackgroundOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
@@ -72,6 +77,8 @@ extension PresentationLinkTransition {
             prefersZoomEffect: true,
             minimumScaleFactor: minimumScaleFactor,
             initialOpacity: 0,
+            preferredPresentationShadow: preferredPresentationShadow,
+            preferredBackground: preferredBackground,
             hapticsStyle: hapticsStyle,
             isInteractive: isInteractive,
             preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
@@ -131,7 +138,8 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         public var prefersZoomEffect: Bool
         public var minimumScaleFactor: CGFloat
         public var initialOpacity: CGFloat
-        public var preferredPresentationShadow: ShadowOptions
+        public var preferredPresentationShadow: ShadowOptions?
+        public var preferredBackground: BackgroundOptions?
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
@@ -142,7 +150,8 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             prefersZoomEffect: Bool = false,
             minimumScaleFactor: CGFloat = 0.5,
             initialOpacity: CGFloat = 1,
-            preferredPresentationShadow: ShadowOptions = .minimal,
+            preferredPresentationShadow: ShadowOptions? = nil,
+            preferredBackground: BackgroundOptions? = nil,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.edges = edges
@@ -153,6 +162,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             self.minimumScaleFactor = minimumScaleFactor
             self.initialOpacity = initialOpacity
             self.preferredPresentationShadow = preferredPresentationShadow
+            self.preferredBackground = preferredBackground
             self.hapticsStyle = hapticsStyle
         }
     }
@@ -174,8 +184,9 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.preferredShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
+        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         return presentationController
     }
 
@@ -185,7 +196,8 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
     ) {
         presentationController.edges = options.edges
         presentationController.minimumScaleFactor = options.minimumScaleFactor
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.preferredShadow = options.preferredPresentationShadow
+        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         presentationController.dismissalHapticsStyle = options.hapticsStyle
     }
 
