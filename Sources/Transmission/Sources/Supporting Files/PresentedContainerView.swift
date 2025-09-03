@@ -11,11 +11,11 @@ open class PresentedContainerView: UIView {
     open var presentedView: UIView? {
         didSet {
             guard presentedView != oldValue else { return }
-            presentedView?.layer.masksToBounds = true
-            presentedView?.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             oldValue?.removeFromSuperview()
             (layer as? PresentedContainerViewLayer)?.presentedViewLayer = presentedView?.layer
             guard let presentedView else { return }
+            presentedView.layer.masksToBounds = true
+            presentedView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             if let effectView {
                 effectView.contentView.addSubview(presentedView)
             } else {
@@ -27,10 +27,10 @@ open class PresentedContainerView: UIView {
     open var preferredBackground: BackgroundOptions? {
         didSet {
             guard preferredBackground != oldValue else { return }
-            backgroundColor = preferredBackground?.color?.toUIColor()
+            colorView.backgroundColor = preferredBackground?.color?.toUIColor()
             if let effect = preferredBackground?.effect?.toVisualEffect() {
-                if backgroundColor == nil {
-                    backgroundColor = .clear
+                if colorView.backgroundColor == nil {
+                    colorView.backgroundColor = .clear
                 }
                 #if canImport(FoundationModels) // Xcode 26
                 if #available(iOS 26.0, *), let glassEffect = effect as? UIGlassEffect {
@@ -77,6 +77,8 @@ open class PresentedContainerView: UIView {
         }
     }
 
+    private var colorView = UIView()
+
     open override class var layerClass: AnyClass {
         PresentedContainerViewLayer.self
     }
@@ -84,8 +86,10 @@ open class PresentedContainerView: UIView {
     public override init(frame: CGRect) {
         super.init(frame: frame)
         clipsToBounds = false
+        colorView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(colorView)
     }
-    
+
     public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -93,13 +97,24 @@ open class PresentedContainerView: UIView {
     #if canImport(FoundationModels)
     @available(iOS 26.0, *)
     open func updateCornerConfiguration(_ newValue: UICornerConfiguration) {
+        colorView.cornerConfiguration = newValue
         presentedView?.cornerConfiguration = newValue
         effectView?.cornerConfiguration = newValue
     }
     #endif
+
+    open func updateCornerRadius(_ newValue: CornerRadiusOptions.RoundedRectangle) {
+        newValue.apply(to: colorView.layer)
+        if let presentedView {
+            newValue.apply(to: presentedView.layer)
+        }
+        if let effectView {
+            newValue.apply(to: effectView.layer)
+        }
+    }
 }
 
-class PresentedContainerViewLayer: CALayer {
+private class PresentedContainerViewLayer: CALayer {
 
     weak var presentedViewLayer: CALayer?
     weak var effectViewLayer: CALayer?

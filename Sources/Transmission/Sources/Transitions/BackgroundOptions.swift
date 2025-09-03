@@ -36,11 +36,11 @@ public struct BackgroundOptions: Equatable, Sendable {
     }
 
     public struct VisualEffect: Equatable, Sendable {
-        private enum Storage: Equatable, Sendable {
+        enum Storage: Equatable, Sendable {
             case material(Material)
             case glass(Glass)
         }
-        private var storage: Storage
+        var storage: Storage
 
         @available(iOS 15.0, *)
         public static func material(_ material: Material) -> VisualEffect {

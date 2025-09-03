@@ -63,11 +63,15 @@ open class CardPresentationController: InteractivePresentationController {
         let isCompact = traitCollection.verticalSizeClass == .compact
         let width = isCompact ? frame.height : frame.width
         let height: CGFloat = {
-            let fittingWidth = width - (2 * edgeInset)
+            var fittingWidth = width - (2 * edgeInset)
             let inset = (isKeyboardSessionActive ? cornerRadius / 2 : max((containerView?.safeAreaInsets.bottom ?? 0) - cornerRadius / 2, 0))
             if let preferredAspectRatio {
                 let height = (preferredAspectRatio * fittingWidth).rounded(scale: containerView?.window?.screen.scale ?? 1) + inset + edgeInset
                 return height
+            }
+            if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
+                fittingWidth -= presentedViewController.additionalSafeAreaInsets.left
+                fittingWidth -= presentedViewController.additionalSafeAreaInsets.right
             }
             var sizeThatFits = CGSize(
                 width: fittingWidth,
@@ -77,11 +81,10 @@ open class CardPresentationController: InteractivePresentationController {
                 sizeThatFits.height = width
             }
             sizeThatFits.height += (2 * edgeInset)
-            if presentedViewController.view.safeAreaInsets.bottom == 0 {
+            if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
                 sizeThatFits.height += max((containerView?.safeAreaInsets.bottom ?? 0) - edgeInset, 0)
-                if insetSafeAreaByCornerRadius {
-                    sizeThatFits.height += cornerRadius / 2
-                }
+                sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.top
+                sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.bottom
             }
             return min(frame.height, sizeThatFits.height).rounded(scale: containerView?.window?.screen.scale ?? 1)
         }()
@@ -284,7 +287,7 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
-    private func updateAdditionalSafeAreaInsets() {
+    private func additionalSafeAreaInsets() -> UIEdgeInsets {
         let inset = insetSafeAreaByCornerRadius ? cornerRadius / 2 : 0
         let additionalSafeAreaInsets = UIEdgeInsets(
             top: inset,
@@ -292,6 +295,11 @@ open class CardPresentationController: InteractivePresentationController {
             bottom: isKeyboardSessionActive ? inset : max(0, (inset + edgeInset) - (containerView?.safeAreaInsets.bottom ?? 0)),
             right: inset
         )
+        return additionalSafeAreaInsets
+    }
+
+    private func updateAdditionalSafeAreaInsets() {
+        let additionalSafeAreaInsets = additionalSafeAreaInsets()
         if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
             presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
         }

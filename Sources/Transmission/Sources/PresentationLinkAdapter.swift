@@ -907,7 +907,8 @@ private struct PresentationLinkAdapterBody<
                     if #available(iOS 17.0, *) {
                         presentationController.prefersPageSizing = options.prefersPageSizing
                     }
-                    presentationController.preferredBackground = options.preferredBackground ?? options.options.preferredPresentationBackgroundColor.map { .color($0) }
+                    presentationController.preferredBackground = options.preferredBackground
+                    presentationController.preferredPresentationBackgroundColor = options.options.preferredPresentationBackgroundUIColor
                     presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
                     return presentationController
