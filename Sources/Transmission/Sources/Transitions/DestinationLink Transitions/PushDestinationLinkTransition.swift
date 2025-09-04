@@ -189,7 +189,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             return nil
         }()
         if let cornerRadius {
-            cornerRadius.apply(to: presentedVC.view.layer)
+            cornerRadius.apply(to: presentedVC.view.layer, masksToBounds: true)
         }
         animator.addAnimations {
             toVC.view.transform = .identity
@@ -202,7 +202,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             fromVC.view.transform = .identity
             dimmingView.removeFromSuperview()
             if cornerRadius != nil {
-                presentedVC.view.layer.cornerRadius = 0
+                CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedVC.view.layer, masksToBounds: true)
             }
             switch animatingPosition {
             case .end:

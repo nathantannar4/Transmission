@@ -162,11 +162,12 @@ public enum CornerRadiusOptions: Equatable, Sendable {
 extension CornerRadiusOptions.RoundedRectangle {
 
     @MainActor @preconcurrency
-    public func apply(to layer: CALayer) {
+    public func apply(to layer: CALayer, masksToBounds: Bool = false) {
         let cornerRadius = cornerRadius
         layer.cornerRadius = cornerRadius
         layer.maskedCorners = mask
         layer.cornerCurve = style
+        layer.masksToBounds = masksToBounds && cornerRadius > 0
     }
 }
 
