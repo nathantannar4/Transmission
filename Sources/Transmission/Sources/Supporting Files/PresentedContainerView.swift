@@ -5,7 +5,6 @@
 import UIKit
 import SwiftUI
 
-@available(iOS 14.0, *)
 open class PresentedContainerView: UIView {
 
     open var presentedView: UIView? {
@@ -27,7 +26,13 @@ open class PresentedContainerView: UIView {
     open var preferredBackground: BackgroundOptions? {
         didSet {
             guard preferredBackground != oldValue else { return }
-            colorView.backgroundColor = preferredBackground?.color?.toUIColor()
+            colorView.backgroundColor = {
+                guard let color = preferredBackground?.color else { return nil }
+                if #available(iOS 14.0, *) {
+                    return color.toUIColor()
+                }
+                return nil
+            }()
             if let effect = preferredBackground?.effect?.toVisualEffect() {
                 if colorView.backgroundColor == nil {
                     colorView.backgroundColor = .clear
@@ -109,6 +114,29 @@ open class PresentedContainerView: UIView {
 
     open override func layoutSubviews() {
         super.layoutSubviews()
+    }
+
+    open override func sizeThatFits(_ size: CGSize) -> CGSize {
+        presentedView?.sizeThatFits(size) ?? super.sizeThatFits(size)
+    }
+
+    open override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        guard let presentedView else {
+            return super.systemLayoutSizeFitting(
+                targetSize,
+                withHorizontalFittingPriority: horizontalFittingPriority,
+                verticalFittingPriority: verticalFittingPriority
+            )
+        }
+        return presentedView.systemLayoutSizeFitting(
+            targetSize,
+            withHorizontalFittingPriority: horizontalFittingPriority,
+            verticalFittingPriority: verticalFittingPriority
+        )
     }
 
     #if canImport(FoundationModels)

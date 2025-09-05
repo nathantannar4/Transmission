@@ -115,7 +115,6 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
                 transitionContext.containerView.addSubview(presentedView)
             }
             presentedView.frame = presentedFrame
-            presentedView.isHidden = true
             presentedView.layoutIfNeeded()
 
             (presented as? AnyHostingController)?.render()
@@ -150,7 +149,6 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
                 )
                 presentedView.frame = presentedFrame.applying(transform)
             }
-            presentedView.isHidden = false
             animator.addAnimations {
                 presentedView.frame = presentedFrame
             }

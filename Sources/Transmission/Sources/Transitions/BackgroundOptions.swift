@@ -8,7 +8,6 @@ import UIKit
 import SwiftUI
 
 @frozen
-@available(iOS 14.0, *)
 public struct BackgroundOptions: Equatable, Sendable {
 
     public enum Material: Equatable, Sendable {
@@ -72,10 +71,12 @@ public struct BackgroundOptions: Equatable, Sendable {
         self.effect = effect
     }
 
+    @available(iOS 14.0, *)
     public static var clear: BackgroundOptions {
         .color(.clear)
     }
 
+    @available(iOS 14.0, *)
     public static func color(_ color: Color) -> BackgroundOptions {
         BackgroundOptions(color: color, effect: nil)
     }
@@ -99,7 +100,6 @@ public struct BackgroundOptions: Equatable, Sendable {
     }
 }
 
-@available(iOS 14.0, *)
 extension BackgroundOptions.VisualEffect {
 
     @MainActor

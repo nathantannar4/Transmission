@@ -46,7 +46,7 @@ extension PresentationLinkTransition {
                 prefersZoomEffect: prefersZoomEffect,
                 minimumScaleFactor: minimumScaleFactor,
                 initialOpacity: initialOpacity,
-                preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .minimal),
+                preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .prominent),
                 preferredBackground: preferredBackground,
                 hapticsStyle: hapticsStyle
             ),
