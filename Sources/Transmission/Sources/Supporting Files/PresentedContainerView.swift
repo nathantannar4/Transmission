@@ -5,6 +5,7 @@
 import UIKit
 import SwiftUI
 
+@available(iOS 14.0, *)
 open class PresentedContainerView: UIView {
 
     open var presentedView: UIView? {
@@ -23,16 +24,17 @@ open class PresentedContainerView: UIView {
         }
     }
 
+    public var preferredShadow: ShadowOptions? {
+        didSet {
+            guard oldValue != preferredShadow else { return }
+            (preferredShadow ?? .clear).apply(to: layer)
+        }
+    }
+
     open var preferredBackground: BackgroundOptions? {
         didSet {
-            guard preferredBackground != oldValue else { return }
-            colorView.backgroundColor = {
-                guard let color = preferredBackground?.color else { return nil }
-                if #available(iOS 14.0, *) {
-                    return color.toUIColor()
-                }
-                return nil
-            }()
+            guard oldValue != preferredBackground else { return }
+            colorView.backgroundColor = preferredBackground?.color?.toUIColor()
             if let effect = preferredBackground?.effect?.toVisualEffect() {
                 if colorView.backgroundColor == nil {
                     colorView.backgroundColor = .clear
@@ -95,6 +97,19 @@ open class PresentedContainerView: UIView {
         }
     }
 
+    open override var backgroundColor: UIColor? {
+        get { presentedView?.backgroundColor }
+        set { presentedView?.backgroundColor = newValue }
+    }
+
+    open override var intrinsicContentSize: CGSize {
+        guard let presentedView else {
+            return super.intrinsicContentSize
+        }
+        let size = presentedView.intrinsicContentSize
+        return size
+    }
+
     private var colorView = UIView()
 
     open override class var layerClass: AnyClass {
@@ -116,8 +131,21 @@ open class PresentedContainerView: UIView {
         super.layoutSubviews()
     }
 
+    open override func layoutIfNeeded() {
+        super.layoutIfNeeded()
+    }
+
+    open override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+
+    }
+
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
-        presentedView?.sizeThatFits(size) ?? super.sizeThatFits(size)
+        guard let presentedView else {
+            return super.sizeThatFits(size)
+        }
+        let fittingSize = presentedView.sizeThatFits(size)
+        return fittingSize
     }
 
     open override func systemLayoutSizeFitting(
@@ -132,11 +160,12 @@ open class PresentedContainerView: UIView {
                 verticalFittingPriority: verticalFittingPriority
             )
         }
-        return presentedView.systemLayoutSizeFitting(
+        let fittingSize = presentedView.systemLayoutSizeFitting(
             targetSize,
             withHorizontalFittingPriority: horizontalFittingPriority,
             verticalFittingPriority: verticalFittingPriority
         )
+        return fittingSize
     }
 
     #if canImport(FoundationModels)

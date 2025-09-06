@@ -143,9 +143,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.preferredShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
-        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         return presentationController
     }
 
@@ -157,8 +155,6 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         presentationController.preferredCornerRadius = options.preferredCornerRadius
         presentationController.insetSafeAreaByCornerRadius = options.insetSafeAreaByCornerRadius
         presentationController.preferredAspectRatio = options.preferredAspectRatio
-        presentationController.preferredShadow = options.preferredPresentationShadow
-        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         presentationController.dismissalHapticsStyle = options.hapticsStyle
     }
 
@@ -167,6 +163,8 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         context: Context
     ) where Content: View {
         presenting.tracksContentSize = true
+        presenting.preferredShadow = options.preferredPresentationShadow
+        presenting.preferredBackground = options.preferredBackground
     }
 
     public func animationController(

@@ -100,7 +100,6 @@ public struct PresentationLinkDefaultPresentedTransition: PresentationLinkPresen
             presentedViewController: presented,
             presenting: presented
         )
-        presentationController.preferredShadow = .minimal
         presentationController.dimmingView.isHidden = false
         return presentationController
     }
@@ -110,6 +109,13 @@ public struct PresentationLinkDefaultPresentedTransition: PresentationLinkPresen
         context: Context
     ) {
 
+    }
+
+    public func updateHostingController<Content: View>(
+        presenting: PresentationHostingController<Content>,
+        context: Context
+    ) {
+        presenting.preferredShadow = .minimal
     }
 }
 

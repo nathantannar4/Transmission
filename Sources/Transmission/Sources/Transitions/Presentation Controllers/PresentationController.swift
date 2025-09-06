@@ -21,8 +21,6 @@ open class PresentationController: DelegatedPresentationController {
         return view
     }()
 
-    public let presentedContainerView = PresentedContainerView()
-
     open var shouldAutoLayoutPresentedView: Bool {
         transition == nil
             && !isTransitioningSize
@@ -40,21 +38,6 @@ open class PresentationController: DelegatedPresentationController {
     public var shouldIgnoreContainerViewTouches: Bool {
         get { containerView?.value(forKey: "ignoreDirectTouchEvents") as? Bool ?? false }
         set { containerView?.setValue(newValue, forKey: "ignoreDirectTouchEvents") }
-    }
-
-    public var preferredShadow: ShadowOptions? {
-        didSet {
-            guard oldValue != preferredShadow else { return }
-            guard presentedViewController.isBeingPresented, presentedViewController.isBeingDismissed else { return }
-            updateShadow(progress: 1)
-        }
-    }
-
-    open override var presentedView: UIView? {
-        if presentedContainerView.presentedView == nil {
-            presentedContainerView.presentedView = presentedViewController.view
-        }
-        return presentedContainerView
     }
 
     public override init(
@@ -92,7 +75,6 @@ open class PresentationController: DelegatedPresentationController {
         if let presentedView {
             containerView?.addSubview(presentedView)
         }
-        updateShadow(progress: 0)
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
@@ -132,8 +114,6 @@ open class PresentationController: DelegatedPresentationController {
     open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
 
-        updateShadow(progress: 1)
-
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
                 self.transitionAlongsidePresentation(progress: 0)
@@ -168,12 +148,6 @@ open class PresentationController: DelegatedPresentationController {
     open func transitionAlongsidePresentation(progress: CGFloat) {
         dimmingView.alpha = progress
         layoutDimmingView()
-        updateShadow(progress: progress)
-    }
-
-    open func updateShadow(progress: Double) {
-        let shadow = preferredShadow ?? .minimal
-        shadow.apply(to: presentedContainerView.layer, progress: progress)
     }
 
     open override func containerViewDidLayoutSubviews() {

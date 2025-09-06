@@ -91,8 +91,6 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.preferredShadow = options.preferredPresentationShadow
-        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         return presentationController
     }
 
@@ -102,8 +100,6 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
     ) {
         presentationController.edge = options.edge
         presentationController.preferredCornerRadius = options.preferredCornerRadius
-        presentationController.preferredShadow = options.preferredPresentationShadow
-        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
     }
 
     public func updateHostingController<Content>(
@@ -111,6 +107,8 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) where Content: View {
         presenting.tracksContentSize = true
+        presenting.preferredShadow = options.preferredPresentationShadow
+        presenting.preferredBackground = options.preferredBackground
     }
 
     public func animationController(

@@ -115,9 +115,9 @@ extension UIViewController {
             // This fixes SwiftUI's gesture handling that can get messed up when applying
             // transforms and/or frame changes during an interactive presentation. This resets
             // SwiftUI's geometry in a clean way, fixing hit testing.
-            let frame = view.frame
-            view.frame = .zero
-            view.frame = frame
+//            let frame = view.frame
+//            view.frame = .zero
+//            view.frame = frame
         }
     }
 

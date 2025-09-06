@@ -69,6 +69,7 @@ open class CardPresentationController: InteractivePresentationController {
                 let height = (preferredAspectRatio * fittingWidth).rounded(scale: containerView?.window?.screen.scale ?? 1) + inset + edgeInset
                 return height
             }
+            presentedViewController.view.layoutIfNeeded()
             if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
                 fittingWidth -= presentedViewController.additionalSafeAreaInsets.left
                 fittingWidth -= presentedViewController.additionalSafeAreaInsets.right
@@ -233,29 +234,29 @@ open class CardPresentationController: InteractivePresentationController {
         let bottomCornerRadius = isCompact || isKeyboardSessionActive ? cornerRadius : UIScreen.main.displayCornerRadius() - edgeInset
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            if needsCustomCornerRadiusPath {
-                let cornerConfiguration = UICornerConfiguration.corners(
-                    topLeftRadius: .fixed(cornerRadius),
-                    topRightRadius: .fixed(cornerRadius),
-                    bottomLeftRadius: .containerConcentric(minimum: bottomCornerRadius),
-                    bottomRightRadius: .containerConcentric(minimum: bottomCornerRadius)
-                )
-                if let presentedView {
-                    CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView.layer)
-                }
-                presentedContainerView.updateCornerConfiguration(cornerConfiguration)
-            } else {
-                let mask = preferredCornerRadius?.mask ?? .all
-                presentedContainerView.updateCornerConfiguration(
-                    UICornerConfiguration.corners(
-                        topLeftRadius: .fixed(mask.contains(.layerMinXMinYCorner) ? cornerRadius : 0),
-                        topRightRadius: .fixed(mask.contains(.layerMaxXMinYCorner) ? cornerRadius : 0),
-                        bottomLeftRadius: .fixed(mask.contains(.layerMinXMaxYCorner) ? cornerRadius : 0),
-                        bottomRightRadius: .fixed(mask.contains(.layerMaxXMaxYCorner) ? cornerRadius : 0),
-                    )
-                )
-            }
-            presentedView?.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .continuous : (preferredCornerRadius?.style ?? .circular)
+//            if needsCustomCornerRadiusPath {
+//                let cornerConfiguration = UICornerConfiguration.corners(
+//                    topLeftRadius: .fixed(cornerRadius),
+//                    topRightRadius: .fixed(cornerRadius),
+//                    bottomLeftRadius: .containerConcentric(minimum: bottomCornerRadius),
+//                    bottomRightRadius: .containerConcentric(minimum: bottomCornerRadius)
+//                )
+//                if let presentedView {
+//                    CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView.layer)
+//                }
+//                presentedContainerView.updateCornerConfiguration(cornerConfiguration)
+//            } else {
+//                let mask = preferredCornerRadius?.mask ?? .all
+//                presentedContainerView.updateCornerConfiguration(
+//                    UICornerConfiguration.corners(
+//                        topLeftRadius: .fixed(mask.contains(.layerMinXMinYCorner) ? cornerRadius : 0),
+//                        topRightRadius: .fixed(mask.contains(.layerMaxXMinYCorner) ? cornerRadius : 0),
+//                        bottomLeftRadius: .fixed(mask.contains(.layerMinXMaxYCorner) ? cornerRadius : 0),
+//                        bottomRightRadius: .fixed(mask.contains(.layerMaxXMaxYCorner) ? cornerRadius : 0),
+//                    )
+//                )
+//            }
+//            presentedView?.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .continuous : (preferredCornerRadius?.style ?? .circular)
         }
         #endif
         if #unavailable(iOS 26.0) {

@@ -7,7 +7,75 @@
 import SwiftUI
 import Engine
 
+@available(iOS 14.0, *)
 open class PresentationHostingController<
+    Content: View
+>: UIViewController {
+
+    public var tracksContentSize: Bool {
+        get { hostingController.tracksContentSize }
+        set { hostingController.tracksContentSize = newValue }
+    }
+
+    public var content: Content {
+        get { hostingController.content }
+        set { hostingController.content = newValue }
+    }
+
+    public var preferredShadow: ShadowOptions? {
+        get { containerView.preferredShadow }
+        set { containerView.preferredShadow = newValue }
+    }
+
+    public var preferredBackground: BackgroundOptions? {
+        get { containerView.preferredBackground }
+        set { containerView.preferredBackground = newValue }
+    }
+
+    public let hostingController: _PresentationHostingController<Content>
+
+    private let containerView = PresentedContainerView()
+
+    public init(content: Content) {
+        self.hostingController = _PresentationHostingController(content: content)
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    public required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    open override func loadView() {
+        view = containerView
+    }
+
+    open override func viewDidLoad() {
+        super.viewDidLoad()
+        hostingController.willMove(toParent: self)
+        addChild(hostingController)
+        containerView.presentedView = hostingController.view
+        hostingController.didMove(toParent: self)
+    }
+}
+
+@available(iOS 14.0, *)
+extension PresentationHostingController: AnyHostingController {
+
+    public var disableSafeArea: Bool {
+        get { hostingController.disableSafeArea }
+        set { hostingController.disableSafeArea = newValue }
+    }
+
+    public func render() {
+        hostingController.render()
+    }
+
+    public func renderAsync() {
+        hostingController.renderAsync()
+    }
+}
+
+open class _PresentationHostingController<
     Content: View
 >: HostingController<Content> {
 

@@ -51,11 +51,11 @@ open class SlidePresentationController: InteractivePresentationController {
 
         if transform.isIdentity {
             presentedView?.layer.cornerRadius = 0
-            updateShadow(progress: 0)
+            transitionAlongsidePresentation(progress: 0)
         } else {
             presentedView?.layer.cornerRadius = UIScreen.main.displayCornerRadius()
             let progress = max(0, min(transform.d, 1))
-            updateShadow(progress: progress)
+            transitionAlongsidePresentation(progress: progress)
         }
     }
 

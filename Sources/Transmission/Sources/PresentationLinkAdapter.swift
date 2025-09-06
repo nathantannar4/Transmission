@@ -220,9 +220,6 @@ private struct PresentationLinkAdapterBody<
                     break
 
                 default:
-                    if context.coordinator.adapter?.transition.options.preferredPresentationBackgroundUIColor != nil {
-                        context.coordinator.adapter?.viewController.view.backgroundColor = .systemBackground
-                    }
                     context.coordinator.isBeingReused = true
                     isTransitioningPresentationController = true
                     isAnimated = false
@@ -906,7 +903,7 @@ private struct PresentationLinkAdapterBody<
                     }
                     presentationController.preferredBackground = options.preferredBackground
                     presentationController.preferredPresentationBackgroundColor = options.options.preferredPresentationBackgroundUIColor
-                    presentationController.preferredShadow = options.preferredPresentationShadow
+//                    presentationController.preferredShadow = options.preferredPresentationShadow
                     presentationController.overrideTraitCollection = overrideTraitCollection
                     presentationController.delegate = self
                     return presentationController
@@ -934,7 +931,7 @@ private struct PresentationLinkAdapterBody<
                     source: source,
                     context: makeContext(options: options)
                 )
-                presentationController.overrideTraitCollection = overrideTraitCollection
+//                presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
 
@@ -1362,6 +1359,8 @@ extension PresentationLinkTransition.Value {
 
         switch self {
         case .sheet(let options):
+            viewController.preferredShadow = options.preferredPresentationShadow
+            viewController.preferredBackground = options.preferredBackground
             if #available(iOS 15.0, *) {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal || $0.resolution != nil })
             } else {

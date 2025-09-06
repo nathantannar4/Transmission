@@ -132,8 +132,6 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.preferredShadow = options.preferredPresentationShadow
-        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         presentationController.dismissalHapticsStyle = options.hapticsStyle
         return presentationController
     }
@@ -143,9 +141,15 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) {
         presentationController.edge = options.edge
-        presentationController.preferredShadow = options.preferredPresentationShadow
-        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         presentationController.dismissalHapticsStyle = options.hapticsStyle
+    }
+
+    public func updateHostingController<Content: View>(
+        presenting: PresentationHostingController<Content>,
+        context: Context
+    ) {
+        presenting.preferredShadow = options.preferredPresentationShadow
+        presenting.preferredBackground = options.preferredBackground
     }
 
     public func animationController(

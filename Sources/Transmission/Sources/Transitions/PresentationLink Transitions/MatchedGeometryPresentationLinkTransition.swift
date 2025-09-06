@@ -184,9 +184,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.preferredShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
-        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         return presentationController
     }
 
@@ -196,8 +194,6 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
     ) {
         presentationController.edges = options.edges
         presentationController.minimumScaleFactor = options.minimumScaleFactor
-        presentationController.preferredShadow = options.preferredPresentationShadow
-        presentationController.presentedContainerView.preferredBackground = options.preferredBackground
         presentationController.dismissalHapticsStyle = options.hapticsStyle
     }
 
@@ -206,6 +202,8 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         context: Context
     ) where Content: View {
         presenting.tracksContentSize = true
+        presenting.preferredShadow = options.preferredPresentationShadow
+        presenting.preferredBackground = options.preferredBackground
     }
 
     public func animationController(

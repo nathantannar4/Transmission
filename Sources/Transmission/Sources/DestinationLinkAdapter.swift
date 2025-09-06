@@ -238,7 +238,7 @@ private struct DestinationLinkAdapterBody<
             didPresentAnimated = false
             if let presented = viewController.presentedViewController {
                 presented.dismiss(animated: transaction.isAnimated) {
-                    viewController._popViewController(animated: transaction.isAnimated) {
+                    viewController._popViewController(count: count, animated: transaction.isAnimated) {
                         self.onPop(transaction)
                     }
                 }
