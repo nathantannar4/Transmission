@@ -29,6 +29,7 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
             presenting: presentingViewController
         )
         self.edges = edges
+        dimmingView.isHidden = false
     }
 
     open override func dismissalTransitionShouldBegin(
@@ -83,11 +84,6 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
         return CGAffineTransform(translationX: dx, y: dy * 0.25)
             .translatedBy(x: (1 - scale) * 0.5 * frame.width, y: (1 - scale) * 0.5 * frame.height)
             .scaledBy(x: scale, y: scale)
-    }
-
-    open override func updateShadow(progress: Double) {
-        super.updateShadow(progress: progress)
-        dimmingView.isHidden = presentedViewShadow.shadowOpacity > 0
     }
 }
 

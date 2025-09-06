@@ -24,23 +24,30 @@ open class ToastPresentationController: InteractivePresentationController {
         }
     }
 
-    open override var frameOfPresentedViewInContainerView: CGRect {
-        guard
-            let containerView = containerView,
-            let presentedView = presentedView
-        else { 
-            return .zero
+    public var preferredCornerRadius: CornerRadiusOptions? {
+        didSet {
+            guard oldValue != preferredCornerRadius else { return }
+            setCornerRadius()
         }
+    }
 
-        var frame = containerView.bounds.inset(by: containerView.layoutMargins)
-        var sizeThatFits = presentedView.idealSize(for: frame.width)
+    open override var frameOfPresentedViewInContainerView: CGRect {
+        var insets = containerView?.layoutMargins ?? .zero
+        insets.bottom = max(insets.bottom, keyboardHeight + (insets.bottom - (containerView?.safeAreaInsets.bottom ?? 0)))
+        var frame = super.frameOfPresentedViewInContainerView
+            .inset(by: insets)
+
+        var sizeThatFits = presentedView?.idealSize(for: frame.width) ?? .zero
+        if sizeThatFits == .zero {
+            sizeThatFits = presentedViewController.view.idealSize(for: frame.width)
+        }
         sizeThatFits.height = min(sizeThatFits.height, frame.height)
-        frame.origin.x = (containerView.bounds.width - sizeThatFits.width) / 2
+        frame.origin.x = frame.midX - sizeThatFits.width / 2
         switch edge {
         case .top, .leading:
             break
         case .bottom, .trailing:
-            frame.origin.y = (frame.size.height + frame.origin.y - sizeThatFits.height)
+            frame.origin.y = frame.maxY - sizeThatFits.height
         }
         frame.size = sizeThatFits
         return frame
@@ -48,10 +55,12 @@ open class ToastPresentationController: InteractivePresentationController {
 
     public init(
         edge: Edge = .top,
+        preferredCornerRadius: CornerRadiusOptions? = nil,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.edge = edge
+        self.preferredCornerRadius = preferredCornerRadius
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
@@ -59,8 +68,19 @@ open class ToastPresentationController: InteractivePresentationController {
         edges = Edge.Set(edge)
     }
 
+    open override func containerViewDidLayoutSubviews() {
+        super.containerViewDidLayoutSubviews()
+        setCornerRadius()
+    }
+
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         .zero
+    }
+
+    private func setCornerRadius() {
+        guard let presentedView else { return }
+        let cornerRadius = preferredCornerRadius ?? .identity
+        cornerRadius.apply(to: presentedView.layer, height: presentedView.bounds.height)
     }
 }
 
@@ -95,7 +115,6 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
             var presentedFrame = transitionContext.finalFrame(for: presented)
             transitionContext.containerView.addSubview(presented.view)
             presented.view.frame = presentedFrame
-            presented.view.isHidden = true
             presented.view.layoutIfNeeded()
 
             (presented as? AnyHostingController)?.render()
@@ -130,7 +149,6 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
                 )
                 presented.view.frame = presentedFrame.applying(transform)
             }
-            presented.view.isHidden = false
             animator.addAnimations {
                 presented.view.frame = presentedFrame
             }

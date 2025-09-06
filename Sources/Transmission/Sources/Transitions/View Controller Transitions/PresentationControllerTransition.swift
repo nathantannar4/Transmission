@@ -40,10 +40,28 @@ open class PresentationControllerTransition: ViewControllerTransition {
         }
 
         if isPresenting {
-            let presentedFrame = transitionContext.finalFrame(for: presented)
+            var presentedFrame = transitionContext.finalFrame(for: presented)
             transitionContext.containerView.addSubview(presented.view)
             presented.view.frame = presentedFrame
             presented.view.layoutIfNeeded()
+
+            (presented as? AnyHostingController)?.render()
+
+            if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
+                transitionReaderCoordinator.update(isPresented: true)
+
+                presented.view.setNeedsLayout()
+                presented.view.layoutIfNeeded()
+
+                if let presentationController = presented.presentationController as? PresentationController {
+                    presentedFrame = presentationController.frameOfPresentedViewInContainerView
+                }
+
+                transitionReaderCoordinator.update(isPresented: false)
+                presented.view.setNeedsLayout()
+                presented.view.layoutIfNeeded()
+                transitionReaderCoordinator.update(isPresented: true)
+            }
 
             let transform = CGAffineTransform(
                 translationX: 0,

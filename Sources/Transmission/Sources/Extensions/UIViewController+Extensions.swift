@@ -120,6 +120,28 @@ extension UIViewController {
             view.frame = frame
         }
     }
+
+    var firstResponder: UIResponder? {
+        if isFirstResponder {
+            return self
+        }
+        return view.firstResponder
+    }
+
+}
+
+extension UIView {
+    fileprivate var firstResponder: UIResponder? {
+        if isFirstResponder {
+            return self
+        }
+        for subview in subviews {
+            if let responder = subview.firstResponder {
+                return responder
+            }
+        }
+        return nil
+    }
 }
 
 #endif
