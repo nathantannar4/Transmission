@@ -27,13 +27,16 @@ extension PresentationLinkTransition {
     /// The toast presentation style.
     public static func toast(
         edge: Edge = .bottom,
+        preferredCornerRadius: CornerRadiusOptions? = nil,
+        preferredPresentationShadow: ShadowOptions? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .toast(
             .init(
                 edge: edge,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal
+                preferredCornerRadius: preferredCornerRadius,
+                preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .minimal)
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -52,13 +55,16 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
     public struct Options {
 
         public var edge: Edge
+        public var preferredCornerRadius: CornerRadiusOptions?
         public var preferredPresentationShadow: ShadowOptions
 
         public init(
             edge: Edge = .bottom,
+            preferredCornerRadius: CornerRadiusOptions? = nil,
             preferredPresentationShadow: ShadowOptions = .minimal
         ) {
             self.edge = edge
+            self.preferredCornerRadius = preferredCornerRadius
             self.preferredPresentationShadow = preferredPresentationShadow
         }
     }
@@ -76,6 +82,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
     ) -> ToastPresentationController {
         let presentationController = ToastPresentationController(
             edge: options.edge,
+            preferredCornerRadius: options.preferredCornerRadius,
             presentedViewController: presented,
             presenting: presenting
         )
@@ -88,6 +95,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) {
         presentationController.edge = options.edge
+        presentationController.preferredCornerRadius = options.preferredCornerRadius
         presentationController.presentedViewShadow = options.preferredPresentationShadow
     }
 

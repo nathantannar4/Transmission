@@ -85,7 +85,8 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             let sourceView = sourceView?.viewController?.view ?? presenting.view!
             for subview in transitionContext.containerView.subviews {
                 if let portalView = subview as? PortalView, portalView.sourceView == sourceView {
-                    return portalView
+                    portalView.removeFromSuperview()
+                    break
                 }
             }
             if isScaleEnabled {

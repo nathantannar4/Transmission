@@ -11,6 +11,7 @@ import Engine
 @frozen
 @available(iOS 14.0, *)
 public struct ShadowOptions: Equatable, Sendable {
+
     public var shadowOpacity: Float
     public var shadowRadius: CGFloat
     public var shadowOffset: CGSize
@@ -36,6 +37,11 @@ public struct ShadowOptions: Equatable, Sendable {
     public static let minimal = ShadowOptions(
         shadowOpacity: 0.15,
         shadowRadius: 24
+    )
+
+    public static let feather = ShadowOptions(
+        shadowOpacity: 0.05,
+        shadowRadius: 12
     )
 
     public static let clear = ShadowOptions(

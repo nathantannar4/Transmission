@@ -30,7 +30,9 @@ extension PresentationLinkTransition {
     public static func card(
         preferredEdgeInset: CGFloat? = nil,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        insetSafeAreaByCornerRadius: Bool = true,
         preferredAspectRatio: CGFloat? = 1,
+        preferredPresentationShadow: ShadowOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
@@ -39,8 +41,9 @@ extension PresentationLinkTransition {
             .init(
                 preferredEdgeInset: preferredEdgeInset,
                 preferredCornerRadius: preferredCornerRadius,
+                insetSafeAreaByCornerRadius: insetSafeAreaByCornerRadius,
                 preferredAspectRatio: preferredAspectRatio,
-                preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal,
+                preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .minimal),
                 hapticsStyle: hapticsStyle
             ),
             options: .init(
@@ -84,6 +87,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
 
         public var preferredEdgeInset: CGFloat?
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
+        public var insetSafeAreaByCornerRadius: Bool
         /// A `nil` aspect ratio will size the cards height to it's ideal size
         public var preferredAspectRatio: CGFloat?
         public var preferredPresentationShadow: ShadowOptions
@@ -92,12 +96,14 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         public init(
             preferredEdgeInset: CGFloat? = nil,
             preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+            insetSafeAreaByCornerRadius: Bool = true,
             preferredAspectRatio: CGFloat? = 1,
             preferredPresentationShadow: ShadowOptions = .minimal,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.preferredEdgeInset = preferredEdgeInset
             self.preferredCornerRadius = preferredCornerRadius
+            self.insetSafeAreaByCornerRadius = insetSafeAreaByCornerRadius
             self.preferredAspectRatio = preferredAspectRatio
             self.preferredPresentationShadow = preferredPresentationShadow
             self.hapticsStyle = hapticsStyle
@@ -109,7 +115,12 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         self.options = options
     }
 
-    public static let defaultEdgeInset: CGFloat = 4
+    public static let defaultEdgeInset: CGFloat = {
+        if #available(iOS 26.0, *) {
+            return 8
+        }
+        return 4
+    }()
     public static let defaultCornerRadius: CGFloat = UIScreen.main.displayCornerRadius(min: 36)
     public static let defaultAdjustedCornerRadius: CornerRadiusOptions.RoundedRectangle = .rounded(cornerRadius: defaultCornerRadius - defaultEdgeInset, style: .continuous)
 
@@ -122,6 +133,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         let presentationController = CardPresentationController(
             preferredEdgeInset: options.preferredEdgeInset,
             preferredCornerRadius: options.preferredCornerRadius,
+            insetSafeAreaByCornerRadius: options.insetSafeAreaByCornerRadius,
             preferredAspectRatio: options.preferredAspectRatio,
             presentedViewController: presented,
             presenting: presenting
@@ -137,6 +149,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
     ) {
         presentationController.preferredEdgeInset = options.preferredEdgeInset
         presentationController.preferredCornerRadius = options.preferredCornerRadius
+        presentationController.insetSafeAreaByCornerRadius = options.insetSafeAreaByCornerRadius
         presentationController.preferredAspectRatio = options.preferredAspectRatio
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle

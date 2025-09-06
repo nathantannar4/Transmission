@@ -182,9 +182,19 @@ private struct DestinationLinkAdapterBody<
 
                 navigationController.delegates.add(delegate: context.coordinator, for: adapter.viewController)
                 context.coordinator.isPushing = true
-                navigationController.pushViewController(adapter.viewController, animated: isAnimated) {
-                    context.coordinator.animation = nil
-                    context.coordinator.didPresentAnimated = isAnimated
+                if let firstResponder = navigationController.topViewController?.firstResponder {
+                    withCATransaction {
+                        firstResponder.resignFirstResponder()
+                        navigationController.pushViewController(adapter.viewController, animated: isAnimated) {
+                            context.coordinator.animation = nil
+                            context.coordinator.didPresentAnimated = isAnimated
+                        }
+                    }
+                } else {
+                    navigationController.pushViewController(adapter.viewController, animated: isAnimated) {
+                        context.coordinator.animation = nil
+                        context.coordinator.didPresentAnimated = isAnimated
+                    }
                 }
             }
         } else if context.coordinator.adapter != nil, !isPresented.wrappedValue {
@@ -238,7 +248,7 @@ private struct DestinationLinkAdapterBody<
             didPresentAnimated = false
             if let presented = viewController.presentedViewController {
                 presented.dismiss(animated: transaction.isAnimated) {
-                    viewController._popViewController(animated: transaction.isAnimated) {
+                    viewController._popViewController(count: count, animated: transaction.isAnimated) {
                         self.onPop(transaction)
                     }
                 }

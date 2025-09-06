@@ -9,15 +9,10 @@ import SwiftUI
 
 /// A presentation controller base class
 @available(iOS 14.0, *)
-open class PresentationController: UIPresentationController {
+open class PresentationController: DelegatedPresentationController {
 
     public private(set) var isTransitioningSize = false
-    public private(set) var keyboardHeight: CGFloat = 0 {
-        didSet {
-            guard keyboardHeight != oldValue else { return }
-            keyboardHeightDidChange()
-        }
-    }
+    public private(set) var keyboardHeight: CGFloat = 0
 
     public let dimmingView: DimmingView = {
         let view = DimmingView()
@@ -50,35 +45,11 @@ open class PresentationController: UIPresentationController {
         set { containerView?.setValue(newValue, forKey: "ignoreDirectTouchEvents") }
     }
 
-    public var shouldAutomaticallyAdjustFrameForKeyboard: Bool = false {
-        didSet {
-            guard oldValue != shouldAutomaticallyAdjustFrameForKeyboard else { return }
-            containerView?.setNeedsLayout()
-        }
-    }
-
     public var presentedViewShadow: ShadowOptions = .clear {
         didSet {
             guard presentedViewController.isBeingPresented, presentedViewController.isBeingDismissed else { return }
             updateShadow(progress: 1)
         }
-    }
-
-    open override var frameOfPresentedViewInContainerView: CGRect {
-        let frame = super.frameOfPresentedViewInContainerView
-        if shouldAutomaticallyAdjustFrameForKeyboard, keyboardHeight > 0 {
-            let dy = keyboardOverlapInContainerView(
-                of: frame,
-                keyboardHeight: keyboardHeight
-            )
-            return CGRect(
-                x: frame.origin.x,
-                y: frame.origin.y,
-                width: frame.size.width,
-                height: frame.size.height - dy
-            )
-        }
-        return frame
     }
 
     public override init(
@@ -142,18 +113,14 @@ open class PresentationController: UIPresentationController {
                     name: UIResponder.keyboardWillHideNotification,
                     object: nil
                 )
-
-            presentedViewController.fixSwiftUIHitTesting()
         } else {
             transitionAlongsidePresentation(progress: 0)
-            delegate?.presentationControllerDidDismiss?(self)
         }
     }
 
     open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
 
-        delegate?.presentationControllerWillDismiss?(self)
         updateShadow(progress: 1)
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
@@ -168,7 +135,6 @@ open class PresentationController: UIPresentationController {
 
         if completed {
             transitionAlongsidePresentation(progress: 0)
-            delegate?.presentationControllerDidDismiss?(self)
 
             NotificationCenter.default
                 .removeObserver(
@@ -185,7 +151,6 @@ open class PresentationController: UIPresentationController {
                 )
         } else {
             transitionAlongsidePresentation(progress: 1)
-            delegate?.presentationControllerDidAttemptToDismiss?(self)
         }
     }
 
@@ -314,7 +279,10 @@ open class PresentationController: UIPresentationController {
 
         guard keyboardHeight != dy else { return }
         keyboardHeight = dy
-        guard shouldAutoLayoutPresentedView, shouldAutomaticallyAdjustFrameForKeyboard, let containerView else { return }
+        guard shouldAutoLayoutPresentedView, let containerView else {
+            keyboardHeightDidChange()
+            return
+        }
         containerView.setNeedsLayout()
 
         guard
@@ -322,6 +290,7 @@ open class PresentationController: UIPresentationController {
             duration > 0,
             let curve = userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt
         else {
+            keyboardHeightDidChange()
             containerView.layoutIfNeeded()
             return
         }
@@ -333,6 +302,7 @@ open class PresentationController: UIPresentationController {
                 .beginFromCurrentState,
             ]
         ) {
+            self.keyboardHeightDidChange()
             containerView.layoutIfNeeded()
         }
     }

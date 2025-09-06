@@ -114,7 +114,12 @@ extension PresentationLinkTransition {
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {
-            preferredPresentationBackgroundColor?.toUIColor()
+            switch preferredPresentationBackgroundColor {
+            case .clear:
+                return .clear
+            default:
+                return preferredPresentationBackgroundColor?.toUIColor()
+            }
         }
     }
 }
@@ -613,6 +618,12 @@ extension PresentationLinkTransition {
                     detents: [detent],
                     prefersGrabberVisible: prefersGrabberVisible,
                     preferredCornerRadius: preferredCornerRadius.map { .rounded(cornerRadius: $0) },
+                    prefersEdgeAttachedInCompactHeight: {
+                        if #available(iOS 26.0, *) {
+                            return detent.identifier == .ideal
+                        }
+                        return false
+                    }(),
                     prefersZoomTransition: prefersZoomTransition,
                     options: .init(
                         isInteractive: isInteractive,

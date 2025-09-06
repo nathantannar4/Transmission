@@ -126,18 +126,9 @@ private struct PresentationLinkAdapterBody<
 
             context.coordinator.isPresented = isPresented
 
-            let traits = UITraitCollection(traitsFrom: [
-                presentingViewController.traitCollection,
-                UITraitCollection(userInterfaceStyle: .init(context.environment.colorScheme)),
-                UITraitCollection(layoutDirection: .init(context.environment.layoutDirection)),
-                UITraitCollection(verticalSizeClass: .init(context.environment.verticalSizeClass)),
-                UITraitCollection(horizontalSizeClass: .init(context.environment.horizontalSizeClass)),
-                UITraitCollection(accessibilityContrast: .init(context.environment.colorSchemeContrast)),
-                UITraitCollection(legibilityWeight: .init(context.environment.legibilityWeight)),
-                UITraitCollection(displayScale: context.environment.displayScale),
-                UITraitCollection(activeAppearance: .unspecified),
-                UITraitCollection(userInterfaceLevel: .elevated)
-            ])
+            let traits = UITraitCollection { traits in
+                traits.userInterfaceLevel = .elevated
+            }
 
             var isAnimated = context.transaction.isAnimated
                 || presentingViewController.transitionCoordinator?.isAnimated == true
@@ -150,7 +141,6 @@ private struct PresentationLinkAdapterBody<
             if let adapter = context.coordinator.adapter,
                !context.coordinator.isBeingReused
             {
-
                 switch (adapter.transition, transition.value) {
                 case (.sheet(let oldValue), .sheet(let newValue)):
                     guard #available(iOS 15.0, *), let presentationController = adapter.viewController.presentationController as? SheetPresentationController
@@ -237,8 +227,6 @@ private struct PresentationLinkAdapterBody<
                !context.coordinator.isBeingReused
             {
                 adapter.transition = transition.value
-                adapter.viewController.presentationController?.overrideTraitCollection = traits
-
                 adapter.update(
                     destination: destination,
                     sourceView: uiView,
@@ -310,6 +298,7 @@ private struct PresentationLinkAdapterBody<
                     // transitioningDelegate + .custom breaks .overCurrentContext
                     adapter.viewController.modalPresentationStyle = .overCurrentContext
                     if let presentationController = adapter.viewController.presentationController {
+                        presentationController.delegate = context.coordinator
                         presentationController.overrideTraitCollection = traits
                         context.coordinator.presentationController = presentationController
                     }
@@ -317,6 +306,7 @@ private struct PresentationLinkAdapterBody<
                 case .fullscreen:
                     adapter.viewController.modalPresentationStyle = .overFullScreen
                     if let presentationController = adapter.viewController.presentationController {
+                        presentationController.delegate = context.coordinator
                         presentationController.overrideTraitCollection = traits
                         context.coordinator.presentationController = presentationController
                     }
@@ -416,6 +406,7 @@ private struct PresentationLinkAdapterBody<
                         }
                     }
                 }
+                var didPresent = false
                 if let presentedViewController = presentingViewController.presentedViewController {
                     if presentedViewController.presentationDelegate == context.coordinator {
                         presentedViewController.presentationDelegate = nil
@@ -432,15 +423,32 @@ private struct PresentationLinkAdapterBody<
                         } ?? true
                     }()
                     if shouldDismiss {
-                        presentedViewController.dismiss(
-                            animated: isAnimated,
-                            completion: present
-                        )
+                        didPresent = true
+                        if let firstResponder = presentedViewController.firstResponder {
+                            withCATransaction {
+                                firstResponder.resignFirstResponder()
+                                presentedViewController.dismiss(
+                                    animated: isAnimated,
+                                    completion: present
+                                )
+                            }
+                        } else {
+                            presentedViewController.dismiss(
+                                animated: isAnimated,
+                                completion: present
+                            )
+                        }
+                    }
+                }
+                if !didPresent {
+                    if let firstResponder = presentingViewController.firstResponder {
+                        withCATransaction {
+                            firstResponder.resignFirstResponder()
+                            present()
+                        }
                     } else {
                         present()
                     }
-                } else {
-                    present()
                 }
             }
         } else if !isPresented.wrappedValue,
@@ -476,7 +484,11 @@ private struct PresentationLinkAdapterBody<
         var animation: Animation?
         var didPresentAnimated = false
         weak var sourceView: UIView?
-        var overrideTraitCollection: UITraitCollection?
+        var overrideTraitCollection: UITraitCollection? {
+            didSet {
+                presentationController?.overrideTraitCollection = overrideTraitCollection
+            }
+        }
 
         var isZoomTransitionDismissReady = false
         var feedbackGenerator: UIImpactFeedbackGenerator?
@@ -916,6 +928,15 @@ private struct PresentationLinkAdapterBody<
                 presentationController.delegate = self
                 return presentationController
 
+            case .zoom:
+                let presentationController = DelegatedPresentationController(
+                    presentedViewController: presented,
+                    presenting: presenting
+                )
+                presentationController.overrideTraitCollection = overrideTraitCollection
+                presentationController.delegate = self
+                return presentationController
+
             default:
                 break
             }
@@ -1178,11 +1199,9 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 adapter: self
             )
             conformance.visit(visitor: &visitor)
-            switch transition {
-            case .representable(let options, _):
-                viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
-            default:
-                break
+            viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
+            if let backgroundColor = transition.options.preferredPresentationBackgroundUIColor {
+                viewController.view.backgroundColor = backgroundColor
             }
         } else {
             let viewController = viewController as! DestinationController
@@ -1331,6 +1350,12 @@ extension PresentationLinkTransition.Value {
 
         switch self {
         case .sheet(let options):
+            if #available(iOS 26.0, *),
+                options.detents != [.large],
+                options.options.preferredPresentationBackgroundColor == nil
+            {
+                viewController.view.backgroundColor = .clear
+            }
             if #available(iOS 15.0, *) {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal || $0.resolution != nil })
             } else {

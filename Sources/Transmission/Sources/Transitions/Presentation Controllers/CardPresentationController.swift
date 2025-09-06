@@ -33,6 +33,13 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
+    public var insetSafeAreaByCornerRadius: Bool = true {
+        didSet {
+            guard insetSafeAreaByCornerRadius != oldValue else { return }
+            cornerRadiusDidChange()
+        }
+    }
+
     open override var frameOfPresentedViewInContainerView: CGRect {
         var frame = super.frameOfPresentedViewInContainerView
         guard let presentedView else { return frame }
@@ -49,13 +56,16 @@ open class CardPresentationController: InteractivePresentationController {
         let isCompact = traitCollection.verticalSizeClass == .compact
         let width = isCompact ? frame.height : frame.width
         let height: CGFloat = {
-            let presentedViewAdditionalSafeAreaInsets = presentedViewController.additionalSafeAreaInsets
+            var fittingWidth = width - (2 * edgeInset)
+            let inset = (isKeyboardSessionActive ? cornerRadius / 2 : max((containerView?.safeAreaInsets.bottom ?? 0) - cornerRadius / 2, 0))
             if let preferredAspectRatio {
-                let insets = presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets : presentedView.safeAreaInsets
-                let dx = min(insets.top, max(0, (containerView?.safeAreaInsets.top ?? 0) - edgeInset)) - min(insets.bottom, max(0, (containerView?.safeAreaInsets.bottom ?? 0) - edgeInset))
-                return (preferredAspectRatio * (width - dx)).rounded(scale: containerView?.window?.screen.scale ?? 1)
+                let height = (preferredAspectRatio * fittingWidth).rounded(scale: containerView?.window?.screen.scale ?? 1) + inset + edgeInset
+                return height
             }
-            let fittingWidth = width - (presentedView.safeAreaInsets == .zero ? presentedViewAdditionalSafeAreaInsets.left + presentedViewAdditionalSafeAreaInsets.right : 0) - (2 * edgeInset)
+            if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
+                fittingWidth -= presentedViewController.additionalSafeAreaInsets.left
+                fittingWidth -= presentedViewController.additionalSafeAreaInsets.right
+            }
             var sizeThatFits = CGSize(
                 width: fittingWidth,
                 height: presentedView.idealHeight(for: fittingWidth)
@@ -64,10 +74,12 @@ open class CardPresentationController: InteractivePresentationController {
                 sizeThatFits.height = width
             }
             sizeThatFits.height += (2 * edgeInset)
-            if presentedView.safeAreaInsets == .zero {
-                sizeThatFits.height += (presentedViewAdditionalSafeAreaInsets.top + presentedViewAdditionalSafeAreaInsets.bottom)
+            if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
+                sizeThatFits.height += max((containerView?.safeAreaInsets.bottom ?? 0) - edgeInset, 0)
+                sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.top
+                sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.bottom
             }
-            return min(frame.height, sizeThatFits.height).rounded(.down)
+            return min(frame.height, sizeThatFits.height).rounded(scale: containerView?.window?.screen.scale ?? 1)
         }()
         frame = CGRect(
             x: frame.origin.x + (frame.width - width) / 2,
@@ -76,27 +88,11 @@ open class CardPresentationController: InteractivePresentationController {
             height: height
         )
 
-        var keyboardOverlap: CGFloat = 0
-        if shouldAutomaticallyAdjustFrameForKeyboard {
-            keyboardOverlap = keyboardOverlapInContainerView(
-                of: frame,
-                keyboardHeight: keyboardHeight
-            )
-
-            if keyboardHeight > 0 {
-                frame.origin.y += presentedViewController.additionalSafeAreaInsets.bottom
-            }
-        }
-
+        let keyboardOverlap = keyboardOverlapInContainerView(
+            of: frame,
+            keyboardHeight: keyboardHeight
+        )
         frame.origin.y -= keyboardOverlap
-        if presentedView.safeAreaInsets == .zero {
-            if keyboardOverlap == 0, presentedViewController.isBeingPresented {
-                let bottomSafeArea = max(0, (containerView?.safeAreaInsets.bottom ?? 0) - edgeInset)
-                frame.size.height += bottomSafeArea
-                frame.origin.y -= bottomSafeArea
-            }
-        }
-
         if frame.origin.y < 0 {
             frame.size.height += frame.origin.y
             frame.origin.y = 0
@@ -121,7 +117,10 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     private var needsCustomCornerRadiusPath: Bool {
-        edgeInset > 0 && cornerRadius > 0 && (cornerRadius + edgeInset) < UIScreen.main.displayCornerRadius()
+        guard cornerRadius > 0, !isKeyboardSessionActive else { return false }
+        let inset = cornerRadius + edgeInset
+        guard inset < (containerView?.safeAreaInsets.bottom ?? 0) || !insetSafeAreaByCornerRadius else { return false }
+        return inset < UIScreen.main.displayCornerRadius()
     }
 
     private var customCornerRadiusPath: CGPath? {
@@ -144,19 +143,21 @@ open class CardPresentationController: InteractivePresentationController {
     public init(
         preferredEdgeInset: CGFloat? = nil,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        insetSafeAreaByCornerRadius: Bool = true,
         preferredAspectRatio: CGFloat? = 1,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.preferredEdgeInset = preferredEdgeInset
         self.preferredCornerRadius = preferredCornerRadius
+        self.insetSafeAreaByCornerRadius = insetSafeAreaByCornerRadius
         self.preferredAspectRatio = preferredAspectRatio
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-        shouldAutomaticallyAdjustFrameForKeyboard = true
         dimmingView.isHidden = false
+        prefersInteractiveDismissal = true
     }
 
     open override func dismissalTransitionShouldBegin(
@@ -177,6 +178,11 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
+    open override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        setCornerRadius()
+    }
+
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
         if completed {
@@ -187,15 +193,13 @@ open class CardPresentationController: InteractivePresentationController {
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         var edgeInsets = super.presentedViewAdditionalSafeAreaInsets()
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
-        let inset = (cornerRadius / 2).rounded(scale: containerView?.window?.screen.scale ?? 1)
+        let inset = insetSafeAreaByCornerRadius ? (cornerRadius / 2).rounded(scale: containerView?.window?.screen.scale ?? 1) : 0
         edgeInsets.top = max(edgeInsets.top, inset)
         edgeInsets.left = max(edgeInsets.left, inset)
         edgeInsets.right = max(edgeInsets.right, inset)
-        edgeInsets.bottom = max(0, min(safeAreaInsets.bottom - edgeInset, edgeInsets.bottom))
-        if keyboardHeight > 0 {
-            edgeInsets.bottom = max(edgeInsets.bottom, cornerRadius)
-        } else {
-            edgeInsets.bottom += max(0, inset - safeAreaInsets.bottom)
+        edgeInsets.bottom = max(edgeInsets.bottom, inset)
+        if !isKeyboardSessionActive {
+            edgeInsets.bottom = max(0, min(safeAreaInsets.bottom - edgeInset, edgeInsets.bottom))
         }
         return edgeInsets
     }

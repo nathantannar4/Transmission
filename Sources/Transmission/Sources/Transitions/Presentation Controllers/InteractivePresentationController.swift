@@ -21,6 +21,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     private var lastTranslation: CGPoint = .zero
     var keyboardOffset: CGFloat = 0
 
+    private var resignedFirstResponder: UIResponder?
+
     open var dismissalHapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
     private var feedbackGenerator: UIImpactFeedbackGenerator?
     private var isDismissReady = false
@@ -42,6 +44,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     }
 
     public var prefersInteractiveDismissal: Bool = false
+
+    public var isKeyboardSessionActive: Bool {
+        keyboardHeight > 0 || keyboardOffset > 0
+    }
 
     open override var shouldAutoLayoutPresentedView: Bool {
         !panGesture.isInteracting && super.shouldAutoLayoutPresentedView
@@ -230,6 +236,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             if shouldCancel {
                 transition?.cancel()
                 transition = nil
+                resignedFirstResponder?.becomeFirstResponder()
             }
         }
 
@@ -358,39 +365,46 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 break
             }
         } else {
+            func dismissKeyboard() -> Bool {
+                #if !targetEnvironment(macCatalyst)
+                let didResign: Bool
+                if keyboardHeight > 0 {
+                    var views = gestureRecognizer.view.map { [$0] } ?? []
+                    var firstResponder: UIView?
+                    var index = 0
+                    repeat {
+                        let view = views[index]
+                        if view.isFirstResponder {
+                            firstResponder = view
+                        } else {
+                            views.append(contentsOf: view.subviews)
+                            index += 1
+                        }
+                    } while index < views.count && firstResponder == nil
+                    if let firstResponder {
+                        let keyboardHeight = keyboardHeight
+                        didResign = firstResponder.resignFirstResponder()
+                        if didResign {
+                            resignedFirstResponder = firstResponder
+                        }
+                        keyboardOffset = keyboardOverlapInContainerView(
+                            of: frameOfPresentedViewInContainerView,
+                            keyboardHeight: keyboardHeight
+                        )
+                    } else {
+                        didResign = true
+                    }
+                } else {
+                    didResign = true
+                }
+                return didResign
+                #else
+                return true
+                #endif
+            }
             func dismissIfNeeded() -> Bool {
                 let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
-                if shouldDismiss {
-                    #if !targetEnvironment(macCatalyst)
-                    let canStart: Bool
-                    if keyboardHeight > 0 {
-                        var views = gestureRecognizer.view.map { [$0] } ?? []
-                        var firstResponder: UIView?
-                        var index = 0
-                        repeat {
-                            let view = views[index]
-                            if view.isFirstResponder {
-                                firstResponder = view
-                            } else {
-                                views.append(contentsOf: view.subviews)
-                                index += 1
-                            }
-                        } while index < views.count && firstResponder == nil
-                        if let firstResponder {
-                            let keyboardHeight = keyboardHeight
-                            canStart = firstResponder.resignFirstResponder()
-                            keyboardOffset = keyboardOverlapInContainerView(
-                                of: frameOfPresentedViewInContainerView,
-                                keyboardHeight: keyboardHeight
-                            )
-                        } else {
-                            canStart = true
-                        }
-                    } else {
-                        canStart = true
-                    }
-                    guard canStart else { return false }
-                    #endif
+                if shouldDismiss, dismissKeyboard() {
                     presentedViewController.dismiss(animated: true)
                     return true
                 }
@@ -412,9 +426,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     lastTranslation = .zero
                     keyboardOffset = 0
                     scrollView?.panGestureRecognizer.setTranslation(.zero, in: scrollView)
-                } else if gestureRecognizer.state == .changed,
-                    isScrollViewAtTop || trackingScrollView?.isTracking == false
-                {
+                } else if isScrollViewAtTop || trackingScrollView?.isTracking == false {
+                    if prefersInteractiveDismissal {
+                        guard dismissKeyboard() else { return }
+                    }
                     if wantsInteractiveDismissal, let scrollView = trackingScrollView {
                         scrollView.isScrollEnabled = false
                         scrollView.isScrollEnabled = true
@@ -444,6 +459,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 {
                     panGestureDidEnd()
                 } else {
+                    keyboardOffset = 0
+                    resignedFirstResponder?.becomeFirstResponder()
                     UIView.animate(
                         withDuration: 0.35,
                         delay: 0,
@@ -483,6 +500,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         keyboardOffset = 0
         dismissalTransitionDidCancel()
         isDismissReady = false
+        resignedFirstResponder = nil
         feedbackGenerator = nil
     }
 

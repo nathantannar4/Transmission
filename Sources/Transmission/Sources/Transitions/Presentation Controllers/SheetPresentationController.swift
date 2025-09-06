@@ -257,7 +257,9 @@ open class SheetPresentationController: UISheetPresentationController {
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
-        presentedViewController.fixSwiftUIHitTesting()
+        if completed {
+            presentedViewController.fixSwiftUIHitTesting()
+        }
     }
 
     open override func dismissalTransitionWillBegin() {
@@ -280,6 +282,19 @@ open class SheetPresentationController: UISheetPresentationController {
         presentedView?.backgroundColor = preferredBackgroundColor
         if let preferredBackgroundColor {
             dropShadowView?.layer.shadowColor = preferredBackgroundColor.cgColor
+        }
+        if #available(iOS 26.0, *) {
+            let hasTranslucentBackground = preferredBackgroundColor?.isTranslucent == true
+            // _setLargeBackground:
+            let aSelectorSetLargeBackground = NSSelectorFromBase64EncodedString("X3NldExhcmdlQmFja2dyb3VuZDo=")
+            if responds(to: aSelectorSetLargeBackground) {
+                perform(aSelectorSetLargeBackground, with: hasTranslucentBackground ? UIColor.clear : nil)
+            }
+            // _setNonLargeBackground:
+            let aSelectorSetNonLargeBackground = NSSelectorFromBase64EncodedString("X3NldE5vbkxhcmdlQmFja2dyb3VuZDo=")
+            if responds(to: aSelectorSetNonLargeBackground) {
+                perform(aSelectorSetNonLargeBackground, with: hasTranslucentBackground ? UIColor.clear : nil)
+            }
         }
     }
 }
