@@ -31,9 +31,16 @@ open class ToastPresentationController: InteractivePresentationController {
         }
     }
 
+    public var preferredSafeAreaInsets: UIEdgeInsets? {
+        didSet {
+            guard oldValue != preferredSafeAreaInsets else { return }
+            containerView?.setNeedsLayout()
+        }
+    }
+
     open override var frameOfPresentedViewInContainerView: CGRect {
-        var insets = containerView?.layoutMargins ?? .zero
-        insets.bottom = max(insets.bottom, keyboardHeight + (insets.bottom - (containerView?.safeAreaInsets.bottom ?? 0)))
+        var insets = preferredSafeAreaInsets ?? containerView?.layoutMargins ?? .zero
+        insets.bottom = max(insets.bottom, keyboardHeight + (insets.bottom - ((preferredSafeAreaInsets ?? containerView?.safeAreaInsets)?.bottom ?? 0)))
         var frame = super.frameOfPresentedViewInContainerView
             .inset(by: insets)
 
@@ -113,7 +120,9 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
 
         if isPresenting {
             var presentedFrame = transitionContext.finalFrame(for: presented)
-            transitionContext.containerView.addSubview(presented.view)
+            if presented.view.superview == nil {
+                transitionContext.containerView.addSubview(presented.view)
+            }
             presented.view.frame = presentedFrame
             presented.view.layoutIfNeeded()
 

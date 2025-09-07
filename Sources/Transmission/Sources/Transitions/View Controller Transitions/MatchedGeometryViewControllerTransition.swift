@@ -134,7 +134,9 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
 
         if isPresenting {
-            transitionContext.containerView.addSubview(presented.view)
+            if presented.view.superview == nil {
+                transitionContext.containerView.addSubview(presented.view)
+            }
             fromCornerRadius.apply(to: presented.view.layer, height: sourceFrame.height)
 
             sourceView?.alpha = 1 - initialOpacity

@@ -159,7 +159,9 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         if isPresenting {
             presented.view.alpha = 0
             let presentedFrame = transitionContext.finalFrame(for: presented)
-            transitionContext.containerView.addSubview(presented.view)
+            if presented.view.superview == nil {
+                transitionContext.containerView.addSubview(presented.view)
+            }
             presented.view.frame = presentedFrame
             presented.view.layoutIfNeeded()
         } else {

@@ -37,12 +37,19 @@ open class CardPresentationController: InteractivePresentationController {
         didSet {
             guard insetSafeAreaByCornerRadius != oldValue else { return }
             cornerRadiusDidChange()
+            containerView?.setNeedsLayout()
+        }
+    }
+
+    public var preferredSafeAreaInsets: UIEdgeInsets? {
+        didSet {
+            guard oldValue != preferredSafeAreaInsets else { return }
+            containerView?.setNeedsLayout()
         }
     }
 
     open override var frameOfPresentedViewInContainerView: CGRect {
         var frame = super.frameOfPresentedViewInContainerView
-        guard let presentedView else { return frame }
         if traitCollection.horizontalSizeClass == .regular {
             let width = min(frame.width, 430)
             let height = min(frame.height, 430)
@@ -68,7 +75,7 @@ open class CardPresentationController: InteractivePresentationController {
             }
             var sizeThatFits = CGSize(
                 width: fittingWidth,
-                height: presentedView.idealHeight(for: fittingWidth)
+                height: presentedViewController.view.idealHeight(for: fittingWidth)
             )
             if sizeThatFits.height <= 0 {
                 sizeThatFits.height = width
@@ -191,15 +198,18 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
-        var edgeInsets = super.presentedViewAdditionalSafeAreaInsets()
+        let additionalSafeAreaInsets = super.presentedViewAdditionalSafeAreaInsets()
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
         let inset = insetSafeAreaByCornerRadius ? (cornerRadius / 2).rounded(scale: containerView?.window?.screen.scale ?? 1) : 0
+        var edgeInsets = additionalSafeAreaInsets
         edgeInsets.top = max(edgeInsets.top, inset)
         edgeInsets.left = max(edgeInsets.left, inset)
         edgeInsets.right = max(edgeInsets.right, inset)
-        edgeInsets.bottom = max(edgeInsets.bottom, inset)
-        if !isKeyboardSessionActive {
-            edgeInsets.bottom = max(0, min(safeAreaInsets.bottom - edgeInset, edgeInsets.bottom))
+        if isKeyboardSessionActive {
+            edgeInsets.bottom = max(edgeInsets.bottom, inset)
+        } else {
+            let bottomSafeArea = (safeAreaInsets.bottom - additionalSafeAreaInsets.bottom) - edgeInset
+            edgeInsets.bottom = inset - max(0, bottomSafeArea)
         }
         return edgeInsets
     }

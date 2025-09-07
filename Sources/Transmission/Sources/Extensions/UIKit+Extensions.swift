@@ -17,6 +17,13 @@ extension UIEdgeInsets {
     }
 }
 
+extension EdgeInsets {
+
+    func resolve(in environment: EnvironmentValues) -> UIEdgeInsets {
+        UIEdgeInsets(self, layoutDirection: environment.layoutDirection)
+    }
+}
+
 extension UIView.AnimationCurve {
 
     func toSwiftUI(duration: TimeInterval) -> Animation {

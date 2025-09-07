@@ -26,6 +26,8 @@ open class PresentationHostingController<
         return (parent ?? self)._activePresentationController
     }
 
+    private var didRelayoutDuringPresentation = false
+
     open override func viewDidLoad() {
         super.viewDidLoad()
         view.clipsToBounds = true
@@ -38,11 +40,16 @@ open class PresentationHostingController<
             return
         }
 
+        if isBeingPresented, didRelayoutDuringPresentation {
+            return
+        }
+
         let isAnimated = transitionCoordinator?.isAnimated ?? true
 
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,
             let sheetPresentationController = getPresentationController() as? UISheetPresentationController,
+            sheetPresentationController.presentedViewController == self,
             let presentedView = sheetPresentationController.presentedView,
             let containerView = sheetPresentationController.containerView
         {
@@ -64,10 +71,11 @@ open class PresentationHostingController<
                 containerTraitCollection: sheetPresentationController.traitCollection,
                 maximumDetentValue: maximumDetentValue
             )
-            let height = presentedView.frame.height - (presentedView.safeAreaInsets.top + presentedView.safeAreaInsets.bottom)
+            let height = view.frame.height - (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
             guard let resolvedDetentHeight, abs(resolvedDetentHeight - height) > 1e-5 else {
                 return
             }
+            didRelayoutDuringPresentation = true
             let isAnimated = isAnimated && !isBeingPresented
 
             func performTransition(animated: Bool, completion: (() -> Void)? = nil) {
@@ -117,6 +125,7 @@ open class PresentationHostingController<
                 {
                     let contentSize = CGRect(origin: .zero, size: view.preferredContentSize(for: containerView.bounds.width)).inset(by: view.safeAreaInsets).size
                     guard preferredContentSize != contentSize else { return }
+                    didRelayoutDuringPresentation = true
 
                     let isAnimated = isAnimated && !isBeingPresented
                     let oldSize = preferredContentSize
@@ -141,6 +150,7 @@ open class PresentationHostingController<
                     guard presentationController.shouldAutoLayoutPresentedView else { return }
                     let frame = presentationController.frameOfPresentedViewInContainerView
                     guard !view.frame.size.isApproximatelyEqual(to: frame.size) else { return }
+                    didRelayoutDuringPresentation = true
                     if isAnimated {
                         self.allowUIKitAnimationsForNextUpdate = true
                         if let transitionCoordinator {

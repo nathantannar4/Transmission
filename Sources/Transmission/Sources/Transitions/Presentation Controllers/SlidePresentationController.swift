@@ -177,7 +177,9 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         #endif
 
         if isPresenting {
-            transitionContext.containerView.addSubview(presented.view)
+            if presented.view.superview == nil {
+                transitionContext.containerView.addSubview(presented.view)
+            }
             presented.view.frame = frame
             presented.view.transform = presentationTransform(
                 presented: presented,

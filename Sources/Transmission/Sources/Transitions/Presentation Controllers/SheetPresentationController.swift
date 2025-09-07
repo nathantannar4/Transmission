@@ -247,7 +247,10 @@ open class SheetPresentationController: UISheetPresentationController {
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
-        super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
+        super.init(
+            presentedViewController: presentedViewController,
+            presenting: presentingViewController
+        )
     }
 
     open override func presentationTransitionWillBegin() {
@@ -271,6 +274,20 @@ open class SheetPresentationController: UISheetPresentationController {
         super.dismissalTransitionDidEnd(completed)
         if !completed {
             presentedViewController.fixSwiftUIHitTesting()
+        }
+    }
+
+    open override func containerViewWillLayoutSubviews() {
+        super.containerViewWillLayoutSubviews()
+        // Fix presentation animation
+        if #available(iOS 26.0, *),
+            presentedViewController.isBeingPresented,
+            let presentedView,
+            presentedView.transform != .identity,
+            presentedView.transform.tx == 0
+        {
+            let dx = (1 - presentedView.transform.a) * presentedView.bounds.width / 2
+            presentedView.transform = presentedView.transform.translatedBy(x: dx, y: 0)
         }
     }
 

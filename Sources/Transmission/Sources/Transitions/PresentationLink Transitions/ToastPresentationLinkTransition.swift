@@ -30,6 +30,7 @@ extension PresentationLinkTransition {
         preferredCornerRadius: CornerRadiusOptions? = nil,
         preferredPresentationShadow: ShadowOptions? = nil,
         isInteractive: Bool = true,
+        preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .toast(
@@ -40,6 +41,7 @@ extension PresentationLinkTransition {
             ),
             options: .init(
                 isInteractive: isInteractive,
+                preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
                 preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
             )
         )
@@ -86,7 +88,6 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
         return presentationController
     }
 
@@ -97,6 +98,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         presentationController.edge = options.edge
         presentationController.preferredCornerRadius = options.preferredCornerRadius
         presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.preferredSafeAreaInsets = context.options.preferredPresentationSafeAreaInsets?.resolve(in: context.environment)
     }
 
     public func updateHostingController<Content>(
@@ -104,6 +106,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) where Content: View {
         presenting.tracksContentSize = true
+        presenting.disableSafeArea = context.options.preferredPresentationSafeAreaInsets == .zero
     }
 
     public func animationController(

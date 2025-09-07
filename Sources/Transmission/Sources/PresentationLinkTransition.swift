@@ -95,6 +95,7 @@ extension PresentationLinkTransition {
         /// When `true`, the destination will be presented after dismissing the view the presentation source is already presenting.
         public var shouldAutomaticallyDismissPresentedView: Bool
         public var modalPresentationCapturesStatusBarAppearance: Bool
+        public var preferredPresentationSafeAreaInsets: EdgeInsets?
         public var preferredPresentationBackgroundColor: Color?
 
         public init(
@@ -103,6 +104,7 @@ extension PresentationLinkTransition {
             shouldAutomaticallyDismissDestination: Bool = true,
             shouldAutomaticallyDismissPresentedView: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
+            preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
             preferredPresentationBackgroundColor: Color? = nil
         ) {
             self.isInteractive = isInteractive
@@ -110,6 +112,7 @@ extension PresentationLinkTransition {
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.shouldAutomaticallyDismissPresentedView = shouldAutomaticallyDismissPresentedView
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
+            self.preferredPresentationSafeAreaInsets = preferredPresentationSafeAreaInsets
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
         }
 
@@ -364,14 +367,12 @@ extension PresentationLinkTransition {
                         return .fullScreen() ?? .large()
                     }
                     let idealResolution: @MainActor (UIPresentationController) -> CGFloat = { presentationController in
+                        let scale = presentationController.presentedViewController.view.window?.screen.scale ?? 1.0
                         guard let containerView = presentationController.containerView else {
-                            let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height.rounded(.up)
-                            return idealHeight
+                            let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height
+                            return idealHeight.rounded(scale: scale)
                         }
-                        var width = presentationController.frameOfPresentedViewInContainerView.width
-                        if width == 0 {
-                            width = containerView.frame.width
-                        }
+                        let width = containerView.frame.width
                         @MainActor
                         func idealHeight(for viewController: UIViewController) -> CGFloat {
                             // Edge cases for when the presentedViewController does not have an ideal height
@@ -401,10 +402,9 @@ extension PresentationLinkTransition {
                                 if height <= bottomSafeArea {
                                     height = containerView.frame.height
                                 }
-                                let idealHeight = (height - bottomSafeArea).rounded(.up)
-                                height = idealHeight
+                                height -= bottomSafeArea
                             }
-                            return height
+                            return height.rounded(scale: scale)
                         }
 
                         let idealHeight = idealHeight(for: presentationController.presentedViewController)
@@ -641,6 +641,7 @@ extension PresentationLinkTransition {
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         prefersZoomTransition: Bool = false,
         isInteractive: Bool = true,
+        preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(
@@ -652,6 +653,7 @@ extension PresentationLinkTransition {
                     prefersZoomTransition: prefersZoomTransition,
                     options: .init(
                         isInteractive: isInteractive,
+                        preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
                         preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
                     )
                 )
@@ -669,6 +671,7 @@ extension PresentationLinkTransition {
         largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
         prefersZoomTransition: Bool = false,
         isInteractive: Bool = true,
+        preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         PresentationLinkTransition(
@@ -682,6 +685,7 @@ extension PresentationLinkTransition {
                     prefersZoomTransition: prefersZoomTransition,
                     options: .init(
                         isInteractive: isInteractive,
+                        preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
                         preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
                     )
                 )

@@ -443,6 +443,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     }
                     let transform = presentedViewTransform(for: gestureTranslation)
                     transformPresentedView(transform: transform)
+                    transformPresentedView(transform: transform) // Invoke twice for safe area double pass
                     let isActivationThresholdSatisfied = dismissalTransitionShouldBegin(
                         translation: translation,
                         delta: delta,

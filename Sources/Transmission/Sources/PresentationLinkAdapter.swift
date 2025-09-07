@@ -926,12 +926,23 @@ private struct PresentationLinkAdapterBody<
                 return presentationController
 
             case .representable(let options, let transition):
-                let presentationController = transition.makeUIPresentationController(
-                    presented: presented,
-                    presenting: presenting,
-                    source: source,
-                    context: makeContext(options: options)
-                )
+                let context = makeContext(options: options)
+                func project<T: PresentationLinkTransitionRepresentable>(
+                    _ transition: T
+                ) -> UIPresentationController {
+                    let presentationController = transition.makeUIPresentationController(
+                        presented: presented,
+                        presenting: presenting,
+                        source: source,
+                        context: context
+                    )
+                    transition.updateUIPresentationController(
+                        presentationController: presentationController,
+                        context: context
+                    )
+                    return presentationController
+                }
+                let presentationController = _openExistential(transition, do: project)
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController

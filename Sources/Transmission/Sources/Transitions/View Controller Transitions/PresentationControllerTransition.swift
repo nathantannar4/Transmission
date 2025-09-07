@@ -41,7 +41,9 @@ open class PresentationControllerTransition: ViewControllerTransition {
 
         if isPresenting {
             var presentedFrame = transitionContext.finalFrame(for: presented)
-            transitionContext.containerView.addSubview(presented.view)
+            if presented.view.superview == nil {
+                transitionContext.containerView.addSubview(presented.view)
+            }
             presented.view.frame = presentedFrame
             presented.view.layoutIfNeeded()
 

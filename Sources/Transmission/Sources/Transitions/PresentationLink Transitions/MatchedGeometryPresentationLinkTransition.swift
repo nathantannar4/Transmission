@@ -174,8 +174,6 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
-        presentationController.dismissalHapticsStyle = options.hapticsStyle
         return presentationController
     }
 

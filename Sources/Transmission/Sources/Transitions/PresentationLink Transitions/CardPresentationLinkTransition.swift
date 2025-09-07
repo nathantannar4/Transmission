@@ -35,6 +35,7 @@ extension PresentationLinkTransition {
         preferredPresentationShadow: ShadowOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
+        preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .card(
@@ -49,6 +50,7 @@ extension PresentationLinkTransition {
             options: .init(
                 isInteractive: isInteractive,
                 modalPresentationCapturesStatusBarAppearance: true,
+                preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
                 preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
             )
         )
@@ -138,8 +140,6 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
             presentedViewController: presented,
             presenting: presenting
         )
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
-        presentationController.dismissalHapticsStyle = options.hapticsStyle
         return presentationController
     }
 
@@ -153,6 +153,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         presentationController.preferredAspectRatio = options.preferredAspectRatio
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
+        presentationController.preferredSafeAreaInsets = context.options.preferredPresentationSafeAreaInsets?.resolve(in: context.environment)
     }
 
     public func updateHostingController<Content>(
@@ -160,6 +161,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         context: Context
     ) where Content: View {
         presenting.tracksContentSize = true
+        presenting.disableSafeArea = context.options.preferredPresentationSafeAreaInsets == .zero
     }
 
     public func animationController(
