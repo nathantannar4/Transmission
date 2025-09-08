@@ -131,11 +131,28 @@ extension EnvironmentValues {
 @available(iOS 14.0, *)
 struct PresentationBridgeAdapter: ViewModifier {
     var presentationCoordinator: PresentationCoordinator
+    @EnvironmentOrValue(\.colorScheme) var colorScheme: ColorScheme
+
+    init(
+        presentationCoordinator: PresentationCoordinator
+    ) {
+        self.presentationCoordinator = presentationCoordinator
+        self._colorScheme = .init(\.colorScheme)
+    }
+
+    init(
+        presentationCoordinator: PresentationCoordinator,
+        colorScheme: ColorScheme
+    ) {
+        self.presentationCoordinator = presentationCoordinator
+        self._colorScheme = .init(colorScheme)
+    }
 
     func body(content: Content) -> some View {
         content
             .modifier(_ViewInputsBridgeModifier())
             .environment(\.presentationCoordinator, presentationCoordinator)
+            .environment(\.colorScheme, colorScheme)
     }
 }
 

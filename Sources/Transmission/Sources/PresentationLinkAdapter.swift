@@ -127,8 +127,9 @@ private struct PresentationLinkAdapterBody<
             context.coordinator.isPresented = isPresented
 
             let traits = UITraitCollection(traitsFrom: [
-                UITraitCollection(userInterfaceStyle: .init(transition.value.options.preferredPresentationColorScheme)),
-                UITraitCollection(userInterfaceLevel: .elevated)
+                presentingViewController.traitCollection,
+                UITraitCollection(userInterfaceStyle: .init(transition.value.options.preferredPresentationColorScheme ?? context.environment.colorScheme)),
+                UITraitCollection(userInterfaceLevel: .elevated),
             ])
 
             var isAnimated = context.transaction.isAnimated
@@ -487,7 +488,12 @@ private struct PresentationLinkAdapterBody<
         weak var sourceView: UIView?
         var overrideTraitCollection: UITraitCollection? {
             didSet {
-                presentationController?.overrideTraitCollection = overrideTraitCollection
+                if #available(iOS 17.0, *) {
+                    guard oldValue?.changedTraits(from: overrideTraitCollection).isEmpty != true else { return }
+                    presentationController?.overrideTraitCollection = overrideTraitCollection
+                } else {
+                    presentationController?.overrideTraitCollection = overrideTraitCollection
+                }
             }
         }
 
@@ -1168,7 +1174,8 @@ private class PresentationLinkDestinationViewControllerAdapter<
                             dismissBlock: { [weak self] in
                                 self?.dismiss($0, $1)
                             }
-                        )
+                        ),
+                        colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
                     )
                 )
             )
@@ -1235,7 +1242,8 @@ private class PresentationLinkDestinationViewControllerAdapter<
                         isPresented: isPresented.wrappedValue,
                         sourceView: sourceView,
                         dismissBlock: { [weak self] in self?.dismiss($0, $1) }
-                    )
+                    ),
+                    colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
                 )
             )
             transition.update(

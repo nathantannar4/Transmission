@@ -206,14 +206,6 @@ struct WindowBridgeAdapter: ViewModifier {
     var presentationCoordinator: PresentationCoordinator
     var transition: WindowLinkTransition.Value
 
-    init(
-        presentationCoordinator: PresentationCoordinator,
-        transition: WindowLinkTransition.Value
-    ) {
-        self.presentationCoordinator = presentationCoordinator
-        self.transition = transition
-    }
-
     func body(content: Content) -> some View {
         content
             .modifier(PresentationBridgeAdapter(presentationCoordinator: presentationCoordinator))
