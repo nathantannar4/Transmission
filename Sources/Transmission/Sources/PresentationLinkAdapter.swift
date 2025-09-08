@@ -127,10 +127,12 @@ private struct PresentationLinkAdapterBody<
             context.coordinator.isPresented = isPresented
 
             let traits = UITraitCollection(traitsFrom: [
-                presentingViewController.traitCollection,
                 UITraitCollection(userInterfaceStyle: .init(transition.value.options.preferredPresentationColorScheme ?? context.environment.colorScheme)),
                 UITraitCollection(userInterfaceLevel: .elevated),
             ])
+            if let environment = presentingViewController.traitCollection.value(forKey: "_environmentWrapper") {
+                traits.setValue(environment, forKey: "_environmentWrapper")
+            }
 
             var isAnimated = context.transaction.isAnimated
                 || presentingViewController.transitionCoordinator?.isAnimated == true
@@ -229,6 +231,7 @@ private struct PresentationLinkAdapterBody<
                !context.coordinator.isBeingReused
             {
                 adapter.transition = transition.value
+                context.coordinator.overrideTraitCollection = traits
                 adapter.update(
                     destination: destination,
                     sourceView: uiView,
