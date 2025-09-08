@@ -95,6 +95,7 @@ extension PresentationLinkTransition {
         /// When `true`, the destination will be presented after dismissing the view the presentation source is already presenting.
         public var shouldAutomaticallyDismissPresentedView: Bool
         public var modalPresentationCapturesStatusBarAppearance: Bool
+        public var preferredPresentationColorScheme: ColorScheme?
         public var preferredPresentationSafeAreaInsets: EdgeInsets?
         public var preferredPresentationBackgroundColor: Color?
 
@@ -104,6 +105,7 @@ extension PresentationLinkTransition {
             shouldAutomaticallyDismissDestination: Bool = true,
             shouldAutomaticallyDismissPresentedView: Bool = true,
             modalPresentationCapturesStatusBarAppearance: Bool = false,
+            preferredPresentationColorScheme: ColorScheme? = nil,
             preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
             preferredPresentationBackgroundColor: Color? = nil
         ) {
@@ -112,6 +114,7 @@ extension PresentationLinkTransition {
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.shouldAutomaticallyDismissPresentedView = shouldAutomaticallyDismissPresentedView
             self.modalPresentationCapturesStatusBarAppearance = modalPresentationCapturesStatusBarAppearance
+            self.preferredPresentationColorScheme = preferredPresentationColorScheme
             self.preferredPresentationSafeAreaInsets = preferredPresentationSafeAreaInsets
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
         }

@@ -127,6 +127,7 @@ private struct PresentationLinkAdapterBody<
             context.coordinator.isPresented = isPresented
 
             let traits = UITraitCollection(traitsFrom: [
+                UITraitCollection(userInterfaceStyle: .init(transition.value.options.preferredPresentationColorScheme)),
                 UITraitCollection(userInterfaceLevel: .elevated)
             ])
 
