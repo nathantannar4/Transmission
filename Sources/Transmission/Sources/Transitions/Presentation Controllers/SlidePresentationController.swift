@@ -18,6 +18,14 @@ open class SlidePresentationController: InteractivePresentationController {
         set { }
     }
 
+    public var prefersScaleEffect: Bool {
+        didSet {
+            guard oldValue != prefersScaleEffect else { return }
+            prefersScaleEffectDidChange()
+        }
+    }
+
+
     open override var wantsInteractiveDismissal: Bool {
         return prefersInteractiveDismissal
     }
@@ -28,10 +36,12 @@ open class SlidePresentationController: InteractivePresentationController {
 
     public init(
         edge: Edge = .bottom,
+        prefersScaleEffect: Bool,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.edge = edge
+        self.prefersScaleEffect = prefersScaleEffect
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
@@ -83,8 +93,12 @@ open class SlidePresentationController: InteractivePresentationController {
 
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
+        prefersScaleEffectDidChange()
+    }
 
-        if let nextPresentedViewController = presentedViewController.presentedViewController {
+    private func prefersScaleEffectDidChange() {
+        let didScale = prefersScaleEffect && (presentingViewController.view.backgroundColor?.isTranslucent ?? true)
+        if didScale, let nextPresentedViewController = presentedViewController.presentedViewController {
             presentingViewController.view.isHidden = !nextPresentedViewController.isBeingDismissed
         } else {
             presentingViewController.view.isHidden = false

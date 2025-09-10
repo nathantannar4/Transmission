@@ -123,6 +123,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) -> SlidePresentationController {
         let presentationController = SlidePresentationController(
             edge: options.edge,
+            prefersScaleEffect: options.prefersScaleEffect,
             presentedViewController: presented,
             presenting: presenting
         )
@@ -134,6 +135,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) {
         presentationController.edge = options.edge
+        presentationController.prefersScaleEffect = options.prefersScaleEffect
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
     }
