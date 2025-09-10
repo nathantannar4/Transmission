@@ -145,6 +145,7 @@ open class MacSheetPresentationController: SlidePresentationController {
     ) {
         super.init(
             edge: .bottom,
+            prefersScaleEffect: false,
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )

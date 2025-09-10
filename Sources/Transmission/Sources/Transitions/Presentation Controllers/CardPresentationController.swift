@@ -245,29 +245,45 @@ open class CardPresentationController: InteractivePresentationController {
     private func setCornerRadius(force: Bool = false) {
         guard !presentedViewController.isBeingDismissed else { return }
         guard !presentedViewController.isBeingPresented || presentedViewController.view.layer.cornerRadius == 0 || force else { return }
-        if let maskPath = customCornerRadiusPath {
-            if cornerRadiusMask == nil {
-                let shapeLayer = CAShapeLayer()
-                self.cornerRadiusMask = shapeLayer
-            }
-            cornerRadiusMask?.path = maskPath
-            cornerRadiusMask?.cornerCurve = preferredCornerRadius?.style ?? .circular
-            cornerRadiusMask?.maskedCorners = (preferredCornerRadius?.mask ?? .all).intersection([.layerMinXMinYCorner, .layerMaxXMinYCorner])
-            let isCompact = traitCollection.verticalSizeClass == .compact
-            if isCompact {
-                presentedViewController.view.layer.cornerRadius = cornerRadius
+        let cornerRadius = cornerRadius
+        var didApplyCornerConfiguration = false
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            let mask = preferredCornerRadius?.mask ?? .all
+            let corner = isKeyboardSessionActive ? UICornerRadius.fixed(cornerRadius) : .containerConcentric(minimum: cornerRadius)
+            presentedViewController.view.cornerConfiguration = UICornerConfiguration.corners(
+                topLeftRadius: mask.contains(.layerMinXMinYCorner) ? corner : .fixed(0),
+                topRightRadius: mask.contains(.layerMaxXMinYCorner) ? corner : .fixed(0),
+                bottomLeftRadius: mask.contains(.layerMinXMaxYCorner) ? corner : .fixed(0),
+                bottomRightRadius: mask.contains(.layerMaxXMaxYCorner) ? corner : .fixed(0)
+            )
+        }
+        #endif
+        if !didApplyCornerConfiguration {
+            if let maskPath = customCornerRadiusPath {
+                if cornerRadiusMask == nil {
+                    let shapeLayer = CAShapeLayer()
+                    self.cornerRadiusMask = shapeLayer
+                }
+                cornerRadiusMask?.path = maskPath
+                cornerRadiusMask?.cornerCurve = preferredCornerRadius?.style ?? .circular
+                cornerRadiusMask?.maskedCorners = (preferredCornerRadius?.mask ?? .all).intersection([.layerMinXMinYCorner, .layerMaxXMinYCorner])
+                let isCompact = traitCollection.verticalSizeClass == .compact
+                if isCompact {
+                    presentedViewController.view.layer.cornerRadius = cornerRadius
+                } else {
+                    presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius() - edgeInset
+                }
+                presentedViewController.view.layer.cornerCurve = .continuous
+                presentedViewController.view.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
             } else {
-                presentedViewController.view.layer.cornerRadius = UIScreen.main.displayCornerRadius() - edgeInset
+                if cornerRadiusMask != nil {
+                    cornerRadiusMask = nil
+                }
+                presentedViewController.view.layer.cornerRadius = cornerRadius
+                presentedViewController.view.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .continuous : (preferredCornerRadius?.style ?? .circular)
+                presentedViewController.view.layer.maskedCorners = preferredCornerRadius?.mask ?? .all
             }
-            presentedViewController.view.layer.cornerCurve = .continuous
-            presentedViewController.view.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
-        } else {
-            if cornerRadiusMask != nil {
-                cornerRadiusMask = nil
-            }
-            presentedViewController.view.layer.cornerRadius = cornerRadius
-            presentedViewController.view.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .continuous : (preferredCornerRadius?.style ?? .circular)
-            presentedViewController.view.layer.maskedCorners = preferredCornerRadius?.mask ?? .all
         }
     }
 }

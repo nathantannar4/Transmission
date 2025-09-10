@@ -85,6 +85,22 @@ open class PresentationController: DelegatedPresentationController {
         containerView?.addSubview(presentedViewController.view)
         updateShadow(progress: 0)
 
+        NotificationCenter.default
+            .addObserver(
+                self,
+                selector: #selector(onKeyboardChange(_:)),
+                name: UIResponder.keyboardWillChangeFrameNotification,
+                object: nil
+            )
+
+        NotificationCenter.default
+            .addObserver(
+                self,
+                selector: #selector(onKeyboardChange(_:)),
+                name: UIResponder.keyboardWillHideNotification,
+                object: nil
+            )
+
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
                 self.transitionAlongsidePresentation(progress: 1)
@@ -97,23 +113,21 @@ open class PresentationController: DelegatedPresentationController {
 
         if completed {
             transitionAlongsidePresentation(progress: 1)
-
+        } else {
             NotificationCenter.default
-                .addObserver(
+                .removeObserver(
                     self,
-                    selector: #selector(onKeyboardChange(_:)),
                     name: UIResponder.keyboardWillChangeFrameNotification,
                     object: nil
                 )
 
             NotificationCenter.default
-                .addObserver(
+                .removeObserver(
                     self,
-                    selector: #selector(onKeyboardChange(_:)),
                     name: UIResponder.keyboardWillHideNotification,
                     object: nil
                 )
-        } else {
+
             transitionAlongsidePresentation(progress: 0)
         }
     }
