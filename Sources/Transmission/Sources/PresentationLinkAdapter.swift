@@ -328,8 +328,9 @@ private struct PresentationLinkAdapterBody<
 
                     if options.prefersZoomTransition, #available(iOS 18.0, *) {
                         let zoomOptions = UIViewController.Transition.ZoomOptions()
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] context in
-                            guard sourceView?.window != nil else { return nil }
+                        let coordinator = context.coordinator
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
+                            guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
@@ -345,8 +346,9 @@ private struct PresentationLinkAdapterBody<
                         let zoomOptions = UIViewController.Transition.ZoomOptions()
                         zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
                         zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] context in
-                            guard sourceView?.window != nil else { return nil }
+                        let coordinator = context.coordinator
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
+                            guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
@@ -1120,6 +1122,7 @@ private struct PresentationLinkAdapterBody<
                     coordinator.onDismiss(1, transaction: transaction)
                 }
             } else {
+                coordinator.sourceView = nil
                 adapter.coordinator = coordinator
             }
         }

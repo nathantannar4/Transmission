@@ -163,8 +163,9 @@ private struct DestinationLinkAdapterBody<
                         zoomOptions.interactiveDismissShouldBegin = { [weak adapter] context in
                             context.willBegin && (adapter?.transition.options.isInteractive ?? true)
                         }
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] _ in
-                            guard sourceView?.window != nil else { return nil }
+                        let coordinator = context.coordinator
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
+                            guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
@@ -502,6 +503,7 @@ private struct DestinationLinkAdapterBody<
                     coordinator.onPop(1, transaction: transaction)
                 }
             } else {
+                coordinator.sourceView = nil
                 adapter.coordinator = coordinator
             }
         }
@@ -684,16 +686,18 @@ final class DestinationLinkDelegateProxy: NSObject,
             } else {
                 transition.completionSpeed = 1 - percentage
             }
-            let delta = max(isInterruptedInteractiveTransition ? (1 - percentage) : percentage, 0.35) * navigationController.view.frame.width
+            let delta = (isInterruptedInteractiveTransition ? (1 - percentage) : percentage) * navigationController.view.frame.width
             if isInterruptedInteractiveTransition || !shouldFinish {
                 targetVelocity = -targetVelocity
             }
+            let initialVelocity = CGVector(
+                dx: delta != 0 ? targetVelocity / delta : 0,
+                dy: 0
+            )
+            let dampingRatio = shouldFinish || isInterruptedInteractiveTransition ? 0.82 : 1
             transition.timingCurve = UISpringTimingParameters(
-                dampingRatio: 1.0,
-                initialVelocity: CGVector(
-                    dx: delta != 0 ? targetVelocity / delta : 0,
-                    dy: 0
-                )
+                dampingRatio: dampingRatio,
+                initialVelocity: initialVelocity
             )
             if shouldFinish {
                 transition.finish()
@@ -836,7 +840,6 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
             guard shouldBegin == true else { return false }
             if let transition, transition != queuedTransition {
-                guard gestureRecognizer == interactivePopPanGestureRecognizer else { return false }
                 isInterruptedInteractiveTransition = true
                 return true
             }

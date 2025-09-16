@@ -6,7 +6,7 @@ import UIKit
 
 open class DimmingView: UIView {
 
-    var shouldBlockTouches: Bool = false
+    public var shouldBlockTouches: Bool = false
 
     public override init(frame: CGRect = .zero) {
         super.init(frame: frame)
