@@ -82,7 +82,9 @@ open class PresentationController: DelegatedPresentationController {
             UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
         )
         containerView?.addSubview(shadowView)
-        containerView?.addSubview(presentedViewController.view)
+        if let presentedView {
+            containerView?.addSubview(presentedView)
+        }
         updateShadow(progress: 0)
 
         NotificationCenter.default

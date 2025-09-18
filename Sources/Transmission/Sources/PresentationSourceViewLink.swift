@@ -118,7 +118,7 @@ extension PresentationSourceViewLink {
             transition: transition,
             cornerRadius: cornerRadius,
             backgroundColor: backgroundColor,
-            animation: animation,
+            animation: animation
         ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {

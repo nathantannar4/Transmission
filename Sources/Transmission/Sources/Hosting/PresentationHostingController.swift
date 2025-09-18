@@ -61,7 +61,7 @@ open class PresentationHostingController<
             }
 
             let panGesture = presentedView.gestureRecognizers?.first(where: { $0.isSheetDismissPanGesture })
-            guard panGesture == nil || panGesture?.state == .possible || panGesture?.state == .failed else {
+            guard panGesture == nil || panGesture?.isInteracting == false else {
                 return
             }
 

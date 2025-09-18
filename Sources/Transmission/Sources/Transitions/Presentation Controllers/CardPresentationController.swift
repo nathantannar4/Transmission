@@ -257,6 +257,7 @@ open class CardPresentationController: InteractivePresentationController {
                 bottomLeftRadius: mask.contains(.layerMinXMaxYCorner) ? corner : .fixed(0),
                 bottomRightRadius: mask.contains(.layerMaxXMaxYCorner) ? corner : .fixed(0)
             )
+            didApplyCornerConfiguration = true
         }
         #endif
         if !didApplyCornerConfiguration {

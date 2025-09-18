@@ -163,8 +163,9 @@ private struct DestinationLinkAdapterBody<
                         zoomOptions.interactiveDismissShouldBegin = { [weak adapter] context in
                             context.willBegin && (adapter?.transition.options.isInteractive ?? true)
                         }
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] _ in
-                            guard sourceView?.window != nil else { return nil }
+                        let coordinator = context.coordinator
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
+                            guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
@@ -174,6 +175,7 @@ private struct DestinationLinkAdapterBody<
                             zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomEdgePanGestureDidChange(_:)))
                         }
                     }
+                    context.coordinator.sourceView = sourceView
 
                 case .representable(_, let transition):
                     assert(!swift_getIsClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
@@ -502,6 +504,7 @@ private struct DestinationLinkAdapterBody<
                     coordinator.onPop(1, transaction: transaction)
                 }
             } else {
+                coordinator.sourceView = nil
                 adapter.coordinator = coordinator
             }
         }
@@ -836,7 +839,6 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
             guard shouldBegin == true else { return false }
             if let transition, transition != queuedTransition {
-                guard gestureRecognizer == interactivePopPanGestureRecognizer else { return false }
                 isInterruptedInteractiveTransition = true
                 return true
             }

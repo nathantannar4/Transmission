@@ -328,8 +328,9 @@ private struct PresentationLinkAdapterBody<
 
                     if options.prefersZoomTransition, #available(iOS 18.0, *) {
                         let zoomOptions = UIViewController.Transition.ZoomOptions()
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] context in
-                            guard sourceView?.window != nil else { return nil }
+                        let coordinator = context.coordinator
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
+                            guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
@@ -345,8 +346,9 @@ private struct PresentationLinkAdapterBody<
                         let zoomOptions = UIViewController.Transition.ZoomOptions()
                         zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
                         zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak sourceView] context in
-                            guard sourceView?.window != nil else { return nil }
+                        let coordinator = context.coordinator
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
+                            guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
@@ -1013,11 +1015,16 @@ private struct PresentationLinkAdapterBody<
                         selected.wrappedValue = newValue
                     }
                     if #available(iOS 26.0, *) {
+                        let backgroundColor = options.options.preferredPresentationBackgroundUIColor ?? .systemBackground
                         switch newValue {
                         case .large, .fullScreen:
-                            sheetPresentationController.presentedViewController.view.backgroundColor = options.options.preferredPresentationBackgroundUIColor ?? .systemBackground
+                            sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
                         default:
-                            sheetPresentationController.presentedViewController.view.backgroundColor = .clear
+                            guard let containerView = sheetPresentationController.containerView else { return }
+                            // This seems to match the `maximumDetentValue` computed by UIKit
+                            let maximumDetentValue = containerView.frame.inset(by: containerView.safeAreaInsets).height - 10
+                            let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
+                            sheetPresentationController.presentedViewController.view.backgroundColor = isClear ? .clear : backgroundColor
                         }
                     }
                 }
@@ -1120,6 +1127,7 @@ private struct PresentationLinkAdapterBody<
                     coordinator.onDismiss(1, transaction: transaction)
                 }
             } else {
+                coordinator.sourceView = nil
                 adapter.coordinator = coordinator
             }
         }

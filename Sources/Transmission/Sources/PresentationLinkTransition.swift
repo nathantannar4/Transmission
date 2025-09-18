@@ -378,26 +378,36 @@ extension PresentationLinkTransition {
                         let width = containerView.frame.width
                         @MainActor
                         func idealHeight(for viewController: UIViewController) -> CGFloat {
+                            func innerIdealHeight(for viewController: UIViewController) -> CGFloat? {
+                                if let navigationController = viewController as? UINavigationController,
+                                   let topViewController = navigationController.topViewController
+                                {
+                                    return idealHeight(for: topViewController)
+                                } else if let splitViewController = viewController as? UISplitViewController,
+                                          let topViewController = splitViewController.viewController(for: .primary)
+                                {
+                                    return idealHeight(for: topViewController)
+                                } else if let tabBarController = viewController as? UITabBarController,
+                                          let selectedViewController = tabBarController.selectedViewController
+                                {
+                                    return idealHeight(for: selectedViewController)
+                                } else if let pageViewController = viewController as? UIPageViewController,
+                                          let selectedViewController = pageViewController.viewControllers?.first
+                                {
+                                    return idealHeight(for: selectedViewController)
+                                }
+                                return nil
+                            }
+
                             // Edge cases for when the presentedViewController does not have an ideal height
                             var height: CGFloat = 0
-                            if let navigationController = viewController as? UINavigationController,
-                               let topViewController = navigationController.topViewController
+                            if let idealHeight = innerIdealHeight(for: viewController) {
+                                height = idealHeight
+                            } else if viewController is AnyHostingController,
+                                viewController.children.count == 1,
+                                let idealHeight = innerIdealHeight(for: viewController.children[0])
                             {
-                                height = idealHeight(for: topViewController)
-                            } else if let splitViewController = viewController as? UISplitViewController,
-                                      let topViewController = splitViewController.viewController(for: .primary)
-                            {
-                                height = idealHeight(for: topViewController)
-                            } else if let tabBarController = viewController as? UITabBarController,
-                                      let selectedViewController = tabBarController.selectedViewController
-                            {
-                                height = idealHeight(for: selectedViewController)
-                            } else if let pageViewController = viewController as? UIPageViewController,
-                                      let selectedViewController = pageViewController.viewControllers?.first
-                            {
-                                height = idealHeight(for: selectedViewController)
-                            } else if viewController is AnyHostingController, viewController.children.count == 1, let firstChild = viewController.children.first {
-                                height = idealHeight(for: firstChild)
+                                height = idealHeight
                             }
                             if height == 0 {
                                 let bottomSafeArea = viewController.view.safeAreaInsets.bottom
