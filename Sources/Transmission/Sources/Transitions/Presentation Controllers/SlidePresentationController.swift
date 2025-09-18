@@ -138,7 +138,9 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         let isPresenting = isPresenting
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
-            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
+            let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
         else {
             transitionContext.completeTransition(false)
             return
@@ -150,8 +152,8 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         let toCornerRadius = preferredToCornerRadius ?? .identity
         let fromCornerRadius = preferredFromCornerRadius ?? .identity
         #else
-        let isTranslucentBackground = presented.view.backgroundColor?.isTranslucent ?? false
-        var isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presenting.view.convert(presenting.view.frame.origin, to: nil).y == 0 &&
+        let isTranslucentBackground = presentedView.backgroundColor?.isTranslucent ?? false
+        var isScaleEnabled = prefersScaleEffect && !isTranslucentBackground && presentingView.convert(presentingView.frame.origin, to: nil).y == 0 &&
             frame.origin.y == 0
         if isScaleEnabled, #available(iOS 18.0, *) {
             isScaleEnabled = presenting.preferredTransition == nil
@@ -185,32 +187,32 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
 
         #if !targetEnvironment(macCatalyst)
         if isScaleEnabled {
-            presenting.view.layer.cornerCurve = .continuous
-            presenting.view.layer.masksToBounds = true
+            presentingView.layer.cornerCurve = .continuous
+            presentingView.layer.masksToBounds = true
         }
         #endif
 
         if isPresenting {
-            if presented.view.superview == nil {
-                transitionContext.containerView.addSubview(presented.view)
+            if presentedView.superview == nil {
+                transitionContext.containerView.addSubview(presentedView)
             }
-            presented.view.frame = frame
-            presented.view.transform = presentationTransform(
+            presentedView.frame = frame
+            presentedView.transform = presentationTransform(
                 presented: presented,
                 frame: frame
             )
-            fromCornerRadius.apply(to: presented.view.layer)
+            fromCornerRadius.apply(to: presentedView.layer)
         } else {
             #if !targetEnvironment(macCatalyst)
             if isScaleEnabled {
-                presenting.view.transform = dzTransform
-                presenting.view.layer.cornerRadius = UIScreen.main.displayCornerRadius()
+                presentingView.transform = dzTransform
+                presentingView.layer.cornerRadius = UIScreen.main.displayCornerRadius()
             }
             #endif
-            toCornerRadius.apply(to: presented.view.layer)
+            toCornerRadius.apply(to: presentedView.layer)
         }
 
-        presented.view.layoutIfNeeded()
+        presentedView.layoutIfNeeded()
 
         let presentedTransform = isPresenting ? .identity : presentationTransform(
             presented: presented,
@@ -218,20 +220,20 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         )
         let presentingTransform = isPresenting && isScaleEnabled ? dzTransform : .identity
         animator.addAnimations {
-            presented.view.transform = presentedTransform
-            presenting.view.transform = presentingTransform
-            (isPresenting ? toCornerRadius : fromCornerRadius).apply(to: presented.view.layer)
+            presentedView.transform = presentedTransform
+            presentingView.transform = presentingTransform
+            (isPresenting ? toCornerRadius : fromCornerRadius).apply(to: presentedView.layer)
             if isScaleEnabled {
-                presenting.view.layer.cornerRadius = isPresenting ? UIScreen.main.displayCornerRadius() : 0
+                presentingView.layer.cornerRadius = isPresenting ? UIScreen.main.displayCornerRadius() : 0
             }
         }
         animator.addCompletion { animatingPosition in
             if isScaleEnabled {
-                presenting.view.layer.cornerRadius = 0
-                presenting.view.layer.masksToBounds = true
-                presenting.view.transform = .identity
+                presentingView.layer.cornerRadius = 0
+                presentingView.layer.masksToBounds = true
+                presentingView.transform = .identity
             }
-            presented.view.layer.cornerRadius = 0
+            presentedView.layer.cornerRadius = 0
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

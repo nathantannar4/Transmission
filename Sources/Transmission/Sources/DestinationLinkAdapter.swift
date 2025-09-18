@@ -667,9 +667,6 @@ final class DestinationLinkDelegateProxy: NSObject,
             var shouldFinish = false
             if gestureRecognizer.state == .ended {
                 let targetVelocityThreshold: CGFloat = isInterruptedInteractiveTransition ? 100 : 0
-                if abs(velocity.y) > abs(velocity.x) {
-                    shouldFinish = true
-                }
                 if interactivePopEdgeGestureRecognizer.edges.contains(.left), !shouldFinish {
                     shouldFinish = (percentage >= threshold && targetVelocity >= -targetVelocityThreshold) || (percentage > 0 && targetVelocity >= 800)
                 }
@@ -680,23 +677,31 @@ final class DestinationLinkDelegateProxy: NSObject,
             // `completionSpeed` handling seems to differ across iOS version
             if #available(iOS 18.0, *) {
                 if shouldFinish {
-                    transition.completionSpeed = 1 - percentage
+                    transition.completionSpeed = max(1 - percentage, 0.35)
                 } else {
-                    transition.completionSpeed = percentage
+                    transition.completionSpeed = max(percentage, 0.35)
                 }
             } else {
-                transition.completionSpeed = 1 - percentage
+                transition.completionSpeed = max(1 - percentage, 0.35)
             }
-            let delta = max(isInterruptedInteractiveTransition ? (1 - percentage) : percentage, 0.35) * navigationController.view.frame.width
+            let delta = (!shouldFinish || isInterruptedInteractiveTransition ? (1 - percentage) : percentage) * navigationController.view.frame.width
             if isInterruptedInteractiveTransition || !shouldFinish {
                 targetVelocity = -targetVelocity
             }
+            var dx = delta != 0 ? targetVelocity / delta : 0
+            if dx < 0 {
+                dx = max(dx, -25)
+            } else {
+                dx = min(dx, 25)
+            }
+            let initialVelocity = CGVector(
+                dx: dx,
+                dy: 0
+            )
+            print(dx, transition.completionSpeed)
             transition.timingCurve = UISpringTimingParameters(
-                dampingRatio: 1.0,
-                initialVelocity: CGVector(
-                    dx: delta != 0 ? targetVelocity / delta : 0,
-                    dy: 0
-                )
+                dampingRatio: 0.84,
+                initialVelocity: initialVelocity
             )
             if shouldFinish {
                 transition.finish()

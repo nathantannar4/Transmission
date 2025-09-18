@@ -149,7 +149,9 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
-            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to)
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
+            let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
         else {
             transitionContext.completeTransition(false)
             return
@@ -157,23 +159,23 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
         let isPresenting = isPresenting
         if isPresenting {
-            presented.view.alpha = 0
+            presentedView.alpha = 0
             let presentedFrame = transitionContext.finalFrame(for: presented)
-            if presented.view.superview == nil {
-                transitionContext.containerView.addSubview(presented.view)
+            if presentedView.superview == nil {
+                transitionContext.containerView.addSubview(presentedView)
             }
-            presented.view.frame = presentedFrame
-            presented.view.layoutIfNeeded()
+            presentedView.frame = presentedFrame
+            presentedView.layoutIfNeeded()
         } else {
-            if presenting.view.superview == nil {
-                transitionContext.containerView.insertSubview(presenting.view, at: 0)
-                presenting.view.frame = transitionContext.finalFrame(for: presenting)
-                presenting.view.layoutIfNeeded()
+            if presentingView.superview == nil {
+                transitionContext.containerView.insertSubview(presentingView, at: 0)
+                presentingView.frame = transitionContext.finalFrame(for: presenting)
+                presentingView.layoutIfNeeded()
             }
-            presented.view.layoutIfNeeded()
+            presentedView.layoutIfNeeded()
         }
         animator.addAnimations {
-            presented.view.alpha = isPresenting ? 1 : 0
+            presentedView.alpha = isPresenting ? 1 : 0
         }
         animator.addCompletion { animatingPosition in
             switch animatingPosition {

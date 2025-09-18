@@ -345,12 +345,26 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     width: percentage * (presentedViewController.view.frame.origin.x - frameOfPresentedView.origin.x),
                     height: percentage * (presentedViewController.view.frame.origin.y - frameOfPresentedView.origin.y)
                 )
+                var dx = delta.width != 0 ? velocity.x / delta.width : 0
+                if dx < 0 {
+                    dx = max(dx, -25)
+                } else {
+                    dx = min(dx, 25)
+                }
+                var dy = delta.height != 0 ? velocity.y / delta.height : 0
+                if dy < 0 {
+                    dy = max(dy, -25)
+                } else {
+                    dy = min(dy, 25)
+                }
+                let initialVelocity = CGVector(
+                    dx: dx,
+                    dy: dy
+                )
+                let dampingRatio = shouldFinish ? 1 : 0.84
                 transition.timingCurve = UISpringTimingParameters(
-                    dampingRatio: 1.0,
-                    initialVelocity: CGVector(
-                        dx: delta.width != 0 ? velocity.x / delta.width : 0,
-                        dy: delta.height != 0 ? velocity.y / delta.height : 0
-                    )
+                    dampingRatio: dampingRatio,
+                    initialVelocity: initialVelocity
                 )
                 if shouldFinish {
                     transition.finish()

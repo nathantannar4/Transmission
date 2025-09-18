@@ -112,7 +112,8 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
     ) {
 
         guard
-            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
+            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view
         else {
             transitionContext.completeTransition(false)
             return
@@ -120,27 +121,27 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
 
         if isPresenting {
             var presentedFrame = transitionContext.finalFrame(for: presented)
-            if presented.view.superview == nil {
-                transitionContext.containerView.addSubview(presented.view)
+            if presentedView.superview == nil {
+                transitionContext.containerView.addSubview(presentedView)
             }
-            presented.view.frame = presentedFrame
-            presented.view.layoutIfNeeded()
+            presentedView.frame = presentedFrame
+            presentedView.layoutIfNeeded()
 
             (presented as? AnyHostingController)?.render()
 
             if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
                 transitionReaderCoordinator.update(isPresented: true)
 
-                presented.view.setNeedsLayout()
-                presented.view.layoutIfNeeded()
+                presentedView.setNeedsLayout()
+                presentedView.layoutIfNeeded()
 
                 if let presentationController = presented.presentationController as? PresentationController {
                     presentedFrame = presentationController.frameOfPresentedViewInContainerView
                 }
 
                 transitionReaderCoordinator.update(isPresented: false)
-                presented.view.setNeedsLayout()
-                presented.view.layoutIfNeeded()
+                presentedView.setNeedsLayout()
+                presentedView.layoutIfNeeded()
                 transitionReaderCoordinator.update(isPresented: true)
             }
 
@@ -148,36 +149,36 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
             case .top, .leading:
                 let transform = CGAffineTransform(
                     translationX: 0,
-                    y: -presented.view.frame.maxY
+                    y: -presentedView.frame.maxY
                 )
-                presented.view.frame = presentedFrame.applying(transform)
+                presentedView.frame = presentedFrame.applying(transform)
             case .bottom, .trailing:
                 let transform = CGAffineTransform(
                     translationX: 0,
                     y: transitionContext.containerView.frame.height - presentedFrame.minY
                 )
-                presented.view.frame = presentedFrame.applying(transform)
+                presentedView.frame = presentedFrame.applying(transform)
             }
             animator.addAnimations {
-                presented.view.frame = presentedFrame
+                presentedView.frame = presentedFrame
             }
         } else {
-            presented.view.layoutIfNeeded()
+            presentedView.layoutIfNeeded()
 
             let finalFrame: CGRect
             switch edge {
             case .top, .leading:
-                let transform = CGAffineTransform(translationX: 0, y: -presented.view.frame.maxY)
-                finalFrame = presented.view.frame.applying(transform)
+                let transform = CGAffineTransform(translationX: 0, y: -presentedView.frame.maxY)
+                finalFrame = presentedView.frame.applying(transform)
             case .bottom, .trailing:
                 let transform = CGAffineTransform(
                     translationX: 0,
-                    y: transitionContext.containerView.frame.height - presented.view.frame.minY
+                    y: transitionContext.containerView.frame.height - presentedView.frame.minY
                 )
-                finalFrame = presented.view.frame.applying(transform)
+                finalFrame = presentedView.frame.applying(transform)
             }
             animator.addAnimations {
-                presented.view.frame = finalFrame
+                presentedView.frame = finalFrame
             }
         }
         animator.addCompletion { animatingPosition in
