@@ -305,8 +305,7 @@ private struct DestinationLinkAdapterBody<
         ) {
             guard viewController == adapter?.viewController else { return }
 
-            var transaction = Transaction(animation: animated ? animation ?? .default : nil)
-            transaction.disablesAnimations = true
+            let transaction = Transaction(animation: animated ? animation ?? .default : nil)
             if let transitionCoordinator = viewController.transitionCoordinator {
                 if transitionCoordinator.isInteractive {
                     transitionCoordinator.notifyWhenInteractionChanges { ctx in
@@ -348,8 +347,7 @@ private struct DestinationLinkAdapterBody<
                 // Break the retain cycle
                 adapter?.coordinator = nil
 
-                var transaction = Transaction(animation: animated ? .default : nil)
-                transaction.disablesAnimations = true
+                let transaction = Transaction(animation: animated ? .default : nil)
                 withCATransaction {
                     self.onPop(transaction)
                 }
@@ -498,8 +496,7 @@ private struct DestinationLinkAdapterBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                var transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
-                transaction.disablesAnimations = true
+                let transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
                 withCATransaction {
                     coordinator.onPop(1, transaction: transaction)
                 }

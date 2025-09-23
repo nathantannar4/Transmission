@@ -399,8 +399,7 @@ private struct PresentationLinkAdapterBody<
                         if context.coordinator.adapter !== adapter {
                             viewController.dismiss(animated: isAnimated)
                         } else if !isPresented.wrappedValue {
-                            var transaction = Transaction(animation: nil)
-                            transaction.disablesAnimations = true
+                            let transaction = Transaction(animation: nil)
                             withTransaction(transaction) {
                                 isPresented.wrappedValue = false
                             }
@@ -560,8 +559,7 @@ private struct PresentationLinkAdapterBody<
             adapter?.coordinator = nil
 
             if isPresented.wrappedValue {
-                var transaction = Transaction(animation: nil)
-                transaction.disablesAnimations = true
+                let transaction = Transaction(animation: nil)
                 withCATransaction {
                     withTransaction(transaction) {
                         self.isPresented.wrappedValue = false
@@ -583,8 +581,7 @@ private struct PresentationLinkAdapterBody<
             _ presentationController: UIPresentationController
         ) {
             guard presentationController == self.presentationController else { return }
-            var transaction = Transaction(animation: animation ?? .default)
-            transaction.disablesAnimations = true
+            let transaction = Transaction(animation: animation ?? .default)
             if let transitionCoordinator = adapter?.viewController?.transitionCoordinator, transitionCoordinator.isInteractive {
                 transitionCoordinator.notifyWhenInteractionChanges { ctx in
                     if !ctx.isCancelled {
@@ -601,8 +598,7 @@ private struct PresentationLinkAdapterBody<
         ) {
             guard presentationController == self.presentationController else { return }
             if isPresented.wrappedValue {
-                var transaction = Transaction(animation: nil)
-                transaction.disablesAnimations = true
+                let transaction = Transaction(animation: nil)
                 withCATransaction {
                     withTransaction(transaction) {
                         self.isPresented.wrappedValue = false
@@ -1121,8 +1117,7 @@ private struct PresentationLinkAdapterBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                var transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
-                transaction.disablesAnimations = true
+                let transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
                 withCATransaction {
                     coordinator.onDismiss(1, transaction: transaction)
                 }

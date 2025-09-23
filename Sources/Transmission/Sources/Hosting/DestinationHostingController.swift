@@ -11,8 +11,8 @@ open class DestinationHostingController<
     Content: View
 >: HostingController<Content> {
 
-    open override func viewWillLayoutSubviews() {
-        super.viewWillLayoutSubviews()
+    open override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
 
         guard let navigationController,
             let index = navigationController.viewControllers.firstIndex(of: self),
@@ -22,7 +22,7 @@ open class DestinationHostingController<
         else {
             return
         }
-        hostingController.renderAsync()
+        hostingController.render()
     }
 }
 
