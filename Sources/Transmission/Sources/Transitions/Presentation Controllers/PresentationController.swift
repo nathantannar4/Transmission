@@ -137,6 +137,7 @@ open class PresentationController: DelegatedPresentationController {
     open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
 
+        dimmingView.isUserInteractionEnabled = false
         updateShadow(progress: 1)
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
@@ -166,6 +167,7 @@ open class PresentationController: DelegatedPresentationController {
                     object: nil
                 )
         } else {
+            dimmingView.isUserInteractionEnabled = true
             transitionAlongsidePresentation(progress: 1)
         }
     }
@@ -332,6 +334,7 @@ open class PresentationController: DelegatedPresentationController {
                     delegate?.presentationControllerWillDismiss?(self)
                     transition.cancel()
                     self.transition = nil
+                    dimmingView.isUserInteractionEnabled = false
                 }
             }
         } else if let next = presentedViewController.presentedViewController,

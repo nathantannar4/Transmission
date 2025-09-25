@@ -46,35 +46,35 @@ extension UIViewController {
 
     @objc
     func swizzled_dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
-        var parentDelegates = [UIViewControllerPresentationDelegate]()
-        var presentedDelegates = [UIViewControllerPresentationDelegate]()
+        var parentDelegates = [(UIViewController, UIViewControllerPresentationDelegate)]()
+        var presentedDelegates = [(UIViewController, UIViewControllerPresentationDelegate)]()
         var next: UIViewController? = parent
         while let current = next {
             if let presentationDelegate = current.presentationDelegate {
-                parentDelegates.append(presentationDelegate)
+                parentDelegates.append((current, presentationDelegate))
             }
             next = current.parent
         }
         next = presentedViewController
         while let current = next {
             if let presentationDelegate = current.presentationDelegate {
-                presentedDelegates.append(presentationDelegate)
+                presentedDelegates.append((current, presentationDelegate))
             }
             next = current.presentedViewController
         }
         let presentingViewController = presentingViewController
         swizzled_dismiss(animated: flag) {
             if self.transitionCoordinator?.isCancelled != true {
-                for delegate in presentedDelegates.reversed() {
-                    delegate.viewControllerDidDismiss(self, presentingViewController: presentingViewController, animated: flag)
+                for (viewController, delegate) in presentedDelegates.reversed() {
+                    delegate.viewControllerDidDismiss(viewController, presentingViewController: presentingViewController, animated: flag)
                 }
 
                 if self.presentingViewController == nil, let delegate = self.presentationDelegate {
                     delegate.viewControllerDidDismiss(self, presentingViewController: presentingViewController, animated: flag)
                 }
 
-                for delegate in parentDelegates.reversed() {
-                    delegate.viewControllerDidDismiss(self, presentingViewController: presentingViewController, animated: flag)
+                for (viewController, delegate) in parentDelegates.reversed() {
+                    delegate.viewControllerDidDismiss(viewController, presentingViewController: presentingViewController, animated: flag)
                 }
             }
             completion?()

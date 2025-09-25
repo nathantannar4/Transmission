@@ -11,16 +11,19 @@ extension UIViewController {
     func _popViewController(
         count: Int = 1,
         animated: Bool,
-        completion: (() -> Void)? = nil
+        completion: ((Bool) -> Void)? = nil
     ) {
         guard let navigationController = navigationController,
             let index = navigationController.viewControllers.firstIndex(of: self),
             index > 0
         else {
-            completion?()
+            completion?(false)
             return
         }
-
+        let completion: () -> Void = {
+            navigationController.interactiveTransitionWillEnd()
+            completion?(true)
+        }
         if animated {
             CATransaction.begin()
             CATransaction.setCompletionBlock(completion)
@@ -30,7 +33,7 @@ extension UIViewController {
         if animated {
             CATransaction.commit()
         } else {
-            completion?()
+            completion()
         }
     }
 

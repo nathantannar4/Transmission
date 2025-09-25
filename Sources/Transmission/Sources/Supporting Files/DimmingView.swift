@@ -6,8 +6,6 @@ import UIKit
 
 open class DimmingView: UIView {
 
-    public var shouldBlockTouches: Bool = false
-
     public override init(frame: CGRect = .zero) {
         super.init(frame: frame)
 
@@ -16,9 +14,5 @@ open class DimmingView: UIView {
 
     public required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-
-    open override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        return shouldBlockTouches ? self : super.hitTest(point, with: event)
     }
 }

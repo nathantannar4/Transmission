@@ -34,6 +34,15 @@ extension UINavigationController {
         popToRootViewController(animated: animated)
         CATransaction.commit()
     }
+
+    func interactiveTransitionWillEnd() {
+        // UIKit disables interaction for custom transitions while interacting, but
+        // does not re-enable until the animation is complete. This re-enables them
+        // when the gesture ends allowing for faster responses.
+        navigationBar.isUserInteractionEnabled = true
+        tabBarController?.tabBar.isUserInteractionEnabled = true
+        topViewController?.firstDescendent(ofType: UITabBarController.self)?.tabBar.isUserInteractionEnabled = true
+    }
 }
 
 #endif

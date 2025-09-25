@@ -120,13 +120,11 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
 
     open override func finish() {
         super.finish()
-        dimmingView?.shouldBlockTouches = false
         dimmingView?.isUserInteractionEnabled = false
     }
 
     open override func cancel() {
         super.cancel()
-        dimmingView?.shouldBlockTouches = false
         dimmingView?.isUserInteractionEnabled = false
     }
 
@@ -157,7 +155,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
 
         let dimmingView = DimmingView()
         dimmingView.alpha = isPresenting ? 0 : 1
-        dimmingView.shouldBlockTouches = !transitionContext.isInteractive && !isPresenting
+        dimmingView.isUserInteractionEnabled = isPresenting
         self.dimmingView = dimmingView
         transitionContext.containerView.insertSubview(
             dimmingView,

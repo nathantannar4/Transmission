@@ -250,12 +250,20 @@ private struct DestinationLinkAdapterBody<
             didPresentAnimated = false
             if let presented = viewController.presentedViewController {
                 presented.dismiss(animated: transaction.isAnimated) {
-                    viewController._popViewController(count: count, animated: transaction.isAnimated) {
+                    viewController._popViewController(
+                        count: count,
+                        animated: transaction.isAnimated
+                    ) { success in
+                        guard success else { return }
                         self.onPop(transaction)
                     }
                 }
             } else {
-                viewController._popViewController(count: count, animated: transaction.isAnimated) {
+                viewController._popViewController(
+                    count: count,
+                    animated: transaction.isAnimated
+                ) { success in
+                    guard success else { return }
                     self.onPop(transaction)
                 }
             }
@@ -695,7 +703,6 @@ final class DestinationLinkDelegateProxy: NSObject,
                 dx: dx,
                 dy: 0
             )
-            print(dx, transition.completionSpeed)
             transition.timingCurve = UISpringTimingParameters(
                 dampingRatio: 0.84,
                 initialVelocity: initialVelocity
@@ -743,6 +750,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         isInterruptedInteractiveTransition = false
         isPopReady = false
         feedbackGenerator = nil
+        navigationController?.interactiveTransitionWillEnd()
     }
 
     private func triggerHapticsIfNeeded(

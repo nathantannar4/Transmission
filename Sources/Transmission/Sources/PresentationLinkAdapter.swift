@@ -414,22 +414,7 @@ private struct PresentationLinkAdapterBody<
                 }
                 var didPresent = false
                 if let presentedViewController = presentingViewController.presentedViewController {
-                    if presentedViewController.presentationDelegate == context.coordinator {
-                        presentedViewController.presentationDelegate = nil
-                    }
-                    let shouldDismiss = {
-                        if presentedViewController.isBeingDismissed {
-                            return false
-                        }
-                        if isTransitioningPresentationController {
-                            return true
-                        }
-                        return presentedViewController.presentationController.map {
-                            $0.delegate?.presentationControllerShouldDismiss?($0) ?? true
-                        } ?? true
-                    }()
-                    if shouldDismiss {
-                        didPresent = true
+                    let dismissThenPresent: () -> Void = {
                         if let firstResponder = presentedViewController.firstResponder {
                             withCATransaction {
                                 firstResponder.resignFirstResponder()
@@ -444,6 +429,22 @@ private struct PresentationLinkAdapterBody<
                                 completion: present
                             )
                         }
+                    }
+                    if presentedViewController.isBeingPresented,
+                        let transitionCoordinator = presentedViewController.transitionCoordinator,
+                        !transitionCoordinator.isCancelled
+                    {
+                        didPresent = true
+                        transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                            if ctx.isCancelled {
+                                present()
+                            } else {
+                                dismissThenPresent()
+                            }
+                        }
+                    } else if !presentedViewController.isBeingDismissed {
+                        didPresent = true
+                        dismissThenPresent()
                     }
                 }
                 if !didPresent {
@@ -461,6 +462,7 @@ private struct PresentationLinkAdapterBody<
             context.coordinator.adapter != nil,
             !context.coordinator.isBeingReused
         {
+            context.coordinator.isPresented = isPresented
             context.coordinator.onDismiss(1, transaction: context.transaction)
         }
     }
@@ -522,11 +524,20 @@ private struct PresentationLinkAdapterBody<
         }
 
         func onDismiss(_ count: Int, transaction: Transaction) {
-            guard let viewController = adapter?.viewController, count > 0, presentationController != nil else { return }
+            guard let viewController = adapter?.viewController, count > 0, let presentationController else { return }
             animation = transaction.animation
             didPresentAnimated = false
-            viewController._dismiss(count: count, animated: transaction.isAnimated) {
-                self.onDismiss(transaction)
+            if viewController.isBeingPresented,
+                let presentationController = presentationController as? PresentationController,
+                let transition = presentationController.transition
+            {
+                transition.cancel()
+                onDismiss(transaction)
+            } else {
+                viewController._dismiss(count: count, animated: transaction.isAnimated) { [weak self] in
+                    guard self?.adapter?.viewController == viewController else { return }
+                    self?.onDismiss(transaction)
+                }
             }
         }
 
@@ -555,6 +566,8 @@ private struct PresentationLinkAdapterBody<
             presentingViewController: UIViewController?,
             animated: Bool
         ) {
+            guard adapter?.viewController == viewController else { return }
+
             // Break the retain cycle
             adapter?.coordinator = nil
 
@@ -580,12 +593,19 @@ private struct PresentationLinkAdapterBody<
         func presentationControllerWillDismiss(
             _ presentationController: UIPresentationController
         ) {
-            guard presentationController == self.presentationController else { return }
+            guard
+                presentationController == self.presentationController,
+                presentationController.presentedViewController == adapter?.viewController
+            else {
+                return
+            }
+
             let transaction = Transaction(animation: animation ?? .default)
             if let transitionCoordinator = adapter?.viewController?.transitionCoordinator, transitionCoordinator.isInteractive {
-                transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
                     if !ctx.isCancelled {
-                        self.onDismiss(transaction)
+                        guard presentationController == self?.presentationController else { return }
+                        self?.onDismiss(transaction)
                     }
                 }
             } else {
@@ -596,7 +616,12 @@ private struct PresentationLinkAdapterBody<
         func presentationControllerDidDismiss(
             _ presentationController: UIPresentationController
         ) {
-            guard presentationController == self.presentationController else { return }
+            guard
+                presentationController == self.presentationController,
+                presentationController.presentedViewController == adapter?.viewController
+            else {
+                return
+            }
             if isPresented.wrappedValue {
                 let transaction = Transaction(animation: nil)
                 withCATransaction {
@@ -619,7 +644,13 @@ private struct PresentationLinkAdapterBody<
         func presentationControllerShouldDismiss(
             _ presentationController: UIPresentationController
         ) -> Bool {
-            guard presentationController == self.presentationController else { return true }
+            guard
+                presentationController == self.presentationController,
+                presentationController.presentedViewController == adapter?.viewController
+            else {
+                return true
+            }
+
             guard let transition = adapter?.transition else { return true }
             switch transition {
             case .zoom(let options):
@@ -737,7 +768,6 @@ private struct PresentationLinkAdapterBody<
             presenting: UIViewController,
             source: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
-            guard adapter?.viewController.presentationDelegate == self else { return nil }
             switch adapter?.transition {
             case .sheet(let options):
                 #if targetEnvironment(macCatalyst)
@@ -771,7 +801,6 @@ private struct PresentationLinkAdapterBody<
         func animationController(
             forDismissed dismissed: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
-            guard adapter?.viewController.presentationDelegate == self else { return nil }
             switch adapter?.transition {
             case .sheet(let options):
                 #if targetEnvironment(macCatalyst)
@@ -814,7 +843,6 @@ private struct PresentationLinkAdapterBody<
         func interactionControllerForPresentation(
             using animator: UIViewControllerAnimatedTransitioning
         ) -> UIViewControllerInteractiveTransitioning? {
-            guard adapter?.viewController.presentationDelegate == self else { return nil }
             switch adapter?.transition {
             case .representable(let options, let transition):
                 return transition.interactionControllerForPresentation(
@@ -830,7 +858,6 @@ private struct PresentationLinkAdapterBody<
         func interactionControllerForDismissal(
             using animator: UIViewControllerAnimatedTransitioning
         ) -> UIViewControllerInteractiveTransitioning? {
-            guard adapter?.viewController.presentationDelegate == self else { return nil }
             switch adapter?.transition {
             case .sheet:
                 #if targetEnvironment(macCatalyst)
