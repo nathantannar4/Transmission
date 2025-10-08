@@ -14,6 +14,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     /// The edges the presented view can be interactively dismissed towards.
     open var edges: Edge.Set = [.bottom]
 
+    open var isInteractive: Bool = true
+
     public private(set) lazy var panGesture = UIPanGestureRecognizer(target: self, action: #selector(onPanGesture(_:)))
     private weak var trackingScrollView: UIScrollView?
 
@@ -260,6 +262,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             }
             if edges.contains(.trailing) {
                 percentage = max(percentage, translation.x / frameOfPresentedView.width)
+            }
+            if edges.isEmpty {
+                guard frameOfPresentedViewInContainerView == containerView?.bounds else { return }
+                percentage = max(percentage, translation.y / frameOfPresentedView.height)
             }
             if presentedViewController.isBeingPresented {
                 percentage = 1 - percentage
@@ -624,6 +630,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     }
 
     // MARK: - UIGestureRecognizerDelegate
+
+    open func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        return isInteractive
+    }
 
     open func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,

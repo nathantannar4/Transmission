@@ -142,6 +142,46 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         return animator
     }
 
+    public func configureTransitionReaderCoordinator(
+        presented: UIViewController,
+        presentedView: UIView
+    ) {
+        var frame = CGRect.zero
+        configureTransitionReaderCoordinator(
+            presented: presented,
+            presentedView: presentedView,
+            presentedFrame: &frame
+        )
+    }
+
+    public func configureTransitionReaderCoordinator(
+        presented: UIViewController,
+        presentedView: UIView,
+        presentedFrame: inout CGRect
+    ) {
+        if isPresenting {
+            (presented as? AnyHostingController)?.render()
+
+            if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
+                transitionReaderCoordinator.update(isPresented: true)
+
+                presentedView.setNeedsLayout()
+                presentedView.layoutIfNeeded()
+
+                if let presentationController = presented.presentationController as? PresentationController {
+                    presentedFrame = presentationController.frameOfPresentedViewInContainerView
+                }
+
+                transitionReaderCoordinator.update(isPresented: false)
+                presentedView.setNeedsLayout()
+                presentedView.layoutIfNeeded()
+                transitionReaderCoordinator.update(isPresented: true)
+            }
+        } else {
+            presented.transitionReaderCoordinator?.update(isPresented: false)
+        }
+    }
+
     open func configureTransitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
@@ -160,12 +200,18 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         let isPresenting = isPresenting
         if isPresenting {
             presentedView.alpha = 0
-            let presentedFrame = transitionContext.finalFrame(for: presented)
+            var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
             }
             presentedView.frame = presentedFrame
             presentedView.layoutIfNeeded()
+
+            configureTransitionReaderCoordinator(
+                presented: presented,
+                presentedView: presentedView,
+                presentedFrame: &presentedFrame
+            )
         } else {
             if presentingView.superview == nil {
                 transitionContext.containerView.insertSubview(presentingView, at: 0)
@@ -173,6 +219,11 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
                 presentingView.layoutIfNeeded()
             }
             presentedView.layoutIfNeeded()
+
+            configureTransitionReaderCoordinator(
+                presented: presented,
+                presentedView: presentedView
+            )
         }
         animator.addAnimations {
             presentedView.alpha = isPresenting ? 1 : 0

@@ -157,23 +157,12 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
                 presentedView.frame = sourceFrame
                 presentedView.alpha = initialOpacity
                 presentedView.layoutIfNeeded()
-                hostingController?.render()
 
-                if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
-                    transitionReaderCoordinator.update(isPresented: true)
-
-                    presentedView.setNeedsLayout()
-                    presentedView.layoutIfNeeded()
-
-                    if let presentationController = presented._activePresentationController as? PresentationController {
-                        presentedFrame = presentationController.frameOfPresentedViewInContainerView
-                    }
-
-                    transitionReaderCoordinator.update(isPresented: false)
-                    presentedView.setNeedsLayout()
-                    presentedView.layoutIfNeeded()
-                    transitionReaderCoordinator.update(isPresented: true)
-                }
+                configureTransitionReaderCoordinator(
+                    presented: presented,
+                    presentedView: presentedView,
+                    presentedFrame: &presentedFrame
+                )
             }
 
         } else {
@@ -183,7 +172,10 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             presentedView.layoutIfNeeded()
             hostingController?.render()
 
-            presented.transitionReaderCoordinator?.update(isPresented: false)
+            configureTransitionReaderCoordinator(
+                presented: presented,
+                presentedView: presentedView
+            )
 
             if presentingView.superview == nil {
                 transitionContext.containerView.insertSubview(presentingView, belowSubview: presentedView)

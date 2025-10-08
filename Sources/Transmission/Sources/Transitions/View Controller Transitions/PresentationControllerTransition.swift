@@ -42,6 +42,7 @@ open class PresentationControllerTransition: ViewControllerTransition {
         }
 
         if isPresenting {
+            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -49,29 +50,19 @@ open class PresentationControllerTransition: ViewControllerTransition {
             presentedView.frame = presentedFrame
             presentedView.layoutIfNeeded()
 
-            (presented as? AnyHostingController)?.render()
+            configureTransitionReaderCoordinator(
+                presented: presented,
+                presentedView: presentedView,
+                presentedFrame: &presentedFrame
+            )
 
-            if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
-                transitionReaderCoordinator.update(isPresented: true)
-
-                presentedView.setNeedsLayout()
-                presentedView.layoutIfNeeded()
-
-                if let presentationController = presented.presentationController as? PresentationController {
-                    presentedFrame = presentationController.frameOfPresentedViewInContainerView
-                }
-
-                transitionReaderCoordinator.update(isPresented: false)
-                presentedView.setNeedsLayout()
-                presentedView.layoutIfNeeded()
-                transitionReaderCoordinator.update(isPresented: true)
-            }
-
+            let dy = transitionContext.containerView.frame.height - presentedFrame.origin.y
             let transform = CGAffineTransform(
                 translationX: 0,
-                y: presentedFrame.size.height + transitionContext.containerView.safeAreaInsets.bottom
+                y: dy
             )
             presentedView.transform = transform
+            presentedView.alpha = 1
             animator.addAnimations {
                 presentedView.transform = .identity
             }
@@ -88,6 +79,11 @@ open class PresentationControllerTransition: ViewControllerTransition {
                 y: dy
             )
             presentedView.layoutIfNeeded()
+
+            configureTransitionReaderCoordinator(
+                presented: presented,
+                presentedView: presentedView
+            )
 
             animator.addAnimations {
                 presentedView.transform = transform
