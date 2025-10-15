@@ -438,9 +438,7 @@ extension PresentationLinkTransition {
                         }
                     }
                     var constant: CGFloat?
-                    if let resolution, let containerView = presentationController.containerView {
-                        // This seems to match the `maximumDetentValue` computed by UIKit
-                        let maximumDetentValue = containerView.frame.inset(by: containerView.safeAreaInsets).height - 10
+                    if let resolution, let maximumDetentValue = presentationController.maximumDetentValue {
                         let ctx = ResolutionContext(
                             containerTraitCollection: presentationController.traitCollection,
                             maximumDetentValue: maximumDetentValue,

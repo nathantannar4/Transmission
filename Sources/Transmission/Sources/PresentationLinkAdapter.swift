@@ -1043,9 +1043,7 @@ private struct PresentationLinkAdapterBody<
                         case .large, .fullScreen:
                             sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
                         default:
-                            guard let containerView = sheetPresentationController.containerView else { return }
-                            // This seems to match the `maximumDetentValue` computed by UIKit
-                            let maximumDetentValue = containerView.frame.inset(by: containerView.safeAreaInsets).height - 10
+                            guard let maximumDetentValue = sheetPresentationController.maximumDetentValue else { return }
                             let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
                             sheetPresentationController.presentedViewController.view.backgroundColor = isClear ? .clear : backgroundColor
                         }
@@ -1409,7 +1407,14 @@ extension PresentationLinkTransition.Value {
     ) {
 
         viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
-        if let backgroundColor = options.preferredPresentationBackgroundUIColor {
+
+        let shouldUpdateBackgroundColor = {
+            if #available(iOS 26.0, *), case .sheet = self {
+                return false
+            }
+            return true
+        }()
+        if shouldUpdateBackgroundColor, let backgroundColor = options.preferredPresentationBackgroundUIColor {
             viewController.view.backgroundColor = backgroundColor
         }
 

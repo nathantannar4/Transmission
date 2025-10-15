@@ -297,7 +297,6 @@ open class SheetPresentationController: UISheetPresentationController {
     }
 
     private func updateBackgroundColor() {
-        presentedView?.backgroundColor = preferredBackgroundColor
         if let preferredBackgroundColor {
             dropShadowView?.layer.shadowColor = preferredBackgroundColor.cgColor
         }

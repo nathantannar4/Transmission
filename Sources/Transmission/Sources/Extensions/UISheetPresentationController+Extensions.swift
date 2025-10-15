@@ -55,8 +55,8 @@ extension UISheetPresentationController.Detent {
             if #available(iOS 16.0, *) {
                 // _type
                 if let aSelector = NSStringFromBase64EncodedString("X3R5cGU="),
-                    responds(to: NSSelectorFromString(aSelector)),
-                    let type = value(forKey: aSelector) as? Int
+                   responds(to: NSSelectorFromString(aSelector)),
+                   let type = value(forKey: aSelector) as? Int
                 {
                     return type == 0
                 }
@@ -93,16 +93,19 @@ extension UISheetPresentationController.Detent {
 
     var constant: CGFloat? {
         if let aSelector = NSStringFromBase64EncodedString("X2NvbnN0YW50"),
-            responds(to: NSSelectorFromString(aSelector)),
-            let constant = value(forKey: aSelector) as? CGFloat,
-            constant > 0
+           responds(to: NSSelectorFromString(aSelector)),
+           let constant = value(forKey: aSelector) as? CGFloat,
+           constant > 0
         {
             return constant
         }
         return nil
     }
 
-    func resolvedValue(containerTraitCollection: UITraitCollection, maximumDetentValue: CGFloat) -> CGFloat? {
+    func resolvedValue(
+        containerTraitCollection: UITraitCollection,
+        maximumDetentValue: CGFloat
+    ) -> CGFloat? {
         if #available(iOS 16.0, *) {
             let context = _UISheetPresentationControllerDetentResolutionContext(
                 containerTraitCollection: containerTraitCollection,
@@ -113,6 +116,21 @@ extension UISheetPresentationController.Detent {
             return resolution(containerTraitCollection, maximumDetentValue)
         }
         return nil
+    }
+}
+
+@available(iOS 15.0, *)
+extension UISheetPresentationController {
+
+    var maximumDetentValue: CGFloat? {
+        guard let containerView else { return nil }
+        let maximumDetentValue = containerView.frame.height - containerView.safeAreaInsets.top - containerView.safeAreaInsets.bottom
+        if #available(iOS 26.0, *) {
+            return maximumDetentValue
+        } else {
+            // This seems to match the `maximumDetentValue` computed by UIKit
+            return maximumDetentValue - 10
+        }
     }
 }
 

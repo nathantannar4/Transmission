@@ -61,12 +61,13 @@ open class PresentationHostingController<
             }
 
             let panGesture = presentedView.gestureRecognizers?.first(where: { $0.isSheetDismissPanGesture })
-            guard panGesture == nil || panGesture?.isInteracting == false else {
+            guard
+                panGesture == nil || panGesture?.isInteracting == false,
+                let maximumDetentValue = sheetPresentationController.maximumDetentValue
+            else {
                 return
             }
 
-            // This seems to match the `maximumDetentValue` computed by UIKit
-            let maximumDetentValue = containerView.frame.inset(by: containerView.safeAreaInsets).height - 10
             let resolvedDetentHeight = detent.resolvedValue(
                 containerTraitCollection: sheetPresentationController.traitCollection,
                 maximumDetentValue: maximumDetentValue
@@ -79,11 +80,7 @@ open class PresentationHostingController<
             let isAnimated = isAnimated && !isBeingPresented
 
             func performTransition(animated: Bool, completion: (() -> Void)? = nil) {
-                if #available(iOS 16.0, *) {
-                    sheetPresentationController.invalidateDetents()
-                } else {
-                    sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
-                }
+                sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
                 if animated {
                     let duration = transitionCoordinator?.transitionDuration ?? 0.35
                     let curve = transitionCoordinator?.completionCurve ?? .easeInOut
