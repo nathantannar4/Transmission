@@ -158,9 +158,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     }
 
     open func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
-        if wantsInteractiveDismissal, translation.y >= 0 {
-            return CGAffineTransform(translationX: 0, y: translation.y)
-        }
         let dy = frictionCurve(translation.y)
         return CGAffineTransform(translationX: 0, y: dy)
     }
@@ -487,7 +484,9 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     panGestureDidEnd()
                     presentedViewController.dismiss(animated: true)
                 } else {
-                    resignedFirstResponder?.becomeFirstResponder()
+                    if translation.y < max(keyboardOffset, keyboardHeight) / 3 {
+                        resignedFirstResponder?.becomeFirstResponder()
+                    }
                     panGestureDidEnd()
                     UIView.animate(
                         withDuration: 0.35,

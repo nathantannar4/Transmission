@@ -185,6 +185,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         presentationController.minimumScaleFactor = options.minimumScaleFactor
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
+        presentationController.isInteractive = context.options.isInteractive
     }
 
     public func updateHostingController<Content>(

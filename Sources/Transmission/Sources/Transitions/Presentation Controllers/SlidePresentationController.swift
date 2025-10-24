@@ -49,13 +49,6 @@ open class SlidePresentationController: InteractivePresentationController {
         dimmingView.isHidden = false
     }
 
-    open override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
-        if prefersInteractiveDismissal {
-            return super.presentedViewTransform(for: translation)
-        }
-        return .identity
-    }
-
     open override func transformPresentedView(transform: CGAffineTransform) {
         super.transformPresentedView(transform: transform)
 

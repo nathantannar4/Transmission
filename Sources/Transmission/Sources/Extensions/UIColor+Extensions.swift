@@ -9,12 +9,16 @@ import UIKit
 
 extension UIColor {
 
-    var isTranslucent: Bool {
+    var alpha: CGFloat {
         var alpha: CGFloat = 0
         if getWhite(nil, alpha: &alpha) {
-            return alpha < 1
+            return alpha
         }
-        return false
+        return 1
+    }
+
+    var isTranslucent: Bool {
+        return alpha < 1
     }
 }
 

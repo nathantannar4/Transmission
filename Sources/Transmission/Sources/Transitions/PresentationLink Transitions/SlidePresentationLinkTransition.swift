@@ -138,6 +138,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         presentationController.prefersScaleEffect = options.prefersScaleEffect
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
+        presentationController.isInteractive = context.options.isInteractive
     }
 
     public func animationController(

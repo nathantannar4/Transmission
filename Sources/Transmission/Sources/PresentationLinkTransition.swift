@@ -434,7 +434,8 @@ extension PresentationLinkTransition {
                                 }
                             )
                             let max = context.maximumDetentValue
-                            return min(ceil(resolution(ctx) ?? max), max)
+                            let resolved = resolution(ctx)
+                            return min(ceil(resolved ?? max), max)
                         }
                     }
                     var constant: CGFloat?
@@ -446,13 +447,20 @@ extension PresentationLinkTransition {
                                 idealResolution(presentationController)
                             }
                         )
-                        constant = resolution(ctx).map { min(ceil($0), maximumDetentValue) }
+                        let resolved = resolution(ctx)
+                        constant = resolved.map { min(ceil($0), maximumDetentValue) }
                     } else {
                         constant = height
                     }
+                    guard let constant else { return .large() }
                     // _detentWithIdentifier:constant:
                     let aSelector = NSSelectorFromBase64EncodedString("X2RldGVudFdpdGhJZGVudGlmaWVyOmNvbnN0YW50Og==")
-                    guard let constant, UISheetPresentationController.Detent.responds(to: aSelector) else {
+                    guard UISheetPresentationController.Detent.responds(to: aSelector) else {
+                        if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
+                            return .custom(identifier: identifier.toUIKit()) { context in
+                                return constant
+                            }
+                        }
                         return .large()
                     }
                     let result = UISheetPresentationController.Detent.perform(
@@ -473,7 +481,8 @@ extension PresentationLinkTransition {
                                 }
                             )
                             let max = maximumDetentValue
-                            return min(ceil(resolution(ctx) ?? max), max)
+                            let resolved = resolution(ctx)
+                            return min(ceil(resolved ?? max), max)
                         }
                     }
                     return detent
