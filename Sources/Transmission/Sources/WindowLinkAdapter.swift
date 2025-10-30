@@ -248,7 +248,7 @@ private class WindowLinkDestinationWindowAdapter<
         self.onDismiss = onDismiss
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
-            let window = UIWindow(windowScene: windowScene)
+            let window = PassthroughWindow(windowScene: windowScene)
             self.window = window
             update(
                 destination: destination,

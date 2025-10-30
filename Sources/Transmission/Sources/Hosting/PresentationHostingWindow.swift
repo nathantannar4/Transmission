@@ -6,7 +6,7 @@
 
 import SwiftUI
 
-open class PresentationHostingWindow<Content: View>: UIWindow {
+open class PresentationHostingWindow<Content: View>: PassthroughWindow {
 
     public var content: Content {
         get { host.content }
@@ -37,14 +37,6 @@ open class PresentationHostingWindow<Content: View>: UIWindow {
     
     public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-
-    open override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        let result = super.hitTest(point, with: event)
-        if result == self {
-            return nil
-        }
-        return result
     }
 
     private class PresentationHostingWindowController: UIViewController {

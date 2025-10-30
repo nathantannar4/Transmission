@@ -541,10 +541,14 @@ private struct PresentationLinkAdapterBody<
             }
         }
 
-        private func onDismiss(_ transaction: Transaction) {
+        func onDismiss(_ transaction: Transaction) {
             if isPresented.wrappedValue == true {
                 withTransaction(transaction) {
                     isPresented.wrappedValue = false
+                }
+                if let presentingViewController = presentationController?.presentingViewController as? AnyHostingController {
+                    // Fix iOS 26.1+, changing `isPresented` binding while another view is presented causes some rendering to go blank
+                    presentingViewController.renderAsync()
                 }
             }
             didDismiss()
@@ -571,15 +575,7 @@ private struct PresentationLinkAdapterBody<
             // Break the retain cycle
             adapter?.coordinator = nil
 
-            if isPresented.wrappedValue {
-                let transaction = Transaction(animation: nil)
-                withCATransaction {
-                    withTransaction(transaction) {
-                        self.isPresented.wrappedValue = false
-                    }
-                }
-                didDismiss()
-            }
+            onDismiss(Transaction())
 
             // Dismiss already handled by the presentation controller below
             if let presentingViewController {
@@ -609,9 +605,7 @@ private struct PresentationLinkAdapterBody<
                     }
                 }
             } else {
-                withCATransaction {
-                    self.onDismiss(transaction)
-                }
+                onDismiss(transaction)
             }
         }
 
@@ -624,15 +618,7 @@ private struct PresentationLinkAdapterBody<
             else {
                 return
             }
-            if isPresented.wrappedValue {
-                let transaction = Transaction(animation: nil)
-                withCATransaction {
-                    withTransaction(transaction) {
-                        self.isPresented.wrappedValue = false
-                    }
-                }
-                didDismiss()
-            }
+            onDismiss(Transaction())
 
             // Break the retain cycle
             adapter?.coordinator = nil

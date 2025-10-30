@@ -139,12 +139,12 @@ private struct DestinationLinkAdapterBody<
                     isPresented: isPresented
                 )
             } else if let navigationController = presentingViewController.navigationController {
-
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
                     sourceView: sourceView,
                     transition: transition.value,
                     context: context,
+                    navigationController: navigationController,
                     isPresented: isPresented,
                     onPop: { [weak coordinator = context.coordinator] in
                         coordinator?.onPop($0, transaction: $1)
@@ -269,10 +269,14 @@ private struct DestinationLinkAdapterBody<
             }
         }
 
-        private func onPop(_ transaction: Transaction) {
+        func onPop(_ transaction: Transaction) {
             if isPresented.wrappedValue == true {
                 withTransaction(transaction) {
                     self.isPresented.wrappedValue = false
+                }
+                if let topViewController = adapter?.navigationController?.topViewController as? AnyHostingController {
+                    // Fix iOS 26.1+, changing `isPresented` binding while another view is presented causes some rendering to go blank
+                    topViewController.renderAsync()
                 }
             }
             onPop()
@@ -1105,6 +1109,8 @@ private class DestinationLinkDestinationViewControllerAdapter<
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
     var onPop: (Int, Transaction) -> Void
 
+    weak var navigationController: UINavigationController?
+
     // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
     var coordinator: DestinationLinkAdapterBody<Destination, SourceView>.Coordinator?
 
@@ -1113,6 +1119,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
         sourceView: UIView,
         transition: DestinationLinkTransition.Value,
         context: DestinationLinkAdapterBody<Destination, SourceView>.Context,
+        navigationController: UINavigationController?,
         isPresented: Binding<Bool>,
         onPop: @escaping (Int, Transaction) -> Void
     ) {
@@ -1120,6 +1127,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
         self.environment = context.environment
         self.isPresented = isPresented
         self.onPop = onPop
+        self.navigationController = navigationController
         if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
             self.conformance = conformance
             update(
