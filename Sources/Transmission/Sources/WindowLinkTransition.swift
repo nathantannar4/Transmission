@@ -40,7 +40,8 @@ public struct WindowLinkTransition: Sendable {
         case identity
         case opacity
         case move(edge: Edge)
-        case scale(multiplier: CGFloat)
+        case scale(scale: CGFloat)
+        case offset(x: CGFloat, y: CGFloat)
         case union(Value, Value)
     }
     var value: Value
@@ -57,9 +58,17 @@ public struct WindowLinkTransition: Sendable {
         WindowLinkTransition(value: .move(edge: edge), options: .init())
     }
 
+    /// The offset transition.
+    public static func offset(x: CGFloat, y: CGFloat) -> WindowLinkTransition {
+        WindowLinkTransition(value: .offset(x: x, y: y), options: .init())
+    }
+
     /// The scale transition.
-    public static func scale(_ multiplier: CGFloat) -> WindowLinkTransition {
-        WindowLinkTransition(value: .scale(multiplier: multiplier), options: .init())
+    public static let scale = WindowLinkTransition(value: .scale(scale: .leastNonzeroMagnitude), options: .init())
+
+    /// The scale transition.
+    public static func scale(scale: CGFloat) -> WindowLinkTransition {
+        WindowLinkTransition(value: .scale(scale: scale), options: .init())
     }
 }
 
@@ -88,12 +97,22 @@ extension WindowLinkTransition {
         WindowLinkTransition(value: .move(edge: edge), options: options)
     }
 
-    /// The scale transition.
-    public static func scale(
-        _ multiplier: CGFloat,
+    /// The offset transition.
+    public static func offset(
+        x: CGFloat,
+        y: CGFloat,
         options: Options
     ) -> WindowLinkTransition {
-        WindowLinkTransition(value: .scale(multiplier: multiplier), options: options)
+        WindowLinkTransition(value: .offset(x: x, y: y), options: options)
+    }
+
+
+    /// The scale transition.
+    public static func scale(
+        scale: CGFloat,
+        options: Options
+    ) -> WindowLinkTransition {
+        WindowLinkTransition(value: .scale(scale: scale), options: options)
     }
 }
 
@@ -101,6 +120,27 @@ extension WindowLinkTransition {
 extension WindowLinkTransition {
     public func combined(with other: WindowLinkTransition) -> WindowLinkTransition {
         WindowLinkTransition(value: .union(value, other.value), options: options)
+    }
+}
+
+@available(iOS 14.0, *)
+extension WindowLinkTransition {
+
+    /// The scale transition.
+    @available(*, deprecated, renamed: "scale(scale:)")
+    public static func scale(
+        _ multiplier: CGFloat
+    ) -> WindowLinkTransition {
+        .scale(scale: multiplier)
+    }
+
+    /// The scale transition.
+    @available(*, deprecated, renamed: "scale(scale:options:)")
+    public static func scale(
+        _ multiplier: CGFloat,
+        options: Options
+    ) -> WindowLinkTransition {
+        .scale(scale: multiplier, options: options)
     }
 }
 
@@ -126,10 +166,24 @@ extension WindowLinkTransition {
 
 @available(iOS 14.0, *)
 extension WindowLinkTransition.Value {
-    func toSwiftUIAlignment() -> Alignment {
+
+    func toSwiftUIAlignment() -> Alignment? {
         switch self {
         case .identity, .opacity, .scale:
-            return .center
+            return nil
+        case .offset(let x, let y):
+            var alignment = Alignment.center
+            if x < 0 {
+                alignment.horizontal = .leading
+            } else if x > 0 {
+                alignment.horizontal = .trailing
+            }
+            if y < 0 {
+                alignment.vertical = .top
+            } else if y > 0 {
+                alignment.vertical = .bottom
+            }
+            return alignment
         case .move(let edge):
             switch edge {
             case .top:
@@ -141,8 +195,41 @@ extension WindowLinkTransition.Value {
             case .trailing:
                 return .trailing
             }
-        case .union(let first, _):
-            return first.toSwiftUIAlignment()
+        case .union(let first, let second):
+            return first.toSwiftUIAlignment() ?? second.toSwiftUIAlignment()
+        }
+    }
+
+    func toSwiftUIAnchor() -> UnitPoint? {
+        switch self {
+        case .identity, .opacity, .scale:
+            return nil
+        case .offset(let x, let y):
+            var anchor = UnitPoint.center
+            if x < 0 {
+                anchor.x = 0
+            } else if x > 0 {
+                anchor.x = 1
+            }
+            if y < 0 {
+                anchor.y = 0
+            } else if y > 0 {
+                anchor.y = 1
+            }
+            return anchor
+        case .move(let edge):
+            switch edge {
+            case .top:
+                return .top
+            case .bottom:
+                return .bottom
+            case .leading:
+                return .leading
+            case .trailing:
+                return .trailing
+            }
+        case .union(let first, let second):
+            return first.toSwiftUIAnchor() ?? second.toSwiftUIAnchor()
         }
     }
 
@@ -150,6 +237,19 @@ extension WindowLinkTransition.Value {
     func toUIKit(
         isPresented: Bool,
         window: UIWindow
+    ) -> (alpha: CGFloat?, t: CGAffineTransform) {
+        toUIKit(
+            isPresented: isPresented,
+            window: window,
+            anchor: toSwiftUIAnchor() ?? .center
+        )
+    }
+
+    @MainActor
+    private func toUIKit(
+        isPresented: Bool,
+        window: UIWindow,
+        anchor: UnitPoint
     ) -> (alpha: CGFloat?, t: CGAffineTransform) {
         switch self {
         case .identity:
@@ -159,29 +259,48 @@ extension WindowLinkTransition.Value {
         case .move(let edge):
             let result: CGAffineTransform = {
                 if !isPresented {
-                    let size = window.rootViewController.map {
-                        let frame = CGRect(origin: .zero, size: $0.view.intrinsicContentSize)
-                        return frame.inset(by: $0.view.safeAreaInsets).size
-                    } ?? window.frame.size
+                    let size = window.rootViewController?.view.idealSize(for: window.bounds.width) ?? window.frame.size
+                    let insets = window.rootViewController?.view.safeAreaInsets ?? .zero
                     switch edge {
                     case .top:
-                        return CGAffineTransform(translationX: 0, y: -size.height)
+                        let offset = size.height - insets.bottom
+                        return CGAffineTransform(translationX: 0, y: -offset)
                     case .bottom:
-                        return CGAffineTransform(translationX: 0, y: size.height)
+                        let offset = size.height - insets.top
+                        return CGAffineTransform(translationX: 0, y: offset)
                     case .leading:
-                        return CGAffineTransform(translationX: -size.width, y: 0)
+                        let offset = size.width - insets.right
+                        return CGAffineTransform(translationX: -offset, y: 0)
                     case .trailing:
-                        return CGAffineTransform(translationX: size.width, y: 0)
+                        let offset = size.width - insets.left
+                        return CGAffineTransform(translationX: offset, y: 0)
                     }
                 } else {
                     return .identity
                 }
             }()
             return (nil, result)
-        case .scale(let multiplier):
+        case .offset(let x, let y):
             let result: CGAffineTransform = {
                 if !isPresented {
-                    return CGAffineTransform(scaleX: multiplier, y: multiplier)
+                    return CGAffineTransform(translationX: x, y: y)
+                } else {
+                    return .identity
+                }
+            }()
+            return (nil, result)
+        case .scale(let scale):
+            let result: CGAffineTransform = {
+                if !isPresented {
+                    let size = window.bounds.size
+                    let anchorPoint = CGPoint(
+                        x: (1 - scale) * size.width * (0.5 - anchor.x),
+                        y: -(1 - scale) * size.height * (1 - anchor.y) / 2
+                    )
+                    return CGAffineTransform.identity
+                        .scaledBy(x: scale, y: scale)
+                        .translatedBy(x: anchorPoint.x, y: anchorPoint.y)
+
                 } else {
                     return .identity
                 }
@@ -190,11 +309,13 @@ extension WindowLinkTransition.Value {
         case .union(let first, let second):
             let first = first.toUIKit(
                 isPresented: isPresented,
-                window: window
+                window: window,
+                anchor: anchor
             )
             let second = second.toUIKit(
                 isPresented: isPresented,
-                window: window
+                window: window,
+                anchor: anchor
             )
             return (first.alpha ?? second.alpha, first.t.concatenating(second.t))
         }
@@ -209,7 +330,7 @@ struct WindowBridgeAdapter: ViewModifier {
     func body(content: Content) -> some View {
         content
             .modifier(PresentationBridgeAdapter(presentationCoordinator: presentationCoordinator))
-            .frame(maxHeight: .infinity, alignment: transition.toSwiftUIAlignment())
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: transition.toSwiftUIAlignment() ?? .center)
     }
 }
 

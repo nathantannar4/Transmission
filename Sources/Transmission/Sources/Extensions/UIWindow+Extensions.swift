@@ -11,8 +11,8 @@ extension UIWindow {
     func present(
         _ window: UIWindow,
         animation: Animation?,
-        transition: ((Bool) -> Void)? = nil,
-        completion: ((Bool) -> Void)? = nil
+        animations: ((Bool) -> Void)? = nil,
+        completion: (() -> Void)? = nil
     ) {
         window.parent = self
         if window.windowLevel.rawValue > windowLevel.rawValue {
@@ -20,32 +20,30 @@ extension UIWindow {
         } else {
             window.isHidden = false
         }
-        transition?(false)
+        animations?(false)
         UIView.animate(
             with: animation
         ) {
-            transition?(true)
-        } completion: { success in
-            completion?(success)
+            animations?(true)
+        } completion: {
+            completion?()
         }
     }
 
     func dismiss(
         animation: Animation?,
-        transition: (() -> Void)? = nil,
-        completion: ((Bool) -> Void)? = nil
+        animations: (() -> Void)? = nil,
+        completion: (() -> Void)? = nil
     ) {
         self.resignKey()
         UIView.animate(
             with: animation
         ) {
-            transition?()
-        } completion: { success in
-            if success {
-                self.isHidden = true
-                self.parent = nil
-            }
-            completion?(success)
+            animations?()
+        } completion: {
+            self.isHidden = true
+            self.parent = nil
+            completion?()
         }
     }
 

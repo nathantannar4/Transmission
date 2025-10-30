@@ -239,6 +239,13 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
+    public var preferredPresentationSafeAreaInsets: UIEdgeInsets? {
+        didSet {
+            guard preferredPresentationSafeAreaInsets != oldValue else { return }
+            updatePresentedViewInset()
+        }
+    }
+
     private var dropShadowView: UIView? {
         if let lastSubview = containerView?.subviews.last, lastSubview.isDropShadowView {
             return lastSubview
@@ -323,6 +330,18 @@ open class SheetPresentationController: UISheetPresentationController {
                 perform(aSelectorSetNonLargeBackground, with: hasTranslucentBackground ? UIColor.clear : nil)
             }
         }
+        updatePresentedViewInset()
+    }
+
+    private func updatePresentedViewInset() {
+        if #available(iOS 26.0, *) {
+            let isDisabled = preferredPresentationSafeAreaInsets.map { $0 == .zero } ?? (preferredBackgroundColor?.alpha == 0)
+            // disableSolariumInsets
+            let aSelectorDisableSolariumInsets = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz")
+            if let aSelectorDisableSolariumInsets, responds(to: NSSelectorFromString("_" + aSelectorDisableSolariumInsets)) {
+                setValue(isDisabled, forKey: aSelectorDisableSolariumInsets)
+            }
+        }
     }
 }
 
@@ -362,6 +381,9 @@ extension PresentationLinkTransition.SheetTransitionOptions {
         }()
         #else
         presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
+        presentationController.preferredPresentationSafeAreaInsets = newValue.options.preferredPresentationSafeAreaInsets.map {
+            UIEdgeInsets(edgeInsets: $0, layoutDirection: presentationController.traitCollection.layoutDirection)
+        }
         let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
         let hasChanges: Bool = {
             if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {

@@ -82,4 +82,67 @@ public struct WindowLink<
     }
 }
 
+@available(iOS 14.0, *)
+extension WindowLink {
+    @_disfavoredOverload
+    public init<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(level: level, transition: transition, animation: animation) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
+    public init<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
+        destination: @escaping (Destination.Context) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(level: level, transition: transition, animation: animation) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
+    @_disfavoredOverload
+    public init<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(level: level, transition: transition, animation: animation, isPresented: isPresented) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
+    public init<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping (Destination.Context) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(level: level, transition: transition, animation: animation, isPresented: isPresented) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+}
+
 #endif

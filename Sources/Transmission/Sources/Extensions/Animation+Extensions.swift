@@ -59,7 +59,6 @@ extension UIViewPropertyAnimator {
 
 extension UIView {
 
-    @available(iOS, deprecated: 18.0, message: "Use the builtin UIView.animate")
     public static func animate(
         with animation: Animation?,
         animations: @escaping () -> Void,
@@ -79,6 +78,18 @@ extension UIView {
             }
         }
         animator.startAnimation(afterDelay: animation.delay ?? 0)
+    }
+
+    public static func animate(
+        with animation: Animation?,
+        changes: @escaping () -> Void,
+        completion: (() -> Void)? = nil
+    ) {
+        if #available(iOS 18.0, *), let animation {
+            UIKit.UIView.animate(animation, changes: changes, completion: completion)
+        } else {
+            animate(with: animation, animations: changes, completion: completion.map({ handler in {  _ in handler() } }))
+        }
     }
 }
 

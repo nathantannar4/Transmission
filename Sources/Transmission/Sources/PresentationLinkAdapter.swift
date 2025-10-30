@@ -609,7 +609,9 @@ private struct PresentationLinkAdapterBody<
                     }
                 }
             } else {
-                onDismiss(transaction)
+                withCATransaction {
+                    self.onDismiss(transaction)
+                }
             }
         }
 
@@ -932,6 +934,10 @@ private struct PresentationLinkAdapterBody<
                         presentationController.prefersPageSizing = options.prefersPageSizing
                     }
                     presentationController.preferredBackgroundColor = options.options.preferredPresentationBackgroundUIColor
+                    let layoutDirection = (overrideTraitCollection ?? presentationController.traitCollection).layoutDirection
+                    presentationController.preferredPresentationSafeAreaInsets = options.options.preferredPresentationSafeAreaInsets.map {
+                        UIEdgeInsets(edgeInsets: $0, layoutDirection: layoutDirection)
+                    }
                     if #available(iOS 26.0, *),
                        options.options.preferredPresentationBackgroundColor == nil,
                        options.detents.contains(where: { $0.identifier != .large || $0.identifier != .fullScreen }),
