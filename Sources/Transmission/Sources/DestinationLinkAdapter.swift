@@ -229,6 +229,8 @@ private struct DestinationLinkAdapterBody<
         var isZoomTransitionDismissReady = false
         var feedbackGenerator: UIImpactFeedbackGenerator?
 
+        var wasNavigationBarHidden: Bool?
+
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
         }
@@ -276,7 +278,7 @@ private struct DestinationLinkAdapterBody<
                 }
                 if let topViewController = adapter?.navigationController?.topViewController as? AnyHostingController {
                     // Fix iOS 26.1+, changing `isPresented` binding while another view is presented causes some rendering to go blank
-                    topViewController.renderAsync()
+                    topViewController.render()
                 }
             }
             onPop()
@@ -371,6 +373,16 @@ private struct DestinationLinkAdapterBody<
             willShow viewController: UIViewController,
             animated: Bool
         ) {
+            let isNavigationBarHidden = isPushing ? adapter?.transition.options.isNavigationBarHidden : wasNavigationBarHidden
+            if let isNavigationBarHidden, navigationController.isNavigationBarHidden != isNavigationBarHidden {
+                if isPushing {
+                    wasNavigationBarHidden = navigationController.isNavigationBarHidden
+                }
+                navigationController.setNavigationBarHidden(
+                    isNavigationBarHidden,
+                    animated: animated
+                )
+            }
             if !isPushing, navigationController.interactivePopGestureRecognizer?.isInteracting == true {
                 sourceView?.alpha = 1
             }

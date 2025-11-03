@@ -237,19 +237,29 @@ open class PresentationController: DelegatedPresentationController {
             )
             dimmingView.frame = dimmingViewFrame.rounded(scale: containerView?.window?.screen.scale ?? 1)
             if let presentedView = presentationController.presentedView ?? presentationController.presentedViewController.view {
+                #if canImport(FoundationModels) // Xcode 26
+                if #available(iOS 26.0, *) {
+                    dimmingView.cornerConfiguration = presentedView.cornerConfiguration
+                }
+                #endif
                 dimmingView.layer.cornerRadius = presentedView.layer.cornerRadius
                 dimmingView.layer.cornerCurve = presentedView.layer.cornerCurve
                 dimmingView.layer.maskedCorners = presentedView.layer.maskedCorners
             }
-        } else {
-            let dimmingViewFrame = presentingViewController.view.convert(
-                presentingViewController.view.bounds,
+        } else if let presentedView = presentingViewController.view {
+            let dimmingViewFrame = presentedView.convert(
+                presentedView.bounds,
                 to: containerView
             )
             dimmingView.frame = dimmingViewFrame.rounded(scale: containerView?.window?.screen.scale ?? 1)
-            dimmingView.layer.cornerRadius = presentingViewController.view.layer.cornerRadius
-            dimmingView.layer.cornerCurve = presentingViewController.view.layer.cornerCurve
-            dimmingView.layer.maskedCorners = presentingViewController.view.layer.maskedCorners
+            #if canImport(FoundationModels) // Xcode 26
+            if #available(iOS 26.0, *) {
+                dimmingView.cornerConfiguration = presentedView.cornerConfiguration
+            }
+            #endif
+            dimmingView.layer.cornerRadius = presentedView.layer.cornerRadius
+            dimmingView.layer.cornerCurve = presentedView.layer.cornerCurve
+            dimmingView.layer.maskedCorners = presentedView.layer.maskedCorners
         }
     }
 

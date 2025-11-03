@@ -64,6 +64,7 @@ extension DestinationLinkTransition {
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
         public var preferredPresentationBackgroundColor: Color?
+        public var isNavigationBarHidden: Bool?
         public var hidesBottomBarWhenPushed: Bool
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
@@ -72,6 +73,7 @@ extension DestinationLinkTransition {
             prefersPanGesturePop: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
             preferredPresentationBackgroundColor: Color? = nil,
+            isNavigationBarHidden: Bool? = nil,
             hidesBottomBarWhenPushed: Bool = false,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
@@ -79,6 +81,7 @@ extension DestinationLinkTransition {
             self.prefersPanGesturePop = prefersPanGesturePop
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
+            self.isNavigationBarHidden = isNavigationBarHidden
             self.hidesBottomBarWhenPushed = hidesBottomBarWhenPushed
             self.hapticsStyle = hapticsStyle
         }

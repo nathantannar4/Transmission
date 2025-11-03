@@ -164,7 +164,6 @@ open class CardPresentationController: InteractivePresentationController {
             presenting: presentingViewController
         )
         dimmingView.isHidden = false
-        prefersInteractiveDismissal = true
     }
 
     open override func dismissalTransitionShouldBegin(
@@ -247,7 +246,7 @@ open class CardPresentationController: InteractivePresentationController {
         guard !presentedViewController.isBeingPresented || presentedViewController.view.layer.cornerRadius == 0 || force else { return }
         let cornerRadius = cornerRadius
         var didApplyCornerConfiguration = false
-        #if canImport(FoundationModels)
+        #if canImport(FoundationModels) // Xcode 26
         if #available(iOS 26.0, *) {
             let mask = preferredCornerRadius?.mask ?? .all
             let corner = isKeyboardSessionActive ? UICornerRadius.fixed(cornerRadius) : .containerConcentric(minimum: cornerRadius)

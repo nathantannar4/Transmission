@@ -548,7 +548,7 @@ private struct PresentationLinkAdapterBody<
                 }
                 if let presentingViewController = presentationController?.presentingViewController as? AnyHostingController {
                     // Fix iOS 26.1+, changing `isPresented` binding while another view is presented causes some rendering to go blank
-                    presentingViewController.renderAsync()
+                    presentingViewController.render()
                 }
             }
             didDismiss()
