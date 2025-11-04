@@ -34,6 +34,8 @@ open class PresentationHostingController<
     }
 
     open override func viewDidLayoutSubviews() {
+        let isAnimated = !isBeingPresented && (transaction.map({ $0.isAnimated }) ?? transitionCoordinator?.isAnimated ?? true)
+
         super.viewDidLayoutSubviews()
 
         guard view.superview != nil, !isBeingDismissed else {
@@ -43,8 +45,6 @@ open class PresentationHostingController<
         if isBeingPresented, didRelayoutDuringPresentation {
             return
         }
-
-        let isAnimated = transitionCoordinator?.isAnimated ?? true
 
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,
@@ -77,7 +77,6 @@ open class PresentationHostingController<
                 return
             }
             didRelayoutDuringPresentation = true
-            let isAnimated = isAnimated && !isBeingPresented
 
             func performTransition(animated: Bool, completion: (() -> Void)? = nil) {
                 sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
@@ -124,7 +123,6 @@ open class PresentationHostingController<
                     guard preferredContentSize != contentSize else { return }
                     didRelayoutDuringPresentation = true
 
-                    let isAnimated = isAnimated && !isBeingPresented
                     let oldSize = preferredContentSize
                     if oldSize == .zero || oldSize == CGSize(width: 10_000, height: 10_000) || !isAnimated {
                         preferredContentSize = contentSize

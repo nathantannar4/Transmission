@@ -136,6 +136,7 @@ private struct PresentationLinkAdapterBody<
 
             var isAnimated = context.transaction.isAnimated
                 || presentingViewController.transitionCoordinator?.isAnimated == true
+                || (try? swift_getFieldValue("transaction", Transaction.self, presentingViewController))?.isAnimated == true
             let animation = context.transaction.animation
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
@@ -234,7 +235,6 @@ private struct PresentationLinkAdapterBody<
                 context.coordinator.overrideTraitCollection = traits
                 adapter.update(
                     destination: destination,
-                    sourceView: uiView,
                     context: context,
                     isPresented: isPresented
                 )
@@ -245,7 +245,6 @@ private struct PresentationLinkAdapterBody<
                     adapter.transition = transition.value
                     adapter.update(
                         destination: destination,
-                        sourceView: sourceView,
                         context: context,
                         isPresented: isPresented
                     )
@@ -1151,17 +1150,14 @@ private struct PresentationLinkAdapterBody<
 private class PresentationLinkDestinationViewControllerAdapter<
     Destination: View,
     SourceView: View
-> {
+>: ViewControllerAdapter<Destination, PresentationLinkAdapterBody<Destination, SourceView>> {
 
     typealias DestinationController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
-    var viewController: UIViewController!
-    var context: Any!
-
     var transition: PresentationLinkTransition.Value
+    weak var sourceView: UIView?
     var environment: EnvironmentValues
     var isPresented: Binding<Bool>
-    var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
     var onDismiss: (Int, Transaction) -> Void
 
     // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
@@ -1176,43 +1172,11 @@ private class PresentationLinkDestinationViewControllerAdapter<
         onDismiss: @escaping (Int, Transaction) -> Void
     ) {
         self.transition = transition
+        self.sourceView = sourceView
         self.environment = context.environment
         self.isPresented = isPresented
         self.onDismiss = onDismiss
-        if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
-            self.conformance = conformance
-            update(
-                destination: destination,
-                sourceView: sourceView,
-                context: context,
-                isPresented: isPresented
-            )
-        } else {
-            let viewController = DestinationController(
-                content: destination.modifier(
-                    PresentationBridgeAdapter(
-                        presentationCoordinator: PresentationCoordinator(
-                            isPresented: isPresented.wrappedValue,
-                            sourceView: sourceView,
-                            dismissBlock: { [weak self] in
-                                self?.dismiss($0, $1)
-                            }
-                        ),
-                        colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
-                    )
-                )
-            )
-            transition.update(
-                viewController,
-                context: PresentationLinkTransitionRepresentableContext(
-                    sourceView: sourceView,
-                    options: transition.options,
-                    environment: context.environment,
-                    transaction: context.transaction
-                )
-            )
-            self.viewController = viewController
-        }
+        super.init(content: destination, context: context)
     }
 
     deinit {
@@ -1224,169 +1188,90 @@ private class PresentationLinkDestinationViewControllerAdapter<
         default:
             break
         }
-        if let conformance = conformance {
-            var visitor = Visitor(
-                destination: nil,
-                isPresented: .constant(false),
-                sourceView: nil,
-                context: nil,
-                adapter: self
-            )
-            conformance.visit(visitor: &visitor)
-        }
     }
 
     func update(
         destination: Destination,
-        sourceView: UIView,
         context: PresentationLinkAdapterBody<Destination, SourceView>.Context,
         isPresented: Binding<Bool>
     ) {
-        environment = context.environment
         self.isPresented = isPresented
-        if let conformance = conformance {
-            var visitor = Visitor(
-                destination: destination,
-                isPresented: isPresented,
+        self.environment = context.environment
+        super.updateViewController(content: destination, context: context)
+    }
+
+    override func makeHostingController(
+        content: Destination,
+        context: PresentationLinkAdapterBody<Destination, SourceView>.Context
+    ) -> UIViewController {
+        let modifier = PresentationBridgeAdapter(
+            presentationCoordinator: PresentationCoordinator(
+                isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
-                context: context,
-                adapter: self
+                dismissBlock: { [weak self] in self?.dismiss($0, $1) }
+            ),
+            colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
+        )
+        let hostingController = DestinationController(content: content.modifier(modifier))
+        transition.update(
+            hostingController,
+            context: PresentationLinkTransitionRepresentableContext(
+                sourceView: sourceView,
+                options: transition.options,
+                environment: context.environment,
+                transaction: context.transaction
             )
-            conformance.visit(visitor: &visitor)
-            viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
-            if let backgroundColor = transition.options.preferredPresentationBackgroundUIColor {
-                viewController.view.backgroundColor = backgroundColor
-            }
-        } else {
-            let viewController = viewController as! DestinationController
-            viewController.content = destination.modifier(
-                PresentationBridgeAdapter(
-                    presentationCoordinator: PresentationCoordinator(
-                        isPresented: isPresented.wrappedValue,
-                        sourceView: sourceView,
-                        dismissBlock: { [weak self] in self?.dismiss($0, $1) }
-                    ),
-                    colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
-                )
+        )
+        return hostingController
+    }
+
+    override func updateHostingController(
+        content: Destination,
+        context: PresentationLinkAdapterBody<Destination, SourceView>.Context
+    ) {
+        let modifier = PresentationBridgeAdapter(
+            presentationCoordinator: PresentationCoordinator(
+                isPresented: isPresented.wrappedValue,
+                sourceView: sourceView,
+                dismissBlock: { [weak self] in self?.dismiss($0, $1) }
+            ),
+            colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
+        )
+        let hostingController = viewController as! DestinationController
+        hostingController.update(content: content.modifier(modifier), transaction: context.transaction)
+        transition.update(
+            hostingController,
+            context: PresentationLinkTransitionRepresentableContext(
+                sourceView: sourceView,
+                options: transition.options,
+                environment: context.environment,
+                transaction: context.transaction
             )
-            transition.update(
-                viewController,
-                context: .init(
-                    sourceView: sourceView,
-                    options: transition.options,
-                    environment: context.environment,
-                    transaction: context.transaction
-                )
-            )
+        )
+    }
+
+    override func transformViewControllerEnvironment(
+        _ environment: inout EnvironmentValues
+    ) {
+        let presentationCoordinator = PresentationCoordinator(
+            isPresented: isPresented.wrappedValue,
+            sourceView: sourceView,
+            dismissBlock: { [weak self] in self?.dismiss($0, $1) }
+        )
+        environment.presentationCoordinator = presentationCoordinator
+    }
+
+    override func updateViewController(
+        context: PresentationLinkAdapterBody<Destination, SourceView>.Context
+    ) {
+        viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
+        if let backgroundColor = transition.options.preferredPresentationBackgroundUIColor {
+            viewController.view.backgroundColor = backgroundColor
         }
     }
 
     func dismiss(_ count: Int, _ transaction: Transaction) {
         onDismiss(count, transaction)
-    }
-
-    private struct Context<Coordinator> {
-        // Only `UIViewRepresentable` uses V4
-        struct V4 {
-            struct RepresentableContextValues {
-                enum EnvironmentStorage {
-                    case eager(EnvironmentValues)
-                    case lazy(() -> EnvironmentValues)
-                }
-                var preferenceBridge: AnyObject?
-                var transaction: Transaction
-                var environmentStorage: EnvironmentStorage
-            }
-
-            var values: RepresentableContextValues
-            var coordinator: Coordinator
-
-            var environment: EnvironmentValues {
-                get {
-                    switch values.environmentStorage {
-                    case .eager(let environment):
-                        return environment
-                    case .lazy(let block):
-                        return block()
-                    }
-                }
-                set {
-                    values.environmentStorage = .eager(newValue)
-                }
-            }
-        }
-
-        struct V1 {
-            var coordinator: Coordinator
-            var transaction: Transaction
-            var environment: EnvironmentValues
-            var preferenceBridge: AnyObject?
-        }
-    }
-
-    @MainActor
-    private struct Visitor: @preconcurrency ViewVisitor {
-        nonisolated(unsafe) var destination: Destination?
-        nonisolated(unsafe) var isPresented: Binding<Bool>
-        nonisolated(unsafe) var sourceView: UIView?
-        nonisolated(unsafe) var context: PresentationLinkAdapterBody<Destination, SourceView>.Context?
-        nonisolated(unsafe) var adapter: PresentationLinkDestinationViewControllerAdapter<Destination, SourceView>
-
-        mutating func visit<Content>(type: Content.Type) where Content: UIViewControllerRepresentable {
-            guard
-                let destination = destination.map({ unsafeBitCast($0, to: Content.self) }),
-                let context = context
-            else {
-                if let context = adapter.context, let viewController = adapter.viewController as? Content.UIViewControllerType {
-                    func project<T>(_ value: T) {
-                        let coordinator = unsafeBitCast(value, to: Content.Context.self).coordinator
-                        Content.dismantleUIViewController(viewController, coordinator: coordinator)
-                    }
-                    _openExistential(context, do: project)
-                }
-                return
-            }
-            if adapter.context == nil {
-                let coordinator = destination.makeCoordinator()
-                let preferenceBridge: AnyObject?
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
-                    preferenceBridge = unsafeBitCast(
-                        context,
-                        to: Context<PresentationLinkAdapterBody<Destination, SourceView>.Coordinator>.V4.self
-                    ).values.preferenceBridge
-                } else {
-                    preferenceBridge = unsafeBitCast(
-                        context,
-                        to: Context<PresentationLinkAdapterBody<Destination, SourceView>.Coordinator>.V1.self
-                    ).preferenceBridge
-                }
-                let context = Context<Content.Coordinator>.V1(
-                    coordinator: coordinator,
-                    transaction: context.transaction,
-                    environment: context.environment,
-                    preferenceBridge: preferenceBridge
-                )
-                adapter.context = unsafeBitCast(context, to: Content.Context.self)
-            }
-            func project<T>(_ value: T) -> Content.Context {
-                let presentationCoordinator = PresentationCoordinator(
-                    isPresented: isPresented.wrappedValue,
-                    sourceView: sourceView,
-                    dismissBlock: { [weak adapter] in
-                        adapter?.dismiss($0, $1)
-                    }
-                )
-                var ctx = unsafeBitCast(value, to: Context<Content.Coordinator>.V1.self)
-                ctx.environment.presentationCoordinator = presentationCoordinator
-                return unsafeBitCast(ctx, to: Content.Context.self)
-            }
-            let ctx = _openExistential(adapter.context!, do: project)
-            if adapter.viewController == nil {
-                adapter.viewController = destination.makeUIViewController(context: ctx)
-            }
-            let viewController = adapter.viewController as! Content.UIViewControllerType
-            destination.updateUIViewController(viewController, context: ctx)
-        }
     }
 }
 

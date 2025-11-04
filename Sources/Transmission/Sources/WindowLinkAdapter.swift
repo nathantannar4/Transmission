@@ -218,9 +218,9 @@ private struct WindowLinkAdapterBody<
 @MainActor @preconcurrency
 private class WindowLinkDestinationWindowAdapter<
     Destination: View
-> {
+>: ViewControllerAdapter<Destination, WindowLinkAdapterBody<Destination>> {
 
-    typealias DestinationWindow = PresentationHostingWindow<ModifiedContent<Destination, WindowBridgeAdapter>>
+    typealias DestinationController = PresentationHostingWindowController<ModifiedContent<Destination, WindowBridgeAdapter>>
 
     var window: UIWindow!
     var context: Any!
@@ -246,45 +246,10 @@ private class WindowLinkDestinationWindowAdapter<
         self.environment = context.environment
         self.isPresented = isPresented
         self.onDismiss = onDismiss
-        if let conformance = UIViewControllerRepresentableProtocolDescriptor.conformance(of: Destination.self) {
-            self.conformance = conformance
-            let window = PassthroughWindow(windowScene: windowScene)
-            self.window = window
-            update(
-                destination: destination,
-                context: context,
-                isPresented: isPresented
-            )
-        } else {
-            let window = DestinationWindow(
-                windowScene: windowScene,
-                content: destination.modifier(
-                    WindowBridgeAdapter(
-                        presentationCoordinator: PresentationCoordinator(
-                            isPresented: isPresented.wrappedValue,
-                            sourceView: nil,
-                            dismissBlock: { [weak self] in
-                                self?.dismiss($0, $1)
-                            }
-                        ),
-                        transition: transition.value
-                    )
-                )
-            )
-            self.window = window
-        }
-    }
-
-    deinit {
-        if let conformance = conformance {
-            var visitor = Visitor(
-                destination: nil,
-                isPresented: .constant(false),
-                context: nil,
-                adapter: self
-            )
-            conformance.visit(visitor: &visitor)
-        }
+        super.init(content: destination, context: context)
+        let window = PassthroughWindow(windowScene: windowScene)
+        window.rootViewController = viewController
+        self.window = window
     }
 
     func update(
@@ -292,139 +257,58 @@ private class WindowLinkDestinationWindowAdapter<
         context: WindowLinkAdapterBody<Destination>.Context,
         isPresented: Binding<Bool>
     ) {
-        environment = context.environment
         self.isPresented = isPresented
-        if let conformance = conformance {
-            var visitor = Visitor(
-                destination: destination,
-                isPresented: isPresented,
-                context: context,
-                adapter: self
-            )
-            conformance.visit(visitor: &visitor)
-        } else {
-            let window = window as! DestinationWindow
-            window.content = destination.modifier(
-                WindowBridgeAdapter(
-                    presentationCoordinator: PresentationCoordinator(
-                        isPresented: isPresented.wrappedValue,
-                        sourceView: nil,
-                        dismissBlock: { [weak self] in
-                            self?.dismiss($0, $1)
-                        }
-                    ),
-                    transition: transition.value
-                )
-            )
-        }
+        self.environment = context.environment
+        super.updateViewController(content: destination, context: context)
+    }
+
+    override func makeHostingController(
+        content: Destination,
+        context: WindowLinkAdapterBody<Destination>.Context
+    ) -> UIViewController {
+        let modifier = WindowBridgeAdapter(
+            presentationCoordinator: PresentationCoordinator(
+                isPresented: isPresented.wrappedValue,
+                sourceView: nil,
+                dismissBlock: { [weak self] in self?.dismiss($0, $1) }
+            ),
+            transition: transition.value,
+            colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
+        )
+        let hostingController = DestinationController(content: content.modifier(modifier))
+        return hostingController
+    }
+
+    override func updateHostingController(
+        content: Destination,
+        context: WindowLinkAdapterBody<Destination>.Context
+    ) {
+        let modifier = WindowBridgeAdapter(
+            presentationCoordinator: PresentationCoordinator(
+                isPresented: isPresented.wrappedValue,
+                sourceView: nil,
+                dismissBlock: { [weak self] in self?.dismiss($0, $1) }
+            ),
+            transition: transition.value,
+            colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
+        )
+        let hostingController = viewController as! DestinationController
+        hostingController.content = content.modifier(modifier)
+    }
+
+    override func transformViewControllerEnvironment(
+        _ environment: inout EnvironmentValues
+    ) {
+        let presentationCoordinator = PresentationCoordinator(
+            isPresented: isPresented.wrappedValue,
+            sourceView: nil,
+            dismissBlock: { [weak self] in self?.dismiss($0, $1) }
+        )
+        environment.presentationCoordinator = presentationCoordinator
     }
 
     func dismiss(_ count: Int, _ transaction: Transaction) {
         onDismiss(count, transaction)
-    }
-
-    private struct Context<Coordinator> {
-        // Only `UIViewRepresentable` uses V4
-        struct V4 {
-            struct RepresentableContextValues {
-                enum EnvironmentStorage {
-                    case eager(EnvironmentValues)
-                    case lazy(() -> EnvironmentValues)
-                }
-                var preferenceBridge: AnyObject?
-                var transaction: Transaction
-                var environmentStorage: EnvironmentStorage
-            }
-
-            var values: RepresentableContextValues
-            var coordinator: Coordinator
-
-            var environment: EnvironmentValues {
-                get {
-                    switch values.environmentStorage {
-                    case .eager(let environment):
-                        return environment
-                    case .lazy(let block):
-                        return block()
-                    }
-                }
-                set {
-                    values.environmentStorage = .eager(newValue)
-                }
-            }
-        }
-
-        struct V1 {
-            var coordinator: Coordinator
-            var transaction: Transaction
-            var environment: EnvironmentValues
-            var preferenceBridge: AnyObject?
-        }
-    }
-
-    @MainActor
-    private struct Visitor: @preconcurrency ViewVisitor {
-        nonisolated(unsafe) var destination: Destination?
-        nonisolated(unsafe) var isPresented: Binding<Bool>
-        nonisolated(unsafe) var context: WindowLinkAdapterBody<Destination>.Context?
-        nonisolated(unsafe) var adapter: WindowLinkDestinationWindowAdapter<Destination>
-
-        mutating func visit<Content>(type: Content.Type) where Content: UIViewControllerRepresentable {
-            guard
-                let destination = destination.map({ unsafeBitCast($0, to: Content.self) }),
-                let context = context
-            else {
-                if let context = adapter.context, let viewController = adapter.window.rootViewController as? Content.UIViewControllerType {
-                    func project<T>(_ value: T) {
-                        let coordinator = unsafeBitCast(value, to: Content.Context.self).coordinator
-                        Content.dismantleUIViewController(viewController, coordinator: coordinator)
-                    }
-                    _openExistential(context, do: project)
-                }
-                return
-            }
-            if adapter.context == nil {
-                let coordinator = destination.makeCoordinator()
-                let preferenceBridge: AnyObject?
-                if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) {
-                    preferenceBridge = unsafeBitCast(
-                        context,
-                        to: Context<WindowLinkAdapterBody<Destination>.Coordinator>.V4.self
-                    ).values.preferenceBridge
-                } else {
-                    preferenceBridge = unsafeBitCast(
-                        context,
-                        to: Context<WindowLinkAdapterBody<Destination>.Coordinator>.V1.self
-                    ).preferenceBridge
-                }
-                let context = Context<Content.Coordinator>.V1(
-                    coordinator: coordinator,
-                    transaction: context.transaction,
-                    environment: context.environment,
-                    preferenceBridge: preferenceBridge
-                )
-                adapter.context = unsafeBitCast(context, to: Content.Context.self)
-            }
-            func project<T>(_ value: T) -> Content.Context {
-                let presentationCoordinator = PresentationCoordinator(
-                    isPresented: isPresented.wrappedValue,
-                    sourceView: nil,
-                    dismissBlock: { [weak adapter] in
-                        adapter?.dismiss($0, $1)
-                    }
-                )
-                var ctx = unsafeBitCast(value, to: Context<Content.Coordinator>.V1.self)
-                ctx.environment.presentationCoordinator = presentationCoordinator
-                return unsafeBitCast(ctx, to: Content.Context.self)
-            }
-            let ctx = _openExistential(adapter.context!, do: project)
-            if adapter.window?.rootViewController == nil {
-                let viewController = destination.makeUIViewController(context: ctx)
-                adapter.window?.rootViewController = viewController
-            }
-            let viewController = adapter.window.rootViewController as! Content.UIViewControllerType
-            destination.updateUIViewController(viewController, context: ctx)
-        }
     }
 }
 

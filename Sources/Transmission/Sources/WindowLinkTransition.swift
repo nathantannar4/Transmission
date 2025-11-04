@@ -149,15 +149,18 @@ extension WindowLinkTransition {
     /// The transition options.
     @frozen
     public struct Options: Sendable {
+        public var preferredPresentationColorScheme: ColorScheme?
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
 
         public init(
+            preferredPresentationColorScheme: ColorScheme? = nil,
             isDestinationReusable: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true
         ) {
+            self.preferredPresentationColorScheme = preferredPresentationColorScheme
             self.isDestinationReusable = isDestinationReusable
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
         }
@@ -326,10 +329,16 @@ extension WindowLinkTransition.Value {
 struct WindowBridgeAdapter: ViewModifier {
     var presentationCoordinator: PresentationCoordinator
     var transition: WindowLinkTransition.Value
+    var colorScheme: ColorScheme
 
     func body(content: Content) -> some View {
         content
-            .modifier(PresentationBridgeAdapter(presentationCoordinator: presentationCoordinator))
+            .modifier(
+                PresentationBridgeAdapter(
+                    presentationCoordinator: presentationCoordinator,
+                    colorScheme: colorScheme
+                )
+            )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: transition.toSwiftUIAlignment() ?? .center)
     }
 }
