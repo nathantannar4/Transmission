@@ -370,7 +370,7 @@ extension PresentationLinkTransition {
                         return .fullScreen() ?? .large()
                     }
                     let idealResolution: @MainActor (UIPresentationController) -> CGFloat = { presentationController in
-                        let scale = presentationController.presentedViewController.view.window?.screen.scale ?? 1.0
+                        let scale = presentationController.presentedView?.window?.screen.scale ?? 1.0
                         guard let containerView = presentationController.containerView else {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height
                             return idealHeight.rounded(scale: scale)
@@ -502,6 +502,7 @@ extension PresentationLinkTransition {
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
         public var prefersPageSizing: Bool
         public var prefersZoomTransition: Bool
+        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
             selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
@@ -516,6 +517,7 @@ extension PresentationLinkTransition {
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
             prefersPageSizing: Bool = false,
             prefersZoomTransition: Bool = false,
+            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
             options: Options = .init()
         ) {
             self.options = options
@@ -542,6 +544,7 @@ extension PresentationLinkTransition {
             self.widthFollowsPreferredContentSizeWhenEdgeAttached = widthFollowsPreferredContentSizeWhenEdgeAttached
             self.prefersPageSizing = prefersPageSizing
             self.prefersZoomTransition = prefersZoomTransition
+            self.hapticsStyle = hapticsStyle
         }
     }
 
@@ -660,6 +663,7 @@ extension PresentationLinkTransition {
         prefersGrabberVisible: Bool = false,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         prefersZoomTransition: Bool = false,
+        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
@@ -671,6 +675,7 @@ extension PresentationLinkTransition {
                     prefersGrabberVisible: prefersGrabberVisible,
                     preferredCornerRadius: preferredCornerRadius,
                     prefersZoomTransition: prefersZoomTransition,
+                    hapticsStyle: hapticsStyle,
                     options: .init(
                         isInteractive: isInteractive,
                         preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
@@ -721,6 +726,7 @@ extension PresentationLinkTransition {
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
         prefersZoomTransition: Bool = false,
+        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
@@ -733,6 +739,7 @@ extension PresentationLinkTransition {
                     prefersGrabberVisible: prefersGrabberVisible,
                     preferredCornerRadius: preferredCornerRadius,
                     prefersZoomTransition: prefersZoomTransition,
+                    hapticsStyle: hapticsStyle,
                     options: .init(
                         isInteractive: isInteractive,
                         preferredPresentationBackgroundColor: preferredPresentationBackgroundColor

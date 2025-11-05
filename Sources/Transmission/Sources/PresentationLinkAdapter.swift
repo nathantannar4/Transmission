@@ -126,17 +126,19 @@ private struct PresentationLinkAdapterBody<
 
             context.coordinator.isPresented = isPresented
 
-            let traits = UITraitCollection(traitsFrom: [
-                UITraitCollection(userInterfaceStyle: .init(transition.value.options.preferredPresentationColorScheme ?? context.environment.colorScheme)),
-                UITraitCollection(userInterfaceLevel: .elevated),
-            ])
+            let traits = UITraitCollection(
+                traitsFrom: [
+                    UITraitCollection(userInterfaceStyle: .init(transition.value.options.preferredPresentationColorScheme)),
+                    UITraitCollection(userInterfaceLevel: .elevated),
+                ]
+            )
             if let environment = presentingViewController.traitCollection.value(forKey: "_environmentWrapper") {
                 traits.setValue(environment, forKey: "_environmentWrapper")
             }
 
             var isAnimated = context.transaction.isAnimated
                 || presentingViewController.transitionCoordinator?.isAnimated == true
-                || (try? swift_getFieldValue("transaction", Transaction.self, presentingViewController))?.isAnimated == true
+                || (try? swift_getFieldValue("transaction", Transaction?.self, presentingViewController))?.isAnimated == true
             let animation = context.transaction.animation
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
@@ -502,7 +504,7 @@ private struct PresentationLinkAdapterBody<
             }
         }
 
-        var isZoomTransitionDismissReady = false
+        var isTransitionDismissReady = false
         var feedbackGenerator: UIImpactFeedbackGenerator?
 
         weak var presentationController: UIPresentationController?
@@ -1003,8 +1005,11 @@ private struct PresentationLinkAdapterBody<
             #if !targetEnvironment(macCatalyst)
             if #available(iOS 15.0, *) {
                 if let sheetPresentationController = presentationController as? SheetPresentationController {
-                    transitionCoordinator?.animate(alongsideTransition: { _ in
-                        self.sheetPresentationControllerDidChangeSelectedDetentIdentifier(sheetPresentationController)
+                    transitionCoordinator?.animate(alongsideTransition: { [weak self] _ in
+                        self?.sheetPresentationControllerDidChangeSelectedDetentIdentifier(sheetPresentationController)
+                    }, completion: { [weak self] ctx in
+                        guard !ctx.isCancelled, let self, let panGesture = sheetPresentationController.panGesture else { return }
+                        panGesture.addTarget(self, action: #selector(Coordinator.sheetPanGestureDidChange(_:)))
                     })
                 }
             }
@@ -1071,33 +1076,53 @@ private struct PresentationLinkAdapterBody<
 
         @objc
         func zoomPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
-            zoomGestureDidChange(panGesture: panGesture, isDismiss: true)
+            gestureDidChange(panGesture: panGesture, isDismiss: true)
         }
 
         @objc
         func zoomEdgePanGestureDidChange(_ edgePanGesture: UIScreenEdgePanGestureRecognizer) {
-            zoomGestureDidChange(panGesture: edgePanGesture, isDismiss: false)
+            gestureDidChange(panGesture: edgePanGesture, isDismiss: false)
         }
 
-        private func zoomGestureDidChange(
+        private func gestureDidChange(
             panGesture: UIPanGestureRecognizer,
             isDismiss: Bool
         ) {
+            let threshold = isDismiss ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
+            gestureDidChange(panGesture: panGesture, isDismiss: isDismiss, threshold: threshold)
+        }
+
+        // MARK: - Sheet Transition
+
+        @objc
+        func sheetPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
+            guard let view = panGesture.view else { return }
+            let threshold = view.bounds.height / 2
+            gestureDidChange(panGesture: panGesture, isDismiss: true, threshold: threshold)
+        }
+
+        private func gestureDidChange(
+            panGesture: UIPanGestureRecognizer,
+            isDismiss: Bool,
+            threshold: CGFloat
+        ) {
             switch panGesture.state {
             case .ended, .cancelled:
-                isZoomTransitionDismissReady = false
+                isTransitionDismissReady = false
                 feedbackGenerator = nil
             default:
-                guard
-                    case .zoom(let options) = adapter?.transition,
-                    let hapticsStyle = options.hapticsStyle,
-                    let view = panGesture.view
-                else {
-                    return
+                var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
+                switch adapter?.transition {
+                case .zoom(let options):
+                    hapticsStyle = options.hapticsStyle
+                case .sheet(let options):
+                    hapticsStyle = options.hapticsStyle
+                default:
+                    break
                 }
+                guard let hapticsStyle, let view = panGesture.view else { return }
                 let velocity = isDismiss ? panGesture.velocity(in: view).y : panGesture.velocity(in: view).x
                 let translation = isDismiss ? panGesture.translation(in: view).y : panGesture.translation(in: view).x
-                let threshold = isDismiss ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
                 func impactOccurred(
                     intensity: CGFloat,
                     location: @autoclosure () -> CGPoint
@@ -1118,13 +1143,13 @@ private struct PresentationLinkAdapterBody<
                     }
                     feedbackGenerator.prepare()
                     self.feedbackGenerator = feedbackGenerator
-                } else if !isZoomTransitionDismissReady, translation >= threshold, velocity >= 0 {
-                    isZoomTransitionDismissReady = true
+                } else if !isTransitionDismissReady, translation >= threshold, velocity >= 0 {
+                    isTransitionDismissReady = true
                     impactOccurred(intensity: 1, location: panGesture.location(in: view))
-                } else if isZoomTransitionDismissReady, translation < threshold, velocity < 0
+                } else if isTransitionDismissReady, translation < threshold, velocity < 0
                 {
                     impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
-                    isZoomTransitionDismissReady = false
+                    isTransitionDismissReady = false
                 }
             }
         }
@@ -1209,8 +1234,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
-            ),
-            colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
+            )
         )
         let hostingController = DestinationController(content: content.modifier(modifier))
         transition.update(
@@ -1234,8 +1258,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
-            ),
-            colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
+            )
         )
         let hostingController = viewController as! DestinationController
         hostingController.update(content: content.modifier(modifier), transaction: context.transaction)

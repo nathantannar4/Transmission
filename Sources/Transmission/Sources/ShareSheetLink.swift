@@ -8,12 +8,14 @@ import SwiftUI
 import Engine
 import UniformTypeIdentifiers
 import LinkPresentation
+import Photos
 
 /// A protocol that defines an interface for creating activities for a `UIActivityViewController`
 ///
 /// > Important: Conforming types should be a struct or an enum
 ///
 @available(iOS 14.0, *)
+@MainActor @preconcurrency
 public protocol ShareSheetItemProvider {
     /// The `UIActivityItemSource` representation of the provider
     func makeUIActivityItemSource(context: Context) -> UIActivityItemSource
@@ -307,13 +309,13 @@ extension URL: ShareSheetItemProvider {
         context: ShareSheetItemProviderContext
     ) -> UIActivity? {
         let title = Text("Safari").resolve(in: context.environment)
-        return Activity(title: title)
+        return OpenURLActivity(title: title)
     }
 
-    private class Activity: UIActivity {
+    private class OpenURLActivity: UIActivity {
 
         var title: String
-        var items: [Any] = []
+        var urls: [URL] = []
 
         init(title: String) {
             self.title = title
@@ -331,7 +333,11 @@ extension URL: ShareSheetItemProvider {
             UIImage(systemName: "safari")
         }
 
-        public override func canPerform(withActivityItems activityItems: [Any]) -> Bool {
+        override class var activityCategory: UIActivity.Category {
+            .action
+        }
+
+        override func canPerform(withActivityItems activityItems: [Any]) -> Bool {
             for item in activityItems {
                 if let url = item as? URL {
                     return MainActor.assumeIsolated {
@@ -342,28 +348,26 @@ extension URL: ShareSheetItemProvider {
             return false
         }
 
-        public override func prepare(withActivityItems activityItems: [Any]) {
-            items = activityItems
+        override func prepare(withActivityItems activityItems: [Any]) {
+            urls = activityItems.compactMap { $0 as? URL }
         }
 
         private func openURL(checksCanOpenURL: Bool) -> Bool {
-            for item in items {
-                if let url = item as? URL {
-                    let canOpen = MainActor.assumeIsolated {
-                        UIApplication.shared.canOpenURL(url)
+            for url in urls {
+                let canOpen = MainActor.assumeIsolated {
+                    UIApplication.shared.canOpenURL(url)
+                }
+                if (!checksCanOpenURL || canOpen) {
+                    MainActor.assumeIsolated {
+                        UIApplication.shared.open(url)
                     }
-                    if (!checksCanOpenURL || canOpen) {
-                        MainActor.assumeIsolated {
-                            UIApplication.shared.open(url)
-                        }
-                        return true
-                    }
+                    return true
                 }
             }
             return false
         }
 
-        public override func perform() {
+        override func perform() {
             var didOpen = openURL(checksCanOpenURL: true)
             if !didOpen {
                 didOpen = openURL(checksCanOpenURL: false)
@@ -462,6 +466,7 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
         private let label: String
         private let provider: SnapshotRenderProvider
 
+        @MainActor
         init(label: String, content: Content) {
             self.label = label
             self.provider = SnapshotRenderProvider(content: content)
@@ -470,21 +475,21 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
         func activityViewControllerPlaceholderItem(
             _ activityViewController: UIActivityViewController
         ) -> Any {
-            label
+            return UIImage()
         }
 
         func activityViewController(
             _ activityViewController: UIActivityViewController,
             itemForActivityType activityType: UIActivity.ActivityType?
         ) -> Any? {
-            return provider
+            return provider.image
         }
 
         func activityViewController(
             _ activityViewController: UIActivityViewController,
             subjectForActivityType activityType: UIActivity.ActivityType?
         ) -> String {
-            label
+            return label
         }
 
         func activityViewControllerLinkMetadata(
@@ -500,18 +505,21 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
             _ activityViewController: UIActivityViewController,
             dataTypeIdentifierForActivityType activityType: UIActivity.ActivityType?
         ) -> String {
-            UTType.image.identifier
+            UTType.png.identifier
         }
 
         private class SnapshotRenderProvider: NSObject, NSItemProviderWriting, @unchecked Sendable {
-            let content: Content
+            let renderer: SnapshotRenderer<Content>
 
+            var image: UIImage?
+
+            @MainActor
             init(content: Content) {
-                self.content = content
+                self.renderer = SnapshotRenderer(content: content)
             }
 
             static var writableTypeIdentifiersForItemProvider: [String] {
-                UIImage.writableTypeIdentifiersForItemProvider
+                [UTType.png.identifier]
             }
 
             func loadData(
@@ -519,11 +527,11 @@ public struct SnapshotItemProvider<Content: View>: ShareSheetItemProvider {
                 forItemProviderCompletionHandler completionHandler: @escaping @Sendable (Data?, Error?) -> Void
             ) -> Progress? {
                 DispatchQueue.main.async { [self] in
-                    let renderer = SnapshotRenderer(content: content)
                     guard let image = renderer.uiImage else {
                         completionHandler(nil, nil)
                         return
                     }
+                    self.image = image
                     image.loadData(withTypeIdentifier: typeIdentifier) { data, error in
                         completionHandler(data, error)
                     }

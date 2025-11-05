@@ -249,6 +249,7 @@ private class WindowLinkDestinationWindowAdapter<
         super.init(content: destination, context: context)
         let window = PassthroughWindow(windowScene: windowScene)
         window.rootViewController = viewController
+        window.overrideUserInterfaceStyle = .init(transition.options.preferredPresentationColorScheme)
         self.window = window
     }
 
@@ -259,6 +260,7 @@ private class WindowLinkDestinationWindowAdapter<
     ) {
         self.isPresented = isPresented
         self.environment = context.environment
+        self.window.overrideUserInterfaceStyle = .init(transition.options.preferredPresentationColorScheme)
         super.updateViewController(content: destination, context: context)
     }
 
@@ -272,8 +274,7 @@ private class WindowLinkDestinationWindowAdapter<
                 sourceView: nil,
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
             ),
-            transition: transition.value,
-            colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
+            transition: transition.value
         )
         let hostingController = DestinationController(content: content.modifier(modifier))
         return hostingController
@@ -289,8 +290,7 @@ private class WindowLinkDestinationWindowAdapter<
                 sourceView: nil,
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
             ),
-            transition: transition.value,
-            colorScheme: transition.options.preferredPresentationColorScheme ?? context.environment.colorScheme
+            transition: transition.value
         )
         let hostingController = viewController as! DestinationController
         hostingController.content = content.modifier(modifier)

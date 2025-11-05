@@ -127,7 +127,7 @@ private struct DestinationLinkAdapterBody<
 
             let isAnimated = context.transaction.isAnimated
                 || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
-                || (try? swift_getFieldValue("transaction", Transaction.self, presentingViewController))?.isAnimated == true
+                || (try? swift_getFieldValue("transaction", Transaction?.self, presentingViewController))?.isAnimated == true
             let animation = context.transaction.animation
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
@@ -710,7 +710,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             if isInterruptedInteractiveTransition || !shouldFinish {
                 targetVelocity = -targetVelocity
             }
-            var dx = delta != 0 ? targetVelocity / delta : 0
+            var dx = delta >= 1 ? targetVelocity / delta : 0
             if dx < 0 {
                 dx = max(dx, -25)
             } else {
@@ -1141,6 +1141,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
         self.onPop = onPop
         self.navigationController = navigationController
         super.init(content: destination, context: context)
+        self.viewController.overrideUserInterfaceStyle = .init(transition.options.preferredPresentationColorScheme)
     }
 
     func update(
@@ -1150,6 +1151,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
     ) {
         self.isPresented = isPresented
         self.environment = context.environment
+        self.viewController.overrideUserInterfaceStyle = .init(transition.options.preferredPresentationColorScheme)
         super.updateViewController(content: destination, context: context)
     }
 

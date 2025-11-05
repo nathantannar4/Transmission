@@ -63,6 +63,7 @@ extension DestinationLinkTransition {
         public var prefersPanGesturePop: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
+        public var preferredPresentationColorScheme: ColorScheme?
         public var preferredPresentationBackgroundColor: Color?
         public var isNavigationBarHidden: Bool?
         public var hidesBottomBarWhenPushed: Bool
@@ -72,6 +73,7 @@ extension DestinationLinkTransition {
             isInteractive: Bool = true,
             prefersPanGesturePop: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
+            preferredPresentationColorScheme: ColorScheme? = nil,
             preferredPresentationBackgroundColor: Color? = nil,
             isNavigationBarHidden: Bool? = nil,
             hidesBottomBarWhenPushed: Bool = false,
@@ -80,6 +82,7 @@ extension DestinationLinkTransition {
             self.isInteractive = isInteractive
             self.prefersPanGesturePop = prefersPanGesturePop
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
+            self.preferredPresentationColorScheme = preferredPresentationColorScheme
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
             self.isNavigationBarHidden = isNavigationBarHidden
             self.hidesBottomBarWhenPushed = hidesBottomBarWhenPushed
@@ -87,7 +90,12 @@ extension DestinationLinkTransition {
         }
 
         var preferredPresentationBackgroundUIColor: UIColor? {
-            preferredPresentationBackgroundColor?.toUIColor()
+            switch preferredPresentationBackgroundColor {
+            case .clear:
+                return .clear
+            default:
+                return preferredPresentationBackgroundColor?.toUIColor()
+            }
         }
     }
 

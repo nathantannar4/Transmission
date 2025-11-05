@@ -335,7 +335,7 @@ open class SheetPresentationController: UISheetPresentationController {
 
     private func updatePresentedViewInset() {
         if #available(iOS 26.0, *) {
-            let isDisabled = preferredPresentationSafeAreaInsets.map { $0 == .zero } ?? (preferredBackgroundColor?.alpha == 0)
+            let isDisabled = preferredPresentationSafeAreaInsets == .zero
             // disableSolariumInsets
             let aSelectorDisableSolariumInsets = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz")
             if let aSelectorDisableSolariumInsets, responds(to: NSSelectorFromString("_" + aSelectorDisableSolariumInsets)) {

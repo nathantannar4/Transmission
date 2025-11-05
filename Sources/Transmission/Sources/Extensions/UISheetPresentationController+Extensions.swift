@@ -132,6 +132,18 @@ extension UISheetPresentationController {
             return maximumDetentValue - 10
         }
     }
+
+    var panGesture: UIPanGestureRecognizer? {
+        // _UISheetInteractionBackgroundDismissRecognizer
+        guard
+            let gestures = presentedView?.gestureRecognizers,
+            let name = NSStringFromBase64EncodedString("X1VJU2hlZXRJbnRlcmFjdGlvbkJhY2tncm91bmREaXNtaXNzUmVjb2duaXplcg=="),
+            let gesture = gestures.first(where: { $0.name == name }) as? UIPanGestureRecognizer
+        else {
+            return nil
+        }
+        return gesture
+    }
 }
 
 

@@ -329,14 +329,12 @@ extension WindowLinkTransition.Value {
 struct WindowBridgeAdapter: ViewModifier {
     var presentationCoordinator: PresentationCoordinator
     var transition: WindowLinkTransition.Value
-    var colorScheme: ColorScheme
 
     func body(content: Content) -> some View {
         content
             .modifier(
                 PresentationBridgeAdapter(
-                    presentationCoordinator: presentationCoordinator,
-                    colorScheme: colorScheme
+                    presentationCoordinator: presentationCoordinator
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: transition.toSwiftUIAlignment() ?? .center)

@@ -28,6 +28,7 @@ extension PresentationLinkTransition {
     public static func toast(
         edge: Edge = .bottom,
         preferredCornerRadius: CornerRadiusOptions? = nil,
+        insetSafeAreaByCornerRadius: Bool = true,
         preferredPresentationShadow: ShadowOptions? = nil,
         isInteractive: Bool = true,
         preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
@@ -37,7 +38,8 @@ extension PresentationLinkTransition {
             .init(
                 edge: edge,
                 preferredCornerRadius: preferredCornerRadius,
-                preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .minimal)
+                insetSafeAreaByCornerRadius: insetSafeAreaByCornerRadius,
+                preferredPresentationShadow: preferredPresentationShadow,
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -58,15 +60,18 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
 
         public var edge: Edge
         public var preferredCornerRadius: CornerRadiusOptions?
-        public var preferredPresentationShadow: ShadowOptions
+        public var insetSafeAreaByCornerRadius: Bool
+        public var preferredPresentationShadow: ShadowOptions?
 
         public init(
             edge: Edge = .bottom,
             preferredCornerRadius: CornerRadiusOptions? = nil,
-            preferredPresentationShadow: ShadowOptions = .minimal
+            insetSafeAreaByCornerRadius: Bool = true,
+            preferredPresentationShadow: ShadowOptions? = nil,
         ) {
             self.edge = edge
             self.preferredCornerRadius = preferredCornerRadius
+            self.insetSafeAreaByCornerRadius = insetSafeAreaByCornerRadius
             self.preferredPresentationShadow = preferredPresentationShadow
         }
     }
@@ -84,7 +89,6 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
     ) -> ToastPresentationController {
         let presentationController = ToastPresentationController(
             edge: options.edge,
-            preferredCornerRadius: options.preferredCornerRadius,
             presentedViewController: presented,
             presenting: presenting
         )
@@ -96,8 +100,9 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) {
         presentationController.edge = options.edge
+        presentationController.insetSafeAreaByCornerRadius = options.insetSafeAreaByCornerRadius
         presentationController.preferredCornerRadius = options.preferredCornerRadius
-        presentationController.presentedViewShadow = options.preferredPresentationShadow
+        presentationController.presentedViewShadow = options.preferredPresentationShadow ?? .minimal
         presentationController.preferredSafeAreaInsets = context.options.preferredPresentationSafeAreaInsets?.resolve(in: context.environment)
     }
 

@@ -56,7 +56,11 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
             onDidMoveToWindow: { viewController in
-                context.coordinator.presentingViewController = viewController
+                var parent = viewController
+                while let next = parent?.parent {
+                    parent = next
+                }
+                context.coordinator.presentingViewController = parent
             }
         )
         return uiView

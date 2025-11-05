@@ -25,7 +25,7 @@ struct WindowLinkExamples: View {
         case .move:
             return .move(edge: .bottom).combined(with: .opacity)
         case .scale:
-            return .scale(0.8).combined(with: .opacity)
+            return .scale(scale: 0.8).combined(with: .opacity)
         }
     }
 

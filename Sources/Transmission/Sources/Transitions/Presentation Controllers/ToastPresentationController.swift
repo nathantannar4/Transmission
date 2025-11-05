@@ -27,7 +27,16 @@ open class ToastPresentationController: InteractivePresentationController {
     public var preferredCornerRadius: CornerRadiusOptions? {
         didSet {
             guard oldValue != preferredCornerRadius else { return }
-            setCornerRadius()
+            cornerRadiusDidChange()
+            containerView?.setNeedsLayout()
+        }
+    }
+
+    public var insetSafeAreaByCornerRadius: Bool = true {
+        didSet {
+            guard insetSafeAreaByCornerRadius != oldValue else { return }
+            cornerRadiusDidChange()
+            containerView?.setNeedsLayout()
         }
     }
 
@@ -41,12 +50,19 @@ open class ToastPresentationController: InteractivePresentationController {
     open override var frameOfPresentedViewInContainerView: CGRect {
         var insets = preferredSafeAreaInsets ?? containerView?.layoutMargins ?? .zero
         insets.bottom = max(insets.bottom, keyboardHeight + (insets.bottom - ((preferredSafeAreaInsets ?? containerView?.safeAreaInsets)?.bottom ?? 0)))
+        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius(for: 0) ?? 0 / 2).rounded(scale: containerView?.window?.screen.scale ?? 1) : 0
         var frame = super.frameOfPresentedViewInContainerView
             .inset(by: insets)
+            .insetBy(dx: inset, dy: 0)
 
-        var sizeThatFits = presentedView?.idealSize(for: frame.width) ?? .zero
-        if sizeThatFits == .zero {
-            sizeThatFits = presentedViewController.view.idealSize(for: frame.width)
+        var fittingWidth = frame.width
+        if presentedView?.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
+            fittingWidth -= (2 * inset)
+        }
+        var sizeThatFits = presentedView?.idealSize(for: fittingWidth) ?? .zero
+        if presentedView?.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
+            sizeThatFits.height += (2 * inset)
+            sizeThatFits.width += (2 * inset)
         }
         sizeThatFits.height = min(sizeThatFits.height, frame.height)
         frame.origin.x = frame.midX - sizeThatFits.width / 2
@@ -62,12 +78,10 @@ open class ToastPresentationController: InteractivePresentationController {
 
     public init(
         edge: Edge = .top,
-        preferredCornerRadius: CornerRadiusOptions? = nil,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
         self.edge = edge
-        self.preferredCornerRadius = preferredCornerRadius
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
@@ -75,19 +89,22 @@ open class ToastPresentationController: InteractivePresentationController {
         edges = Edge.Set(edge)
     }
 
-    open override func containerViewDidLayoutSubviews() {
-        super.containerViewDidLayoutSubviews()
-        setCornerRadius()
+    private func cornerRadiusDidChange() {
+        let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
+        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
+            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
+        }
     }
 
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
-        .zero
-    }
-
-    private func setCornerRadius() {
-        guard let presentedView else { return }
-        let cornerRadius = preferredCornerRadius ?? .identity
-        cornerRadius.apply(to: presentedView.layer, height: presentedView.bounds.height)
+        let additionalSafeAreaInsets = super.presentedViewAdditionalSafeAreaInsets()
+        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius(for: 0) ?? 0 / 2).rounded(scale: containerView?.window?.screen.scale ?? 1) : 0
+        var edgeInsets = additionalSafeAreaInsets
+        edgeInsets.top = max(edgeInsets.top, inset)
+        edgeInsets.left = max(edgeInsets.left, inset)
+        edgeInsets.right = max(edgeInsets.right, inset)
+        edgeInsets.bottom = max(edgeInsets.bottom, inset)
+        return edgeInsets
     }
 }
 
