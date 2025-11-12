@@ -134,6 +134,7 @@ private struct DestinationLinkAdapterBody<
 
             let sourceView = uiView.hostingView ?? uiView
             if let adapter = context.coordinator.adapter {
+                adapter.transition = transition.value
                 adapter.update(
                     destination: destination,
                     context: context,
