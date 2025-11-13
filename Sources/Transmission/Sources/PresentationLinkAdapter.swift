@@ -1034,14 +1034,22 @@ private struct PresentationLinkAdapterBody<
                         selected.wrappedValue = newValue
                     }
                     if #available(iOS 26.0, *) {
-                        let backgroundColor = options.options.preferredPresentationBackgroundUIColor ?? .systemBackground
+                        var backgroundColor = options.options.preferredPresentationBackgroundUIColor ?? .systemBackground
                         switch newValue {
                         case .large, .fullScreen:
-                            sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
+                            break
                         default:
                             guard let maximumDetentValue = sheetPresentationController.maximumDetentValue else { return }
                             let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
-                            sheetPresentationController.presentedViewController.view.backgroundColor = isClear ? .clear : backgroundColor
+                            backgroundColor = isClear ? .clear : backgroundColor
+                        }
+
+                        if sheetPresentationController.panGesture?.state == .ended {
+                            sheetPresentationController.animateChanges {
+                                sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
+                            }
+                        } else {
+                            sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
                         }
                     }
                 }
