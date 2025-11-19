@@ -272,6 +272,7 @@ private class WindowLinkDestinationWindowAdapter<
             presentationCoordinator: PresentationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: nil,
+                seed: unsafeBitCast(self, to: UInt.self),
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
             ),
             transition: transition.value
@@ -288,6 +289,7 @@ private class WindowLinkDestinationWindowAdapter<
             presentationCoordinator: PresentationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: nil,
+                seed: unsafeBitCast(self, to: UInt.self),
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
             ),
             transition: transition.value
@@ -302,6 +304,7 @@ private class WindowLinkDestinationWindowAdapter<
         let presentationCoordinator = PresentationCoordinator(
             isPresented: isPresented.wrappedValue,
             sourceView: nil,
+            seed: unsafeBitCast(self, to: UInt.self),
             dismissBlock: { [weak self] in self?.dismiss($0, $1) }
         )
         environment.presentationCoordinator = presentationCoordinator

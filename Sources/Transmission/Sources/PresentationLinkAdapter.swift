@@ -1241,6 +1241,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             presentationCoordinator: PresentationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
+                seed: unsafeBitCast(self, to: UInt.self),
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
             )
         )
@@ -1265,6 +1266,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             presentationCoordinator: PresentationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
+                seed: unsafeBitCast(self, to: UInt.self),
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
             )
         )
@@ -1287,6 +1289,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
         let presentationCoordinator = PresentationCoordinator(
             isPresented: isPresented.wrappedValue,
             sourceView: sourceView,
+            seed: unsafeBitCast(self, to: UInt.self),
             dismissBlock: { [weak self] in self?.dismiss($0, $1) }
         )
         environment.presentationCoordinator = presentationCoordinator

@@ -388,6 +388,9 @@ private struct DestinationLinkAdapterBody<
             if !isPushing, navigationController.interactivePopGestureRecognizer?.isInteracting == true {
                 sourceView?.alpha = 1
             }
+            if !isPushing {
+                navigationController.setNeedsStatusBarAppearanceUpdate(animated: animated, transitionAlongsideCoordinator: false)
+            }
         }
 
         func navigationController(
@@ -1164,6 +1167,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
             destinationCoordinator: DestinationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
+                seed: unsafeBitCast(self, to: UInt.self),
                 dismissBlock: { [weak self] in self?.pop($0, $1) }
             )
         )
@@ -1188,6 +1192,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
             destinationCoordinator: DestinationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
+                seed: unsafeBitCast(self, to: UInt.self),
                 dismissBlock: { [weak self] in self?.pop($0, $1) }
             )
         )
@@ -1210,6 +1215,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
         let destinationCoordinator = DestinationCoordinator(
             isPresented: isPresented.wrappedValue,
             sourceView: sourceView,
+            seed: unsafeBitCast(self, to: UInt.self),
             dismissBlock: { [weak self] in self?.pop($0, $1) }
         )
         environment.destinationCoordinator = destinationCoordinator

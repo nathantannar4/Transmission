@@ -137,7 +137,7 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
 
 extension UIViewController {
 
-    func setNeedsStatusBarAppearanceUpdate(animated: Bool) {
+    func setNeedsStatusBarAppearanceUpdate(animated: Bool, transitionAlongsideCoordinator: Bool = true) {
         let update: () -> Void = {
             self.setNeedsStatusBarAppearanceUpdate()
             let presentingWindow = self.view.window
@@ -146,7 +146,11 @@ extension UIViewController {
             }
         }
 
-        if animated {
+        if transitionAlongsideCoordinator, let transitionCoordinator {
+            transitionCoordinator.animate { _ in
+                update()
+            }
+        } else if animated {
             UIView.animate(withDuration: 0.15, animations: update)
         } else {
             update()
