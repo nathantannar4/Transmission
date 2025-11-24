@@ -14,7 +14,7 @@ import Engine
 ///
 @available(iOS 14.0, *)
 @frozen
-public struct DestinationCoordinator: @unchecked Sendable {
+public struct DestinationCoordinator: Equatable, @unchecked Sendable {
     public var isPresented: Bool
 
     public weak var sourceView: UIView?
@@ -22,12 +22,15 @@ public struct DestinationCoordinator: @unchecked Sendable {
     @usableFromInline
     var dismissBlock: @MainActor (Int, Transaction) -> Void
 
-    @inlinable
+    @usableFromInline
+    var seed: UInt
+
     public init(
         isPresented: Bool,
         dismiss: @MainActor @escaping (Transaction) -> Void
     ) {
         self.isPresented = isPresented
+        self.seed = Seed.generate()
         self.dismissBlock = { count, transaction in
             assert(count == 1, "custom DestinationCoordinator only supports dismissing one view at a time")
             dismiss(transaction)
@@ -38,10 +41,12 @@ public struct DestinationCoordinator: @unchecked Sendable {
     init(
         isPresented: Bool,
         sourceView: UIView?,
+        seed: UInt,
         dismissBlock: @MainActor @escaping (Int, Transaction) -> Void
     ) {
         self.isPresented = isPresented
         self.sourceView = sourceView
+        self.seed = seed
         self.dismissBlock = dismissBlock
     }
 
@@ -85,6 +90,10 @@ public struct DestinationCoordinator: @unchecked Sendable {
     @inlinable
     public func pop(count: Int, transaction: Transaction) {
         dismissBlock(count, transaction)
+    }
+
+    public static func == (lhs: DestinationCoordinator, rhs: DestinationCoordinator) -> Bool {
+        return lhs.isPresented == rhs.isPresented && lhs.seed == rhs.seed
     }
 }
 

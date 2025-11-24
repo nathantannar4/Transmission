@@ -5,12 +5,13 @@
 #if os(iOS)
 
 import SwiftUI
+import Engine
 
 open class PresentationHostingWindowController<Content: View>: UIViewController {
 
     public var content: Content {
-        get { host.content }
-        set { host.content = newValue }
+        get { hostingController.content }
+        set { hostingController.content = newValue }
     }
 
     open override var preferredStatusBarStyle: UIStatusBarStyle {
@@ -62,14 +63,11 @@ open class PresentationHostingWindowController<Content: View>: UIViewController 
         return parentViewController
     }
 
-    private let host: HostingView<Content>
+    private let hostingController: HostingController<Content>
 
     public init(content: Content) {
-        // Use a `HostingView` rather than `HostingController` so to utilize `HostingView`'s
-        // hitTest override to allow touches to pass through.
-        self.host = HostingView(content: content)
+        self.hostingController = HostingController(content: content)
         super.init(nibName: nil, bundle: nil)
-        host.isHitTestingPassthrough = true
     }
 
     public required init?(coder: NSCoder) {
@@ -77,7 +75,22 @@ open class PresentationHostingWindowController<Content: View>: UIViewController 
     }
 
     open override func loadView() {
-        view = host
+        view = PassthroughView()
+    }
+
+    open override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = nil
+        hostingController.view.backgroundColor = nil
+        hostingController.willMove(toParent: self)
+        addChild(hostingController)
+        view.addSubview(hostingController.view)
+        hostingController.didMove(toParent: self)
+    }
+
+    open override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        hostingController.view.frame = view.bounds
     }
 }
 
