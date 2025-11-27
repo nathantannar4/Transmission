@@ -110,7 +110,7 @@ private struct WindowLinkAdapterBody<
                 let animation = context.transaction.animation
                     ?? (isAnimated ? .default : nil)
                 let transition = transition
-                let window = adapter.window!
+                let window = adapter.window
                 context.coordinator.animation = animation
                 presentingWindow.present(
                     window,
@@ -222,8 +222,7 @@ private class WindowLinkDestinationWindowAdapter<
 
     typealias DestinationController = PresentationHostingWindowController<ModifiedContent<Destination, WindowBridgeAdapter>>
 
-    var window: UIWindow!
-    var context: Any!
+    let window: UIWindow
 
     var transition: WindowLinkTransition
     var environment: EnvironmentValues
@@ -242,15 +241,15 @@ private class WindowLinkDestinationWindowAdapter<
         isPresented: Binding<Bool>,
         onDismiss: @escaping (Int, Transaction) -> Void
     ) {
+        let window = PassthroughWindow(windowScene: windowScene)
+        window.overrideUserInterfaceStyle = .init(transition.options.preferredPresentationColorScheme)
+        self.window = window
         self.transition = transition
         self.environment = context.environment
         self.isPresented = isPresented
         self.onDismiss = onDismiss
         super.init(content: destination, context: context)
-        let window = PassthroughWindow(windowScene: windowScene)
         window.rootViewController = viewController
-        window.overrideUserInterfaceStyle = .init(transition.options.preferredPresentationColorScheme)
-        self.window = window
     }
 
     func update(
@@ -278,6 +277,7 @@ private class WindowLinkDestinationWindowAdapter<
             transition: transition.value
         )
         let hostingController = DestinationController(content: content.modifier(modifier))
+        hostingController.presentingWindow = window
         return hostingController
     }
 

@@ -16,17 +16,24 @@ extension UIWindow {
     ) {
         window.parent = self
         if window.windowLevel.rawValue > windowLevel.rawValue {
-            window.makeKeyAndVisible()
+            animations?(false)
+            UIView.animate(with: animation) {
+                window.makeKeyAndVisible()
+                animations?(true)
+            } completion: { _ in
+                completion?()
+                window.layer.removeAllAnimations()
+            }
         } else {
             window.isHidden = false
-        }
-        animations?(false)
-        UIView.animate(
-            with: animation
-        ) {
-            animations?(true)
-        } completion: {
-            completion?()
+            animations?(false)
+            UIView.animate(
+                with: animation
+            ) {
+                animations?(true)
+            } completion: {
+                completion?()
+            }
         }
     }
 
@@ -35,7 +42,11 @@ extension UIWindow {
         animations: (() -> Void)? = nil,
         completion: (() -> Void)? = nil
     ) {
-        self.resignKey()
+        resignKey()
+        if let parent {
+            windowLevel = parent.windowLevel
+            rootViewController?.setNeedsStatusBarAppearanceUpdate(animated: animation != nil)
+        }
         UIView.animate(
             with: animation
         ) {
