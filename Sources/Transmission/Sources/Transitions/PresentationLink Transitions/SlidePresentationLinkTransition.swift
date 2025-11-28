@@ -124,6 +124,8 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         let presentationController = SlidePresentationController(
             edge: options.edge,
             prefersScaleEffect: options.prefersScaleEffect,
+            preferredFromCornerRadius: options.preferredFromCornerRadius,
+            preferredToCornerRadius: options.preferredToCornerRadius,
             presentedViewController: presented,
             presenting: presenting
         )
@@ -136,6 +138,8 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) {
         presentationController.edge = options.edge
         presentationController.prefersScaleEffect = options.prefersScaleEffect
+        presentationController.preferredFromCornerRadius = options.preferredFromCornerRadius
+        presentationController.preferredToCornerRadius = options.preferredToCornerRadius
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
         presentationController.isInteractive = context.options.isInteractive
@@ -149,9 +153,6 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) -> SlidePresentationControllerTransition? {
         let transition = SlidePresentationControllerTransition(
             edge: options.edge,
-            prefersScaleEffect: options.prefersScaleEffect,
-            preferredFromCornerRadius: options.preferredFromCornerRadius,
-            preferredToCornerRadius: options.preferredToCornerRadius,
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -170,9 +171,6 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) -> SlidePresentationControllerTransition? {
         let transition = SlidePresentationControllerTransition(
             edge: options.edge,
-            prefersScaleEffect: options.prefersScaleEffect,
-            preferredFromCornerRadius: options.preferredFromCornerRadius,
-            preferredToCornerRadius: options.preferredToCornerRadius,
             isPresenting: false,
             animation: context.transaction.animation
         )

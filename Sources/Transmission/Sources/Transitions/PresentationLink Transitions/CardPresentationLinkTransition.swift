@@ -124,7 +124,14 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         return 4
     }()
     public static let defaultCornerRadius: CGFloat = UIScreen.main.displayCornerRadius(min: 36)
-    public static let defaultAdjustedCornerRadius: CornerRadiusOptions.RoundedRectangle = .rounded(cornerRadius: defaultCornerRadius - defaultEdgeInset, style: .continuous)
+
+    var edgeInset: CGFloat {
+        options.preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
+    }
+
+    var cornerRadius: CornerRadiusOptions.RoundedRectangle {
+        options.preferredCornerRadius ?? .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - edgeInset)
+    }
 
     public func makeUIPresentationController(
         presented: UIViewController,
@@ -133,8 +140,8 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         context: Context
     ) -> CardPresentationController {
         let presentationController = CardPresentationController(
-            preferredEdgeInset: options.preferredEdgeInset,
-            preferredCornerRadius: options.preferredCornerRadius,
+            preferredEdgeInset: edgeInset,
+            preferredCornerRadius: cornerRadius,
             insetSafeAreaByCornerRadius: options.insetSafeAreaByCornerRadius,
             preferredAspectRatio: options.preferredAspectRatio,
             presentedViewController: presented,
@@ -147,8 +154,8 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         presentationController: CardPresentationController,
         context: Context
     ) {
-        presentationController.preferredEdgeInset = options.preferredEdgeInset
-        presentationController.preferredCornerRadius = options.preferredCornerRadius
+        presentationController.preferredEdgeInset = edgeInset
+        presentationController.preferredCornerRadius = cornerRadius
         presentationController.insetSafeAreaByCornerRadius = options.insetSafeAreaByCornerRadius
         presentationController.preferredAspectRatio = options.preferredAspectRatio
         presentationController.presentedViewShadow = options.preferredPresentationShadow
@@ -171,8 +178,6 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         context: Context
     ) -> CardPresentationControllerTransition? {
         let transition = CardPresentationControllerTransition(
-            preferredEdgeInset: options.preferredEdgeInset,
-            preferredCornerRadius: options.preferredCornerRadius,
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -190,8 +195,6 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         context: Context
     ) -> CardPresentationControllerTransition? {
         let transition = CardPresentationControllerTransition(
-            preferredEdgeInset: options.preferredEdgeInset,
-            preferredCornerRadius: options.preferredCornerRadius,
             isPresenting: false,
             animation: context.transaction.animation
         )

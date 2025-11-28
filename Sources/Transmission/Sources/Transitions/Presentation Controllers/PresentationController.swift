@@ -178,12 +178,19 @@ open class PresentationController: DelegatedPresentationController {
         updateShadow(progress: progress)
     }
 
+    open func transitionAlongsideRotation() {
+        let frame = frameOfPresentedViewInContainerView
+        layoutPresentedView(frame: frame)
+    }
+
     open func updateShadow(progress: Double) {
         if presentedViewShadow == .clear {
             shadowView.isHidden = true
         } else {
             shadowView.isHidden = false
-            presentedViewShadow.apply(to: shadowView.layer, progress: progress)
+            var shadow = presentedViewShadow
+            shadow.shadowOpacity *= Float(progress)
+            shadow.apply(to: shadowView.layer)
         }
     }
 
@@ -201,22 +208,15 @@ open class PresentationController: DelegatedPresentationController {
         isTransitioningSize = true
         super.viewWillTransition(to: size, with: coordinator)
         coordinator.animateAlongsideTransition(in: containerView) { _ in
-            let frame = self.frameOfPresentedViewInContainerView
-            self.layoutPresentedView(frame: frame)
+            self.transitionAlongsideRotation()
         } completion: { _ in
             self.isTransitioningSize = false
         }
     }
 
     open func layoutPresentedView(frame: CGRect) {
-        guard let presentedView else { return }
-        // Set frame preserving transform
-        let anchor = presentedView.layer.anchorPoint
-        presentedView.bounds = CGRect(origin: .zero, size: frame.size)
-        presentedView.center = CGPoint(
-            x: frame.minX + (frame.width * anchor.x),
-            y: frame.minY + (frame.height * anchor.y)
-        )
+        presentedView?.setFramePreservingTransform(frame)
+        presentedView?.layoutIfNeeded()
         layoutBackgroundViews()
     }
 

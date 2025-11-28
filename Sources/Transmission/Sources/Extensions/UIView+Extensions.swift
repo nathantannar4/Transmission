@@ -35,16 +35,35 @@ extension UIView {
     func idealSize(for width: CGFloat) -> CGSize {
         var fittingSize = systemLayoutSizeFitting(
             CGSize(width: width, height: UIView.layoutFittingExpandedSize.height),
-            withHorizontalFittingPriority: .fittingSizeLevel,
+            withHorizontalFittingPriority: .required,
             verticalFittingPriority: .defaultLow
         )
         if fittingSize.height >= UIView.layoutFittingExpandedSize.height {
-            let sizeThatFits = sizeThatFits(CGSize(width: width, height: .infinity))
+            let sizeThatFits = sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
             if sizeThatFits.height > 0 {
                 fittingSize.height = sizeThatFits.height
             }
         }
         return fittingSize
+    }
+
+    func setFramePreservingTransform(_ frame: CGRect) {
+        let anchor = layer.anchorPoint
+        bounds = CGRect(origin: .zero, size: frame.size)
+        center = CGPoint(
+            x: frame.minX + (frame.width * anchor.x),
+            y: frame.minY + (frame.height * anchor.y)
+        )
+    }
+
+    func constrain(to other: UIView) {
+        translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            topAnchor.constraint(equalTo: other.topAnchor),
+            bottomAnchor.constraint(equalTo: other.bottomAnchor),
+            leadingAnchor.constraint(equalTo: other.leadingAnchor),
+            trailingAnchor.constraint(equalTo: other.trailingAnchor),
+        ])
     }
 }
 

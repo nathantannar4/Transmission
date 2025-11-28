@@ -369,7 +369,7 @@ extension PresentationLinkTransition {
                     if #available(iOS 18.0, *), self == .fullScreen {
                         return .fullScreen() ?? .large()
                     }
-                    let idealResolution: @MainActor (UIPresentationController) -> CGFloat = { presentationController in
+                    let idealResolution: @MainActor (UISheetPresentationController) -> CGFloat = { presentationController in
                         let scale = presentationController.presentedView?.window?.screen.scale ?? 1.0
                         guard let containerView = presentationController.containerView else {
                             let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height
@@ -416,6 +416,10 @@ extension PresentationLinkTransition {
                                     height = containerView.frame.height
                                 }
                                 height -= bottomSafeArea
+                                if #available(iOS 26.0, *), !presentationController.disableSolariumInsets {
+                                    // 150 is the minimum before safe area gets wonky
+                                    height = max(height, 151)
+                                }
                             }
                             return height.rounded(scale: scale)
                         }
@@ -424,7 +428,7 @@ extension PresentationLinkTransition {
                         return idealHeight
                     }
 
-                    if let resolution, #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)  {
+                    if let resolution, #available(iOS 16.0, *)  {
                         return .custom(identifier: identifier.toUIKit()) { [unowned presentationController] context in
                             let ctx = ResolutionContext(
                                 containerTraitCollection: context.containerTraitCollection,
@@ -433,9 +437,8 @@ extension PresentationLinkTransition {
                                     idealResolution(presentationController)
                                 }
                             )
-                            let max = context.maximumDetentValue
                             let resolved = resolution(ctx)
-                            return min(ceil(resolved ?? max), max)
+                            return min(ceil(resolved ?? ctx.maximumDetentValue), ctx.maximumDetentValue)
                         }
                     }
                     var constant: CGFloat?
@@ -640,7 +643,7 @@ extension PresentationLinkTransition {
                 .init(
                     detents: [detent],
                     prefersGrabberVisible: prefersGrabberVisible,
-                    preferredCornerRadius: preferredCornerRadius.map { .rounded(cornerRadius: $0) },
+                    preferredCornerRadius: preferredCornerRadius.map { .containerConcentric(minimum: $0) },
                     prefersEdgeAttachedInCompactHeight: {
                         if #available(iOS 26.0, *) {
                             return detent.identifier == .ideal
@@ -706,7 +709,7 @@ extension PresentationLinkTransition {
                     detents: detents,
                     largestUndimmedDetentIdentifier: largestUndimmedDetentIdentifier,
                     prefersGrabberVisible: prefersGrabberVisible,
-                    preferredCornerRadius: preferredCornerRadius.map { .rounded(cornerRadius: $0) },
+                    preferredCornerRadius: preferredCornerRadius.map { .containerConcentric(minimum: $0) },
                     prefersZoomTransition: prefersZoomTransition,
                     options: .init(
                         isInteractive: isInteractive,

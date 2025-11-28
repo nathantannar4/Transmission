@@ -91,10 +91,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
 
-        let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
-        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
-            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
-        }
+        updatePresentedViewAdditionalSafeAreaInsets()
 
         if transition == nil {
             panGesture.isEnabled = false
@@ -196,11 +193,21 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         return additionalSafeAreaInsets
     }
 
-    open override func layoutPresentedView(frame: CGRect) {
-        super.layoutPresentedView(frame: frame)
+    open func updatePresentedViewAdditionalSafeAreaInsets() {
         let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
         if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
             presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
+        }
+    }
+
+    open override func layoutPresentedView(frame: CGRect) {
+        super.layoutPresentedView(frame: frame)
+        updatePresentedViewAdditionalSafeAreaInsets()
+    }
+
+    open override func keyboardHeightDidChange() {
+        if keyboardHeight == 0 {
+            keyboardOffset = 0
         }
     }
 
@@ -451,6 +458,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         )
                         scrollView.contentOffset = contentOffset
                         scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
+                        panGesture.setTranslation(.zero, in: presentedView)
+                        lastTranslation = .zero
                     }
                     presentedViewController.dismiss(animated: true)
                 } else if isScrollViewAtTop || trackingScrollView?.isTracking == false {

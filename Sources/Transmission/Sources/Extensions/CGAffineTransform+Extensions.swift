@@ -8,11 +8,25 @@ import UIKit
 
 extension CGAffineTransform {
 
-    init(to targetRect: CGRect, from sourceRect: CGRect) {
-        let scaleX = sourceRect.width / targetRect.width
-        let scaleY = sourceRect.height / targetRect.height
+    init(
+        to targetRect: CGRect,
+        from sourceRect: CGRect,
+        preserveAspectRatio: Bool = true
+    ) {
         let translateX = sourceRect.midX - targetRect.midX
-        let translateY = sourceRect.midY - targetRect.midY
+        var translateY = sourceRect.midY - targetRect.midY
+        let scaleX: CGFloat
+        let scaleY: CGFloat
+        if preserveAspectRatio {
+            let x = sourceRect.width / targetRect.width
+            let y = sourceRect.height / targetRect.height
+            scaleX = min(x, y)
+            scaleY = scaleX
+            translateY -= (y - scaleY) * targetRect.height / 2
+        } else {
+            scaleX = sourceRect.width / targetRect.width
+            scaleY = sourceRect.height / targetRect.height
+        }
         self = CGAffineTransformMake(
             scaleX,
             0,

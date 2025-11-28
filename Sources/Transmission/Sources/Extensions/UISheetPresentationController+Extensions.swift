@@ -144,6 +144,25 @@ extension UISheetPresentationController {
         }
         return gesture
     }
+
+    @available(iOS 26.0, *)
+    var disableSolariumInsets: Bool {
+        get {
+            // disableSolariumInsets
+            let aSelectorDisableSolariumInsets = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz")
+            if let aSelectorDisableSolariumInsets, responds(to: NSSelectorFromString("_" + aSelectorDisableSolariumInsets)) {
+                return value(forKey: aSelectorDisableSolariumInsets) as? Bool ?? false
+            }
+            return false
+        }
+        set {
+            // disableSolariumInsets
+            let aSelectorDisableSolariumInsets = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz")
+            if let aSelectorDisableSolariumInsets, responds(to: NSSelectorFromString("_" + aSelectorDisableSolariumInsets)) {
+                setValue(newValue, forKey: aSelectorDisableSolariumInsets)
+            }
+        }
+    }
 }
 
 

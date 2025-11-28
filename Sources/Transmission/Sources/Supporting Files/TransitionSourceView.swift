@@ -93,7 +93,7 @@ class TransitionSourceHostingView<Content: View>: HostingView<Content> {
 
     private func updateLayerCornerRadius() {
         let cornerRadius = cornerRadius ?? .identity
-        cornerRadius.apply(to: layer, height: bounds.height)
+        cornerRadius.apply(to: self)
     }
 }
 

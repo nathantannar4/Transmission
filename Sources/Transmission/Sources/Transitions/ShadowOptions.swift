@@ -50,8 +50,14 @@ public struct ShadowOptions: Equatable, Sendable {
         shadowColor: .clear
     )
 
-    public func apply(to layer: CALayer, progress: Double = 1) {
-        layer.shadowOpacity = shadowOpacity * Float(progress)
+    @MainActor @preconcurrency
+    public func apply(to view: UIView) {
+        apply(to: view.layer)
+    }
+
+    @MainActor @preconcurrency
+    public func apply(to layer: CALayer) {
+        layer.shadowOpacity = shadowOpacity
         layer.shadowRadius = shadowRadius
         layer.shadowOffset = shadowOffset
         layer.shadowColor = shadowColor.toCGColor()

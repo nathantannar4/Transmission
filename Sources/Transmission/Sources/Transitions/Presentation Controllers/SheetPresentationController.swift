@@ -16,16 +16,11 @@ public typealias SheetPresentationController = MacSheetPresentationController
 open class MacSheetTransition: SlidePresentationControllerTransition {
 
     public init(
-        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         isPresenting: Bool,
         animation: Animation?
     ) {
-        let cornerRadius = preferredCornerRadius ?? .rounded(cornerRadius: 12)
         super.init(
             edge: .bottom,
-            prefersScaleEffect: false,
-            preferredFromCornerRadius: cornerRadius,
-            preferredToCornerRadius: cornerRadius,
             isPresenting: isPresenting,
             animation: animation
         )
@@ -140,12 +135,16 @@ open class MacSheetPresentationController: SlidePresentationController {
     }
 
     public init(
+        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
+        let cornerRadius = preferredCornerRadius ?? .rounded(cornerRadius: 12)
         super.init(
             edge: .bottom,
             prefersScaleEffect: false,
+            preferredFromCornerRadius: cornerRadius,
+            preferredToCornerRadius: cornerRadius,
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
@@ -335,12 +334,7 @@ open class SheetPresentationController: UISheetPresentationController {
 
     private func updatePresentedViewInset() {
         if #available(iOS 26.0, *) {
-            let isDisabled = preferredPresentationSafeAreaInsets == .zero
-            // disableSolariumInsets
-            let aSelectorDisableSolariumInsets = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz")
-            if let aSelectorDisableSolariumInsets, responds(to: NSSelectorFromString("_" + aSelectorDisableSolariumInsets)) {
-                setValue(isDisabled, forKey: aSelectorDisableSolariumInsets)
-            }
+            disableSolariumInsets = preferredPresentationSafeAreaInsets == .zero
         }
     }
 }

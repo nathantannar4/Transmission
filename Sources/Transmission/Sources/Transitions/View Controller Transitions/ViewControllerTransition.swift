@@ -99,7 +99,8 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
     open override func finish() {
         super.finish()
-        if animator?.fractionComplete == 1 {
+        guard animator?.isRunning == false else { return }
+        if animator?.fractionComplete == 1, animator?.state == .active {
             animator?.stopAnimation(false)
             animator?.finishAnimation(at: .end)
         } else {
@@ -109,7 +110,8 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
     open override func cancel() {
         super.cancel()
-        if animator?.fractionComplete == 0 {
+        guard animator?.isRunning == false else { return }
+        if animator?.fractionComplete == 0, animator?.state == .active {
             animator?.stopAnimation(false)
             animator?.finishAnimation(at: .start)
         } else {

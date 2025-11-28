@@ -62,7 +62,7 @@ open class PresentationHostingController<
 
             let panGesture = presentedView.gestureRecognizers?.first(where: { $0.isSheetDismissPanGesture })
             guard
-                panGesture == nil || panGesture?.isInteracting == false,
+                panGesture == nil || (panGesture?.isInteracting == false && panGesture?.state != .ended),
                 let maximumDetentValue = sheetPresentationController.maximumDetentValue
             else {
                 return
@@ -79,7 +79,6 @@ open class PresentationHostingController<
             didRelayoutDuringPresentation = true
 
             func performTransition(animated: Bool, completion: (() -> Void)? = nil) {
-                sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
                 if animated {
                     let duration = transitionCoordinator?.transitionDuration ?? 0.35
                     let curve = transitionCoordinator?.completionCurve ?? .easeInOut
@@ -88,14 +87,16 @@ open class PresentationHostingController<
                         duration: duration,
                         options: [
                             .beginFromCurrentState,
-                            UIView.AnimationOptions(rawValue: UInt(curve.rawValue << 16))
+                            UIView.AnimationOptions(rawValue: UInt(curve.rawValue << 16)),
                         ]
                     ) {
+                        sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
                         containerView.layoutIfNeeded()
                     } completion: { _ in
                         completion?()
                     }
                 } else {
+                    sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
                     containerView.layoutIfNeeded()
                     completion?()
                 }

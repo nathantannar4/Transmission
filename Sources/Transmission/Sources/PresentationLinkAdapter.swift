@@ -758,11 +758,10 @@ private struct PresentationLinkAdapterBody<
             source: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
             switch adapter?.transition {
-            case .sheet(let options):
+            case .sheet:
                 #if targetEnvironment(macCatalyst)
                 if #available(iOS 15.0, *) {
                     let transition = MacSheetTransition(
-                        preferredCornerRadius: options.preferredCornerRadius,
                         isPresenting: true,
                         animation: animation
                     )
@@ -797,7 +796,6 @@ private struct PresentationLinkAdapterBody<
                    let presentationController = dismissed.presentationController as? MacSheetPresentationController
                 {
                     let transition = MacSheetTransition(
-                        preferredCornerRadius: options.preferredCornerRadius,
                         isPresenting: false,
                         animation: animation
                     )
@@ -891,6 +889,7 @@ private struct PresentationLinkAdapterBody<
                 if #available(iOS 15.0, *) {
                     #if targetEnvironment(macCatalyst)
                     let presentationController = MacSheetPresentationController(
+                        preferredCornerRadius: options.preferredCornerRadius,
                         presentedViewController: presented,
                         presenting: presenting
                     )

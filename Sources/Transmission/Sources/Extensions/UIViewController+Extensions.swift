@@ -101,6 +101,17 @@ extension UIViewController {
         return nil
     }
 
+    func isDescendent(of ancestor: UIViewController) -> Bool {
+        var parent = parent
+        while parent != nil {
+            if parent == ancestor {
+                return true
+            }
+            parent = parent?.parent
+        }
+        return false
+    }
+
     func fixSwiftUIHitTesting() {
         if let tabBarController = self as? UITabBarController {
             tabBarController.selectedViewController?.fixSwiftUIHitTesting()

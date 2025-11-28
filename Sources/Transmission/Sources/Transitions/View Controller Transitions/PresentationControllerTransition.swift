@@ -30,7 +30,6 @@ open class PresentationControllerTransition: ViewControllerTransition {
         using transitionContext: UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
     ) {
-
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
             let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),

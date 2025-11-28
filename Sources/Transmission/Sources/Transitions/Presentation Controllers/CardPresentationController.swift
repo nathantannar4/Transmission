@@ -116,11 +116,11 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     private var edgeInset: CGFloat {
-        preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
+        preferredEdgeInset ?? 0
     }
 
     private var cornerRadius: CGFloat {
-        preferredCornerRadius?.cornerRadius ?? (CardPresentationLinkTransition.defaultCornerRadius - edgeInset)
+        preferredCornerRadius?.cornerRadius ?? 0
     }
 
     private var needsCustomCornerRadiusPath: Bool {
@@ -209,35 +209,13 @@ open class CardPresentationController: InteractivePresentationController {
         } else {
             let bottomSafeArea = (safeAreaInsets.bottom - additionalSafeAreaInsets.bottom) - edgeInset
             edgeInsets.bottom = inset - max(0, bottomSafeArea)
+//            edgeInsets.bottom = min(max(safeAreaInsets.bottom - edgeInset, inset), max(additionalSafeAreaInsets.bottom, inset - max(0, bottomSafeArea)))
         }
         return edgeInsets
     }
 
-    open override func layoutPresentedView(frame: CGRect) {
-        super.layoutPresentedView(frame: frame)
-        if let cornerRadiusMask {
-            cornerRadiusMask.path = customCornerRadiusPath
-        }
-    }
-
-    open override func transitionAlongsidePresentation(progress: CGFloat) {
-        super.transitionAlongsidePresentation(progress: progress)
-
-        if progress == 1, needsCustomCornerRadiusPath {
-            setCornerRadius(force: true)
-        }
-    }
-
-    open override func containerViewDidLayoutSubviews() {
-        super.containerViewDidLayoutSubviews()
-        setCornerRadius()
-    }
-
     private func cornerRadiusDidChange() {
-        let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
-        if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
-            presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
-        }
+        updatePresentedViewAdditionalSafeAreaInsets()
         setCornerRadius()
     }
 
@@ -292,32 +270,11 @@ open class CardPresentationController: InteractivePresentationController {
 @available(iOS 14.0, *)
 open class CardPresentationControllerTransition: PresentationControllerTransition {
 
-    public let preferredEdgeInset: CGFloat?
-    public let preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
-
-    public init(
-        preferredEdgeInset: CGFloat? = nil,
-        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+    public override init(
         isPresenting: Bool,
         animation: Animation?
     ) {
-        self.preferredEdgeInset = preferredEdgeInset
-        self.preferredCornerRadius = preferredCornerRadius
         super.init(isPresenting: isPresenting, animation: animation)
-    }
-
-    open override func configureTransitionAnimator(
-        using transitionContext: any UIViewControllerContextTransitioning,
-        animator: UIViewPropertyAnimator
-    ) {
-        if let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
-            !(presented.presentationController is CardPresentationController)
-        {
-            let edgeInset = preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
-            let cornerRadius = preferredCornerRadius ?? .rounded(cornerRadius: (CardPresentationLinkTransition.defaultCornerRadius - edgeInset), style: .continuous)
-            cornerRadius.apply(to: presented.view.layer)
-        }
-        return super.configureTransitionAnimator(using: transitionContext, animator: animator)
     }
 }
 

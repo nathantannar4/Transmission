@@ -37,6 +37,7 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
         delta: CGPoint,
         velocity: CGPoint
     ) -> Bool {
+        guard !panGesture.isInteracting else { return false }
         var shouldBegin = false
         if !shouldBegin, edges.contains(.bottom), translation.y > 0 {
             shouldBegin = (translation.y >= UIGestureRecognizer.zoomGestureActivationThreshold.height && velocity.y >= 0) || velocity.y >= 1000

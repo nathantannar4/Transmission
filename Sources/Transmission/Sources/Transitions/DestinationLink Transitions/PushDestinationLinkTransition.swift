@@ -187,7 +187,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             return nil
         }()
         if let cornerRadius {
-            cornerRadius.apply(to: presentedVC.view.layer)
+            cornerRadius.apply(to: presentedVC.view)
         }
         animator.addAnimations {
             toVC.view.transform = .identity
