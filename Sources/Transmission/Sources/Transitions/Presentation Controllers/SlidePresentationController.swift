@@ -62,8 +62,8 @@ open class SlidePresentationController: InteractivePresentationController {
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
-        if completed {
-            presentedView?.layer.cornerRadius = 0
+        if completed, let presentedView {
+            CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView)
         }
     }
 
@@ -93,7 +93,9 @@ open class SlidePresentationController: InteractivePresentationController {
         super.transformPresentedView(transform: transform)
 
         if transform.isIdentity {
-            presentedViewController.view.layer.cornerRadius = 0
+            if let presentedView {
+                CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView)
+            }
             updateShadow(progress: 0)
         } else {
             if let presentedView {

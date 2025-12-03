@@ -200,7 +200,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             fromVC.view.transform = .identity
             dimmingView.removeFromSuperview()
             if cornerRadius != nil {
-                presentedVC.view.layer.cornerRadius = 0
+                CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedVC.view)
             }
             switch animatingPosition {
             case .end:

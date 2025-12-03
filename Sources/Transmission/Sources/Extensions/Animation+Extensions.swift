@@ -59,6 +59,7 @@ extension UIViewPropertyAnimator {
 
 extension UIView {
 
+    @MainActor @preconcurrency
     public static func animate(
         with animation: Animation?,
         animations: @escaping () -> Void,
@@ -80,6 +81,7 @@ extension UIView {
         animator.startAnimation(afterDelay: animation.delay ?? 0)
     }
 
+    @MainActor @preconcurrency
     public static func animate(
         with animation: Animation?,
         changes: @escaping () -> Void,
