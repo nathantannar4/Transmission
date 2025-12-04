@@ -74,6 +74,22 @@ public struct DestinationLinkAdapter<
         self.destination = destination()
     }
 
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder content: () -> Content
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.transition = transition
+        self.cornerRadius = cornerRadius
+        self.backgroundColor = backgroundColor
+        self.isPresented = isPresented
+        self.content = content()
+        self.destination = ViewControllerRepresentableAdapter(destination)
+    }
+
     public var body: some View {
         DestinationLinkAdapterBody(
             transition: transition,

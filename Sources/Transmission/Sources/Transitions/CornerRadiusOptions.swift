@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import UIKit
+import SwiftUI
 
 @frozen
 public enum CornerRadiusOptions: Equatable, Sendable {
@@ -216,15 +217,9 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *) {
                 view.cornerConfiguration = .capsule()
-            } else {
-                view.layer.cornerRadius = cornerRadius(for: height ?? view.bounds.height)
             }
-            #else
-            view.layer.cornerRadius = cornerRadius(for: height ?? view.bounds.height)
             #endif
-            view.layer.maskedCorners = mask
-            view.layer.cornerCurve = style
-            view.layer.masksToBounds = masksToBounds
+            apply(to: view.layer, height: height ?? view.bounds.height, masksToBounds: masksToBounds)
         }
     }
 
@@ -266,14 +261,9 @@ extension CornerRadiusOptions.RoundedRectangle {
                 bottomLeftRadius: mask.contains(.layerMinXMaxYCorner) ? corner : .fixed(0),
                 bottomRightRadius: mask.contains(.layerMaxXMaxYCorner) ? corner : .fixed(0)
             )
-            view.layer.cornerCurve = style
-            view.layer.masksToBounds = masksToBounds
-        } else {
-            apply(to: view.layer, masksToBounds: masksToBounds)
         }
-        #else
-        apply(to: view.layer, masksToBounds: masksToBounds)
         #endif
+        apply(to: view.layer, masksToBounds: masksToBounds)
     }
 
     @MainActor @preconcurrency
@@ -298,13 +288,9 @@ extension CornerRadiusOptions.Capsule {
         #if canImport(FoundationModels) // Xcode 26
         if #available(iOS 26.0, *) {
             view.cornerConfiguration = .capsule(maximumRadius: maxCornerRadius.map { Double($0) })
-            view.layer.cornerCurve = style
-        } else {
-            apply(to: view.layer, masksToBounds: masksToBounds)
         }
-        #else
-        apply(to: view.layer, masksToBounds: masksToBounds)
         #endif
+        apply(to: view.layer, masksToBounds: masksToBounds)
     }
 
     @MainActor @preconcurrency
@@ -330,6 +316,81 @@ extension CACornerMask {
         .layerMinXMaxYCorner,
         .layerMinXMinYCorner
     ]
+}
+
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct CornerRadiusOptions_Previews: PreviewProvider {
+
+    struct Preview: View {
+        var color: Color = .blue
+        var options: CornerRadiusOptions
+
+        class UIViewType: UIView {
+            var options: CornerRadiusOptions = .identity
+
+            override func layoutSubviews() {
+                super.layoutSubviews()
+                options.apply(to: self)
+                print(layer.cornerRadius)
+            }
+        }
+
+        var body: some View {
+            ViewRepresentableAdapter {
+                let uiView = UIViewType()
+                uiView.options = options
+                uiView.backgroundColor = color.toUIColor()
+                return uiView
+            }
+        }
+    }
+
+    static var previews: some View {
+        VStack {
+            Preview(options: .identity)
+                .frame(width: 50, height: 50)
+
+            HStack {
+                Preview(options: .rounded(cornerRadius: 12))
+                    .frame(width: 100, height: 50)
+
+                Preview(options: .containerConcentric(minimum: 12))
+                    .frame(width: 100, height: 50)
+
+                Preview(
+                    options: .rounded(
+                        cornerRadius: 12,
+                        mask: [.layerMaxXMaxYCorner, .layerMinXMinYCorner],
+                        style: .circular
+                    )
+                )
+                .frame(width: 100, height: 50)
+            }
+
+            HStack {
+                Preview(options: .capsule)
+                    .frame(width: 100, height: 30)
+
+                Preview(options: .circle)
+                    .frame(width: 30, height: 30)
+            }
+
+            ZStack {
+                Preview(
+                    color: .red,
+                    options: .rounded(cornerRadius: 16)
+                )
+                .frame(width: 100, height: 50)
+
+                Preview(
+                    options: .rounded(cornerRadius: 16, style: .continuous)
+                )
+                .frame(width: 100, height: 50)
+            }
+        }
+    }
 }
 
 #endif
