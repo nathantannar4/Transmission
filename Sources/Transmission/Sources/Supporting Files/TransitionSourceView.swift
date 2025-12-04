@@ -86,6 +86,15 @@ class TransitionSourceHostingView<Content: View>: HostingView<Content> {
         }
     }
 
+    override init(content: Content) {
+        super.init(content: content)
+        isHitTestingPassthrough = false
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
     override func layoutSublayers(of layer: CALayer) {
         super.layoutSublayers(of: layer)
         updateLayerCornerRadius()
