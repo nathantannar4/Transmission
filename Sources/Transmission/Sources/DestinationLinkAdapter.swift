@@ -1188,6 +1188,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
             )
         )
         let hostingController = DestinationController(content: content.modifier(modifier))
+        hostingController.sourceViewController = sourceView?.viewController as? AnyHostingController
         transition.update(
             hostingController,
             context: DestinationLinkTransitionRepresentableContext(
