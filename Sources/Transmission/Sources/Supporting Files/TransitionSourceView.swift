@@ -95,8 +95,8 @@ class TransitionSourceHostingView<Content: View>: HostingView<Content> {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func layoutSublayers(of layer: CALayer) {
-        super.layoutSublayers(of: layer)
+    override func layoutSubviews() {
+        super.layoutSubviews()
         updateLayerCornerRadius()
     }
 

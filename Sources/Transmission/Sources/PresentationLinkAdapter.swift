@@ -448,8 +448,7 @@ private struct PresentationLinkAdapterBody<
                         }
                     }
                     if presentedViewController.isBeingPresented,
-                        let transitionCoordinator = presentedViewController.transitionCoordinator,
-                        !transitionCoordinator.isCancelled
+                       let transitionCoordinator = presentedViewController.transitionCoordinator
                     {
                         didPresent = true
                         transitionCoordinator.animate(alongsideTransition: nil) { ctx in
@@ -465,7 +464,14 @@ private struct PresentationLinkAdapterBody<
                     }
                 }
                 if !didPresent {
-                    if let firstResponder = presentingViewController.firstResponder {
+                    if let transitionCoordinator = presentingViewController.transitionCoordinator,
+                        !transitionCoordinator.isCancelled
+                    {
+                        didPresent = true
+                        transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                            present()
+                        }
+                    } else if let firstResponder = presentingViewController.firstResponder {
                         withCATransaction {
                             firstResponder.resignFirstResponder()
                             present()
@@ -806,7 +812,7 @@ private struct PresentationLinkAdapterBody<
             forDismissed dismissed: UIViewController
         ) -> UIViewControllerAnimatedTransitioning? {
             switch adapter?.transition {
-            case .sheet(let options):
+            case .sheet:
                 #if targetEnvironment(macCatalyst)
                 if #available(iOS 15.0, *),
                    let presentationController = dismissed.presentationController as? MacSheetPresentationController

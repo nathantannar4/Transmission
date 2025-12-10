@@ -273,18 +273,18 @@ private struct DestinationLinkAdapterBody<
                     viewController._popViewController(
                         count: count,
                         animated: transaction.isAnimated
-                    ) { success in
-                        guard success else { return }
-                        self.onPop(transaction)
+                    ) { [weak self] success in
+                        guard success, self?.adapter?.viewController == viewController else { return }
+                        self?.onPop(transaction)
                     }
                 }
             } else {
                 viewController._popViewController(
                     count: count,
                     animated: transaction.isAnimated
-                ) { success in
-                    guard success else { return }
-                    self.onPop(transaction)
+                ) { [weak self] success in
+                    guard success, self?.adapter?.viewController == viewController else { return }
+                    self?.onPop(transaction)
                 }
             }
         }
@@ -338,26 +338,14 @@ private struct DestinationLinkAdapterBody<
             guard viewController == adapter?.viewController else { return }
 
             let transaction = Transaction(animation: animated ? animation ?? .default : nil)
-            if let transitionCoordinator = viewController.transitionCoordinator {
-                if transitionCoordinator.isInteractive {
-                    transitionCoordinator.notifyWhenInteractionChanges { ctx in
-                        if !ctx.isCancelled {
-                            self.navigationController(
-                                navigationController,
-                                didPop: viewController,
-                                animated: animated
-                            )
-                        }
-                    }
-                } else {
-                    transitionCoordinator.animate(alongsideTransition: nil) { ctx in
-                        if !ctx.isCancelled {
-                            self.navigationController(
-                                navigationController,
-                                didPop: viewController,
-                                animated: animated
-                            )
-                        }
+            if let transitionCoordinator = viewController.transitionCoordinator, transitionCoordinator.isInteractive {
+                transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                    if !ctx.isCancelled {
+                        self.navigationController(
+                            navigationController,
+                            didPop: viewController,
+                            animated: animated
+                        )
                     }
                 }
             } else {
@@ -375,14 +363,12 @@ private struct DestinationLinkAdapterBody<
             guard let viewController = adapter?.viewController else { return }
             if navigationController.viewControllers.contains(viewController) {
                 isPushing = false
+                animation = nil
             } else if !isPushing, isPresented.wrappedValue {
                 // Break the retain cycle
                 adapter?.coordinator = nil
 
-                let transaction = Transaction(animation: animated ? .default : nil)
-                withCATransaction {
-                    self.onPop(transaction)
-                }
+                onPop(Transaction())
             }
         }
 
@@ -405,7 +391,10 @@ private struct DestinationLinkAdapterBody<
                 sourceView?.alpha = 1
             }
             if !isPushing {
-                navigationController.setNeedsStatusBarAppearanceUpdate(animated: animated, transitionAlongsideCoordinator: false)
+                navigationController.setNeedsStatusBarAppearanceUpdate(
+                    animated: animated,
+                    transitionAlongsideCoordinator: false
+                )
             }
         }
 

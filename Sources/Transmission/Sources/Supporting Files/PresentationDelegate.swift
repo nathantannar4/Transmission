@@ -103,10 +103,34 @@ extension UINavigationController {
             if !Self.pushDelegateKey {
                 Self.pushDelegateKey = true
 
-                let original = #selector(UINavigationController.popViewController(animated:))
-                let swizzled = #selector(UINavigationController.swizzled_popViewController(animated:))
-                if let originalMethod = class_getInstanceMethod(UINavigationController.self, original),
-                   let swizzledMethod = class_getInstanceMethod(UINavigationController.self, swizzled)
+                let originalPop = #selector(UINavigationController.popViewController(animated:))
+                let swizzledPop = #selector(UINavigationController.swizzled_popViewController(animated:))
+                if let originalMethod = class_getInstanceMethod(UINavigationController.self, originalPop),
+                   let swizzledMethod = class_getInstanceMethod(UINavigationController.self, swizzledPop)
+                {
+                    method_exchangeImplementations(originalMethod, swizzledMethod)
+                }
+
+                let originalPopTo = #selector(UINavigationController.popToViewController(_:animated:))
+                let swizzledPopTo = #selector(UINavigationController.swizzled_popToViewController(_:animated:))
+                if let originalMethod = class_getInstanceMethod(UINavigationController.self, originalPopTo),
+                   let swizzledMethod = class_getInstanceMethod(UINavigationController.self, swizzledPopTo)
+                {
+                    method_exchangeImplementations(originalMethod, swizzledMethod)
+                }
+
+                let originalPopToRoot = #selector(UINavigationController.popToRootViewController(animated:))
+                let swizzledPopToRoot = #selector(UINavigationController.swizzled_popToRootViewController(animated:))
+                if let originalMethod = class_getInstanceMethod(UINavigationController.self, originalPopToRoot),
+                   let swizzledMethod = class_getInstanceMethod(UINavigationController.self, swizzledPopToRoot)
+                {
+                    method_exchangeImplementations(originalMethod, swizzledMethod)
+                }
+
+                let originalSet = #selector(UINavigationController.setViewControllers(_:animated:))
+                let swizzledSet = #selector(UINavigationController.swizzled_setViewControllers(_:animated:))
+                if let originalMethod = class_getInstanceMethod(UINavigationController.self, originalSet),
+                   let swizzledMethod = class_getInstanceMethod(UINavigationController.self, swizzledSet)
                 {
                     method_exchangeImplementations(originalMethod, swizzledMethod)
                 }
@@ -124,10 +148,44 @@ extension UINavigationController {
     @objc
     func swizzled_popViewController(animated: Bool) -> UIViewController? {
         let vc = swizzled_popViewController(animated: animated)
-        if let vc {
-            pushDelegate?.navigationController(self, didPop: vc, animated: animated)
+        if let pushDelegate, let vc {
+            pushDelegate.navigationController(self, didPop: vc, animated: animated)
         }
         return vc
+    }
+
+    @objc
+    func swizzled_popToRootViewController(animated: Bool) -> [UIViewController]? {
+        let vcs = swizzled_popToRootViewController(animated: animated)
+        if let pushDelegate, let vcs {
+            for vc in vcs {
+                pushDelegate.navigationController(self, didPop: vc, animated: animated)
+            }
+        }
+        return vcs
+    }
+
+    @objc
+    func swizzled_popToViewController(_ viewController: UIViewController, animated: Bool) -> [UIViewController]? {
+        let vcs = swizzled_popToViewController(viewController, animated: animated)
+        if let pushDelegate, let vcs {
+            for vc in vcs {
+                pushDelegate.navigationController(self, didPop: vc, animated: animated)
+            }
+        }
+        return vcs
+    }
+
+    @objc
+    func swizzled_setViewControllers(_ viewControllers: [UIViewController], animated: Bool) {
+        let vcs = self.viewControllers
+            .filter { !viewControllers.contains($0) }
+        swizzled_setViewControllers(viewControllers, animated: animated)
+        if let pushDelegate {
+            for vc in vcs {
+                pushDelegate.navigationController(self, didPop: vc, animated: animated)
+            }
+        }
     }
 }
 
