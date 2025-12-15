@@ -120,13 +120,18 @@ open class PresentationHostingController<
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
                 {
-                    let contentSize = CGRect(origin: .zero, size: view.preferredContentSize(for: containerView.bounds.width)).inset(by: view.safeAreaInsets).size
-                    guard preferredContentSize != contentSize else { return }
+                    let contentSize = CGRect(
+                        origin: .zero,
+                        size: view.preferredContentSize(for: containerView.bounds.width + (popoverPresentationController.popoverLayoutMargins.left + popoverPresentationController.popoverLayoutMargins.right))
+                    ).inset(by: view.safeAreaInsets).size
+                    guard !preferredContentSize.isApproximatelyEqual(to: contentSize) else { return }
                     didRelayoutDuringPresentation = true
 
                     let oldSize = preferredContentSize
                     if oldSize == .zero || oldSize == CGSize(width: 10_000, height: 10_000) || !isAnimated {
-                        preferredContentSize = contentSize
+                        UIView.performWithoutAnimation {
+                            self.preferredContentSize = contentSize
+                        }
                     } else {
                         allowUIKitAnimationsForNextUpdate = isAnimated
                         UIView.transition(

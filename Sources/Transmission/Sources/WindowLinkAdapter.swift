@@ -182,12 +182,22 @@ private struct WindowLinkAdapterBody<
                     window.transform = toTransition.t
                 },
                 completion: {
-                    withTransaction(transaction) {
-                        self.isPresented.wrappedValue = false
+                    if transaction.animation == nil {
+                        withCATransaction {
+                            self.onDismiss(transaction)
+                        }
+                    } else {
+                        self.onDismiss(transaction)
                     }
-                    self.didDismiss()
                 }
             )
+        }
+
+        func onDismiss(_ transaction: Transaction) {
+            withTransaction(transaction) {
+                isPresented.wrappedValue = false
+            }
+            didDismiss()
         }
 
         func didDismiss() {

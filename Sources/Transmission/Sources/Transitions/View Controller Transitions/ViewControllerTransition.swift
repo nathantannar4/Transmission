@@ -208,6 +208,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             }
             presentedView.frame = presentedFrame
             presentedView.layoutIfNeeded()
+            presentedFrame = presentedView.frame
 
             configureTransitionReaderCoordinator(
                 presented: presented,

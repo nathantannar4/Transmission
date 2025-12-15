@@ -138,6 +138,8 @@ private struct PresentationLinkAdapterBody<
         uiView.hostingView?.cornerRadius = cornerRadius
         uiView.backgroundColor = backgroundColor?.toUIColor()
 
+        context.coordinator.presentingViewController = presentingViewController
+
         if let presentingViewController = presentingViewController, isPresented.wrappedValue {
 
             context.coordinator.isPresented = isPresented
@@ -180,11 +182,13 @@ private struct PresentationLinkAdapterBody<
                 case (.popover(let oldValue), .popover(let newValue)):
                     if let presentationController = adapter.viewController.presentationController as? PopoverPresentationController {
                         presentationController.permittedArrowDirections = newValue.permittedArrowDirections(
-                            layoutDirection: traits.layoutDirection
+                            layoutDirection: adapter.viewController.traitCollection.layoutDirection
                         )
-                        if let backgroundColor = newValue.options.preferredPresentationBackgroundUIColor {
-                            presentationController.backgroundColor = backgroundColor
-                        }
+                        presentationController.passthroughViews = newValue.isPassthrough ? [presentationController.presentingViewController.view] : nil
+                        presentationController.popoverLayoutMargins = newValue.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(
+                            layoutDirection: .init(adapter.viewController.traitCollection.layoutDirection) ?? .leftToRight
+                        ) ?? .zero
+                        presentationController.backgroundColor = newValue.options.preferredPresentationBackgroundUIColor
                     } else if #available(iOS 15.0, *) {
                         if let newValue = newValue.adaptiveTransition,
                            let presentationController = adapter.viewController.presentationController as? SheetPresentationController
@@ -296,23 +300,9 @@ private struct PresentationLinkAdapterBody<
                            let sheetPresentationController = presentationController as? UISheetPresentationController
                         {
                             sheetPresentationController.delegate = context.coordinator
-                            if case .sheet(let options) = adapter.transition,
-                               options.prefersSourceViewAlignment
-                            {
-                                sheetPresentationController.sourceView = sourceView
-                            }
                         } else if let popoverPresentationController = presentationController as? UIPopoverPresentationController {
                             popoverPresentationController.delegate = context.coordinator
                             popoverPresentationController.sourceView = sourceView
-                            if case .popover(let options) = adapter.transition {
-                                let permittedArrowDirections = options.permittedArrowDirections(
-                                    layoutDirection: traits.layoutDirection
-                                )
-                                popoverPresentationController.permittedArrowDirections = permittedArrowDirections
-                                if let backgroundColor = options.options.preferredPresentationBackgroundUIColor {
-                                    popoverPresentationController.backgroundColor = backgroundColor
-                                }
-                            }
                         }
                     }
 
@@ -530,6 +520,7 @@ private struct PresentationLinkAdapterBody<
         var feedbackGenerator: UIImpactFeedbackGenerator?
 
         weak var presentationController: UIPresentationController?
+        weak var presentingViewController: UIViewController?
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
@@ -569,10 +560,9 @@ private struct PresentationLinkAdapterBody<
                 withTransaction(transaction) {
                     isPresented.wrappedValue = false
                 }
-                if let presentingViewController = presentationController?.presentingViewController as? AnyHostingController {
-                    // Fix iOS 26.1+, changing `isPresented` binding while another view is presented causes some rendering to go blank
-                    presentingViewController.render()
-                }
+                // Fix iOS 26.1+, changing `isPresented` binding while another view is
+                // presented causes some rendering to go blank
+                presentingViewController?.fixSwiftUIHitTesting()
             }
             didDismiss()
         }
@@ -793,6 +783,14 @@ private struct PresentationLinkAdapterBody<
                 #endif
                 return nil
 
+            case .popover:
+                guard let presentationController else { return nil }
+                let animationController = PopoverControllerTransition(
+                    isPresenting: true,
+                    animation: animation
+                )
+                return animationController
+
             case .representable(let options, let transition):
                 guard let presentationController else { return nil }
                 let animationController = transition.animationController(
@@ -827,6 +825,14 @@ private struct PresentationLinkAdapterBody<
                 }
                 #endif
                 return nil
+
+            case .popover:
+                guard let presentationController else { return nil }
+                let animationController = PopoverControllerTransition(
+                    isPresenting: false,
+                    animation: animation
+                )
+                return animationController
 
             case .representable(let options, let transition):
                 guard let presentationController else { return nil }
@@ -969,6 +975,11 @@ private struct PresentationLinkAdapterBody<
                 presentationController.permittedArrowDirections = options.permittedArrowDirections(
                     layoutDirection: presentationController.traitCollection.layoutDirection
                 )
+                presentationController.passthroughViews = options.isPassthrough ? [presenting?.view ?? source.view] : nil
+                presentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
+                presentationController.popoverLayoutMargins = options.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(
+                    layoutDirection: .init(presentationController.traitCollection.layoutDirection) ?? .leftToRight
+                ) ?? .zero
                 presentationController.sourceView = sourceView
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
@@ -1091,14 +1102,6 @@ private struct PresentationLinkAdapterBody<
                     applySelection()
                 }
             }
-        }
-
-        // MARK: - UIPopoverPresentationControllerDelegate
-
-        func prepareForPopoverPresentation(
-            _ popoverPresentationController: UIPopoverPresentationController
-        ) {
-            popoverPresentationController.presentedViewController.view.layoutIfNeeded()
         }
 
         // MARK: - Zoom Transition
@@ -1341,6 +1344,9 @@ extension PresentationLinkTransition.Value {
         viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
 
         let shouldUpdateBackgroundColor = {
+            if case .popover = self {
+                return false
+            }
             if #available(iOS 26.0, *), case .sheet = self {
                 return false
             }
@@ -1359,6 +1365,8 @@ extension PresentationLinkTransition.Value {
             }
 
         case .popover:
+            viewController.view.backgroundColor = nil
+            viewController.view.clipsToBounds = false
             viewController.tracksContentSize = true
 
         case .representable(_, let transition):

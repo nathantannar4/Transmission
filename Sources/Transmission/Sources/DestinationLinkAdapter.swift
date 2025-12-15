@@ -137,6 +137,8 @@ private struct DestinationLinkAdapterBody<
         uiView.hostingView?.cornerRadius = cornerRadius
         uiView.backgroundColor = backgroundColor?.toUIColor()
 
+        context.coordinator.presentingViewController = presentingViewController
+
         if let presentingViewController = presentingViewController, isPresented.wrappedValue {
 
             context.coordinator.isPresented = isPresented
@@ -249,6 +251,8 @@ private struct DestinationLinkAdapterBody<
 
         var wasNavigationBarHidden: Bool?
 
+        weak var presentingViewController: UIViewController?
+
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
         }
@@ -294,10 +298,9 @@ private struct DestinationLinkAdapterBody<
                 withTransaction(transaction) {
                     self.isPresented.wrappedValue = false
                 }
-                if let topViewController = adapter?.navigationController?.topViewController as? AnyHostingController {
-                    // Fix iOS 26.1+, changing `isPresented` binding while another view is presented causes some rendering to go blank
-                    topViewController.render()
-                }
+                // Fix iOS 26.1+, changing `isPresented` binding while another view is
+                // presented causes some rendering to go blank
+                presentingViewController?.fixSwiftUIHitTesting()
             }
             onPop()
         }
@@ -338,14 +341,30 @@ private struct DestinationLinkAdapterBody<
             guard viewController == adapter?.viewController else { return }
 
             let transaction = Transaction(animation: animated ? animation ?? .default : nil)
-            if let transitionCoordinator = viewController.transitionCoordinator, transitionCoordinator.isInteractive {
-                transitionCoordinator.notifyWhenInteractionChanges { ctx in
-                    if !ctx.isCancelled {
-                        self.navigationController(
-                            navigationController,
-                            didPop: viewController,
-                            animated: animated
-                        )
+            if let transitionCoordinator = viewController.transitionCoordinator {
+                if transitionCoordinator.viewController(forKey: .from) == viewController {
+                    if transitionCoordinator.isInteractive {
+                        transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                            if !ctx.isCancelled {
+                                self.navigationController(
+                                    navigationController,
+                                    didPop: viewController,
+                                    animated: animated
+                                )
+                            }
+                        }
+                    } else {
+                        onPop(transaction)
+                    }
+                } else {
+                    transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                        if !ctx.isCancelled {
+                            self.navigationController(
+                                navigationController,
+                                didPop: viewController,
+                                animated: animated
+                            )
+                        }
                     }
                 }
             } else {
@@ -736,30 +755,30 @@ final class DestinationLinkDelegateProxy: NSObject,
             if shouldFinish {
                 transition.finish()
             } else {
+                if let transitionCoordinator = navigationController.transitionCoordinator {
+                    // Fixes bugs with a cancelled interactive push transition
+                    transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                        if !navigationController.isNavigationBarHidden, !navigationController.navigationBar.isHidden {
+                            navigationController.setNavigationBarHidden(true, animated: false)
+                            navigationController.setNavigationBarHidden(false, animated: false)
+                        }
+                        if #unavailable(iOS 18.0) {
+                            navigationController.topViewController?.fixSwiftUIHitTesting()
+                        }
+                    }
+                }
+                transition.cancel()
+
                 if isInterruptedInteractiveTransition,
                    let fromVC = navigationController.topViewController,
                    let delegate = delegates[ObjectIdentifier(fromVC)]?.value
                 {
-                    if let transitionCoordinator = navigationController.transitionCoordinator {
-                        // Fixes bugs with a cancelled interactive push transition
-                        transitionCoordinator.animate(alongsideTransition: nil) { ctx in
-                            if !navigationController.isNavigationBarHidden, !navigationController.navigationBar.isHidden {
-                                navigationController.setNavigationBarHidden(true, animated: false)
-                                navigationController.setNavigationBarHidden(false, animated: false)
-                            }
-                            if #unavailable(iOS 18.0) {
-                                navigationController.topViewController?.fixSwiftUIHitTesting()
-                            }
-                        }
-                    }
-                    transition.cancel()
+
                     delegate.navigationController(
                         navigationController,
                         didPop: fromVC,
                         animated: true
                     )
-                } else {
-                    transition.cancel()
                 }
             }
             panGestureDidEnd()

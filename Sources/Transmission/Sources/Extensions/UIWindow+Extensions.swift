@@ -15,8 +15,10 @@ extension UIWindow {
         completion: (() -> Void)? = nil
     ) {
         window.parent = self
+        window.isHidden = false
+        animations?(false)
+        window.layoutIfNeeded()
         if window.windowLevel.rawValue > windowLevel.rawValue {
-            animations?(false)
             UIView.animate(with: animation) {
                 window.makeKeyAndVisible()
                 animations?(true)
@@ -25,8 +27,6 @@ extension UIWindow {
                 window.layer.removeAllAnimations()
             }
         } else {
-            window.isHidden = false
-            animations?(false)
             UIView.animate(
                 with: animation
             ) {

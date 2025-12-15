@@ -128,6 +128,12 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
         dimmingView?.isUserInteractionEnabled = false
     }
 
+    open override func animationEnded(_ transitionCompleted: Bool) {
+        super.animationEnded(transitionCompleted)
+        dimmingView?.removeFromSuperview()
+        dimmingView = nil
+    }
+
     open override func configureTransitionAnimator(
         using transitionContext: any UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
@@ -153,16 +159,6 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
         toVC.view.frame = transitionContext.finalFrame(for: toVC)
         toVC.view.layoutIfNeeded()
 
-        let dimmingView = DimmingView()
-        dimmingView.alpha = isPresenting ? 0 : 1
-        dimmingView.isUserInteractionEnabled = isPresenting
-        self.dimmingView = dimmingView
-        transitionContext.containerView.insertSubview(
-            dimmingView,
-            aboveSubview: isPresenting ? fromVC.view : toVC.view
-        )
-        dimmingView.frame = isPresenting ? fromVC.view.frame : toVC.view.frame
-
         var multiplier: CGFloat = 1
         if transitionContext.containerView.effectiveUserInterfaceLayoutDirection == .rightToLeft {
             multiplier = -1
@@ -171,14 +167,27 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             translationX: (isPresenting ? width : -offset) * multiplier,
             y: 0
         )
-        toVC.view.transform = toVCTransform
-        if !isPresenting {
-            dimmingView.transform = toVCTransform
-        }
         let fromVCTransform = CGAffineTransform(
             translationX: (isPresenting ? -offset : width) * multiplier,
             y: 0
         )
+
+        if transitionContext.isAnimated {
+            let dimmingView = DimmingView()
+            dimmingView.alpha = isPresenting ? 0 : 1
+            dimmingView.isUserInteractionEnabled = isPresenting
+            transitionContext.containerView.insertSubview(
+                dimmingView,
+                aboveSubview: isPresenting ? fromVC.view : toVC.view
+            )
+            dimmingView.frame = isPresenting ? fromVC.view.frame : toVC.view.frame
+            if !isPresenting {
+                dimmingView.transform = toVCTransform
+            }
+            self.dimmingView = dimmingView
+        }
+
+        toVC.view.transform = toVCTransform
         let presentedVC = isPresenting ? toVC : fromVC
         let cornerRadius = preferredCornerRadius ?? {
             if #available(iOS 26.0, *) {
@@ -189,16 +198,17 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
         if let cornerRadius {
             cornerRadius.apply(to: presentedVC.view)
         }
+        let dimmingView = dimmingView
         animator.addAnimations {
             toVC.view.transform = .identity
             fromVC.view.transform = fromVCTransform
-            dimmingView.alpha = isPresenting ? 1 : 0
-            dimmingView.transform = isPresenting ? fromVCTransform : .identity
+            dimmingView?.alpha = isPresenting ? 1 : 0
+            dimmingView?.transform = isPresenting ? fromVCTransform : .identity
         }
         animator.addCompletion { animatingPosition in
             toVC.view.transform = .identity
             fromVC.view.transform = .identity
-            dimmingView.removeFromSuperview()
+            dimmingView?.removeFromSuperview()
             if cornerRadius != nil {
                 CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedVC.view)
             }

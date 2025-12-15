@@ -559,11 +559,13 @@ extension PresentationLinkTransition {
         public var options: Options
         public var permittedArrowDirections: PermittedArrowDirections
         public var canOverlapSourceViewRect: Bool
+        public var isPassthrough: Bool
         public var adaptiveTransition: SheetTransitionOptions?
 
         public init(
             permittedArrowDirections: PermittedArrowDirections = .all,
             canOverlapSourceViewRect: Bool = false,
+            isPassthrough: Bool = false,
             adaptiveTransition: SheetTransitionOptions? = nil,
             isInteractive: Bool? = nil,
             options: PresentationLinkTransition.Options = .init()
@@ -574,22 +576,26 @@ extension PresentationLinkTransition {
             }
             self.permittedArrowDirections = permittedArrowDirections
             self.canOverlapSourceViewRect = canOverlapSourceViewRect
+            self.isPassthrough = isPassthrough
             self.adaptiveTransition = adaptiveTransition
         }
 
         func permittedArrowDirections(layoutDirection: UITraitEnvironmentLayoutDirection) -> UIPopoverArrowDirection {
-            var directions: UIPopoverArrowDirection = .any
-            if !permittedArrowDirections.contains(.top) {
-                directions.subtract(.up)
+            if permittedArrowDirections == .all {
+                return .any
             }
-            if !permittedArrowDirections.contains(.bottom) {
-                directions.subtract(.down)
+            var directions: UIPopoverArrowDirection = []
+            if permittedArrowDirections.contains(.top) {
+                directions.insert(.up)
             }
-            if !permittedArrowDirections.contains(.leading) {
-                directions.subtract(layoutDirection == .leftToRight ? .left : .right)
+            if permittedArrowDirections.contains(.bottom) {
+                directions.insert(.down)
             }
-            if !permittedArrowDirections.contains(.trailing) {
-                directions.subtract(layoutDirection == .leftToRight ? .right : .left)
+            if permittedArrowDirections.contains(.leading) {
+                directions.insert(layoutDirection == .leftToRight ? .left : .right)
+            }
+            if permittedArrowDirections.contains(.trailing) {
+                directions.insert(layoutDirection == .leftToRight ? .right : .left)
             }
             return directions
         }
@@ -777,6 +783,7 @@ extension PresentationLinkTransition {
     public static func popover(
         permittedArrowDirections: PresentationLinkTransition.PopoverTransitionOptions.PermittedArrowDirections = .all,
         canOverlapSourceViewRect: Bool = false,
+        isPassthrough: Bool = false,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
@@ -785,6 +792,7 @@ extension PresentationLinkTransition {
                 .init(
                     permittedArrowDirections: permittedArrowDirections,
                     canOverlapSourceViewRect: canOverlapSourceViewRect,
+                    isPassthrough: isPassthrough,
                     options: .init(
                         isInteractive: isInteractive,
                         preferredPresentationBackgroundColor: preferredPresentationBackgroundColor

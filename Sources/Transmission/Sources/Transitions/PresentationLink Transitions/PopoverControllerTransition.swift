@@ -8,28 +8,23 @@ import UIKit
 import SwiftUI
 
 @available(iOS 14.0, *)
-open class PresentationControllerTransition: ViewControllerTransition {
+open class PopoverControllerTransition: PresentationControllerTransition {
 
     public override init(
         isPresenting: Bool,
         animation: Animation?
     ) {
-        super.init(isPresenting: isPresenting, animation: animation)
-        wantsInteractiveStart = true
-    }
-
-    open override func animatedStarted(
-        transitionContext: UIViewControllerContextTransitioning
-    ) {
-        if let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? PresentationController {
-            presentationController.layoutBackgroundViews()
-        }
+        super.init(
+            isPresenting: isPresenting,
+            animation: animation
+        )
     }
 
     open override func configureTransitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
     ) {
+
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
             let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
@@ -39,6 +34,8 @@ open class PresentationControllerTransition: ViewControllerTransition {
             transitionContext.completeTransition(false)
             return
         }
+
+        let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? UIPopoverPresentationController
 
         if isPresenting {
             presentedView.alpha = 0
@@ -56,14 +53,13 @@ open class PresentationControllerTransition: ViewControllerTransition {
                 presentedFrame: &presentedFrame
             )
 
-            let dy = transitionContext.containerView.frame.height - presentedFrame.origin.y
-            let transform = CGAffineTransform(
-                translationX: 0,
-                y: dy
+            let transform = transform(
+                arrowDirection: presentationController?.arrowDirection ?? .unknown,
+                frame: presentedFrame
             )
             presentedView.transform = transform
-            presentedView.alpha = 1
             animator.addAnimations {
+                presentedView.alpha = 1
                 presentedView.transform = .identity
             }
         } else {
@@ -72,12 +68,6 @@ open class PresentationControllerTransition: ViewControllerTransition {
                 presentingView.frame = transitionContext.finalFrame(for: presenting)
                 presentingView.layoutIfNeeded()
             }
-            let frame = transitionContext.finalFrame(for: presented)
-            let dy = transitionContext.containerView.frame.height - frame.origin.y
-            let transform = CGAffineTransform(
-                translationX: 0,
-                y: dy
-            )
             presentedView.layoutIfNeeded()
 
             configureTransitionReaderCoordinator(
@@ -85,7 +75,12 @@ open class PresentationControllerTransition: ViewControllerTransition {
                 presentedView: presentedView
             )
 
+            let transform = transform(
+                arrowDirection: presentationController?.arrowDirection ?? .unknown,
+                frame: presentedView.frame
+            )
             animator.addAnimations {
+                presentedView.alpha = 0
                 presentedView.transform = transform
             }
         }
@@ -97,6 +92,36 @@ open class PresentationControllerTransition: ViewControllerTransition {
                 transitionContext.completeTransition(false)
             }
         }
+    }
+
+    private func transform(
+        arrowDirection: UIPopoverArrowDirection,
+        frame: CGRect
+    ) -> CGAffineTransform {
+        guard arrowDirection != .unknown else { return .identity }
+
+        let origin: CGPoint = {
+            switch arrowDirection {
+            case .up:
+                return CGPoint(x: frame.width / 2, y: 0)
+            case .down:
+                return CGPoint(x: frame.width / 2, y: frame.height)
+            case .left:
+                return CGPoint(x: 0, y: frame.height / 2)
+            case .right:
+                return CGPoint(x: frame.width, y: frame.height / 2)
+            default:
+                return CGPoint(x: frame.width / 2, y: frame.height / 2)
+            }
+        }()
+
+        let scale: CGFloat = 0.25
+        let tx = (origin.x - frame.width / 2) * (1 - scale)
+        let ty = (origin.y - frame.height / 2) * (1 - scale)
+
+        return CGAffineTransform.identity
+            .translatedBy(x: tx, y: ty)
+            .scaledBy(x: scale, y: scale)
     }
 }
 
