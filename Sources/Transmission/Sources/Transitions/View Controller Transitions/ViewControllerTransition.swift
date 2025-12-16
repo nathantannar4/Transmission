@@ -39,11 +39,11 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     open override func startInteractiveTransition(
         _ transitionContext: UIViewControllerContextTransitioning
     ) {
+        transitionDuration = transitionDuration(using: transitionContext)
         super.startInteractiveTransition(transitionContext)
         if let presenting = transitionContext.viewController(forKey: isPresenting ? .to : .from) {
             presenting.transitionReaderAnimation = animation
         }
-        transitionDuration = transitionDuration(using: transitionContext)
     }
 
     open func transitionDuration(
@@ -139,8 +139,9 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             defaultDuration: duration,
             defaultCompletionCurve: completionCurve
         )
-        configureTransitionAnimator(using: transitionContext, animator: animator)
+        // This must be set before configuring, as view layout can sometimes trigger re-entry
         self.animator = animator
+        configureTransitionAnimator(using: transitionContext, animator: animator)
         return animator
     }
 
