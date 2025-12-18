@@ -15,7 +15,6 @@ open class PresentationControllerTransition: ViewControllerTransition {
         animation: Animation?
     ) {
         super.init(isPresenting: isPresenting, animation: animation)
-        wantsInteractiveStart = true
     }
 
     open override func animatedStarted(
@@ -79,11 +78,6 @@ open class PresentationControllerTransition: ViewControllerTransition {
                 y: dy
             )
             presentedView.layoutIfNeeded()
-
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView
-            )
 
             animator.addAnimations {
                 presentedView.transform = transform

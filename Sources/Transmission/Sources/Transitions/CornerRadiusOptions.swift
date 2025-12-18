@@ -212,7 +212,7 @@ public enum CornerRadiusOptions: Equatable, Sendable {
         case .rounded(let options):
             options.apply(to: view, masksToBounds: masksToBounds)
         case .capsule(let options):
-            options.apply(to: view, masksToBounds: masksToBounds)
+            options.apply(to: view, height: height ?? view.bounds.height, masksToBounds: masksToBounds)
         case .circle:
             #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *) {
@@ -283,6 +283,7 @@ extension CornerRadiusOptions.Capsule {
     @MainActor @preconcurrency
     public func apply(
         to view: UIView,
+        height: CGFloat? = nil,
         masksToBounds: Bool = true
     ) {
         #if canImport(FoundationModels) // Xcode 26
@@ -290,15 +291,16 @@ extension CornerRadiusOptions.Capsule {
             view.cornerConfiguration = .capsule(maximumRadius: maxCornerRadius.map { Double($0) })
         }
         #endif
-        apply(to: view.layer, masksToBounds: masksToBounds)
+        apply(to: view.layer, height: height, masksToBounds: masksToBounds)
     }
 
     @MainActor @preconcurrency
     public func apply(
         to layer: CALayer,
+        height: CGFloat? = nil,
         masksToBounds: Bool = true
     ) {
-        layer.cornerRadius = cornerRadius(for: layer.bounds.height)
+        layer.cornerRadius = cornerRadius(for: height ?? layer.bounds.height)
         layer.cornerCurve = style
     }
 

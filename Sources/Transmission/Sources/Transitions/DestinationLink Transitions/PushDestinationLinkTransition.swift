@@ -31,6 +31,7 @@ extension DestinationLinkTransition {
     /// The push transition style.
     public static func push(
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        preferredShadow: ShadowOptions? = nil,
         prefersPanGesturePop: Bool = true,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil,
@@ -38,7 +39,8 @@ extension DestinationLinkTransition {
     ) -> DestinationLinkTransition {
         .push(
             .init(
-                preferredCornerRadius: preferredCornerRadius
+                preferredCornerRadius: preferredCornerRadius,
+                preferredShadow: preferredShadow
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -58,11 +60,14 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
     public struct Options {
 
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
+        public var preferredShadow: ShadowOptions?
 
         public init(
-            preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil
+            preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+            preferredShadow: ShadowOptions? = nil
         ) {
             self.preferredCornerRadius = preferredCornerRadius
+            self.preferredShadow = preferredShadow
         }
     }
     public var options: Options
@@ -79,10 +84,10 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
     ) -> PushNavigationControllerTransition? {
         let transition = PushNavigationControllerTransition(
             preferredCornerRadius: options.preferredCornerRadius,
+            preferredShadow: options.preferredShadow,
             isPresenting: true,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = false
         return transition
     }
 
@@ -94,10 +99,10 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
     ) -> PushNavigationControllerTransition? {
         let transition = PushNavigationControllerTransition(
             preferredCornerRadius: options.preferredCornerRadius,
+            preferredShadow: options.preferredShadow,
             isPresenting: false,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = true
         return transition
     }
 }
@@ -106,15 +111,18 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
 open class PushNavigationControllerTransition: ViewControllerTransition {
 
     public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
+    public var preferredShadow: ShadowOptions?
 
     weak var dimmingView: DimmingView?
 
     public init(
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        preferredShadow: ShadowOptions? = nil,
         isPresenting: Bool,
         animation: Animation?
     ) {
         self.preferredCornerRadius = preferredCornerRadius
+        self.preferredShadow = preferredShadow
         super.init(isPresenting: isPresenting, animation: animation)
     }
 
@@ -140,7 +148,9 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
     ) {
         guard
             let fromVC = transitionContext.viewController(forKey: .from),
-            let toVC = transitionContext.viewController(forKey: .to)
+            let toVC = transitionContext.viewController(forKey: .to),
+            let presentedView = isPresenting ? toVC.view : fromVC.view,
+            let presentingView = isPresenting ? fromVC.view : toVC.view
         else {
             transitionContext.completeTransition(false)
             return
@@ -150,6 +160,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
         let width = transitionContext.containerView.frame.width
         let offset = width * 0.3
         let isPresenting = isPresenting
+        let preferredCornerRadius = preferredCornerRadius
         if isPresenting {
             transitionContext.containerView.addSubview(toVC.view)
         } else {
@@ -171,6 +182,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             translationX: (isPresenting ? -offset : width) * multiplier,
             y: 0
         )
+        var dropShadowView: DropShadowView?
 
         if transitionContext.isAnimated {
             let dimmingView = DimmingView()
@@ -178,38 +190,76 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             dimmingView.isUserInteractionEnabled = isPresenting
             transitionContext.containerView.insertSubview(
                 dimmingView,
-                aboveSubview: isPresenting ? fromVC.view : toVC.view
+                aboveSubview: presentingView
             )
-            dimmingView.frame = isPresenting ? fromVC.view.frame : toVC.view.frame
-            if !isPresenting {
-                dimmingView.transform = toVCTransform
-            }
+            dimmingView.frame = transitionContext.containerView.frame
             self.dimmingView = dimmingView
+
+            if !(presentedView.backgroundColor?.isTranslucent ?? true) || preferredShadow != nil {
+                let shadowView = DropShadowView()
+                if let preferredShadow {
+                    preferredShadow.apply(to: shadowView)
+                }
+                transitionContext.containerView.insertSubview(
+                    shadowView,
+                    belowSubview: presentedView
+                )
+                shadowView.frame = presentedView.frame
+                if isPresenting {
+                    shadowView.transform = toVCTransform
+                }
+                dropShadowView = shadowView
+            }
         }
 
         toVC.view.transform = toVCTransform
         let presentedVC = isPresenting ? toVC : fromVC
-        let cornerRadius = preferredCornerRadius ?? {
-            if #available(iOS 26.0, *) {
-                return .screen()
+        if let preferredCornerRadius {
+            preferredCornerRadius.apply(to: presentedVC.view)
+            if let dropShadowView {
+                preferredCornerRadius.apply(to: dropShadowView, masksToBounds: false)
             }
-            return nil
-        }()
-        if let cornerRadius {
-            cornerRadius.apply(to: presentedVC.view)
+        } else if #available(iOS 26.0, *) {
+            let presentationController = transitionContext.viewController(forKey: isPresenting ? .from : .to)?.activePresentationController
+            var presentedView = presentationController?.presentedView
+            if let presentationController = presentationController as? UISheetPresentationController {
+                presentedView = presentationController.presentedView?.subviews.last
+            }
+            if let presentedView {
+                #if canImport(FoundationModels) // Xcode 26
+                presentedVC.view.cornerConfiguration = presentedView.cornerConfiguration
+                #endif
+                presentedVC.view.layer.cornerCurve = presentedView.layer.cornerCurve
+                presentedVC.view.clipsToBounds = presentedView.clipsToBounds
+                if let dropShadowView {
+                    #if canImport(FoundationModels) // Xcode 26
+                    dropShadowView.cornerConfiguration = presentedView.cornerConfiguration
+                    #endif
+                    dropShadowView.layer.cornerCurve = presentedView.layer.cornerCurve
+                }
+            } else {
+                let cornerRadius = CornerRadiusOptions.RoundedRectangle.screen()
+                cornerRadius.apply(to: presentedVC.view)
+                if let dropShadowView {
+                    cornerRadius.apply(to: dropShadowView, masksToBounds: false)
+                }
+            }
         }
         let dimmingView = dimmingView
         animator.addAnimations {
             toVC.view.transform = .identity
+            dropShadowView?.transform = isPresenting ? .identity : fromVCTransform
             fromVC.view.transform = fromVCTransform
             dimmingView?.alpha = isPresenting ? 1 : 0
-            dimmingView?.transform = isPresenting ? fromVCTransform : .identity
         }
         animator.addCompletion { animatingPosition in
             toVC.view.transform = .identity
             fromVC.view.transform = .identity
+            dropShadowView?.removeFromSuperview()
             dimmingView?.removeFromSuperview()
-            if cornerRadius != nil {
+            if preferredCornerRadius != nil {
+                CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedVC.view)
+            } else if #available(iOS 26.0, *) {
                 CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedVC.view)
             }
             switch animatingPosition {

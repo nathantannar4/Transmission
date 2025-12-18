@@ -293,7 +293,7 @@ private struct DestinationLinkAdapterBody<
             }
         }
 
-        func onPop(_ transaction: Transaction) {
+        func willPop(_ transaction: Transaction) {
             if isPresented.wrappedValue == true {
                 withTransaction(transaction) {
                     self.isPresented.wrappedValue = false
@@ -302,10 +302,14 @@ private struct DestinationLinkAdapterBody<
                 // presented causes some rendering to go blank
                 presentingViewController?.fixSwiftUIHitTesting()
             }
-            onPop()
         }
 
-        func onPop() {
+        func onPop(_ transaction: Transaction) {
+            willPop(transaction)
+            didPop()
+        }
+
+        func didPop() {
             adapter = nil
         }
 
@@ -354,7 +358,10 @@ private struct DestinationLinkAdapterBody<
                             }
                         }
                     } else {
-                        onPop(transaction)
+                        willPop(transaction)
+                        transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                            self.didPop()
+                        }
                     }
                 } else {
                     transitionCoordinator.animate(alongsideTransition: nil) { ctx in
@@ -469,8 +476,8 @@ private struct DestinationLinkAdapterBody<
                         to: toVC,
                         context: makeContext(options: options)
                     )
-                    if let transition = animationController as? UIPercentDrivenInteractiveTransition, transition.wantsInteractiveStart {
-                        transition.wantsInteractiveStart = options.isInteractive
+                    if let transition = animationController as? UIPercentDrivenInteractiveTransition {
+                        transition.wantsInteractiveStart = transition.wantsInteractiveStart && options.isInteractive
                     }
                     return animationController
 
@@ -1107,8 +1114,8 @@ final class DestinationLinkDelegateProxy: NSObject,
             from: fromVC,
             to: toVC
         )
-        if operation == .pop, !wantsInteractiveTransition, let transition = animationController as? UIPercentDrivenInteractiveTransition {
-            transition.wantsInteractiveStart = false
+        if let transition = animationController as? UIPercentDrivenInteractiveTransition {
+            transition.wantsInteractiveStart = transition.wantsInteractiveStart && wantsInteractiveTransition
         }
         transitioningId = animationController != nil ? id : nil
         transition = animationController as? UIPercentDrivenInteractiveTransition

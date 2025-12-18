@@ -67,7 +67,7 @@ open class PresentationController: DelegatedPresentationController {
         if transition.animation == .default, let preferredDefaultAnimation = preferredDefaultAnimation() {
             transition.animation = preferredDefaultAnimation
         }
-        transition.wantsInteractiveStart = wantsInteractiveTransition
+        transition.wantsInteractiveStart = transition.wantsInteractiveStart && wantsInteractiveTransition
         self.transition = transition
     }
 

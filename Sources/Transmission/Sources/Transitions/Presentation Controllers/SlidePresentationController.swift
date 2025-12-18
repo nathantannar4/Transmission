@@ -226,11 +226,6 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
             )
             presentedView.layoutIfNeeded()
 
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView
-            )
-
             animator.addAnimations {
                 presentedView.transform = transform
             }

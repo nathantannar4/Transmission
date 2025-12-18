@@ -200,11 +200,6 @@ open class CrossDissolveControllerTransition: PresentationControllerTransition {
             }
             presentedView.layoutIfNeeded()
 
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView
-            )
-
             let transform = transform
             animator.addAnimations {
                 presentedView.alpha = 0

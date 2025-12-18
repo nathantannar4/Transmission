@@ -95,7 +95,6 @@ public struct SlideDestinationLinkTransition: DestinationLinkTransitionRepresent
             isPresenting: false,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = true
         return transition
     }
 }

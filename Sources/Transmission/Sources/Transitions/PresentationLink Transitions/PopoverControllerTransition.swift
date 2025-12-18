@@ -36,6 +36,8 @@ open class PopoverControllerTransition: PresentationControllerTransition {
         }
 
         let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? UIPopoverPresentationController
+        let sourceView = presentationController?.sourceView
+        let sourceFrame = sourceView?.convert(sourceView?.bounds ?? .zero, to: transitionContext.containerView)
 
         if isPresenting {
             presentedView.alpha = 0
@@ -55,6 +57,7 @@ open class PopoverControllerTransition: PresentationControllerTransition {
 
             let transform = transform(
                 arrowDirection: presentationController?.arrowDirection ?? .unknown,
+                sourceFrame: sourceFrame,
                 frame: presentedFrame
             )
             presentedView.transform = transform
@@ -70,13 +73,9 @@ open class PopoverControllerTransition: PresentationControllerTransition {
             }
             presentedView.layoutIfNeeded()
 
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView
-            )
-
             let transform = transform(
                 arrowDirection: presentationController?.arrowDirection ?? .unknown,
+                sourceFrame: sourceFrame,
                 frame: presentedView.frame
             )
             animator.addAnimations {
@@ -94,33 +93,45 @@ open class PopoverControllerTransition: PresentationControllerTransition {
         }
     }
 
-    private func transform(
+    func transform(
         arrowDirection: UIPopoverArrowDirection,
+        sourceFrame: CGRect?,
         frame: CGRect
     ) -> CGAffineTransform {
-        guard arrowDirection != .unknown else { return .identity }
+        guard arrowDirection != .unknown, let sourceFrame else { return .identity }
 
-        let origin: CGPoint = {
+        let anchor: UnitPoint = {
             switch arrowDirection {
             case .up:
-                return CGPoint(x: frame.width / 2, y: 0)
+                return .top
             case .down:
-                return CGPoint(x: frame.width / 2, y: frame.height)
+                return .bottom
             case .left:
-                return CGPoint(x: 0, y: frame.height / 2)
+                return .trailing
             case .right:
-                return CGPoint(x: frame.width, y: frame.height / 2)
+                return .leading
             default:
-                return CGPoint(x: frame.width / 2, y: frame.height / 2)
+                return .center
             }
         }()
 
         let scale: CGFloat = 0.25
-        let tx = (origin.x - frame.width / 2) * (1 - scale)
-        let ty = (origin.y - frame.height / 2) * (1 - scale)
+        let dx = sourceFrame.midX - frame.midX
+        let dy = sourceFrame.midY - frame.midY
+        let scaleTx = (anchor.x * dx) * (1 - scale)
+        let scaleTy = (anchor.y * dy) * (1 - scale)
+
+
 
         return CGAffineTransform.identity
-            .translatedBy(x: tx, y: ty)
+            .translatedBy(
+                x: dx * (1 - anchor.x) / 2 + (dx * scale * (1 - anchor.x)),
+                y: dy * (1 - anchor.y) / 2 + (dy * scale * (1 - anchor.y))
+            )
+            .translatedBy(
+                x: scaleTx,
+                y: scaleTy
+            )
             .scaledBy(x: scale, y: scale)
     }
 }

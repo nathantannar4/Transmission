@@ -110,6 +110,7 @@ public struct MatchedGeometryDestinationLinkTransition: DestinationLinkTransitio
             isPresenting: true,
             animation: context.transaction.animation
         )
+        transition.wantsInteractiveStart = false
         return transition
     }
 
@@ -130,7 +131,6 @@ public struct MatchedGeometryDestinationLinkTransition: DestinationLinkTransitio
             isPresenting: false,
             animation: context.transaction.animation
         )
-        transition.wantsInteractiveStart = true
         return transition
     }
 }

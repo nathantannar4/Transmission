@@ -31,7 +31,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         self.isPresenting = isPresenting
         self.animation = animation
         super.init()
-        wantsInteractiveStart = false
     }
 
     // MARK: - UIViewControllerAnimatedTransitioning
@@ -58,12 +57,12 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     ) {
         transitionDuration = transitionDuration(using: transitionContext)
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
-        let delay = animation?.delay ?? 0
         animatedStarted(transitionContext: transitionContext)
-        animator.startAnimation(afterDelay: delay)
 
-        if !transitionContext.isAnimated {
-            animator.stopAnimation(false)
+        if transitionContext.isAnimated {
+            let delay = animation?.delay ?? 0
+            animator.startAnimation(afterDelay: delay)
+        } else {
             animator.finishAnimation(at: .end)
         }
     }
@@ -89,17 +88,19 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
     open override func pause() {
         super.pause()
+        guard isInterruptible, animator?.isRunning == true else { return }
         animator?.pauseAnimation()
     }
 
     open override func update(_ percentComplete: CGFloat) {
         super.update(percentComplete)
+        guard isInterruptible, animator?.fractionComplete != percentComplete else { return }
         animator?.fractionComplete = percentComplete
     }
 
     open override func finish() {
         super.finish()
-        guard animator?.isRunning == false else { return }
+        guard isInterruptible, animator?.isRunning == false else { return }
         if animator?.fractionComplete == 1, animator?.state == .active {
             animator?.stopAnimation(false)
             animator?.finishAnimation(at: .end)
@@ -110,7 +111,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
     open override func cancel() {
         super.cancel()
-        guard animator?.isRunning == false else { return }
+        guard isInterruptible, animator?.isRunning == false else { return }
         if animator?.fractionComplete == 0, animator?.state == .active {
             animator?.stopAnimation(false)
             animator?.finishAnimation(at: .start)
@@ -147,42 +148,33 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
     public func configureTransitionReaderCoordinator(
         presented: UIViewController,
-        presentedView: UIView
-    ) {
-        var frame = CGRect.zero
-        configureTransitionReaderCoordinator(
-            presented: presented,
-            presentedView: presentedView,
-            presentedFrame: &frame
-        )
-    }
-
-    public func configureTransitionReaderCoordinator(
-        presented: UIViewController,
         presentedView: UIView,
         presentedFrame: inout CGRect
     ) {
-        if isPresenting {
-            (presented as? AnyHostingController)?.render()
+        guard isPresenting else { return }
+        (presented as? AnyHostingController)?.render()
 
-            if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
-                transitionReaderCoordinator.update(isPresented: true)
-
-                presentedView.setNeedsLayout()
-                presentedView.layoutIfNeeded()
-
-                if let presentationController = presented.presentationController as? PresentationController {
-                    presentedFrame = presentationController.frameOfPresentedViewInContainerView
-                }
-
-                transitionReaderCoordinator.update(isPresented: false)
-                presentedView.setNeedsLayout()
-                presentedView.layoutIfNeeded()
-                transitionReaderCoordinator.update(isPresented: true)
-            }
-        } else {
-            presented.transitionReaderCoordinator?.update(isPresented: false)
+        guard
+            let transitionReaderCoordinator = presented.transitionReaderCoordinator,
+            let presentationController = presented.presentationController
+        else {
+            return
         }
+
+        transitionReaderCoordinator.update(isPresented: true)
+
+        if presentationController.presentedViewController.preferredContentSize != .zero {
+            presentationController.presentedViewController.preferredContentSize = .zero
+        }
+
+        presentedView.setNeedsLayout()
+        presentedView.layoutIfNeeded()
+
+        presentedFrame = presentationController.frameOfPresentedViewInContainerView
+
+        transitionReaderCoordinator.update(isPresented: false)
+        presentedView.setNeedsLayout()
+        presentedView.layoutIfNeeded()
     }
 
     open func configureTransitionAnimator(
@@ -223,11 +215,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
                 presentingView.layoutIfNeeded()
             }
             presentedView.layoutIfNeeded()
-
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView
-            )
         }
         animator.addAnimations {
             presentedView.alpha = isPresenting ? 1 : 0
