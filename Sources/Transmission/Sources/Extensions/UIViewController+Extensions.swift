@@ -14,8 +14,8 @@ extension UIViewController {
         completion: ((Bool) -> Void)? = nil
     ) {
         guard let navigationController = navigationController,
-            let index = navigationController.viewControllers.firstIndex(of: self),
-            index > 0
+              let index = navigationController.viewControllers.firstIndex(of: self),
+              index > 0
         else {
             completion?(false)
             return
@@ -141,7 +141,6 @@ extension UIViewController {
         }
         return view.firstResponder
     }
-
 }
 
 extension UIView {

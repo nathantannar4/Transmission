@@ -6,10 +6,12 @@ import UIKit
 
 open class DimmingView: UIView {
 
+    static let backgroundColor = UIColor.black.withAlphaComponent(0.12)
+
     public override init(frame: CGRect = .zero) {
         super.init(frame: frame)
 
-        backgroundColor = UIColor.black.withAlphaComponent(0.12)
+        backgroundColor = DimmingView.backgroundColor
     }
 
     public required init?(coder aDecoder: NSCoder) {

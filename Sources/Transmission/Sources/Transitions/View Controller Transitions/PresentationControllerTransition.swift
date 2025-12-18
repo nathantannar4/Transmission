@@ -80,11 +80,6 @@ open class PresentationControllerTransition: ViewControllerTransition {
             )
             presentedView.layoutIfNeeded()
 
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView
-            )
-
             animator.addAnimations {
                 presentedView.transform = transform
             }

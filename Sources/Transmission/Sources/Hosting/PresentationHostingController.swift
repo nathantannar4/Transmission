@@ -42,7 +42,7 @@ open class PresentationHostingController<
             return
         }
 
-        if isBeingPresented, didRelayoutDuringPresentation {
+        if isBeingPresented, didRelayoutDuringPresentation, !tracksContentSize || (tracksContentSize && preferredContentSize != .zero) {
             return
         }
 

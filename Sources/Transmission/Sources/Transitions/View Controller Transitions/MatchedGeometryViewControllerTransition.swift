@@ -187,6 +187,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
                 presentedView: presentedView,
                 presentedFrame: &presentedFrame
             )
+            presented.transitionReaderCoordinator?.update(isPresented: true)
 
         } else {
             if presentedView.layer.cornerRadius == 0 {
@@ -195,10 +196,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             presentedView.layoutIfNeeded()
             hostingController?.render()
 
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView
-            )
+            presented.transitionReaderCoordinator?.update(isPresented: false)
 
             if presentingView.superview == nil {
                 transitionContext.containerView.insertSubview(presentingView, belowSubview: presentedView)

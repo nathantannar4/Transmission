@@ -184,7 +184,8 @@ private struct PresentationLinkAdapterBody<
                         presentationController.permittedArrowDirections = newValue.permittedArrowDirections(
                             layoutDirection: adapter.viewController.traitCollection.layoutDirection
                         )
-                        presentationController.passthroughViews = newValue.isPassthrough ? [presentationController.presentingViewController.view] : nil
+                        let presentingViewController = presentationController.presentingViewController
+                        presentationController.passthroughViews = newValue.isPassthrough ? [presentingViewController.view] : nil
                         presentationController.popoverLayoutMargins = newValue.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(
                             layoutDirection: .init(adapter.viewController.traitCollection.layoutDirection) ?? .leftToRight
                         ) ?? .zero
@@ -784,7 +785,11 @@ private struct PresentationLinkAdapterBody<
                 return nil
 
             case .popover:
-                guard let presentationController else { return nil }
+                guard
+                    presentationController is UIPopoverPresentationController
+                else {
+                    return nil
+                }
                 let animationController = PopoverControllerTransition(
                     isPresenting: true,
                     animation: animation
@@ -827,7 +832,11 @@ private struct PresentationLinkAdapterBody<
                 return nil
 
             case .popover:
-                guard let presentationController else { return nil }
+                guard
+                    presentationController is UIPopoverPresentationController
+                else {
+                    return nil
+                }
                 let animationController = PopoverControllerTransition(
                     isPresenting: false,
                     animation: animation
@@ -975,7 +984,8 @@ private struct PresentationLinkAdapterBody<
                 presentationController.permittedArrowDirections = options.permittedArrowDirections(
                     layoutDirection: presentationController.traitCollection.layoutDirection
                 )
-                presentationController.passthroughViews = options.isPassthrough ? [presenting?.view ?? source.view] : nil
+                let presentingViewController = presenting ?? source
+                presentationController.passthroughViews = options.isPassthrough ? [presentingViewController.view] : nil
                 presentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
                 presentationController.popoverLayoutMargins = options.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(
                     layoutDirection: .init(presentationController.traitCollection.layoutDirection) ?? .leftToRight

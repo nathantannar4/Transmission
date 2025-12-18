@@ -147,42 +147,33 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
     public func configureTransitionReaderCoordinator(
         presented: UIViewController,
-        presentedView: UIView
-    ) {
-        var frame = CGRect.zero
-        configureTransitionReaderCoordinator(
-            presented: presented,
-            presentedView: presentedView,
-            presentedFrame: &frame
-        )
-    }
-
-    public func configureTransitionReaderCoordinator(
-        presented: UIViewController,
         presentedView: UIView,
         presentedFrame: inout CGRect
     ) {
-        if isPresenting {
-            (presented as? AnyHostingController)?.render()
+        guard isPresenting else { return }
+        (presented as? AnyHostingController)?.render()
 
-            if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
-                transitionReaderCoordinator.update(isPresented: true)
-
-                presentedView.setNeedsLayout()
-                presentedView.layoutIfNeeded()
-
-                if let presentationController = presented.presentationController as? PresentationController {
-                    presentedFrame = presentationController.frameOfPresentedViewInContainerView
-                }
-
-                transitionReaderCoordinator.update(isPresented: false)
-                presentedView.setNeedsLayout()
-                presentedView.layoutIfNeeded()
-                transitionReaderCoordinator.update(isPresented: true)
-            }
-        } else {
-            presented.transitionReaderCoordinator?.update(isPresented: false)
+        guard
+            let transitionReaderCoordinator = presented.transitionReaderCoordinator,
+            let presentationController = presented.presentationController
+        else {
+            return
         }
+
+        transitionReaderCoordinator.update(isPresented: true)
+
+        if presentationController.presentedViewController.preferredContentSize != .zero {
+            presentationController.presentedViewController.preferredContentSize = .zero
+        }
+
+        presentedView.setNeedsLayout()
+        presentedView.layoutIfNeeded()
+
+        presentedFrame = presentationController.frameOfPresentedViewInContainerView
+
+        transitionReaderCoordinator.update(isPresented: false)
+        presentedView.setNeedsLayout()
+        presentedView.layoutIfNeeded()
     }
 
     open func configureTransitionAnimator(
@@ -223,11 +214,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
                 presentingView.layoutIfNeeded()
             }
             presentedView.layoutIfNeeded()
-
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView
-            )
         }
         animator.addAnimations {
             presentedView.alpha = isPresenting ? 1 : 0

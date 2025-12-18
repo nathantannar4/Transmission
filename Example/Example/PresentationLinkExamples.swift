@@ -449,15 +449,15 @@ struct PresentationLinkExamples: View {
                         ),
                         presenting: MatchedGeometryPresentationLinkTransition(
                             options: .init(
-                                preferredFromCornerRadius: .circle,
-                                preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
+                                preferredFromCornerRadius: .capsule,
+                                preferredToCornerRadius: .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - CardPresentationLinkTransition.defaultEdgeInset),
                                 initialOpacity: 1
                             )
                         ),
                         dismissing: MatchedGeometryPresentationLinkTransition(
                             options: .init(
-                                preferredFromCornerRadius: .circle,
-                                preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
+                                preferredFromCornerRadius: .capsule,
+                                preferredToCornerRadius: .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - CardPresentationLinkTransition.defaultEdgeInset),
                                 initialOpacity: 1
                             )
                         ),
@@ -638,15 +638,15 @@ struct InfoCardView: View {
                         ),
                         presenting: MatchedGeometryPresentationLinkTransition(
                             options: .init(
-                                preferredFromCornerRadius: .circle,
-                                preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
+                                preferredFromCornerRadius: .capsule,
+                                preferredToCornerRadius: .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - CardPresentationLinkTransition.defaultEdgeInset),
                                 initialOpacity: 1
                             )
                         ),
                         dismissing: MatchedGeometryPresentationLinkTransition(
                             options: .init(
-                                preferredFromCornerRadius: .circle,
-                                preferredToCornerRadius: CardPresentationLinkTransition.defaultAdjustedCornerRadius,
+                                preferredFromCornerRadius: .capsule,
+                                preferredToCornerRadius: .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - CardPresentationLinkTransition.defaultEdgeInset),
                                 initialOpacity: 1
                             )
                         ),
