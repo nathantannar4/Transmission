@@ -375,7 +375,7 @@ private struct DestinationLinkAdapterBody<
                     }
                 }
             } else {
-                onPop(transaction)
+                willPop(transaction)
             }
         }
 
@@ -390,7 +390,7 @@ private struct DestinationLinkAdapterBody<
             if navigationController.viewControllers.contains(viewController) {
                 isPushing = false
                 animation = nil
-            } else if !isPushing, isPresented.wrappedValue {
+            } else if !isPushing, adapter != nil {
                 // Break the retain cycle
                 adapter?.coordinator = nil
 

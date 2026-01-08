@@ -150,9 +150,6 @@ private struct PresentationLinkAdapterBody<
                     UITraitCollection(userInterfaceLevel: .elevated),
                 ]
             )
-            if let environment = presentingViewController.traitCollection.value(forKey: "_environmentWrapper") {
-                traits.setValue(environment, forKey: "_environmentWrapper")
-            }
 
             var isAnimated = context.transaction.isAnimated
                 || presentingViewController.transitionCoordinator?.isAnimated == true
