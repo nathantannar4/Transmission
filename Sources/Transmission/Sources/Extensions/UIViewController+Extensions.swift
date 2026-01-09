@@ -79,15 +79,12 @@ extension UIViewController {
     }
 
     var _activePresentationController: UIPresentationController? {
-        guard presentingViewController != nil else { return nil }
-        let active: UIPresentationController? = {
-            if #available(iOS 16.0, *), let activePresentationController {
-                return activePresentationController
-            }
-            return presentationController
-        }()
-        guard active?.presentedViewController == self else { return nil }
-        return active
+        if #available(iOS 16.0, *) {
+            return activePresentationController
+        } else if let presentingViewController {
+            return presentingViewController.presentationController
+        }
+        return nil
     }
 
     func firstDescendent<T: UIViewController>(ofType type: T.Type) -> T? {

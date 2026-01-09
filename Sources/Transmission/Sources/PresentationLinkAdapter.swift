@@ -446,20 +446,30 @@ private struct PresentationLinkAdapterBody<
                                 dismissThenPresent()
                             }
                         }
-                    } else if !presentedViewController.isBeingDismissed {
+                    } else if presentedViewController.isBeingDismissed {
+                        didPresent = true
+                        if let transitionCoordinator = presentedViewController.transitionCoordinator {
+                            if transitionCoordinator.isInteractive {
+                                transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                                    if ctx.isCancelled {
+                                        dismissThenPresent()
+                                    } else {
+                                        present()
+                                    }
+                                }
+                            } else {
+                                present()
+                            }
+                        } else {
+                            present()
+                        }
+                    } else {
                         didPresent = true
                         dismissThenPresent()
                     }
                 }
                 if !didPresent {
-                    if let transitionCoordinator = presentingViewController.transitionCoordinator,
-                        !transitionCoordinator.isCancelled
-                    {
-                        didPresent = true
-                        transitionCoordinator.animate(alongsideTransition: nil) { ctx in
-                            present()
-                        }
-                    } else if let firstResponder = presentingViewController.firstResponder {
+                    if let firstResponder = presentingViewController.firstResponder {
                         withCATransaction {
                             firstResponder.resignFirstResponder()
                             present()
@@ -558,9 +568,6 @@ private struct PresentationLinkAdapterBody<
                 withTransaction(transaction) {
                     isPresented.wrappedValue = false
                 }
-                // Fix iOS 26.1+, changing `isPresented` binding while another view is
-                // presented causes some rendering to go blank
-                presentingViewController?.fixSwiftUIHitTesting()
             }
             didDismiss()
         }
@@ -602,13 +609,14 @@ private struct PresentationLinkAdapterBody<
         ) {
             guard
                 presentationController == self.presentationController,
-                presentationController.presentedViewController == adapter?.viewController
+                let viewController = adapter?.viewController,
+                presentationController.presentedViewController == viewController
             else {
                 return
             }
 
             let transaction = Transaction(animation: animation ?? .default)
-            if let transitionCoordinator = adapter?.viewController?.transitionCoordinator, transitionCoordinator.isInteractive {
+            if let transitionCoordinator = viewController.transitionCoordinator, transitionCoordinator.isInteractive {
                 transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
                     if !ctx.isCancelled {
                         guard presentationController == self?.presentationController else { return }

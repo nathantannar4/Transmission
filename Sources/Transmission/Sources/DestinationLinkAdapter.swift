@@ -220,6 +220,7 @@ private struct DestinationLinkAdapterBody<
                 }
             }
         } else if context.coordinator.adapter != nil, !isPresented.wrappedValue {
+            context.coordinator.isPresented = isPresented
             context.coordinator.onPop(1, transaction: context.transaction)
         }
     }
@@ -243,7 +244,7 @@ private struct DestinationLinkAdapterBody<
         var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, SourceView>?
         var animation: Animation?
         var didPresentAnimated = false
-        var isPushing = false
+        var isPushing: Bool?
         weak var sourceView: UIView?
 
         var isZoomTransitionDismissReady = false
@@ -272,6 +273,7 @@ private struct DestinationLinkAdapterBody<
             guard let viewController = adapter?.viewController else { return }
             animation = transaction.animation
             didPresentAnimated = false
+            isPushing = false
             if let presented = viewController.presentedViewController {
                 presented.dismiss(animated: transaction.isAnimated) {
                     viewController._popViewController(
@@ -298,9 +300,6 @@ private struct DestinationLinkAdapterBody<
                 withTransaction(transaction) {
                     self.isPresented.wrappedValue = false
                 }
-                // Fix iOS 26.1+, changing `isPresented` binding while another view is
-                // presented causes some rendering to go blank
-                presentingViewController?.fixSwiftUIHitTesting()
             }
         }
 
@@ -310,6 +309,13 @@ private struct DestinationLinkAdapterBody<
         }
 
         func didPop() {
+            if let viewController = adapter?.viewController {
+                adapter?.navigationController?.delegates
+                    .remove(
+                        delegate: self,
+                        for: viewController
+                    )
+            }
             adapter = nil
         }
 
@@ -343,9 +349,10 @@ private struct DestinationLinkAdapterBody<
             animated: Bool
         ) {
             guard viewController == adapter?.viewController else { return }
+            isPushing = false
 
             let transaction = Transaction(animation: animated ? animation ?? .default : nil)
-            if let transitionCoordinator = viewController.transitionCoordinator {
+            if let transitionCoordinator = navigationController.transitionCoordinator ?? viewController.transitionCoordinator {
                 if transitionCoordinator.viewController(forKey: .from) == viewController {
                     if transitionCoordinator.isInteractive {
                         transitionCoordinator.notifyWhenInteractionChanges { ctx in
@@ -358,9 +365,8 @@ private struct DestinationLinkAdapterBody<
                             }
                         }
                     } else {
-                        willPop(transaction)
-                        transitionCoordinator.animate(alongsideTransition: nil) { ctx in
-                            self.didPop()
+                        transitionCoordinator.animate { _ in
+                            self.onPop(transaction)
                         }
                     }
                 } else {
@@ -375,7 +381,7 @@ private struct DestinationLinkAdapterBody<
                     }
                 }
             } else {
-                willPop(transaction)
+                onPop(transaction)
             }
         }
 
@@ -387,15 +393,38 @@ private struct DestinationLinkAdapterBody<
             animated: Bool
         ) {
             guard let viewController = adapter?.viewController else { return }
-            if navigationController.viewControllers.contains(viewController) {
-                isPushing = false
+            let hasViewController = navigationController.viewControllers.contains(viewController)
+            if isPushing == true, hasViewController {
+                isPushing = nil
                 animation = nil
-            } else if !isPushing, adapter != nil {
+            } else if !hasViewController, isPushing != true {
                 // Break the retain cycle
                 adapter?.coordinator = nil
 
-                onPop(Transaction())
+                if isPushing == nil {
+                    if isPresented.wrappedValue {
+                        onPop(Transaction())
+                    } else {
+                        didPop()
+                    }
+                }
+                isPushing = nil
             }
+
+            #if !targetEnvironment(macCatalyst)
+            if #available(iOS 16.0, *),
+               let sheetPresentationController = presentingViewController?._activePresentationController as? SheetPresentationController,
+               sheetPresentationController.detents.contains(where: { $0.isDynamic })
+            {
+                if animated {
+                    sheetPresentationController.animateChanges {
+                        sheetPresentationController.invalidateDetents()
+                    }
+                } else {
+                    sheetPresentationController.invalidateDetents()
+                }
+            }
+            #endif
         }
 
         func navigationController(
@@ -403,20 +432,18 @@ private struct DestinationLinkAdapterBody<
             willShow viewController: UIViewController,
             animated: Bool
         ) {
-            let isNavigationBarHidden = isPushing ? adapter?.transition.options.isNavigationBarHidden : wasNavigationBarHidden
+            let isNavigationBarHidden = isPushing == true ? adapter?.transition.options.isNavigationBarHidden : wasNavigationBarHidden
             if let isNavigationBarHidden, navigationController.isNavigationBarHidden != isNavigationBarHidden {
-                if isPushing {
-                    wasNavigationBarHidden = navigationController.isNavigationBarHidden
-                }
+                wasNavigationBarHidden = navigationController.isNavigationBarHidden
                 navigationController.setNavigationBarHidden(
                     isNavigationBarHidden,
                     animated: animated
                 )
             }
-            if !isPushing, navigationController.interactivePopGestureRecognizer?.isInteracting == true {
+            if isPushing != true, navigationController.interactivePopGestureRecognizer?.isInteracting == true {
                 sourceView?.alpha = 1
             }
-            if !isPushing {
+            if isPushing != true {
                 navigationController.setNeedsStatusBarAppearanceUpdate(
                     animated: animated,
                     transitionAlongsideCoordinator: false
@@ -431,7 +458,7 @@ private struct DestinationLinkAdapterBody<
             switch adapter?.transition {
 
             case .representable(let options, let transition):
-                if isPushing {
+                if isPushing == true {
                     return transition.navigationController(
                         navigationController,
                         interactionControllerForPush: animationController,
@@ -556,9 +583,11 @@ private struct DestinationLinkAdapterBody<
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                let transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
-                withCATransaction {
-                    coordinator.onPop(1, transaction: transaction)
+                if coordinator.isPushing != false {
+                    let transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
+                    withCATransaction {
+                        coordinator.onPop(1, transaction: transaction)
+                    }
                 }
             } else {
                 coordinator.sourceView = nil
@@ -651,6 +680,13 @@ final class DestinationLinkDelegateProxy: NSObject,
         for viewController: UIViewController
     ) {
         delegates[ObjectIdentifier(viewController)] = ObjCWeakBox(value: delegate)
+    }
+
+    func remove(
+        delegate: DestinationLinkDelegate,
+        for viewController: UIViewController
+    ) {
+        delegates[ObjectIdentifier(viewController)] = nil
     }
 
     @objc

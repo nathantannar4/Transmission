@@ -19,11 +19,11 @@ open class PresentationHostingController<
     }
 
     private func getPresentationController() -> UIPresentationController? {
-        var parent = parent
-        while let next = parent?.parent {
-            parent = next
+        var ancestor = parent ?? self
+        while let parent = ancestor.parent {
+            ancestor = parent
         }
-        return (parent ?? self)._activePresentationController
+        return ancestor._activePresentationController
     }
 
     private var didRelayoutDuringPresentation = false
@@ -43,6 +43,10 @@ open class PresentationHostingController<
         }
 
         if isBeingPresented, didRelayoutDuringPresentation, !tracksContentSize || (tracksContentSize && preferredContentSize != .zero) {
+            return
+        }
+
+        if _transitionCoordinator != nil {
             return
         }
 

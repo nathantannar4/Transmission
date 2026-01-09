@@ -158,7 +158,7 @@ extension UINavigationController {
     func swizzled_popToRootViewController(animated: Bool) -> [UIViewController]? {
         let vcs = swizzled_popToRootViewController(animated: animated)
         if let pushDelegate, let vcs {
-            for vc in vcs {
+            for vc in vcs.reversed() {
                 pushDelegate.navigationController(self, didPop: vc, animated: animated)
             }
         }
@@ -169,7 +169,7 @@ extension UINavigationController {
     func swizzled_popToViewController(_ viewController: UIViewController, animated: Bool) -> [UIViewController]? {
         let vcs = swizzled_popToViewController(viewController, animated: animated)
         if let pushDelegate, let vcs {
-            for vc in vcs {
+            for vc in vcs.reversed() {
                 pushDelegate.navigationController(self, didPop: vc, animated: animated)
             }
         }
@@ -182,7 +182,7 @@ extension UINavigationController {
             .filter { !viewControllers.contains($0) }
         swizzled_setViewControllers(viewControllers, animated: animated)
         if let pushDelegate {
-            for vc in vcs {
+            for vc in vcs.reversed() {
                 pushDelegate.navigationController(self, didPop: vc, animated: animated)
             }
         }
