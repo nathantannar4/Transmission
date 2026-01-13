@@ -609,18 +609,26 @@ private struct PresentationLinkAdapterBody<
         ) {
             guard
                 presentationController == self.presentationController,
-                let viewController = adapter?.viewController,
+                let adapter,
+                adapter.transition.options.shouldTransitionIsPresentedAlongsideTransition,
+                let viewController = adapter.viewController,
                 presentationController.presentedViewController == viewController
             else {
                 return
             }
 
             let transaction = Transaction(animation: animation ?? .default)
-            if let transitionCoordinator = viewController.transitionCoordinator, transitionCoordinator.isInteractive {
-                transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
-                    if !ctx.isCancelled {
-                        guard presentationController == self?.presentationController else { return }
-                        self?.onDismiss(transaction)
+            if let transitionCoordinator = viewController.transitionCoordinator {
+                if transitionCoordinator.isInteractive {
+                    transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
+                        if !ctx.isCancelled {
+                            guard presentationController == self?.presentationController else { return }
+                            self?.onDismiss(transaction)
+                        }
+                    }
+                } else {
+                    transitionCoordinator.animate { _ in
+                        self.onDismiss(transaction)
                     }
                 }
             } else {
@@ -1285,6 +1293,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             )
         )
         let hostingController = DestinationController(content: content.modifier(modifier))
+        hostingController.sourceViewController = sourceView?.viewController as? AnyHostingController
         transition.update(
             hostingController,
             context: PresentationLinkTransitionRepresentableContext(

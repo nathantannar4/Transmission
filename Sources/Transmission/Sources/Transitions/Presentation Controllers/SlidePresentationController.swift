@@ -57,6 +57,10 @@ open class SlidePresentationController: InteractivePresentationController {
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
+        if let presentedView {
+            let fromCornerRadius = preferredFromCornerRadius ?? .screen(min: 0)
+            fromCornerRadius.apply(to: presentedView)
+        }
         updatePortalView()
     }
 
@@ -82,7 +86,7 @@ open class SlidePresentationController: InteractivePresentationController {
                 let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
                 toCornerRadius.apply(to: presentedView)
             } else if presentedViewController.isBeingDismissed {
-                let fromCornerRadius = preferredToCornerRadius ?? .identity
+                let fromCornerRadius = preferredFromCornerRadius ?? .screen(min: 0)
                 fromCornerRadius.apply(to: presentedView)
             }
         }
@@ -107,7 +111,6 @@ open class SlidePresentationController: InteractivePresentationController {
         }
     }
 
-
     open override func transitionAlongsideRotation() {
         super.transitionAlongsideRotation()
         portalView?.frame = containerView?.bounds ?? .zero
@@ -121,13 +124,16 @@ open class SlidePresentationController: InteractivePresentationController {
 
     private func updatePortalView() {
         if prefersScaleEffect, portalView == nil {
-            if let portalView = PortalView(sourceView: presentingViewController.view) {
-                portalView.hidesSourceView = true
-                portalView.layer.cornerCurve = .continuous
-                portalView.layer.masksToBounds = true
-                portalView.layer.cornerRadius = UIScreen.main.displayCornerRadius()
-                containerView?.insertSubview(portalView, at: 0)
-                self.portalView = portalView
+            let fromPresentationController = presentingViewController._activePresentationController
+            if fromPresentationController is SlidePresentationController || fromPresentationController == nil {
+                if let portalView = PortalView(sourceView: presentingViewController.view) {
+                    portalView.hidesSourceView = true
+                    portalView.layer.cornerCurve = .continuous
+                    portalView.layer.masksToBounds = true
+                    portalView.layer.cornerRadius = UIScreen.main.displayCornerRadius()
+                    containerView?.insertSubview(portalView, at: 0)
+                    self.portalView = portalView
+                }
             }
         } else if !prefersScaleEffect {
             portalView?.removeFromSuperview()

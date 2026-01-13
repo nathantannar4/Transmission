@@ -18,6 +18,8 @@ open class PresentationHostingController<
         }
     }
 
+    public weak var sourceViewController: AnyHostingController?
+
     private func getPresentationController() -> UIPresentationController? {
         var ancestor = parent ?? self
         while let parent = ancestor.parent {
@@ -33,10 +35,25 @@ open class PresentationHostingController<
         view.clipsToBounds = true
     }
 
+    open override func update(content: Content, transaction: Transaction) {
+        super.update(content: content, transaction: transaction)
+        if shouldRenderForContentUpdate {
+            withCATransaction { [weak self] in
+                self?.render()
+            }
+        }
+    }
+
     open override func viewDidLayoutSubviews() {
         let isAnimated = !isBeingPresented && (transaction.map({ $0.isAnimated }) ?? transitionCoordinator?.isAnimated ?? true)
 
         super.viewDidLayoutSubviews()
+
+        if let sourceViewController, sourceViewController.shouldRenderForContentUpdate {
+            // Render so the modifier that controls the presentation of this hosting controller
+            // can run and update.
+            sourceViewController.render()
+        }
 
         guard view.superview != nil, !isBeingDismissed else {
             return

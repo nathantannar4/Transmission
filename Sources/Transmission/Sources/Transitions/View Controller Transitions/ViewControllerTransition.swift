@@ -40,6 +40,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     ) {
         transitionDuration = transitionDuration(using: transitionContext)
         super.startInteractiveTransition(transitionContext)
+        animatedStarted(transitionContext: transitionContext)
         if let presenting = transitionContext.viewController(forKey: isPresenting ? .to : .from) {
             presenting.transitionReaderAnimation = animation
         }
@@ -82,7 +83,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         using transitionContext: UIViewControllerContextTransitioning
     ) -> UIViewImplicitlyAnimating {
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
-        animatedStarted(transitionContext: transitionContext)
         return animator
     }
 

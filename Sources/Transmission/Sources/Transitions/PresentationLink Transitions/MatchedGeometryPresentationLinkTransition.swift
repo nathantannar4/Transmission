@@ -26,24 +26,28 @@ extension PresentationLinkTransition {
 
     /// The matched geometry presentation style.
     public static func matchedGeometry(
+        dimmingColor: Color? = nil,
         preferredFromCornerRadius: CornerRadiusOptions? = nil,
         preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         prefersScaleEffect: Bool = false,
         prefersZoomEffect: Bool = false,
         minimumScaleFactor: CGFloat = 0.5,
         initialOpacity: CGFloat = 1,
+        sourceViewFrameTransform: SourceViewFrameTransform? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .matchedGeometry(
             .init(
+                dimmingColor: dimmingColor,
                 preferredFromCornerRadius: preferredFromCornerRadius,
                 preferredToCornerRadius: preferredToCornerRadius,
                 prefersScaleEffect: prefersScaleEffect,
                 prefersZoomEffect: prefersZoomEffect,
                 minimumScaleFactor: minimumScaleFactor,
                 initialOpacity: initialOpacity,
+                sourceViewFrameTransform: sourceViewFrameTransform,
                 preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal,
                 hapticsStyle: hapticsStyle
             ),
@@ -60,18 +64,22 @@ extension PresentationLinkTransition {
 
     /// The matched geometry zoom presentation style.
     public static func matchedGeometryZoom(
+        dimmingColor: Color? = .black,
         preferredFromCornerRadius: CornerRadiusOptions? = nil,
         minimumScaleFactor: CGFloat = 0.5,
+        sourceViewFrameTransform: SourceViewFrameTransform? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .matchedGeometry(
+            dimmingColor: dimmingColor,
             preferredFromCornerRadius: preferredFromCornerRadius,
             prefersScaleEffect: true,
             prefersZoomEffect: true,
             minimumScaleFactor: minimumScaleFactor,
             initialOpacity: 0,
+            sourceViewFrameTransform: sourceViewFrameTransform,
             hapticsStyle: hapticsStyle,
             isInteractive: isInteractive,
             preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
@@ -125,33 +133,39 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
     public struct Options {
 
         public var edges: Edge.Set
+        public var dimmingColor: Color?
         public var preferredFromCornerRadius: CornerRadiusOptions?
         public var preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
         public var prefersScaleEffect: Bool
         public var prefersZoomEffect: Bool
         public var minimumScaleFactor: CGFloat
         public var initialOpacity: CGFloat
+        public var sourceViewFrameTransform: SourceViewFrameTransform?
         public var preferredPresentationShadow: ShadowOptions
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
             edges: Edge.Set = .all,
+            dimmingColor: Color? = nil,
             preferredFromCornerRadius: CornerRadiusOptions? = nil,
             preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             prefersScaleEffect: Bool = false,
             prefersZoomEffect: Bool = false,
             minimumScaleFactor: CGFloat = 0.5,
             initialOpacity: CGFloat = 1,
+            sourceViewFrameTransform: SourceViewFrameTransform? = nil,
             preferredPresentationShadow: ShadowOptions = .minimal,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.edges = edges
+            self.dimmingColor = dimmingColor
             self.preferredFromCornerRadius = preferredFromCornerRadius
             self.preferredToCornerRadius = preferredToCornerRadius
             self.prefersScaleEffect = prefersScaleEffect
             self.prefersZoomEffect = prefersZoomEffect
             self.minimumScaleFactor = minimumScaleFactor
             self.initialOpacity = initialOpacity
+            self.sourceViewFrameTransform = sourceViewFrameTransform
             self.preferredPresentationShadow = preferredPresentationShadow
             self.hapticsStyle = hapticsStyle
         }
@@ -170,6 +184,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
     ) -> MatchedGeometryPresentationController {
         let presentationController = MatchedGeometryPresentationController(
             edges: options.edges,
+            dimmingColor: options.dimmingColor,
             minimumScaleFactor: options.minimumScaleFactor,
             presentedViewController: presented,
             presenting: presenting
@@ -182,6 +197,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         context: Context
     ) {
         presentationController.edges = options.edges
+        presentationController.dimmingView.backgroundColor = options.dimmingColor?.toUIColor() ?? DimmingView.backgroundColor
         presentationController.minimumScaleFactor = options.minimumScaleFactor
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
@@ -208,6 +224,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             preferredFromCornerRadius: options.preferredFromCornerRadius,
             preferredToCornerRadius: options.preferredToCornerRadius,
             initialOpacity: options.initialOpacity,
+            sourceViewFrameTransform: options.sourceViewFrameTransform,
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -231,6 +248,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             preferredFromCornerRadius: options.preferredFromCornerRadius,
             preferredToCornerRadius: options.preferredToCornerRadius,
             initialOpacity: options.initialOpacity,
+            sourceViewFrameTransform: options.sourceViewFrameTransform,
             isPresenting: false,
             animation: context.transaction.animation
         )

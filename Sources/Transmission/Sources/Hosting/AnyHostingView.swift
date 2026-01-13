@@ -32,6 +32,16 @@ public protocol AnyHostingController: UIViewController {
     func renderAsync()
 }
 
+extension AnyHostingController {
+
+    var shouldRenderForContentUpdate: Bool {
+        if view.frame != .zero, transitionCoordinator == nil, view.window == nil {
+            return true
+        }
+        return false
+    }
+}
+
 extension UIHostingController: AnyHostingController {
     public var disableSafeArea: Bool {
         get { _disableSafeArea }

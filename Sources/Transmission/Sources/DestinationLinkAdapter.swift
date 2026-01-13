@@ -348,7 +348,13 @@ private struct DestinationLinkAdapterBody<
             didPop viewController: UIViewController,
             animated: Bool
         ) {
-            guard viewController == adapter?.viewController else { return }
+            guard
+                let adapter,
+                adapter.transition.options.shouldTransitionIsPresentedAlongsideTransition,
+                viewController == adapter.viewController
+            else {
+                return
+            }
             isPushing = false
 
             let transaction = Transaction(animation: animated ? animation ?? .default : nil)

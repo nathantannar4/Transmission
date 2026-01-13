@@ -19,6 +19,7 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 
     public init(
         edges: Edge.Set = .all,
+        dimmingColor: Color? = nil,
         minimumScaleFactor: CGFloat = 0.5,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
@@ -29,6 +30,9 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
             presenting: presentingViewController
         )
         self.edges = edges
+        if let dimmingColor {
+            self.dimmingView.backgroundColor = dimmingColor.toUIColor()
+        }
         dimmingView.isHidden = false
     }
 
@@ -69,11 +73,16 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
     open override func transformPresentedView(transform: CGAffineTransform) {
         super.transformPresentedView(transform: transform)
         if transform.isIdentity {
-            presentedViewController.view.layer.cornerRadius = 0
+            CornerRadiusOptions.identity.apply(to: presentedViewController.view)
+            dimmingView.alpha = 1
         } else {
             let progress = max(0, min(transform.d, 1))
-            let cornerRadius = progress * UIScreen.main.displayCornerRadius()
-            presentedViewController.view.layer.cornerRadius = cornerRadius
+            var cornerRadius = CornerRadiusOptions.RoundedRectangle.screen(min: 0)
+            if let radius = cornerRadius.cornerRadius {
+                cornerRadius.cornerRadius = radius * progress
+            }
+            cornerRadius.apply(to: presentedViewController.view)
+            dimmingView.alpha = progress
         }
     }
 
@@ -103,6 +112,7 @@ open class MatchedGeometryPresentationControllerTransition: MatchedGeometryViewC
         preferredFromCornerRadius: CornerRadiusOptions?,
         preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         initialOpacity: CGFloat,
+        sourceViewFrameTransform: SourceViewFrameTransform? = nil,
         isPresenting: Bool,
         animation: Animation?
     ) {
@@ -113,6 +123,7 @@ open class MatchedGeometryPresentationControllerTransition: MatchedGeometryViewC
             preferredFromCornerRadius: preferredFromCornerRadius,
             preferredToCornerRadius: preferredToCornerRadius,
             initialOpacity: initialOpacity,
+            sourceViewFrameTransform: sourceViewFrameTransform,
             isPresenting: isPresenting,
             animation: animation
         )

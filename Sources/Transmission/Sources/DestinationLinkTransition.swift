@@ -63,6 +63,9 @@ extension DestinationLinkTransition {
         public var prefersPanGesturePop: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
+        /// When `true`, the `isPresented` binding is updated when dismissal begins, allowing
+        /// for view updates alongside the transition.
+        public var shouldTransitionIsPresentedAlongsideTransition: Bool
         public var preferredPresentationColorScheme: ColorScheme?
         public var preferredPresentationBackgroundColor: Color?
         public var isNavigationBarHidden: Bool?
@@ -73,6 +76,7 @@ extension DestinationLinkTransition {
             isInteractive: Bool = true,
             prefersPanGesturePop: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
+            shouldTransitionIsPresentedAlongsideTransition: Bool = true,
             preferredPresentationColorScheme: ColorScheme? = nil,
             preferredPresentationBackgroundColor: Color? = nil,
             isNavigationBarHidden: Bool? = nil,
@@ -82,6 +86,7 @@ extension DestinationLinkTransition {
             self.isInteractive = isInteractive
             self.prefersPanGesturePop = prefersPanGesturePop
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
+            self.shouldTransitionIsPresentedAlongsideTransition = shouldTransitionIsPresentedAlongsideTransition
             self.preferredPresentationColorScheme = preferredPresentationColorScheme
             self.preferredPresentationBackgroundColor = preferredPresentationBackgroundColor
             self.isNavigationBarHidden = isNavigationBarHidden

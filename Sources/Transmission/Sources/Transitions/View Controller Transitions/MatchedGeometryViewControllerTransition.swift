@@ -10,12 +10,13 @@ import SwiftUI
 @available(iOS 14.0, *)
 open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
 
+    public weak var sourceView: UIView?
     public let prefersScaleEffect: Bool
     public let prefersZoomEffect: Bool
     public let preferredFromCornerRadius: CornerRadiusOptions?
     public let preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
     public let initialOpacity: CGFloat
-    public weak var sourceView: UIView?
+    public let sourceViewFrameTransform: SourceViewFrameTransform?
 
     public init(
         sourceView: UIView?,
@@ -24,6 +25,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         preferredFromCornerRadius: CornerRadiusOptions?,
         preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         initialOpacity: CGFloat,
+        sourceViewFrameTransform: SourceViewFrameTransform? = nil,
         isPresenting: Bool,
         animation: Animation?
     ) {
@@ -32,6 +34,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         self.preferredFromCornerRadius = preferredFromCornerRadius
         self.preferredToCornerRadius = preferredToCornerRadius
         self.initialOpacity = initialOpacity
+        self.sourceViewFrameTransform = sourceViewFrameTransform
         super.init(isPresenting: isPresenting, animation: animation)
         self.sourceView = sourceView
     }
@@ -112,9 +115,10 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             return nil
         }()
 
-        let sourceFrame = sourceView.map {
+        var sourceFrame = sourceView.map {
             $0.convert($0.frame, to: transitionContext.containerView)
         } ?? transitionContext.containerView.frame
+        sourceViewFrameTransform?(&sourceFrame)
 
         if let sourceViewPortalView {
             transitionContext.containerView.insertSubview(sourceViewPortalView, at: 0)
@@ -227,7 +231,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             }
         }
 
-        animator.addAnimations {
+        let animations: () -> Void = {
             (sourceViewPortalView ?? sourceView)?.alpha = isPresenting ? 0 : 1 - initialOpacity
             if prefersZoomEffect {
                 presentedPortalView?.alpha = isPresenting ? 1 : initialOpacity
@@ -248,19 +252,25 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             if isPresenting {
                 toCornerRadius.apply(to: presentedPortalView ?? presentedView)
             } else {
-                fromCornerRadius.apply(to: (presentedPortalView ?? presentedView).layer, height: sourceFrame.height)
+                fromCornerRadius.apply(to: presentedPortalView ?? presentedView, height: sourceFrame.height)
             }
 
             (presentedPortalView ?? presentedView).frame = isPresenting ? presentedFrame : sourceFrame
             (presentedPortalView ?? presentedView).layoutIfNeeded()
 
-            if !isPresenting {
-                presentingPortalView?.layer.cornerRadius = 0
-            }
             presentingPortalView?.transform = isPresenting ? scaleEffect : .identity
             sourceViewPortalView?.transform = isPresenting ? CGAffineTransform(to: sourceFrame, from: presentedFrame, preserveAspectRatio: true) : .identity
         }
 
+        // Just for navigation transitions
+        let shouldDelayAnimations = isPresenting && !prefersZoomEffect && presented.parent is UINavigationController
+        if shouldDelayAnimations {
+            withCATransaction {
+                animator.addAnimations(animations)
+            }
+        } else {
+            animator.addAnimations(animations)
+        }
         animator.addCompletion { animatingPosition in
             hostingController?.disableSafeArea = disableSafeArea
             presentedPortalView?.removeFromSuperview()
@@ -269,7 +279,10 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
                 presentingPortalView?.removeFromSuperview()
             }
             sourceView?.alpha = isPresenting ? 0 : 1
-            presentedView.layer.cornerRadius = 0
+            if shouldDelayAnimations {
+                presentedView.layer.removeAllAnimations()
+            }
+            CornerRadiusOptions.identity.apply(to: presentedView)
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)
