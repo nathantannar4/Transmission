@@ -61,7 +61,8 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             RoundedRectangle(
                 cornerRadius: UIScreen.main.displayCornerRadius(min: min),
                 mask: .all,
-                style: .continuous
+                style: .continuous,
+                isContainerConcentric: false
             )
         }
 
@@ -254,12 +255,12 @@ extension CornerRadiusOptions.RoundedRectangle {
         if #available(iOS 26.0, *) {
             let corner = isContainerConcentric
                 ? UICornerRadius.containerConcentric(minimum: cornerRadius)
-                : UICornerRadius.fixed(cornerRadius ?? 0)
+                : cornerRadius.map { .fixed($0) }
             view.cornerConfiguration = UICornerConfiguration.corners(
-                topLeftRadius: mask.contains(.layerMinXMinYCorner) ? corner : .fixed(0),
-                topRightRadius: mask.contains(.layerMaxXMinYCorner) ? corner : .fixed(0),
-                bottomLeftRadius: mask.contains(.layerMinXMaxYCorner) ? corner : .fixed(0),
-                bottomRightRadius: mask.contains(.layerMaxXMaxYCorner) ? corner : .fixed(0)
+                topLeftRadius: mask.contains(.layerMinXMinYCorner) ? corner : nil,
+                topRightRadius: mask.contains(.layerMaxXMinYCorner) ? corner : nil,
+                bottomLeftRadius: mask.contains(.layerMinXMaxYCorner) ? corner : nil,
+                bottomRightRadius: mask.contains(.layerMaxXMaxYCorner) ? corner : nil
             )
         }
         #endif
@@ -318,6 +319,20 @@ extension CACornerMask {
         .layerMinXMaxYCorner,
         .layerMinXMinYCorner
     ]
+}
+
+extension UIView {
+
+    func applyCornerRadius(from source: UIView) {
+        #if canImport(FoundationModels) // Xcode 26
+        if #available(iOS 26.0, *) {
+            cornerConfiguration = source.cornerConfiguration
+        }
+        #endif
+        layer.cornerRadius = source.layer.cornerRadius
+        layer.maskedCorners = source.layer.maskedCorners
+        layer.cornerCurve = source.layer.cornerCurve
+    }
 }
 
 // MARK: - Previews

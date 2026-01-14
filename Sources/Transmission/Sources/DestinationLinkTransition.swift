@@ -74,7 +74,12 @@ extension DestinationLinkTransition {
 
         public init(
             isInteractive: Bool = true,
-            prefersPanGesturePop: Bool = false,
+            prefersPanGesturePop: Bool = {
+                if #available(iOS 26.0, *) {
+                    return true
+                }
+                return false
+            }(),
             shouldAutomaticallyDismissDestination: Bool = true,
             shouldTransitionIsPresentedAlongsideTransition: Bool = true,
             preferredPresentationColorScheme: ColorScheme? = nil,
@@ -109,20 +114,20 @@ extension DestinationLinkTransition {
     @MainActor @preconcurrency
     public struct ZoomOptions {
         public var options: Options
-        public var dimmingColor: Color?
-        public var dimmingVisualEffect: UIBlurEffect.Style?
-        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
+        public var zoomTransitionOptions: ZoomTransitionOptions
 
         public init(
             dimmingColor: Color? = nil,
             dimmingVisualEffect: UIBlurEffect.Style? = nil,
-            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
+            prefersScalePresentingView: Bool = true,
             options: Options = .init()
         ) {
             self.options = options
-            self.dimmingColor = dimmingColor
-            self.dimmingVisualEffect = dimmingVisualEffect
-            self.hapticsStyle = hapticsStyle
+            self.zoomTransitionOptions = ZoomTransitionOptions.init(
+                dimmingColor: dimmingColor,
+                dimmingVisualEffect: dimmingVisualEffect,
+                prefersScalePresentingView: prefersScalePresentingView
+            )
         }
     }
 }
@@ -141,6 +146,7 @@ extension DestinationLinkTransition {
     public static func zoom(
         dimmingColor: Color? = nil,
         dimmingVisualEffect: UIBlurEffect.Style? = nil,
+        prefersScalePresentingView: Bool = true,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
@@ -150,6 +156,7 @@ extension DestinationLinkTransition {
                 .init(
                     dimmingColor: dimmingColor,
                     dimmingVisualEffect: dimmingVisualEffect,
+                    prefersScalePresentingView: prefersScalePresentingView,
                     options: .init(
                         isInteractive: isInteractive,
                         preferredPresentationBackgroundColor: preferredPresentationBackgroundColor,

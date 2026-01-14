@@ -9,14 +9,25 @@ import UIKit
 
 open class PortalView: UIView {
 
-    public var sourceView: UIView? {
-        // sourceView
-        let aSelector = NSSelectorFromBase64EncodedString("c291cmNlVmlldw==")
-        guard contentView.responds(to: aSelector) else { return nil }
-        return contentView.perform(aSelector)?.takeUnretainedValue() as? UIView
-    }
-
     let contentView: UIView
+
+    public var sourceView: UIView? {
+        get {
+            // sourceView
+            let aSelector = NSSelectorFromBase64EncodedString("c291cmNlVmlldw==")
+            guard contentView.responds(to: aSelector) else { return nil }
+            return contentView.perform(aSelector)?.takeUnretainedValue() as? UIView
+        }
+        set {
+            guard
+                let aSelector = NSStringFromBase64EncodedString("c291cmNlVmlldw=="),
+                contentView.responds(to: NSSelectorFromString(aSelector))
+            else {
+                return
+            }
+            contentView.setValue(newValue, forKey: aSelector)
+        }
+    }
 
     public var hidesSourceView: Bool {
         get {
@@ -30,10 +41,13 @@ open class PortalView: UIView {
             return contentView.value(forKey: aSelector) as? Bool ?? false
         }
         set {
-            // setHidesSourceView:
-            let aSelector = NSSelectorFromBase64EncodedString("c2V0SGlkZXNTb3VyY2VWaWV3Og==")
-            guard contentView.responds(to: aSelector) else { return }
-            contentView.perform(aSelector, with: newValue)
+            guard
+                let aSelector = NSStringFromBase64EncodedString("aGlkZXNTb3VyY2VWaWV3"),
+                contentView.responds(to: NSSelectorFromString(aSelector))
+            else {
+                return
+            }
+            contentView.setValue(newValue, forKey: aSelector)
         }
     }
 
@@ -49,10 +63,13 @@ open class PortalView: UIView {
             return contentView.value(forKey: aSelector) as? Bool ?? false
         }
         set {
-            // setMatchesAlpha:
-            let aSelector = NSSelectorFromBase64EncodedString("c2V0TWF0Y2hlc0FscGhhOg==")
-            guard contentView.responds(to: aSelector) else { return }
-            contentView.perform(aSelector, with: newValue)
+            guard
+                let aSelector = NSStringFromBase64EncodedString("bWF0Y2hlc0FscGhh"),
+                contentView.responds(to: NSSelectorFromString(aSelector))
+            else {
+                return
+            }
+            contentView.setValue(newValue, forKey: aSelector)
         }
     }
 
@@ -68,10 +85,13 @@ open class PortalView: UIView {
             return contentView.value(forKey: aSelector) as? Bool ?? false
         }
         set {
-            // setMatchesTransform:
-            let aSelector = NSSelectorFromBase64EncodedString("c2V0TWF0Y2hlc1RyYW5zZm9ybTo=")
-            guard contentView.responds(to: aSelector) else { return }
-            contentView.perform(aSelector, with: newValue)
+            guard
+                let aSelector = NSStringFromBase64EncodedString("bWF0Y2hlc1RyYW5zZm9ybQ=="),
+                contentView.responds(to: NSSelectorFromString(aSelector))
+            else {
+                return
+            }
+            contentView.setValue(newValue, forKey: aSelector)
         }
     }
 
@@ -87,10 +107,13 @@ open class PortalView: UIView {
             return contentView.value(forKey: aSelector) as? Bool ?? false
         }
         set {
-            // setMatchesPosition:
-            let aSelector = NSSelectorFromBase64EncodedString("c2V0TWF0Y2hlc1Bvc2l0aW9uOg==")
-            guard contentView.responds(to: aSelector) else { return }
-            contentView.perform(aSelector, with: newValue)
+            guard
+                let aSelector = NSStringFromBase64EncodedString("bWF0Y2hlc1Bvc2l0aW9u"),
+                contentView.responds(to: NSSelectorFromString(aSelector))
+            else {
+                return
+            }
+            contentView.setValue(newValue, forKey: aSelector)
         }
     }
 
@@ -125,10 +148,13 @@ open class PortalView: UIView {
             return contentView.value(forKey: aSelector) as? Bool ?? false
         }
         set {
-            // setForwardsClientHitTestingToSourceView:
-            let aSelector = NSSelectorFromBase64EncodedString("c2V0Rm9yd2FyZHNDbGllbnRIaXRUZXN0aW5nVG9Tb3VyY2VWaWV3Og==")
-            guard contentView.responds(to: aSelector) else { return }
-            contentView.perform(aSelector, with: newValue)
+            guard
+                let aSelector = NSStringFromBase64EncodedString("Zm9yd2FyZHNDbGllbnRIaXRUZXN0aW5nVG9Tb3VyY2VWaWV3"),
+                contentView.responds(to: NSSelectorFromString(aSelector))
+            else {
+                return
+            }
+            contentView.setValue(newValue, forKey: aSelector)
         }
     }
 
@@ -328,6 +354,32 @@ struct PortalView_Previews: PreviewProvider {
                 return contentView
             }
             .frame(width: 100, height: 100)
+
+            ViewRepresentableAdapter {
+                let containerView = UIView()
+                let view = UIView()
+                view.backgroundColor = .red
+                containerView.addSubview(view)
+                view.frame = .init(
+                    x: 0,
+                    y: 0,
+                    width: 100,
+                    height: 100
+                )
+                view.alpha = 0.5
+                view.transform = .init(scaleX: 0.8, y: 0.8)
+                if let portalView = PortalView(sourceView: view) {
+                    containerView.addSubview(portalView)
+                    portalView.frame = .init(
+                        x: 110,
+                        y: 0,
+                        width: 100,
+                        height: 100
+                    )
+                }
+                return containerView
+            }
+            .frame(width: 220, height: 100)
         }
     }
 

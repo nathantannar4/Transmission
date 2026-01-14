@@ -39,6 +39,17 @@ public struct PresentationCoordinator: Equatable, @unchecked Sendable {
         }
     }
 
+    public init(
+        isPresented: Bool,
+        dismiss: @MainActor @escaping (Int, Transaction) -> Void
+    ) {
+        self.isPresented = isPresented
+        self.seed = Seed.generate()
+        self.dismissBlock = { count, transaction in
+            dismiss(count, transaction)
+        }
+    }
+
     @inlinable
     init(
         isPresented: Bool,
@@ -66,14 +77,28 @@ public struct PresentationCoordinator: Equatable, @unchecked Sendable {
         dismiss(count: .max, transaction: transaction)
     }
 
-    /// Dismisses the presented view with an optional animation
+    /// Dismisses the presented views with an optional animation
+    @MainActor
+    @inlinable
+    public func dismissToView(animation: Animation? = .default) {
+        dismiss(count: 0, transaction: Transaction(animation: animation))
+    }
+
+    /// Dismisses the presented views with the transaction
+    @MainActor
+    @inlinable
+    public func dismissToView(transaction: Transaction) {
+        dismiss(count: 0, transaction: transaction)
+    }
+
+    /// Dismisses the presented views with an optional animation
     @MainActor
     @inlinable
     public func dismiss(animation: Animation? = .default) {
         dismiss(count: 1, transaction: Transaction(animation: animation))
     }
 
-    /// Dismisses the presented view with the transaction
+    /// Dismisses the presented views with the transaction
     @MainActor
     @inlinable
     public func dismiss(transaction: Transaction) {
@@ -130,7 +155,9 @@ extension EnvironmentValues {
             } else {
                 return PresentationCoordinator(
                     isPresented: false,
-                    dismiss: { _ in }
+                    dismiss: { _ in
+                        assertionFailure("PresentationCoordinator does not support dismissing, it is not presented")
+                    }
                 )
             }
         }

@@ -644,7 +644,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     // MARK: - UIGestureRecognizerDelegate
 
-    open func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    open func gestureRecognizerShouldBegin(
+        _ gestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        guard gestureRecognizer == panGesture else { return true }
         return isInteractive
     }
 
@@ -652,13 +655,18 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
+        guard gestureRecognizer == panGesture else { return false }
+        if otherGestureRecognizer.isSwiftUIGestureResponder {
+            return true
+        }
+        return otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
     }
 
     open func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
+        guard gestureRecognizer == panGesture else { return false }
         if otherGestureRecognizer.isZoomDismissPanGesture {
             return false
         }

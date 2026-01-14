@@ -81,6 +81,7 @@ open class PresentationController: DelegatedPresentationController {
         dimmingView.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
         )
+        shadowView.isUserInteractionEnabled = false
         containerView?.addSubview(shadowView)
         if let presentedView {
             containerView?.addSubview(presentedView)

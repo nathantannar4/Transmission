@@ -35,15 +35,6 @@ open class PresentationHostingController<
         view.clipsToBounds = true
     }
 
-    open override func update(content: Content, transaction: Transaction) {
-        super.update(content: content, transaction: transaction)
-        if shouldRenderForContentUpdate {
-            withCATransaction { [weak self] in
-                self?.render()
-            }
-        }
-    }
-
     open override func viewDidLayoutSubviews() {
         let isAnimated = !isBeingPresented && (transaction.map({ $0.isAnimated }) ?? transitionCoordinator?.isAnimated ?? true)
 
