@@ -361,13 +361,9 @@ private struct DestinationLinkAdapterBody<
             if let transitionCoordinator = navigationController.transitionCoordinator ?? viewController.transitionCoordinator {
                 if transitionCoordinator.viewController(forKey: .from) == viewController {
                     if transitionCoordinator.isInteractive {
-                        transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                        transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
                             if !ctx.isCancelled {
-                                self.navigationController(
-                                    navigationController,
-                                    didPop: viewController,
-                                    animated: animated
-                                )
+                                self?.onPop(transaction)
                             }
                         }
                     } else {
@@ -378,11 +374,7 @@ private struct DestinationLinkAdapterBody<
                 } else {
                     transitionCoordinator.animate(alongsideTransition: nil) { ctx in
                         if !ctx.isCancelled {
-                            self.navigationController(
-                                navigationController,
-                                didPop: viewController,
-                                animated: animated
-                            )
+                            self.onPop(transaction)
                         }
                     }
                 }
