@@ -257,7 +257,7 @@ extension UIViewController {
                 box.value = newValue
             } else {
                 let box = ObjCBox(value: newValue)
-                objc_setAssociatedObject(self, &Self.preferredStatusBarStyleKey, box, .OBJC_ASSOCIATION_RETAIN)
+                objc_setAssociatedObject(self, &Self.preferredStatusBarStyleKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             }
         }
     }
@@ -305,7 +305,7 @@ extension UIViewController {
                 box.value = newValue
             } else {
                 let box = ObjCBox(value: newValue)
-                objc_setAssociatedObject(self, &Self.prefersStatusBarHiddenKey, box, .OBJC_ASSOCIATION_RETAIN)
+                objc_setAssociatedObject(self, &Self.prefersStatusBarHiddenKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             }
         }
     }

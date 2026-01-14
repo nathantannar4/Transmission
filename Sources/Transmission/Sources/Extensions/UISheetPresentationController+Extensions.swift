@@ -86,7 +86,7 @@ extension UISheetPresentationController.Detent {
         set {
             if #available(iOS 16.0, *) { } else {
                 let object = newValue.map { _UISheetPresentationControllerDetentResolver(resolution: $0) }
-                objc_setAssociatedObject(self, &Self.legacyResolutionKey, object, .OBJC_ASSOCIATION_RETAIN)
+                objc_setAssociatedObject(self, &Self.legacyResolutionKey, object, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             }
         }
     }

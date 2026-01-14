@@ -30,9 +30,9 @@ extension UIViewController {
 
         if let transition {
             let box = ObjCBox(value: BeginAppearanceTransition(value: transition))
-            objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         } else {
-            objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, nil, .OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(self, &Self.beginAppearanceTransitionKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
 
@@ -69,9 +69,9 @@ extension UIViewController {
 
         if let transition {
             let box = ObjCBox(value: EndAppearanceTransition(value: transition))
-            objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         } else {
-            objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, nil, .OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(self, &Self.endAppearanceTransitionKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
 

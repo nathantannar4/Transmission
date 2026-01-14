@@ -8,7 +8,7 @@ import SwiftUI
 import Engine
 import EngineCore
 
-/// A view that manages the push a destination view in a new `UIViewController`.  The presentation is
+/// A view that manages the push of a destination view in a new `UIViewController`.  The presentation is
 /// sourced from this view.
 ///
 /// To present the destination view with an animation, `isPresented` should
@@ -587,6 +587,7 @@ private struct DestinationLinkAdapterBody<
     }
 
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
+        coordinator.sourceView = nil
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
                 if coordinator.isPushing != false {
@@ -596,7 +597,6 @@ private struct DestinationLinkAdapterBody<
                     }
                 }
             } else {
-                coordinator.sourceView = nil
                 adapter.coordinator = coordinator
             }
         }
@@ -1171,14 +1171,14 @@ extension UINavigationController {
     private static var navigationDelegateKey: Bool = false
 
     var delegates: DestinationLinkDelegateProxy {
-        guard let obj = objc_getAssociatedObject(self, &Self.navigationDelegateKey) as? ObjCBox<NSObject> else {
+        guard let obj = objc_getAssociatedObject(self, &Self.navigationDelegateKey) as? ObjCBox<DestinationLinkDelegateProxy> else {
 
             let proxy = DestinationLinkDelegateProxy(for: self)
-            let box = ObjCBox<NSObject>(value: proxy)
-            objc_setAssociatedObject(self, &Self.navigationDelegateKey, box, .OBJC_ASSOCIATION_RETAIN)
+            let box = ObjCBox<DestinationLinkDelegateProxy>(value: proxy)
+            objc_setAssociatedObject(self, &Self.navigationDelegateKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             return proxy
         }
-        return obj.value as! DestinationLinkDelegateProxy
+        return obj.value
     }
 }
 

@@ -1211,6 +1211,7 @@ private struct PresentationLinkAdapterBody<
     }
 
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
+        coordinator.sourceView = nil
         if let adapter = coordinator.adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
                 let transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
@@ -1218,7 +1219,6 @@ private struct PresentationLinkAdapterBody<
                     coordinator.onDismiss(1, transaction: transaction)
                 }
             } else {
-                coordinator.sourceView = nil
                 adapter.coordinator = coordinator
             }
         }

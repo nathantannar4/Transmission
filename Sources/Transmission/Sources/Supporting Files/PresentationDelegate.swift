@@ -39,7 +39,7 @@ extension UIViewController {
                 box.value = newValue
             } else {
                 let box = ObjCWeakBox<NSObject>(value: newValue)
-                objc_setAssociatedObject(self, &Self.presentationDelegateKey, box, .OBJC_ASSOCIATION_RETAIN)
+                objc_setAssociatedObject(self, &Self.presentationDelegateKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             }
         }
     }
@@ -140,7 +140,7 @@ extension UINavigationController {
                 box.value = newValue
             } else {
                 let box = ObjCWeakBox<NSObject>(value: newValue)
-                objc_setAssociatedObject(self, &Self.pushDelegateKey, box, .OBJC_ASSOCIATION_RETAIN)
+                objc_setAssociatedObject(self, &Self.pushDelegateKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
             }
         }
     }

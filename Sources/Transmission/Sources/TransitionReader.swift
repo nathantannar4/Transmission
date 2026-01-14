@@ -221,7 +221,7 @@ extension UIViewController {
         }
         set {
             let box = newValue.map { ObjCBox<Animation?>(value: $0) }
-            objc_setAssociatedObject(self, &transitionReaderAnimationKey, box, .OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(self, &transitionReaderAnimationKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
 
@@ -234,7 +234,7 @@ extension UIViewController {
         }
         set {
             let box = newValue.map { ObjCWeakBox<TransitionReaderCoordinator>(value: $0) }
-            objc_setAssociatedObject(self, &transitionReaderCoordinatorKey, box, .OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(self, &transitionReaderCoordinatorKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
 }
