@@ -321,6 +321,7 @@ private struct DestinationLinkAdapterBody<
 
         func navigationControllerShouldBeginInteractivePop(
             _ navigationController: UINavigationController,
+            gesture: UIGestureRecognizer,
             edge: Bool
         ) -> Bool {
             guard let transition = adapter?.transition else { return true }
@@ -332,7 +333,20 @@ private struct DestinationLinkAdapterBody<
                 if !edge, !transition.options.prefersPanGesturePop {
                     return false
                 }
-                return true
+                let isBuiltInGesture = {
+                    if gesture == navigationController.interactivePopGestureRecognizer {
+                        return true
+                    }
+                    if #available(iOS 26.0, *), gesture == navigationController.interactiveContentPopGestureRecognizer {
+                        return true
+                    }
+                    return false
+                }()
+                if case .default = transition {
+                    return isBuiltInGesture
+                } else {
+                    return !isBuiltInGesture
+                }
             }
         }
 
@@ -438,8 +452,13 @@ private struct DestinationLinkAdapterBody<
                     animated: animated
                 )
             }
-            if isPushing != true, navigationController.interactivePopGestureRecognizer?.isInteracting == true {
-                sourceView?.alpha = 1
+            if isPushing != true {
+                if navigationController.interactivePopGestureRecognizer?.isInteracting == true {
+                    sourceView?.alpha = 1
+                }
+                if #available(iOS 26.0, *), navigationController.interactiveContentPopGestureRecognizer?.isInteracting == true {
+                    sourceView?.alpha = 1
+                }
             }
             if isPushing != true {
                 navigationController.setNeedsStatusBarAppearanceUpdate(
@@ -487,6 +506,7 @@ private struct DestinationLinkAdapterBody<
             case .representable(let options, let transition):
                 switch operation {
                 case .push:
+                    guard adapter?.viewController == toVC else { return nil }
                     return transition.navigationController(
                         navigationController,
                         pushing: toVC,
@@ -495,6 +515,12 @@ private struct DestinationLinkAdapterBody<
                     )
 
                 case .pop:
+                    guard
+                        adapter?.viewController == fromVC,
+                        presentingViewController == toVC || presentingViewController?.isDescendent(of: toVC) == true
+                    else {
+                        return nil
+                    }
                     let animationController = transition.navigationController(
                         navigationController,
                         popping: fromVC,
@@ -600,6 +626,7 @@ protocol DestinationLinkDelegate: UINavigationControllerDelegate{
 
     func navigationControllerShouldBeginInteractivePop(
         _ navigationController: UINavigationController,
+        gesture: UIGestureRecognizer,
         edge: Bool
     ) -> Bool
 
@@ -629,6 +656,7 @@ final class DestinationLinkDelegateProxy: NSObject,
     weak var transition: UIPercentDrivenInteractiveTransition?
 
     private weak var popGestureDelegate: UIGestureRecognizerDelegate?
+    private weak var panGestureDelegate: UIGestureRecognizerDelegate?
     private var interactivePopEdgeGestureRecognizer: UIScreenEdgePanGestureRecognizer!
     private var interactivePopPanGestureRecognizer: UIPanGestureRecognizer!
 
@@ -644,9 +672,13 @@ final class DestinationLinkDelegateProxy: NSObject,
         super.init()
         self.delegate = navigationController.delegate
         popGestureDelegate = navigationController.interactivePopGestureRecognizer?.delegate
+        navigationController.interactivePopGestureRecognizer?.delegate = self
+        if #available(iOS 26.0, *) {
+            panGestureDelegate = navigationController.interactiveContentPopGestureRecognizer?.delegate
+            navigationController.interactiveContentPopGestureRecognizer?.delegate = self
+        }
         self.navigationController = navigationController
         navigationController.delegate = self
-        navigationController.interactivePopGestureRecognizer?.delegate = self
         interactivePopEdgeGestureRecognizer = UIScreenEdgePanGestureRecognizer(
             target: self,
             action: #selector(panGestureDidChange(_:))
@@ -924,9 +956,10 @@ final class DestinationLinkDelegateProxy: NSObject,
             guard let delegate = delegates[ObjectIdentifier(fromVC)]?.value else {
                 return nil
             }
-            let isEdge = gestureRecognizer != interactivePopPanGestureRecognizer
+            let isEdge = gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == navigationController.interactivePopGestureRecognizer
             let shouldBegin = delegate.navigationControllerShouldBeginInteractivePop(
                 navigationController,
+                gesture: gestureRecognizer,
                 edge: isEdge
             )
             return shouldBegin
@@ -960,10 +993,19 @@ final class DestinationLinkDelegateProxy: NSObject,
             if shouldBegin == false {
                 return false
             }
-            let canBegin = popGestureDelegate?.gestureRecognizerShouldBegin?(
-                gestureRecognizer
-            )
-            return canBegin ?? true
+            if gestureRecognizer == navigationController.interactivePopGestureRecognizer {
+                let canBegin = popGestureDelegate?.gestureRecognizerShouldBegin?(
+                    gestureRecognizer
+                )
+                return canBegin ?? true
+            }
+            if #available(iOS 26.0, *), gestureRecognizer == navigationController.interactiveContentPopGestureRecognizer {
+                let canBegin = panGestureDelegate?.gestureRecognizerShouldBegin?(
+                    gestureRecognizer
+                )
+                return canBegin ?? true
+            }
+            return true
         }
     }
 
@@ -976,11 +1018,21 @@ final class DestinationLinkDelegateProxy: NSObject,
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
             return otherGestureRecognizer.isZoomDismissGesture
         } else {
-            let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
-                gestureRecognizer,
-                shouldRecognizeSimultaneouslyWith: otherGestureRecognizer
-            )
-            return shouldRecognizeSimultaneouslyWith ?? false
+            if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldRecognizeSimultaneouslyWith: otherGestureRecognizer
+                )
+                return shouldRecognizeSimultaneouslyWith ?? false
+            }
+            if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
+                let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldRecognizeSimultaneouslyWith: otherGestureRecognizer
+                )
+                return shouldRecognizeSimultaneouslyWith ?? false
+            }
+            return false
         }
     }
 
@@ -997,11 +1049,21 @@ final class DestinationLinkDelegateProxy: NSObject,
             }
             return false
         } else {
-            let shouldRequireFailureOf = popGestureDelegate?.gestureRecognizer?(
-                gestureRecognizer,
-                shouldRequireFailureOf: otherGestureRecognizer
-            )
-            return shouldRequireFailureOf ?? false
+            if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                let shouldRequireFailureOf = popGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldRequireFailureOf: otherGestureRecognizer
+                )
+                return shouldRequireFailureOf ?? false
+            }
+            if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
+                let shouldRequireFailureOf = panGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldRequireFailureOf: otherGestureRecognizer
+                )
+                return shouldRequireFailureOf ?? false
+            }
+            return false
         }
     }
 
@@ -1010,18 +1072,34 @@ final class DestinationLinkDelegateProxy: NSObject,
         shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         if gestureRecognizer == interactivePopEdgeGestureRecognizer {
-            if otherGestureRecognizer == navigationController?.interactivePopGestureRecognizer || otherGestureRecognizer.isZoomDismissGesture || otherGestureRecognizer is UIPanGestureRecognizer {
+            if otherGestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                return true
+            }
+            if #available(iOS 26.0, *), otherGestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
+                return true
+            }
+            if otherGestureRecognizer.isZoomDismissGesture || otherGestureRecognizer is UIPanGestureRecognizer {
                 return true
             }
             return false
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
             return false
         } else {
-            let shouldBeRequiredToFailBy = popGestureDelegate?.gestureRecognizer?(
-                gestureRecognizer,
-                shouldBeRequiredToFailBy: otherGestureRecognizer
-            )
-            return shouldBeRequiredToFailBy ?? false
+            if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                let shouldBeRequiredToFailBy = popGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldBeRequiredToFailBy: otherGestureRecognizer
+                )
+                return shouldBeRequiredToFailBy ?? false
+            }
+            if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
+                let shouldBeRequiredToFailBy = panGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldBeRequiredToFailBy: otherGestureRecognizer
+                )
+                return shouldBeRequiredToFailBy ?? false
+            }
+            return false
         }
     }
 
@@ -1032,11 +1110,21 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
             return true
         } else {
-            let shouldReceive = popGestureDelegate?.gestureRecognizer?(
-                gestureRecognizer,
-                shouldReceive: touch
-            )
-            return shouldReceive ?? true
+            if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                let shouldReceive = popGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldReceive: touch
+                )
+                return shouldReceive ?? true
+            }
+            if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
+                let shouldReceive = panGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldReceive: touch
+                )
+                return shouldReceive ?? true
+            }
+            return true
         }
     }
 
@@ -1047,11 +1135,21 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
             return true
         } else {
-            let shouldReceive = popGestureDelegate?.gestureRecognizer?(
-                gestureRecognizer,
-                shouldReceive: press
-            )
-            return shouldReceive ?? true
+            if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                let shouldReceive = popGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldReceive: press
+                )
+                return shouldReceive ?? true
+            }
+            if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
+                let shouldReceive = panGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldReceive: press
+                )
+                return shouldReceive ?? true
+            }
+            return true
         }
     }
 
@@ -1062,11 +1160,21 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
             return true
         } else {
-            let shouldReceive = popGestureDelegate?.gestureRecognizer?(
-                gestureRecognizer,
-                shouldReceive: event
-            )
-            return shouldReceive ?? true
+            if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                let shouldReceive = popGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldReceive: event
+                )
+                return shouldReceive ?? true
+            }
+            if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
+                let shouldReceive = panGestureDelegate?.gestureRecognizer?(
+                    gestureRecognizer,
+                    shouldReceive: event
+                )
+                return shouldReceive ?? true
+            }
+            return true
         }
     }
 
@@ -1164,7 +1272,6 @@ extension UINavigationController {
 
     var delegates: DestinationLinkDelegateProxy {
         guard let obj = objc_getAssociatedObject(self, &Self.navigationDelegateKey) as? ObjCBox<DestinationLinkDelegateProxy> else {
-
             let proxy = DestinationLinkDelegateProxy(for: self)
             let box = ObjCBox<DestinationLinkDelegateProxy>(value: proxy)
             objc_setAssociatedObject(self, &Self.navigationDelegateKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)

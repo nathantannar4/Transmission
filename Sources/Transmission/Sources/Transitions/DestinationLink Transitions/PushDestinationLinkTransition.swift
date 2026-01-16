@@ -197,6 +197,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
 
             if !(presentedView.backgroundColor?.isTranslucent ?? true) || preferredShadow != nil {
                 let shadowView = DropShadowView()
+                shadowView.alpha = isPresenting ? 0 : 1
                 if let preferredShadow {
                     preferredShadow.apply(to: shadowView)
                 }
@@ -249,6 +250,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
         animator.addAnimations {
             toVC.view.transform = .identity
             dropShadowView?.transform = isPresenting ? .identity : fromVCTransform
+            dropShadowView?.alpha = isPresenting ? 1 : 0
             fromVC.view.transform = fromVCTransform
             dimmingView?.alpha = isPresenting ? 1 : 0
         }

@@ -251,10 +251,10 @@ extension CornerRadiusOptions.RoundedRectangle {
         masksToBounds: Bool = true
     ) {
         #if canImport(FoundationModels) // Xcode 26
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), isContainerConcentric {
             let corner = isContainerConcentric
                 ? UICornerRadius.containerConcentric(minimum: cornerRadius)
-                : UICornerRadius.fixed(cornerRadius ?? 0)
+                : nil
             view.cornerConfiguration = UICornerConfiguration.corners(
                 topLeftRadius: mask.contains(.layerMinXMinYCorner) ? corner : .fixed(0),
                 topRightRadius: mask.contains(.layerMaxXMinYCorner) ? corner : .fixed(0),
@@ -318,6 +318,20 @@ extension CACornerMask {
         .layerMinXMaxYCorner,
         .layerMinXMinYCorner
     ]
+}
+
+extension UIView {
+
+    func applyCornerRadius(from source: UIView) {
+        #if canImport(FoundationModels) // Xcode 26
+        if #available(iOS 26.0, *) {
+            cornerConfiguration = source.cornerConfiguration
+        }
+        #endif
+        layer.cornerRadius = source.layer.cornerRadius
+        layer.maskedCorners = source.layer.maskedCorners
+        layer.cornerCurve = source.layer.cornerCurve
+    }
 }
 
 // MARK: - Previews

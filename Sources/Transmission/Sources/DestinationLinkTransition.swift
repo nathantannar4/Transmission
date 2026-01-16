@@ -74,7 +74,12 @@ extension DestinationLinkTransition {
 
         public init(
             isInteractive: Bool = true,
-            prefersPanGesturePop: Bool = false,
+            prefersPanGesturePop: Bool = {
+                if #available(iOS 26.0, *) {
+                    return true
+                }
+                return false
+            }(),
             shouldAutomaticallyDismissDestination: Bool = true,
             shouldTransitionIsPresentedAlongsideTransition: Bool = true,
             preferredPresentationColorScheme: ColorScheme? = nil,

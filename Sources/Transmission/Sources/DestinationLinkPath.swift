@@ -21,7 +21,7 @@ public struct IndexedDestinationLinkPath<Key: Hashable & Sendable, Value: Sendab
 }
 
 @frozen
-public struct DestinationLinkPath<Value: Sendable>: Sendable {
+public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollection {
     private var path: [Value]
 
     public init() {
@@ -32,38 +32,47 @@ public struct DestinationLinkPath<Value: Sendable>: Sendable {
         self.path = Array(path)
     }
 
-    public subscript(index: Int) -> Value? {
-        get {
-            guard path.indices.contains(index) else { return nil }
-            return path[index]
-        }
-        set {
-            if let newValue {
-                if path.indices.contains(index) {
-                    path[index] = newValue
-                } else {
-                    path.insert(newValue, at: index)
-                }
-            } else if path.indices.contains(index) {
-                path.remove(at: index)
-            }
-        }
-    }
-
-    public var count: Int {
-        path.count
-    }
-
-    public var isEmpty: Bool {
-        path.isEmpty
-    }
-
     public mutating func append(_ value: Value) {
         path.append(value)
     }
 
     public mutating func pop(count: Int = 1) {
-        path.removeLast(min(path.count, count))
+        path.removeLast(Swift.min(path.count, count))
+    }
+
+    // MARK: RandomAccessCollection
+
+    public typealias Element = Value?
+    public typealias Index = Int
+
+    public nonisolated var startIndex: Index {
+        path.startIndex
+    }
+
+    public nonisolated var endIndex: Index {
+        path.endIndex
+    }
+
+    public nonisolated subscript(position: Int) -> Value? {
+        get {
+            guard path.indices.contains(position) else { return nil }
+            return path[position]
+        }
+        set {
+            if let newValue {
+                if path.indices.contains(position) {
+                    path[position] = newValue
+                } else {
+                    path.insert(newValue, at: position)
+                }
+            } else if path.indices.contains(position) {
+                path.remove(at: position)
+            }
+        }
+    }
+
+    public nonisolated func index(after index: Index) -> Index {
+        path.index(after: index)
     }
 }
 

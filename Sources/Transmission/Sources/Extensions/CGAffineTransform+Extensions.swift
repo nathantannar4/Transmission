@@ -14,7 +14,7 @@ extension CGAffineTransform {
         preserveAspectRatio: Bool = true
     ) {
         let translateX = sourceRect.midX - targetRect.midX
-        var translateY = sourceRect.midY - targetRect.midY
+        let translateY = sourceRect.midY - targetRect.midY
         let scaleX: CGFloat
         let scaleY: CGFloat
         if preserveAspectRatio {
@@ -22,7 +22,6 @@ extension CGAffineTransform {
             let y = sourceRect.height / targetRect.height
             scaleX = min(x, y)
             scaleY = scaleX
-            translateY -= (y - scaleY) * targetRect.height / 2
         } else {
             scaleX = sourceRect.width / targetRect.width
             scaleY = sourceRect.height / targetRect.height

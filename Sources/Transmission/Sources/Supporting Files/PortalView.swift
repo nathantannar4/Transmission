@@ -9,14 +9,25 @@ import UIKit
 
 open class PortalView: UIView {
 
-    public var sourceView: UIView? {
-        // sourceView
-        let aSelector = NSSelectorFromBase64EncodedString("c291cmNlVmlldw==")
-        guard contentView.responds(to: aSelector) else { return nil }
-        return contentView.perform(aSelector)?.takeUnretainedValue() as? UIView
-    }
-
     let contentView: UIView
+
+    public var sourceView: UIView? {
+        get {
+            // sourceView
+            let aSelector = NSSelectorFromBase64EncodedString("c291cmNlVmlldw==")
+            guard contentView.responds(to: aSelector) else { return nil }
+            return contentView.perform(aSelector)?.takeUnretainedValue() as? UIView
+        }
+        set {
+            guard
+                let aSelector = NSStringFromBase64EncodedString("c291cmNlVmlldw=="),
+                contentView.responds(to: NSSelectorFromString(aSelector))
+            else {
+                return
+            }
+            contentView.setValue(newValue, forKey: aSelector)
+        }
+    }
 
     public var hidesSourceView: Bool {
         get {
