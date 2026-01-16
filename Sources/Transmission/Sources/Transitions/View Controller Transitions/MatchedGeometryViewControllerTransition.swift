@@ -70,7 +70,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         }()
 
         let hostingController: AnyHostingController? = {
-            if presentedPortalView != nil {
+            if prefersZoomEffect, isPresenting, presentedPortalView != nil {
                 return nil
             }
             return presented as? AnyHostingController

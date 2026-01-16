@@ -60,28 +60,35 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-        presentedViewController.view.layer.cornerCurve = .continuous
+        presentedView?.layer.cornerCurve = .continuous
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
         if completed {
-            presentedViewController.view.layer.cornerRadius = 0
+            presentedView?.layer.cornerRadius = 0
         }
     }
 
     open override func transformPresentedView(transform: CGAffineTransform) {
         super.transformPresentedView(transform: transform)
+        guard let presentedView else { return }
         if transform.isIdentity {
-            CornerRadiusOptions.identity.apply(to: presentedViewController.view)
+            CornerRadiusOptions.identity.apply(to: presentedView)
             dimmingView.alpha = 1
         } else {
-            let progress = max(0, min(transform.d, 1))
+            let transformProgress: CGFloat = {
+                let frame = presentedView.bounds
+                let dx = abs(transform.tx) / frame.width
+                let dy = abs(transform.ty) / frame.height
+                return min((1 - max(dx, dy)), min(transform.a, transform.d))
+            }()
+            let progress = max(0, min(transformProgress, 1))
             var cornerRadius = CornerRadiusOptions.RoundedRectangle.screen(min: 0)
             if let radius = cornerRadius.cornerRadius {
                 cornerRadius.cornerRadius = radius * progress
             }
-            cornerRadius.apply(to: presentedViewController.view)
+            cornerRadius.apply(to: presentedView)
             dimmingView.alpha = progress
         }
     }

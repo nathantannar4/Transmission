@@ -40,7 +40,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     ) {
         transitionDuration = transitionDuration(using: transitionContext)
         super.startInteractiveTransition(transitionContext)
-        animatedStarted(transitionContext: transitionContext)
         if let presenting = transitionContext.viewController(forKey: isPresenting ? .to : .from) {
             presenting.transitionReaderAnimation = animation
         }
@@ -143,6 +142,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         // This must be set before configuring, as view layout can sometimes trigger re-entry
         self.animator = animator
         configureTransitionAnimator(using: transitionContext, animator: animator)
+        animatedStarted(transitionContext: transitionContext)
         return animator
     }
 
