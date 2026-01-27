@@ -271,11 +271,21 @@ private struct DestinationLinkAdapterBody<
 
         func onPop(_ count: Int, transaction: Transaction) {
             guard let viewController = adapter?.viewController else { return }
-            animation = transaction.animation
-            didPresentAnimated = false
-            isPushing = false
-            if let presented = viewController.presentedViewController {
-                presented.dismiss(animated: transaction.isAnimated) {
+            if count > 0 {
+                animation = transaction.animation
+                didPresentAnimated = false
+                isPushing = false
+                if let presented = viewController.presentedViewController {
+                    presented.dismiss(animated: transaction.isAnimated) {
+                        viewController._popViewController(
+                            count: count,
+                            animated: transaction.isAnimated
+                        ) { [weak self] success in
+                            guard success, self?.adapter?.viewController == viewController else { return }
+                            self?.onPop(transaction)
+                        }
+                    }
+                } else {
                     viewController._popViewController(
                         count: count,
                         animated: transaction.isAnimated
@@ -288,10 +298,7 @@ private struct DestinationLinkAdapterBody<
                 viewController._popViewController(
                     count: count,
                     animated: transaction.isAnimated
-                ) { [weak self] success in
-                    guard success, self?.adapter?.viewController == viewController else { return }
-                    self?.onPop(transaction)
-                }
+                )
             }
         }
 

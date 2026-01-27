@@ -546,20 +546,30 @@ private struct PresentationLinkAdapterBody<
         }
 
         func onDismiss(_ count: Int, transaction: Transaction) {
-            guard let viewController = adapter?.viewController, count > 0, let presentationController else { return }
-            animation = transaction.animation
-            didPresentAnimated = false
-            if viewController.isBeingPresented,
-                let presentationController = presentationController as? PresentationController,
-                let transition = presentationController.transition
-            {
-                transition.cancel()
-                onDismiss(transaction)
-            } else {
-                viewController._dismiss(count: count, animated: transaction.isAnimated) { [weak self] in
-                    guard self?.adapter?.viewController == viewController else { return }
-                    self?.onDismiss(transaction)
+            guard let viewController = adapter?.viewController, let presentationController else { return }
+            if count > 0 {
+                animation = transaction.animation
+                didPresentAnimated = false
+                if viewController.isBeingPresented,
+                   let presentationController = presentationController as? PresentationController,
+                   let transition = presentationController.transition
+                {
+                    transition.cancel()
+                    onDismiss(transaction)
+                } else {
+                    viewController._dismiss(
+                        count: count,
+                        animated: transaction.isAnimated
+                    ) { [weak self] in
+                        guard self?.adapter?.viewController == viewController else { return }
+                        self?.onDismiss(transaction)
+                    }
                 }
+            } else {
+                viewController._dismiss(
+                    count: count,
+                    animated: transaction.isAnimated
+                )
             }
         }
 
