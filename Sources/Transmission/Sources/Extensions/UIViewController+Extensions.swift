@@ -78,6 +78,16 @@ extension UIViewController {
         return transitionCoordinator
     }
 
+    var _navigationController: UINavigationController? {
+        if let navigationController {
+            return navigationController
+        }
+        if let next = view.superview?.viewController {
+            return next as? UINavigationController ?? next.navigationController
+        }
+        return nil
+    }
+
     var _activePresentationController: UIPresentationController? {
         if #available(iOS 16.0, *) {
             return activePresentationController

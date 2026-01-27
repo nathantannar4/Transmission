@@ -150,15 +150,25 @@ private struct DestinationLinkAdapterBody<
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
 
+            let traits = UITraitCollection(
+                traitsFrom: [
+                    UITraitCollection(userInterfaceStyle: .init(transition.value.options.preferredPresentationColorScheme))
+                ]
+            )
+
             let sourceView = uiView.hostingView ?? uiView
             if let adapter = context.coordinator.adapter {
+                adapter.navigationController?.setOverrideTraitCollection(
+                    traits,
+                    forChild: adapter.viewController
+                )
                 adapter.transition = transition.value
                 adapter.update(
                     destination: destination,
                     context: context,
                     isPresented: isPresented
                 )
-            } else if let navigationController = presentingViewController.navigationController {
+            } else if let navigationController = presentingViewController._navigationController {
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
                     sourceView: sourceView,
@@ -202,6 +212,11 @@ private struct DestinationLinkAdapterBody<
                     context.coordinator.sourceView = sourceView
                 }
 
+                navigationController.setOverrideTraitCollection(
+                    traits,
+                    forChild: adapter.viewController
+                )
+
                 navigationController.delegates.add(delegate: context.coordinator, for: adapter.viewController)
                 context.coordinator.isPushing = true
                 if let firstResponder = navigationController.topViewController?.firstResponder {
@@ -217,6 +232,10 @@ private struct DestinationLinkAdapterBody<
                         context.coordinator.animation = nil
                         context.coordinator.didPresentAnimated = isAnimated
                     }
+                }
+            } else {
+                withCATransaction {
+                    isPresented.wrappedValue = false
                 }
             }
         } else if context.coordinator.adapter != nil, !isPresented.wrappedValue {
@@ -271,11 +290,21 @@ private struct DestinationLinkAdapterBody<
 
         func onPop(_ count: Int, transaction: Transaction) {
             guard let viewController = adapter?.viewController else { return }
-            animation = transaction.animation
-            didPresentAnimated = false
-            isPushing = false
-            if let presented = viewController.presentedViewController {
-                presented.dismiss(animated: transaction.isAnimated) {
+            if count > 0 {
+                animation = transaction.animation
+                didPresentAnimated = false
+                isPushing = false
+                if let presented = viewController.presentedViewController {
+                    presented.dismiss(animated: transaction.isAnimated) {
+                        viewController._popViewController(
+                            count: count,
+                            animated: transaction.isAnimated
+                        ) { [weak self] success in
+                            guard success, self?.adapter?.viewController == viewController else { return }
+                            self?.onPop(transaction)
+                        }
+                    }
+                } else {
                     viewController._popViewController(
                         count: count,
                         animated: transaction.isAnimated
@@ -288,10 +317,7 @@ private struct DestinationLinkAdapterBody<
                 viewController._popViewController(
                     count: count,
                     animated: transaction.isAnimated
-                ) { [weak self] success in
-                    guard success, self?.adapter?.viewController == viewController else { return }
-                    self?.onPop(transaction)
-                }
+                )
             }
         }
 
@@ -337,9 +363,11 @@ private struct DestinationLinkAdapterBody<
                     if gesture == navigationController.interactivePopGestureRecognizer {
                         return true
                     }
+                    #if canImport(FoundationModels) // Xcode 26
                     if #available(iOS 26.0, *), gesture == navigationController.interactiveContentPopGestureRecognizer {
                         return true
                     }
+                    #endif
                     return false
                 }()
                 if case .default = transition {
@@ -355,6 +383,26 @@ private struct DestinationLinkAdapterBody<
         ) -> Int {
             guard let hapticsStyle = adapter?.transition.options.hapticsStyle else { return -1 }
             return hapticsStyle.rawValue
+        }
+
+        func navigationController(
+            _ navigationController: UINavigationController,
+            willPop viewControllers: [UIViewController],
+            animated: Bool
+        ) {
+            guard
+                let viewController = adapter?.viewController,
+                viewControllers.contains(viewController)
+            else {
+                return
+            }
+            if #available(iOS 18.0, *),
+                viewControllers.count > 1,
+                viewController == viewControllers.last,
+                case .zoom = adapter?.transition
+            {
+                viewController.preferredTransition = nil
+            }
         }
 
         func navigationController(
@@ -444,23 +492,26 @@ private struct DestinationLinkAdapterBody<
             willShow viewController: UIViewController,
             animated: Bool
         ) {
-            let isNavigationBarHidden = isPushing == true ? adapter?.transition.options.isNavigationBarHidden : wasNavigationBarHidden
-            if let isNavigationBarHidden, navigationController.isNavigationBarHidden != isNavigationBarHidden {
-                wasNavigationBarHidden = navigationController.isNavigationBarHidden
-                navigationController.setNavigationBarHidden(
-                    isNavigationBarHidden,
-                    animated: animated
-                )
+            let isShowingPreviousViewController = presentingViewController == viewController || presentingViewController?.isDescendent(of: viewController) == true
+            if isPushing == true || isShowingPreviousViewController {
+                let isNavigationBarHidden = isPushing == true ? adapter?.transition.options.isNavigationBarHidden : wasNavigationBarHidden
+                if let isNavigationBarHidden, navigationController.isNavigationBarHidden != isNavigationBarHidden {
+                    wasNavigationBarHidden = navigationController.isNavigationBarHidden
+                    navigationController.setNavigationBarHidden(
+                        isNavigationBarHidden,
+                        animated: animated
+                    )
+                }
             }
             if isPushing != true {
                 if navigationController.interactivePopGestureRecognizer?.isInteracting == true {
                     sourceView?.alpha = 1
                 }
+                #if canImport(FoundationModels) // Xcode 26
                 if #available(iOS 26.0, *), navigationController.interactiveContentPopGestureRecognizer?.isInteracting == true {
                     sourceView?.alpha = 1
                 }
-            }
-            if isPushing != true {
+                #endif
                 navigationController.setNeedsStatusBarAppearanceUpdate(
                     animated: animated,
                     transitionAlongsideCoordinator: false
@@ -527,8 +578,8 @@ private struct DestinationLinkAdapterBody<
                         to: toVC,
                         context: makeContext(options: options)
                     )
-                    if let transition = animationController as? UIPercentDrivenInteractiveTransition {
-                        transition.wantsInteractiveStart = transition.wantsInteractiveStart && options.isInteractive
+                    if !options.isInteractive, let transition = animationController as? UIPercentDrivenInteractiveTransition {
+                        transition.wantsInteractiveStart = false
                     }
                     return animationController
 
@@ -636,6 +687,12 @@ protocol DestinationLinkDelegate: UINavigationControllerDelegate{
 
     func navigationController(
         _ navigationController: UINavigationController,
+        willPop viewControllers: [UIViewController],
+        animated: Bool
+    )
+
+    func navigationController(
+        _ navigationController: UINavigationController,
         didPop viewController: UIViewController,
         animated: Bool
     )
@@ -673,10 +730,12 @@ final class DestinationLinkDelegateProxy: NSObject,
         self.delegate = navigationController.delegate
         popGestureDelegate = navigationController.interactivePopGestureRecognizer?.delegate
         navigationController.interactivePopGestureRecognizer?.delegate = self
+        #if canImport(FoundationModels) // Xcode 26
         if #available(iOS 26.0, *) {
             panGestureDelegate = navigationController.interactiveContentPopGestureRecognizer?.delegate
             navigationController.interactiveContentPopGestureRecognizer?.delegate = self
         }
+        #endif
         self.navigationController = navigationController
         navigationController.delegate = self
         interactivePopEdgeGestureRecognizer = UIScreenEdgePanGestureRecognizer(
@@ -846,7 +905,6 @@ final class DestinationLinkDelegateProxy: NSObject,
                    let fromVC = navigationController.topViewController,
                    let delegate = delegates[ObjectIdentifier(fromVC)]?.value
                 {
-
                     delegate.navigationController(
                         navigationController,
                         didPop: fromVC,
@@ -937,6 +995,17 @@ final class DestinationLinkDelegateProxy: NSObject,
         delegate?.navigationController(navigationController, didPop: viewController, animated: animated)
     }
 
+    func navigationController(
+        _ navigationController: UINavigationController,
+        willPop viewControllers: [UIViewController],
+        animated: Bool
+    ) {
+        for viewController in viewControllers {
+            let delegate = delegates[ObjectIdentifier(viewController)]?.value
+            delegate?.navigationController(navigationController, willPop: viewControllers, animated: animated)
+        }
+    }
+
     // MARK: - UIGestureRecognizerDelegate
 
     func gestureRecognizerShouldBegin(
@@ -945,9 +1014,8 @@ final class DestinationLinkDelegateProxy: NSObject,
         guard
             let navigationController = navigationController,
             navigationController.viewControllers.count > 1,
-            navigationController.presentedViewController?.isBeingDismissed ?? true,
             let fromVC = navigationController.topViewController,
-            fromVC.presentedViewController?.isBeingDismissed ?? true
+            queuedTransition == nil
         else {
             return false
         }
@@ -999,12 +1067,14 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return canBegin ?? true
             }
+            #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController.interactiveContentPopGestureRecognizer {
                 let canBegin = panGestureDelegate?.gestureRecognizerShouldBegin?(
                     gestureRecognizer
                 )
                 return canBegin ?? true
             }
+            #endif
             return true
         }
     }
@@ -1025,6 +1095,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldRecognizeSimultaneouslyWith ?? false
             }
+            #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1032,6 +1103,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldRecognizeSimultaneouslyWith ?? false
             }
+            #endif
             return false
         }
     }
@@ -1056,6 +1128,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldRequireFailureOf ?? false
             }
+            #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldRequireFailureOf = panGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1063,6 +1136,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldRequireFailureOf ?? false
             }
+            #endif
             return false
         }
     }
@@ -1075,9 +1149,11 @@ final class DestinationLinkDelegateProxy: NSObject,
             if otherGestureRecognizer == navigationController?.interactivePopGestureRecognizer {
                 return true
             }
+            #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *), otherGestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 return true
             }
+            #endif
             if otherGestureRecognizer.isZoomDismissGesture || otherGestureRecognizer is UIPanGestureRecognizer {
                 return true
             }
@@ -1092,6 +1168,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldBeRequiredToFailBy ?? false
             }
+            #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldBeRequiredToFailBy = panGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1099,6 +1176,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldBeRequiredToFailBy ?? false
             }
+            #endif
             return false
         }
     }
@@ -1117,6 +1195,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
+            #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldReceive = panGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1124,6 +1203,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
+            #endif
             return true
         }
     }
@@ -1142,6 +1222,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
+            #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldReceive = panGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1149,6 +1230,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
+            #endif
             return true
         }
     }
@@ -1167,6 +1249,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
+            #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldReceive = panGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1174,6 +1257,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
+            #endif
             return true
         }
     }
@@ -1257,7 +1341,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             to: toVC
         )
         if let transition = animationController as? UIPercentDrivenInteractiveTransition {
-            transition.wantsInteractiveStart = transition.wantsInteractiveStart && wantsInteractiveTransition
+            transition.wantsInteractiveStart = wantsInteractiveTransition || interactivePopEdgeGestureRecognizer.isInteracting || interactivePopPanGestureRecognizer.isInteracting
         }
         transitioningId = animationController != nil ? id : nil
         transition = animationController as? UIPercentDrivenInteractiveTransition
@@ -1317,7 +1401,6 @@ private class DestinationLinkDestinationViewControllerAdapter<
         self.onPop = onPop
         self.navigationController = navigationController
         super.init(content: destination, context: context)
-        self.viewController.overrideUserInterfaceStyle = .init(transition.options.preferredPresentationColorScheme)
     }
 
     func update(
@@ -1327,7 +1410,6 @@ private class DestinationLinkDestinationViewControllerAdapter<
     ) {
         self.isPresented = isPresented
         self.environment = context.environment
-        self.viewController.overrideUserInterfaceStyle = .init(transition.options.preferredPresentationColorScheme)
         super.updateViewController(content: destination, context: context)
     }
 

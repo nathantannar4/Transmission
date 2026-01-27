@@ -37,6 +37,17 @@ public struct DestinationCoordinator: Equatable, @unchecked Sendable {
         }
     }
 
+    public init(
+        isPresented: Bool,
+        dismiss: @MainActor @escaping (Int, Transaction) -> Void
+    ) {
+        self.isPresented = isPresented
+        self.seed = Seed.generate()
+        self.dismissBlock = { count, transaction in
+            dismiss(count, transaction)
+        }
+    }
+
     @inlinable
     init(
         isPresented: Bool,
@@ -64,28 +75,42 @@ public struct DestinationCoordinator: Equatable, @unchecked Sendable {
         pop(count: .max, transaction: transaction)
     }
 
-    /// Dismisses the presented view with an optional animation
+    /// Dismisses the presented views with an optional animation
+    @MainActor
+    @inlinable
+    public func popToView(animation: Animation? = .default) {
+        pop(count: 0, animation: animation)
+    }
+
+    /// Dismisses the presented views with an optional animation
+    @MainActor
+    @inlinable
+    public func popToView(transaction: Transaction) {
+        pop(count: 0, transaction: transaction)
+    }
+
+    /// Dismisses the presented views with an optional animation
     @MainActor
     @inlinable
     public func pop(animation: Animation? = .default) {
         pop(count: 1, animation: animation)
     }
 
-    /// Dismisses the presented view with the transaction
+    /// Dismisses the presented views with the transaction
     @MainActor
     @inlinable
     public func pop(transaction: Transaction) {
         pop(count: 1, transaction: transaction)
     }
 
-    /// Dismisses the presented view with an optional animation
+    /// Dismisses the presented views with an optional animation
     @MainActor
     @inlinable
     public func pop(count: Int, animation: Animation? = .default) {
         pop(count: count, transaction: Transaction(animation: animation))
     }
 
-    /// Dismisses the presented view with the transaction
+    /// Dismisses the presented views with the transaction
     @MainActor
     @inlinable
     public func pop(count: Int, transaction: Transaction) {
@@ -124,7 +149,9 @@ extension EnvironmentValues {
             } else {
                 return DestinationCoordinator(
                     isPresented: false,
-                    dismiss: { _ in }
+                    dismiss: { _ in
+                        assertionFailure("DestinationCoordinator does not support dismissing, it is not presented")
+                    }
                 )
             }
         }
