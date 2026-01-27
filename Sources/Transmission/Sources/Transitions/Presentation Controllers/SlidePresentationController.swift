@@ -79,6 +79,13 @@ open class SlidePresentationController: InteractivePresentationController {
         }
     }
 
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+        if !completed, let presentedView {
+            CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView)
+        }
+    }
+
     open override func transitionAlongsidePresentation(progress: CGFloat) {
         super.transitionAlongsidePresentation(progress: progress)
         if let presentedView {

@@ -61,7 +61,8 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             RoundedRectangle(
                 cornerRadius: UIScreen.main.displayCornerRadius(min: min),
                 mask: .all,
-                style: .continuous
+                style: .continuous,
+                isContainerConcentric: false
             )
         }
 
@@ -251,15 +252,15 @@ extension CornerRadiusOptions.RoundedRectangle {
         masksToBounds: Bool = true
     ) {
         #if canImport(FoundationModels) // Xcode 26
-        if #available(iOS 26.0, *), isContainerConcentric {
+        if #available(iOS 26.0, *) {
             let corner = isContainerConcentric
                 ? UICornerRadius.containerConcentric(minimum: cornerRadius)
-                : nil
+                : cornerRadius.map { .fixed($0) }
             view.cornerConfiguration = UICornerConfiguration.corners(
-                topLeftRadius: mask.contains(.layerMinXMinYCorner) ? corner : .fixed(0),
-                topRightRadius: mask.contains(.layerMaxXMinYCorner) ? corner : .fixed(0),
-                bottomLeftRadius: mask.contains(.layerMinXMaxYCorner) ? corner : .fixed(0),
-                bottomRightRadius: mask.contains(.layerMaxXMaxYCorner) ? corner : .fixed(0)
+                topLeftRadius: mask.contains(.layerMinXMinYCorner) ? corner : nil,
+                topRightRadius: mask.contains(.layerMaxXMinYCorner) ? corner : nil,
+                bottomLeftRadius: mask.contains(.layerMinXMaxYCorner) ? corner : nil,
+                bottomRightRadius: mask.contains(.layerMaxXMaxYCorner) ? corner : nil
             )
         }
         #endif
