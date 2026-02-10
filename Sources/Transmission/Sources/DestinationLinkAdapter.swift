@@ -1014,8 +1014,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         guard
             let navigationController = navigationController,
             navigationController.viewControllers.count > 1,
-            let fromVC = navigationController.topViewController,
-            queuedTransition == nil
+            let fromVC = navigationController.topViewController
         else {
             return false
         }
@@ -1034,6 +1033,9 @@ final class DestinationLinkDelegateProxy: NSObject,
         }()
 
         if gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == interactivePopPanGestureRecognizer {
+            if gestureRecognizer == interactivePopEdgeGestureRecognizer, transition != nil, interactivePopPanGestureRecognizer.state == .began {
+                return false
+            }
             guard shouldBegin == true else { return false }
             if let transition, transition != queuedTransition {
                 isInterruptedInteractiveTransition = true
