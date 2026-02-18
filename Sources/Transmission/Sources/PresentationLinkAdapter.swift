@@ -136,7 +136,7 @@ private struct PresentationLinkAdapterBody<
     func updateUIView(_ uiView: UIViewType, context: Context) {
         uiView.hostingView?.content = sourceView
         uiView.hostingView?.cornerRadius = cornerRadius
-        uiView.backgroundColor = backgroundColor?.toUIColor()
+        uiView.hostingView?.backgroundColor = backgroundColor?.toUIColor()
 
         context.coordinator.presentingViewController = presentingViewController
 

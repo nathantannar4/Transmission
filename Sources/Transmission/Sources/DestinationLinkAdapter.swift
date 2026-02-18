@@ -135,7 +135,7 @@ private struct DestinationLinkAdapterBody<
     func updateUIView(_ uiView: UIViewType, context: Context) {
         uiView.hostingView?.content = sourceView
         uiView.hostingView?.cornerRadius = cornerRadius
-        uiView.backgroundColor = backgroundColor?.toUIColor()
+        uiView.hostingView?.backgroundColor = backgroundColor?.toUIColor()
 
         if let presentingViewController = presentingViewController, isPresented.wrappedValue {
 
@@ -562,7 +562,7 @@ private struct DestinationLinkAdapterBody<
                 case .pop:
                     guard
                         adapter?.viewController == fromVC,
-                        navigationController.viewControllers.index(of: toVC) == navigationController.viewControllers.count - 2
+                        navigationController.viewControllers.firstIndex(of: toVC) == navigationController.viewControllers.count - 2
                     else {
                         return nil
                     }

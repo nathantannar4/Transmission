@@ -34,20 +34,6 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
 
     var hostingView: TransitionSourceHostingView<Content>?
 
-    override var backgroundColor: UIColor? {
-        get {
-            hostingView?.backgroundColor ?? super.backgroundColor
-        }
-        set {
-            if let hostingView {
-                hostingView.backgroundColor = newValue
-            } else {
-                super.backgroundColor = newValue
-                isHidden = newValue == nil
-            }
-        }
-    }
-
     init(
         onDidMoveToWindow: @escaping (UIViewController?) -> Void,
         content: Content
@@ -69,6 +55,10 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {
         hostingView?.sizeThatFits(size) ?? super.sizeThatFits(size)
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        hostingView?.hitTest(point, with: event)
     }
 
     override func layoutSubviews() {
