@@ -116,18 +116,15 @@ extension DestinationLinkTransition {
         public var options: Options
         public var dimmingColor: Color?
         public var dimmingVisualEffect: UIBlurEffect.Style?
-        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
             dimmingColor: Color? = nil,
             dimmingVisualEffect: UIBlurEffect.Style? = nil,
-            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
             options: Options = .init()
         ) {
             self.options = options
             self.dimmingColor = dimmingColor
             self.dimmingVisualEffect = dimmingVisualEffect
-            self.hapticsStyle = hapticsStyle
         }
     }
 }

@@ -137,8 +137,6 @@ private struct DestinationLinkAdapterBody<
         uiView.hostingView?.cornerRadius = cornerRadius
         uiView.backgroundColor = backgroundColor?.toUIColor()
 
-        context.coordinator.presentingViewController = presentingViewController
-
         if let presentingViewController = presentingViewController, isPresented.wrappedValue {
 
             context.coordinator.isPresented = isPresented
@@ -270,8 +268,6 @@ private struct DestinationLinkAdapterBody<
         var feedbackGenerator: UIImpactFeedbackGenerator?
 
         var wasNavigationBarHidden: Bool?
-
-        weak var presentingViewController: UIViewController?
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
@@ -461,19 +457,17 @@ private struct DestinationLinkAdapterBody<
                 // Break the retain cycle
                 adapter?.coordinator = nil
 
-                if isPushing == nil {
-                    if isPresented.wrappedValue {
-                        onPop(Transaction())
-                    } else {
-                        didPop()
-                    }
+                if isPresented.wrappedValue {
+                    onPop(Transaction())
+                } else {
+                    didPop()
                 }
                 isPushing = nil
             }
 
             #if !targetEnvironment(macCatalyst)
             if #available(iOS 16.0, *),
-               let sheetPresentationController = presentingViewController?._activePresentationController as? SheetPresentationController,
+               let sheetPresentationController = viewController._activePresentationController as? SheetPresentationController,
                sheetPresentationController.detents.contains(where: { $0.isDynamic })
             {
                 if animated {
@@ -492,7 +486,7 @@ private struct DestinationLinkAdapterBody<
             willShow viewController: UIViewController,
             animated: Bool
         ) {
-            let isShowingPreviousViewController = presentingViewController == viewController || presentingViewController?.isDescendent(of: viewController) == true
+            let isShowingPreviousViewController = navigationController.viewControllers.last == viewController
             if isPushing == true || isShowingPreviousViewController {
                 let isNavigationBarHidden = isPushing == true ? adapter?.transition.options.isNavigationBarHidden : wasNavigationBarHidden
                 if let isNavigationBarHidden, navigationController.isNavigationBarHidden != isNavigationBarHidden {
@@ -568,7 +562,7 @@ private struct DestinationLinkAdapterBody<
                 case .pop:
                     guard
                         adapter?.viewController == fromVC,
-                        presentingViewController == toVC || presentingViewController?.isDescendent(of: toVC) == true
+                        navigationController.viewControllers.index(of: toVC) == navigationController.viewControllers.count - 2
                     else {
                         return nil
                     }
@@ -614,8 +608,7 @@ private struct DestinationLinkAdapterBody<
                 feedbackGenerator = nil
             default:
                 guard
-                    case .zoom(let options) = adapter?.transition,
-                    let hapticsStyle = options.hapticsStyle,
+                    let hapticsStyle = adapter?.transition.options.hapticsStyle,
                     let view = panGesture.view
                 else {
                     return
