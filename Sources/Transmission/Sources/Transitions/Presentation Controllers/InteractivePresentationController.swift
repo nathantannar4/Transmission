@@ -657,7 +657,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     ) -> Bool {
         guard gestureRecognizer == panGesture else { return false }
         if otherGestureRecognizer.isSwiftUIGestureResponder {
-            return false
+            return true
         }
         return otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
     }
@@ -704,16 +704,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             return true
         }
         if otherGestureRecognizer.isSwiftUIGestureResponder {
-            let translation = panGesture.translation(in: panGesture.view)
-            let velocity = panGesture.velocity(in: panGesture.view)
-            let shouldBegin = dismissalTransitionShouldBegin(
-                translation: translation,
-                delta: .zero,
-                velocity: velocity
-            )
-            if !shouldBegin {
-                return true
-            }
+            return true
         }
         return trackingScrollView != nil
     }
