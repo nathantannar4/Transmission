@@ -644,7 +644,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     // MARK: - UIGestureRecognizerDelegate
 
-    open func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    open func gestureRecognizerShouldBegin(
+        _ gestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        guard gestureRecognizer == panGesture else { return true }
         return isInteractive
     }
 
@@ -652,13 +655,18 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
+        guard gestureRecognizer == panGesture else { return false }
+        if otherGestureRecognizer.isSwiftUIGestureResponder {
+            return false
+        }
+        return otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
     }
 
     open func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
+        guard gestureRecognizer == panGesture else { return false }
         if otherGestureRecognizer.isZoomDismissPanGesture {
             return false
         }
@@ -696,7 +704,16 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             return true
         }
         if otherGestureRecognizer.isSwiftUIGestureResponder {
-            return true
+            let translation = panGesture.translation(in: panGesture.view)
+            let velocity = panGesture.velocity(in: panGesture.view)
+            let shouldBegin = dismissalTransitionShouldBegin(
+                translation: translation,
+                delta: .zero,
+                velocity: velocity
+            )
+            if !shouldBegin {
+                return true
+            }
         }
         return trackingScrollView != nil
     }
