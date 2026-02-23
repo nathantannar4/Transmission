@@ -121,13 +121,24 @@ private struct DestinationLinkAdapterBody<
     typealias DestinationViewController = DestinationHostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
     func makeUIView(context: Context) -> UIViewType {
-        let uiView = TransitionSourceView(
+        let uiView = UIViewType(
             onDidMoveToWindow: { viewController in
                 withCATransaction {
                     presentingViewController = viewController
                 }
             },
-            content: sourceView
+            content: sourceView,
+            useHostingController: {
+                switch transition.value {
+                case .zoom(let options):
+                    if #unavailable(iOS 26.0) {
+                        return !options.zoomTransitionOptions.prefersScalePresentingView
+                    }
+                    return false
+                default:
+                    return false
+                }
+            }()
         )
         return uiView
     }
@@ -141,10 +152,12 @@ private struct DestinationLinkAdapterBody<
 
             context.coordinator.isPresented = isPresented
 
+            let sourceTransaction = try? swift_getFieldValue("transaction", Transaction?.self, presentingViewController)
             let isAnimated = context.transaction.isAnimated
                 || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
-                || (try? swift_getFieldValue("transaction", Transaction?.self, presentingViewController))?.isAnimated == true
+                || sourceTransaction?.isAnimated == true
             let animation = context.transaction.animation
+                ?? sourceTransaction?.animation
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
 
@@ -155,6 +168,7 @@ private struct DestinationLinkAdapterBody<
             )
 
             let sourceView = uiView.hostingView ?? uiView
+
             if let adapter = context.coordinator.adapter {
                 adapter.navigationController?.setOverrideTraitCollection(
                     traits,
@@ -185,9 +199,7 @@ private struct DestinationLinkAdapterBody<
 
                 case .zoom(let options):
                     if #available(iOS 18.0, *) {
-                        let zoomOptions = UIViewController.Transition.ZoomOptions()
-                        zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
-                        zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
+                        let zoomOptions = options.zoomTransitionOptions.toUIKit()
                         zoomOptions.interactiveDismissShouldBegin = { [weak adapter] context in
                             context.willBegin && (adapter?.transition.options.isInteractive ?? true)
                         }
@@ -242,12 +254,19 @@ private struct DestinationLinkAdapterBody<
         }
     }
 
-    public func _overrideSizeThatFits(
+    func _overrideSizeThatFits(
         _ size: inout CGSize,
         in proposedSize: _ProposedSize,
         uiView: UIViewType
     ) {
         size = uiView.sizeThatFits(ProposedSize(proposedSize).replacingUnspecifiedDimensions(by: UIView.layoutFittingExpandedSize))
+    }
+
+    static func dismantleUIView(
+        _ uiView: UIViewType,
+        coordinator: Coordinator
+    ) {
+        coordinator.onDismantle()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -271,6 +290,22 @@ private struct DestinationLinkAdapterBody<
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
+        }
+
+        func onDismantle() {
+            sourceView = nil
+            if let adapter {
+                if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                    if isPushing != false {
+                        let transaction = Transaction(animation: didPresentAnimated ? .default : nil)
+                        withCATransaction {
+                            self.onPop(1, transaction: transaction)
+                        }
+                    }
+                } else {
+                    adapter.coordinator = self
+                }
+            }
         }
 
         private func makeContext(
@@ -644,22 +679,6 @@ private struct DestinationLinkAdapterBody<
                     impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
                     isZoomTransitionDismissReady = false
                 }
-            }
-        }
-    }
-
-    static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
-        coordinator.sourceView = nil
-        if let adapter = coordinator.adapter {
-            if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                if coordinator.isPushing != false {
-                    let transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
-                    withCATransaction {
-                        coordinator.onPop(1, transaction: transaction)
-                    }
-                }
-            } else {
-                adapter.coordinator = coordinator
             }
         }
     }

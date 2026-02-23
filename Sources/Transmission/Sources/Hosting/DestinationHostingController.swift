@@ -13,15 +13,6 @@ open class DestinationHostingController<
 
     public weak var sourceViewController: AnyHostingController?
 
-    open override func update(content: Content, transaction: Transaction) {
-        super.update(content: content, transaction: transaction)
-        if shouldRenderForContentUpdate {
-            withCATransaction { [weak self] in
-                self?.render()
-            }
-        }
-    }
-
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         if let sourceViewController, sourceViewController.shouldRenderForContentUpdate {

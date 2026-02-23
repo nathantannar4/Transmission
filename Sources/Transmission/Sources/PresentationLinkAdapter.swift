@@ -122,13 +122,24 @@ private struct PresentationLinkAdapterBody<
     typealias DestinationViewController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
     func makeUIView(context: Context) -> UIViewType {
-        let uiView = TransitionSourceView(
+        let uiView = UIViewType(
             onDidMoveToWindow: { viewController in
                 withCATransaction {
                     presentingViewController = viewController
                 }
             },
-            content: sourceView
+            content: sourceView,
+            useHostingController: {
+                switch transition.value {
+                case .zoom(let options):
+                    if #unavailable(iOS 26.0) {
+                        return !options.zoomTransitionOptions.prefersScalePresentingView
+                    }
+                    return false
+                default:
+                    return false
+                }
+            }()
         )
         return uiView
     }
@@ -151,12 +162,15 @@ private struct PresentationLinkAdapterBody<
                 ]
             )
 
+            let sourceTransaction = try? swift_getFieldValue("transaction", Transaction?.self, presentingViewController)
             var isAnimated = context.transaction.isAnimated
-                || presentingViewController.transitionCoordinator?.isAnimated == true
-                || (try? swift_getFieldValue("transaction", Transaction?.self, presentingViewController))?.isAnimated == true
+                || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
+                || sourceTransaction?.isAnimated == true
             let animation = context.transaction.animation
+                ?? sourceTransaction?.animation
                 ?? (isAnimated ? .default : nil)
             context.coordinator.animation = animation
+
             var isTransitioningPresentationController = false
             let sourceView = uiView.hostingView ?? uiView
 
@@ -332,7 +346,7 @@ private struct PresentationLinkAdapterBody<
                     adapter.viewController.modalPresentationStyle = .custom
 
                     if options.prefersZoomTransition, #available(iOS 18.0, *) {
-                        let zoomOptions = UIViewController.Transition.ZoomOptions()
+                        let zoomOptions = options.zoomTransitionOptions?.toUIKit() ?? UIViewController.Transition.ZoomOptions()
                         let coordinator = context.coordinator
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
                             guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
@@ -348,9 +362,7 @@ private struct PresentationLinkAdapterBody<
 
                 case .zoom(let options):
                     if #available(iOS 18.0, *) {
-                        let zoomOptions = UIViewController.Transition.ZoomOptions()
-                        zoomOptions.dimmingColor = options.dimmingColor?.toUIColor()
-                        zoomOptions.dimmingVisualEffect = options.dimmingVisualEffect.map { UIBlurEffect(style: $0) }
+                        let zoomOptions = options.zoomTransitionOptions.toUIKit()
                         let coordinator = context.coordinator
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
                             guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
@@ -488,12 +500,19 @@ private struct PresentationLinkAdapterBody<
         }
     }
 
-    public func _overrideSizeThatFits(
+    func _overrideSizeThatFits(
         _ size: inout CGSize,
         in proposedSize: _ProposedSize,
         uiView: UIViewType
     ) {
         size = uiView.sizeThatFits(ProposedSize(proposedSize).replacingUnspecifiedDimensions(by: UIView.layoutFittingExpandedSize))
+    }
+
+    static func dismantleUIView(
+        _ uiView: UIViewType,
+        coordinator: Coordinator
+    ) {
+        coordinator.onDismantle()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -532,6 +551,20 @@ private struct PresentationLinkAdapterBody<
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
+        }
+
+        func onDismantle() {
+            sourceView = nil
+            if let adapter {
+                if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                    let transaction = Transaction(animation: didPresentAnimated ? .default : nil)
+                    withCATransaction {
+                        self.onDismiss(1, transaction: transaction)
+                    }
+                } else {
+                    adapter.coordinator = self
+                }
+            }
         }
 
         private func makeContext(
@@ -1216,20 +1249,6 @@ private struct PresentationLinkAdapterBody<
                     impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
                     isTransitionDismissReady = false
                 }
-            }
-        }
-    }
-
-    static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
-        coordinator.sourceView = nil
-        if let adapter = coordinator.adapter {
-            if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                let transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
-                withCATransaction {
-                    coordinator.onDismiss(1, transaction: transaction)
-                }
-            } else {
-                adapter.coordinator = coordinator
             }
         }
     }
