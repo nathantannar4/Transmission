@@ -353,6 +353,8 @@ extension UIView {
 
 @available(iOS 15.0, *)
 extension PresentationLinkTransition.SheetTransitionOptions {
+
+    @MainActor @preconcurrency
     static func update(
         presentationController: SheetPresentationController,
         animation: Animation?,

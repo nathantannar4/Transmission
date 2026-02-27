@@ -36,7 +36,7 @@ open class PresentationHostingController<
     }
 
     open override func viewDidLayoutSubviews() {
-        let isAnimated = !isBeingPresented && (transaction.map({ $0.isAnimated }) ?? transitionCoordinator?.isAnimated ?? true)
+        var isAnimated = transaction?.isAnimated ?? false
 
         super.viewDidLayoutSubviews()
 
@@ -54,9 +54,7 @@ open class PresentationHostingController<
             return
         }
 
-        if _transitionCoordinator != nil {
-            return
-        }
+        isAnimated = !isBeingPresented && (isAnimated || transitionCoordinator?.isAnimated ?? true)
 
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,

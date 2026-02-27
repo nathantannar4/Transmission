@@ -8,6 +8,7 @@ import SwiftUI
 import EngineCore
 
 /// The context for a ``PresentationLinkTransitionRepresentable``
+@MainActor @preconcurrency
 @available(iOS 14.0, *)
 @frozen
 public struct PresentationLinkTransitionRepresentableContext {
@@ -23,7 +24,6 @@ public struct PresentationLinkTransitionRepresentableContext {
 /// > Tip: Use ``PresentationController`` or ``InteractivePresentationController``
 ///
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol PresentationLinkTransitionRepresentable:
     PresentationLinkPresentedTransitionRepresentable,
     PresentationLinkPresentingTransitionRepresentable,
@@ -50,7 +50,6 @@ public protocol PresentationLinkTransitionRepresentable:
 }
 
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol PresentationLinkPresentedTransitionRepresentable: Sendable {
 
     typealias Context = PresentationLinkTransitionRepresentableContext
@@ -119,7 +118,6 @@ extension PresentationLinkPresentedTransitionRepresentable where Self == Present
 }
 
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol PresentationLinkPresentingTransitionRepresentable: Sendable {
 
     typealias Context = PresentationLinkTransitionRepresentableContext
@@ -187,7 +185,6 @@ extension PresentationLinkPresentingTransitionRepresentable where Self == Presen
 }
 
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol PresentationLinkDismissingTransitionRepresentable: Sendable {
 
     typealias Context = PresentationLinkTransitionRepresentableContext
@@ -298,6 +295,8 @@ extension PresentationLinkTransitionRepresentable {
 extension PresentationLinkTransitionRepresentable
     where UIPresentationControllerType: PresentationController
 {
+
+    @MainActor @preconcurrency
     public func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
@@ -316,6 +315,7 @@ extension PresentationLinkTransitionRepresentable
         return transition
     }
 
+    @MainActor @preconcurrency
     public func animationController(
         forDismissed dismissed: UIViewController,
         presentationController: UIPresentationController,
@@ -333,6 +333,7 @@ extension PresentationLinkTransitionRepresentable
         return transition
     }
 
+    @MainActor @preconcurrency
     public func interactionControllerForDismissal(
         using animator: UIViewControllerAnimatedTransitioning,
         context: Context

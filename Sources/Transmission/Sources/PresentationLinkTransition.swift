@@ -9,11 +9,9 @@ import EngineCore
 
 /// The transition and presentation style for a ``PresentationLink`` or ``PresentationLinkModifier``.
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public struct PresentationLinkTransition: Sendable {
 
-    @MainActor @preconcurrency
-    enum Value: @unchecked Sendable {
+    enum Value: Sendable {
         case `default`(Options)
         case sheet(SheetTransitionOptions)
         case currentContext(Options)
@@ -139,7 +137,6 @@ extension PresentationLinkTransition {
 extension PresentationLinkTransition {
     /// The transition options for a sheet transition.
     @frozen
-    @MainActor @preconcurrency
     public struct SheetTransitionOptions {
         /// The detent of the sheet transition
         @frozen
@@ -546,7 +543,7 @@ extension PresentationLinkTransition {
                 if let preferredCornerRadius {
                     return preferredCornerRadius
                 }
-                return prefersZoomTransition ? .screen() : nil
+                return prefersZoomTransition ? MainActor.assumeIsolated({.screen()}) : nil
             }()
             self.prefersSourceViewAlignment = prefersSourceViewAlignment
             self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
@@ -560,7 +557,6 @@ extension PresentationLinkTransition {
     }
 
     @frozen
-    @MainActor @preconcurrency
     public struct PopoverTransitionOptions {
         public typealias PermittedArrowDirections = Edge.Set
 
@@ -611,7 +607,6 @@ extension PresentationLinkTransition {
 
     /// The transition options for a zoom transition.
     @frozen
-    @MainActor @preconcurrency
     public struct ZoomOptions {
         public var options: Options
         public var zoomTransitionOptions: ZoomTransitionOptions

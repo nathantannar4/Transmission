@@ -46,12 +46,11 @@ extension PresentationLinkTransition {
 
 @frozen
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public struct CrossDissolvePresentationLinkTransition: PresentationLinkTransitionRepresentable {
 
     /// The transition options for a cross dissolve transition.
     @frozen
-    public struct Options {
+    public struct Options: Sendable {
 
         public var transform: CGAffineTransform
 

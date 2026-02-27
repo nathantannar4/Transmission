@@ -28,18 +28,15 @@ struct WeakState<Value: AnyObject>: DynamicProperty {
     var storage: StateObject<Storage>
 
     @inlinable
-    @MainActor @preconcurrency
     init(wrappedValue thunk: @autoclosure @escaping () -> Value?) {
         storage = StateObject<Storage>(wrappedValue: { Storage(value: thunk()) }())
     }
 
-    @MainActor @preconcurrency
     var wrappedValue: Value? {
         get { storage.wrappedValue.value }
         nonmutating set { storage.wrappedValue.value = newValue }
     }
 
-    @MainActor @preconcurrency
     var projectedValue: Binding<Value?> {
         storage.projectedValue.value
     }

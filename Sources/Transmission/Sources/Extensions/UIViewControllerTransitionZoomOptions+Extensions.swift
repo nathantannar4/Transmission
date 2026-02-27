@@ -8,7 +8,6 @@ import SwiftUI
 import UIKit
 
 @frozen
-@MainActor @preconcurrency
 public struct ZoomTransitionOptions {
     public var dimmingColor: Color?
     public var dimmingVisualEffect: UIBlurEffect.Style?
@@ -24,6 +23,7 @@ public struct ZoomTransitionOptions {
         self.prefersScalePresentingView = prefersScalePresentingView
     }
 
+    @MainActor @preconcurrency
     @available(iOS 18.0, *)
     func toUIKit() -> UIViewController.Transition.ZoomOptions {
         let options = UIViewController.Transition.ZoomOptions()

@@ -85,7 +85,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
 
     /// The transition options for a card transition.
     @frozen
-    public struct Options {
+    public struct Options: Sendable {
 
         public var preferredEdgeInset: CGFloat?
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
@@ -123,12 +123,15 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         }
         return 4
     }()
+
+    @MainActor @preconcurrency
     public static let defaultCornerRadius: CGFloat = UIScreen.main.displayCornerRadius(min: 36)
 
     var edgeInset: CGFloat {
         options.preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
     }
 
+    @MainActor @preconcurrency
     var cornerRadius: CornerRadiusOptions.RoundedRectangle {
         options.preferredCornerRadius ?? .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - edgeInset)
     }

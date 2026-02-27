@@ -8,6 +8,7 @@ import SwiftUI
 import EngineCore
 
 /// The context for a ``DestinationLinkTransitionRepresentableContext``
+@MainActor @preconcurrency
 @available(iOS 14.0, *)
 @frozen
 public struct DestinationLinkTransitionRepresentableContext {
@@ -19,7 +20,6 @@ public struct DestinationLinkTransitionRepresentableContext {
 
 /// A protocol that defines a custom transition for a ``DestinationLinkTransition``
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol DestinationLinkTransitionRepresentable: DestinationLinkPushTransitionRepresentable, DestinationLinkPopTransitionRepresentable {
 
     /// Updates the presented hosting controller
@@ -40,7 +40,6 @@ extension DestinationLinkTransitionRepresentable {
 
 /// A protocol that defines a custom push transition for a ``DestinationLinkTransition``
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol DestinationLinkPushTransitionRepresentable: Sendable {
 
     typealias Context = DestinationLinkTransitionRepresentableContext
@@ -99,7 +98,6 @@ extension DestinationLinkPushTransitionRepresentable where Self == DestinationLi
 
 /// A protocol that defines a custom pop transition for a ``DestinationLinkTransition``
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol DestinationLinkPopTransitionRepresentable: Sendable {
 
     typealias Context = DestinationLinkTransitionRepresentableContext

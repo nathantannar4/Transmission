@@ -56,7 +56,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
 
     /// The transition options for a toast transition.
     @frozen
-    public struct Options {
+    public struct Options: Sendable {
 
         public var edge: Edge
         public var preferredCornerRadius: CornerRadiusOptions?

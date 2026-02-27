@@ -76,7 +76,7 @@ public struct MatchedGeometryDestinationLinkTransition: DestinationLinkTransitio
 
     /// The transition options for a matched geometry transition.
     @frozen
-    public struct Options {
+    public struct Options: @unchecked Sendable {
 
         public var preferredFromCornerRadius: CornerRadiusOptions?
         public var prefersZoomEffect: Bool

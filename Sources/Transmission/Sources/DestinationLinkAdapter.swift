@@ -1498,6 +1498,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
 @available(iOS 14.0, *)
 extension DestinationLinkTransition.Value {
 
+    @MainActor @preconcurrency
     func update<Content: View>(
         _ viewController: DestinationHostingController<Content>,
         context: @autoclosure () -> DestinationLinkTransitionRepresentableContext

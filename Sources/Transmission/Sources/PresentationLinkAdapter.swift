@@ -1389,6 +1389,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
 @available(iOS 14.0, *)
 extension PresentationLinkTransition.Value {
 
+    @MainActor @preconcurrency
     func update<Content: View>(
         _ viewController: PresentationHostingController<Content>,
         context: @autoclosure () -> PresentationLinkTransitionRepresentableContext

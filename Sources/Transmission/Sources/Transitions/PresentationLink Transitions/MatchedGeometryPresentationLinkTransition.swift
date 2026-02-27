@@ -125,12 +125,11 @@ extension PresentationLinkTransition {
 
 @frozen
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransitionRepresentable {
 
     /// The transition options for a matched geometry transition.
     @frozen
-    public struct Options {
+    public struct Options: @unchecked Sendable {
 
         public var edges: Edge.Set
         public var dimmingColor: Color?

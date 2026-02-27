@@ -53,7 +53,7 @@ public struct CrossDissolveDestinationLinkTransition: DestinationLinkTransitionR
 
     /// The transition options for a cross dissolve transition.
     @frozen
-    public struct Options {
+    public struct Options: Sendable {
 
         public init() { }
     }
