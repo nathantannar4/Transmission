@@ -30,6 +30,7 @@ extension DestinationLinkTransition {
 
     /// The push transition style.
     public static func push(
+        dimmingColor: Color? = nil,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         preferredShadow: ShadowOptions? = nil,
         prefersPanGesturePop: Bool = true,
@@ -39,6 +40,7 @@ extension DestinationLinkTransition {
     ) -> DestinationLinkTransition {
         .push(
             .init(
+                dimmingColor: dimmingColor,
                 preferredCornerRadius: preferredCornerRadius,
                 preferredShadow: preferredShadow
             ),
@@ -59,13 +61,16 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
     @frozen
     public struct Options: Sendable {
 
+        public var dimmingColor: Color?
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
         public var preferredShadow: ShadowOptions?
 
         public init(
+            dimmingColor: Color? = nil,
             preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             preferredShadow: ShadowOptions? = nil
         ) {
+            self.dimmingColor = dimmingColor
             self.preferredCornerRadius = preferredCornerRadius
             self.preferredShadow = preferredShadow
         }
@@ -83,6 +88,7 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
         context: Context
     ) -> PushNavigationControllerTransition? {
         let transition = PushNavigationControllerTransition(
+            dimmingColor: options.dimmingColor?.toUIColor(),
             preferredCornerRadius: options.preferredCornerRadius,
             preferredShadow: options.preferredShadow,
             isPresenting: true,
@@ -98,6 +104,7 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
         context: Context
     ) -> PushNavigationControllerTransition? {
         let transition = PushNavigationControllerTransition(
+            dimmingColor: options.dimmingColor?.toUIColor(),
             preferredCornerRadius: options.preferredCornerRadius,
             preferredShadow: options.preferredShadow,
             isPresenting: false,
@@ -110,17 +117,20 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
 @available(iOS 14.0, *)
 open class PushNavigationControllerTransition: ViewControllerTransition {
 
+    public var dimmingColor: UIColor?
     public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
     public var preferredShadow: ShadowOptions?
 
     weak var dimmingView: DimmingView?
 
     public init(
+        dimmingColor: UIColor? = nil,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         preferredShadow: ShadowOptions? = nil,
         isPresenting: Bool,
         animation: Animation?
     ) {
+        self.dimmingColor = dimmingColor
         self.preferredCornerRadius = preferredCornerRadius
         self.preferredShadow = preferredShadow
         super.init(isPresenting: isPresenting, animation: animation)
@@ -186,6 +196,9 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
 
         if transitionContext.isAnimated {
             let dimmingView = DimmingView()
+            if let dimmingColor {
+                dimmingView.backgroundColor = dimmingColor
+            }
             dimmingView.alpha = isPresenting ? 0 : 1
             dimmingView.isUserInteractionEnabled = isPresenting
             transitionContext.containerView.insertSubview(

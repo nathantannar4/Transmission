@@ -151,12 +151,11 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         presentedView: UIView,
         presentedFrame: inout CGRect
     ) {
-        guard isPresenting else { return }
+        guard isPresenting, let presentationController = presented.presentationController else { return }
         (presented as? AnyHostingController)?.render()
 
         guard
-            let transitionReaderCoordinator = presented.transitionReaderCoordinator,
-            let presentationController = presented.presentationController
+            let transitionReaderCoordinator = presented.transitionReaderCoordinator
         else {
             return
         }
