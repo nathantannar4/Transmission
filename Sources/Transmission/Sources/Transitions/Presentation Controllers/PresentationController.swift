@@ -227,7 +227,9 @@ open class PresentationController: DelegatedPresentationController {
     }
 
     open func layoutDimmingView() {
-        if let presentationController = presentingViewController._activePresentationController {
+        if !(presentedViewController.view.backgroundColor?.isTranslucent ?? true),
+            let presentationController = presentingViewController._activePresentationController
+        {
             let frame = presentationController.presentedView?.frame ?? presentationController.frameOfPresentedViewInContainerView
             let dimmingViewFrame = presentingViewController.view.convert(
                 presentingViewController.view.convert(
@@ -247,12 +249,8 @@ open class PresentationController: DelegatedPresentationController {
                 dimmingView.layer.cornerCurve = presentedView.layer.cornerCurve
                 dimmingView.layer.maskedCorners = presentedView.layer.maskedCorners
             }
-        } else if let presentedView = presentingViewController.view {
-            let dimmingViewFrame = presentedView.convert(
-                presentedView.bounds,
-                to: containerView
-            )
-            dimmingView.frame = dimmingViewFrame.rounded(scale: containerView?.window?.screen.scale ?? 1)
+        } else if let presentedView {
+            dimmingView.frame = containerView?.bounds ?? .zero
             #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *) {
                 dimmingView.cornerConfiguration = presentedView.cornerConfiguration

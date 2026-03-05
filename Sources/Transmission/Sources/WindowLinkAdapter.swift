@@ -59,91 +59,19 @@ private struct WindowLinkAdapterBody<
     }
 
     func updateUIView(_ uiView: WindowReader, context: Context) {
-        if let presentingWindow = presentingWindow,
-            let windowScene = presentingWindow.windowScene,
-            isPresented.wrappedValue
-        {
-            context.coordinator.isPresented = isPresented
+        context.coordinator.onUpdate(
+            presentingWindow: presentingWindow,
+            isPresented: isPresented,
+            level: level,
+            transition: transition,
+            destination: destination,
+            context: context,
+            sourceView: uiView
+        )
+    }
 
-            if let adapter = context.coordinator.adapter,
-                !context.coordinator.isBeingReused
-            {
-                adapter.transition = transition
-                adapter.update(
-                    destination: destination,
-                    context: context,
-                    isPresented: isPresented
-                )
-            } else {
-                let adapter: WindowLinkDestinationWindowAdapter<Destination>
-                if let oldValue = context.coordinator.adapter {
-                    adapter = oldValue
-                    adapter.transition = transition
-                    adapter.update(
-                        destination: destination,
-                        context: context,
-                        isPresented: isPresented
-                    )
-                    context.coordinator.isBeingReused = false
-                } else {
-                    adapter = WindowLinkDestinationWindowAdapter(
-                        windowScene: windowScene,
-                        destination: destination,
-                        transition: transition,
-                        context: context,
-                        isPresented: isPresented,
-                        onDismiss: { [weak coordinator = context.coordinator] in
-                            coordinator?.onDismiss($0, transaction: $1)
-                        }
-                    )
-                    context.coordinator.adapter = adapter
-                }
-                switch level.rawValue {
-                case .relative(let offset):
-                    adapter.window.windowLevel = .init(rawValue: presentingWindow.windowLevel.rawValue + CGFloat(offset))
-                case .fixed(let level):
-                    adapter.window.windowLevel = .init(rawValue: CGFloat(level))
-                }
-
-                let isAnimated = context.transaction.isAnimated
-                    || uiView.viewController?.transitionCoordinator?.isAnimated == true
-                let animation = context.transaction.animation
-                    ?? (isAnimated ? .default : nil)
-                let transition = transition
-                let window = adapter.window
-                context.coordinator.animation = animation
-                presentingWindow.present(
-                    window,
-                    animation: animation,
-                    animations: { isPresented in
-                        let fromTransition = transition.value.toUIKit(
-                            isPresented: false,
-                            window: window
-                        )
-                        let toTransition = transition.value.toUIKit(
-                            isPresented: true,
-                            window: window
-                        )
-                        if isPresented {
-                            window.alpha = toTransition.alpha ?? 1
-                            window.transform = toTransition.t
-                        } else {
-                            window.alpha = fromTransition.alpha ?? 1
-                            window.transform = fromTransition.t
-                        }
-                    },
-                    completion: {
-                        context.coordinator.didPresentAnimated = isAnimated
-                    }
-                )
-            }
-        } else if !isPresented.wrappedValue,
-            context.coordinator.adapter != nil,
-            !context.coordinator.isBeingReused
-        {
-            context.coordinator.isPresented = isPresented
-            context.coordinator.onDismiss(1, transaction: context.transaction)
-        }
+    static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
+        coordinator.onDismantle()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -160,6 +88,109 @@ private struct WindowLinkAdapterBody<
 
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
+        }
+
+        func onUpdate(
+            presentingWindow: UIWindow?,
+            isPresented: Binding<Bool>,
+            level: WindowLinkLevel,
+            transition: WindowLinkTransition,
+            destination: Destination,
+            context: Context,
+            sourceView: UIView,
+        ) {
+            self.isPresented = isPresented
+
+            if let presentingWindow = presentingWindow,
+               let windowScene = presentingWindow.windowScene,
+               isPresented.wrappedValue
+            {
+                if let adapter, !isBeingReused {
+                    adapter.transition = transition
+                    adapter.update(
+                        destination: destination,
+                        context: context,
+                        isPresented: isPresented
+                    )
+                } else {
+                    let adapter: WindowLinkDestinationWindowAdapter<Destination>
+                    if let oldValue = self.adapter {
+                        adapter = oldValue
+                        adapter.transition = transition
+                        adapter.update(
+                            destination: destination,
+                            context: context,
+                            isPresented: isPresented
+                        )
+                        self.isBeingReused = false
+                    } else {
+                        adapter = WindowLinkDestinationWindowAdapter(
+                            windowScene: windowScene,
+                            destination: destination,
+                            transition: transition,
+                            context: context,
+                            isPresented: isPresented,
+                            onDismiss: { [weak self] in
+                                self?.onDismiss($0, transaction: $1)
+                            }
+                        )
+                        self.adapter = adapter
+                    }
+                    switch level.rawValue {
+                    case .relative(let offset):
+                        adapter.window.windowLevel = .init(rawValue: presentingWindow.windowLevel.rawValue + CGFloat(offset))
+                    case .fixed(let level):
+                        adapter.window.windowLevel = .init(rawValue: CGFloat(level))
+                    }
+
+                    let isAnimated = context.transaction.isAnimated
+                        || sourceView.viewController?.transitionCoordinator?.isAnimated == true
+                    let animation = context.transaction.animation
+                        ?? (isAnimated ? .default : nil)
+                    let transition = transition
+                    let window = adapter.window
+                    self.animation = animation
+                    presentingWindow.present(
+                        window,
+                        animation: animation,
+                        animations: { isPresented in
+                            let fromTransition = transition.value.toUIKit(
+                                isPresented: false,
+                                window: window
+                            )
+                            let toTransition = transition.value.toUIKit(
+                                isPresented: true,
+                                window: window
+                            )
+                            if isPresented {
+                                window.alpha = toTransition.alpha ?? 1
+                                window.transform = toTransition.t
+                            } else {
+                                window.alpha = fromTransition.alpha ?? 1
+                                window.transform = fromTransition.t
+                            }
+                        },
+                        completion: {
+                            self.didPresentAnimated = isAnimated
+                        }
+                    )
+                }
+            } else if !isPresented.wrappedValue, adapter != nil, !isBeingReused {
+                onDismiss(1, transaction: context.transaction)
+            }
+        }
+
+        func onDismantle() {
+            if let adapter {
+                if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                    let transaction = Transaction(animation: didPresentAnimated ? .default : nil)
+                    withCATransaction {
+                        self.onDismiss(1, transaction: transaction)
+                    }
+                } else {
+                    adapter.coordinator = self
+                }
+            }
         }
 
         func onDismiss(_ count: Int, transaction: Transaction) {
@@ -194,8 +225,10 @@ private struct WindowLinkAdapterBody<
         }
 
         func onDismiss(_ transaction: Transaction) {
-            withTransaction(transaction) {
-                isPresented.wrappedValue = false
+            if isPresented.wrappedValue {
+                withTransaction(transaction) {
+                    isPresented.wrappedValue = false
+                }
             }
             didDismiss()
         }
@@ -206,19 +239,6 @@ private struct WindowLinkAdapterBody<
             } else {
                 adapter = nil
                 isBeingReused = false
-            }
-        }
-    }
-
-    static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
-        if let adapter = coordinator.adapter {
-            if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                let transaction = Transaction(animation: coordinator.didPresentAnimated ? .default : nil)
-                withCATransaction {
-                    coordinator.onDismiss(1, transaction: transaction)
-                }
-            } else {
-                adapter.coordinator = coordinator
             }
         }
     }
@@ -305,7 +325,7 @@ private class WindowLinkDestinationWindowAdapter<
             transition: transition.value
         )
         let hostingController = viewController as! DestinationController
-        hostingController.content = content.modifier(modifier)
+        hostingController.update(content: content.modifier(modifier), transaction: context.transaction)
     }
 
     override func transformViewControllerEnvironment(

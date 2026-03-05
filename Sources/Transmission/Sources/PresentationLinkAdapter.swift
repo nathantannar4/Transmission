@@ -121,7 +121,9 @@ private struct PresentationLinkAdapterBody<
     typealias UIViewType = TransitionSourceView<SourceView>
     typealias DestinationViewController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
-    func makeUIView(context: Context) -> UIViewType {
+    func makeUIView(
+        context: Context
+    ) -> UIViewType {
         let uiView = UIViewType(
             onDidMoveToWindow: { viewController in
                 withCATransaction {
@@ -144,16 +146,100 @@ private struct PresentationLinkAdapterBody<
         return uiView
     }
 
-    func updateUIView(_ uiView: UIViewType, context: Context) {
-        uiView.hostingView?.content = sourceView
+    func updateUIView(
+        _ uiView: UIViewType,
+        context: Context
+    ) {
+        uiView.update(content: sourceView, transaction: context.transaction)
         uiView.hostingView?.cornerRadius = cornerRadius
         uiView.hostingView?.backgroundColor = backgroundColor?.toUIColor()
+        context.coordinator.onUpdate(
+            presentingViewController: presentingViewController,
+            isPresented: isPresented,
+            transition: transition,
+            destination: destination,
+            context: context,
+            sourceView: uiView.hostingView ?? uiView
+        )
+    }
 
-        context.coordinator.presentingViewController = presentingViewController
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        uiView: UIViewType,
+        context: Context
+    ) -> CGSize? {
+        return uiView.sizeThatFits(ProposedSize(proposal))
+    }
 
-        if let presentingViewController = presentingViewController, isPresented.wrappedValue {
+    func _overrideSizeThatFits(
+        _ size: inout CGSize,
+        in proposedSize: _ProposedSize,
+        uiView: UIViewType
+    ) {
+        size = uiView.sizeThatFits(ProposedSize(proposedSize))
+    }
 
-            context.coordinator.isPresented = isPresented
+    static func dismantleUIView(
+        _ uiView: UIViewType,
+        coordinator: Coordinator
+    ) {
+        coordinator.onDismantle()
+    }
+
+    typealias Coordinator = PresentationLinkCoordinator<Destination, Self>
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isPresented: isPresented)
+    }
+}
+
+@MainActor @preconcurrency
+@available(iOS 14.0, *)
+final class PresentationLinkCoordinator<
+    Destination: View,
+    Representable: UIViewRepresentable
+>: NSObject, UIViewControllerTransitioningDelegate, UIAdaptivePresentationControllerDelegate, UISheetPresentationControllerDelegate, UIPopoverPresentationControllerDelegate, UIViewControllerPresentationDelegate
+{
+    private var isPresented: Binding<Bool>
+    private var adapter: PresentationLinkDestinationViewControllerAdapter<Destination, Representable>?
+    private var isBeingReused = false
+    private var animation: Animation?
+    private var didPresentAnimated = false
+    private weak var sourceView: UIView?
+    private var overrideTraitCollection: UITraitCollection? {
+        didSet {
+            if #available(iOS 17.0, *) {
+                guard oldValue?.changedTraits(from: overrideTraitCollection).isEmpty != true else { return }
+                presentationController?.overrideTraitCollection = overrideTraitCollection
+            } else {
+                presentationController?.overrideTraitCollection = overrideTraitCollection
+            }
+        }
+    }
+
+    private var isTransitionDismissReady = false
+    private var feedbackGenerator: UIImpactFeedbackGenerator?
+
+    private weak var presentationController: UIPresentationController?
+    private weak var presentingViewController: UIViewController?
+
+    init(isPresented: Binding<Bool>) {
+        self.isPresented = isPresented
+    }
+
+    func onUpdate(
+        presentingViewController: UIViewController?,
+        isPresented: Binding<Bool>,
+        transition: PresentationLinkTransition,
+        destination: Destination,
+        context: Representable.Context,
+        sourceView: UIView
+    ) {
+        self.presentingViewController = presentingViewController
+        self.isPresented = isPresented
+
+        if let presentingViewController, isPresented.wrappedValue {
 
             let traits = UITraitCollection(
                 traitsFrom: [
@@ -169,17 +255,14 @@ private struct PresentationLinkAdapterBody<
             let animation = context.transaction.animation
                 ?? sourceTransaction?.animation
                 ?? (isAnimated ? .default : nil)
-            context.coordinator.animation = animation
+            self.animation = animation
 
             var isTransitioningPresentationController = false
-            let sourceView = uiView.hostingView ?? uiView
 
-            if let adapter = context.coordinator.adapter,
-               !context.coordinator.isBeingReused
-            {
+            if let adapter, !isBeingReused {
                 switch (adapter.transition, transition.value) {
                 case (.sheet(let oldValue), .sheet(let newValue)):
-                    guard #available(iOS 15.0, *), let presentationController = adapter.viewController.presentationController as? SheetPresentationController
+                    guard #available(iOS 15.0, *), let presentationController = presentationController as? SheetPresentationController
                     else {
                         break
                     }
@@ -191,11 +274,12 @@ private struct PresentationLinkAdapterBody<
                     )
 
                 case (.popover(let oldValue), .popover(let newValue)):
-                    if let presentationController = adapter.viewController.presentationController as? PopoverPresentationController {
+                    if let presentationController = presentationController as? PopoverPresentationController {
                         presentationController.permittedArrowDirections = newValue.permittedArrowDirections(
                             layoutDirection: adapter.viewController.traitCollection.layoutDirection
                         )
                         let presentingViewController = presentationController.presentingViewController
+                        presentationController.dimmingView.backgroundColor = newValue.dimmingColor?.toUIColor() ?? DimmingView.backgroundColor
                         presentationController.passthroughViews = newValue.isPassthrough ? [presentingViewController.view] : nil
                         presentationController.popoverLayoutMargins = newValue.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(
                             layoutDirection: .init(adapter.viewController.traitCollection.layoutDirection) ?? .leftToRight
@@ -203,7 +287,7 @@ private struct PresentationLinkAdapterBody<
                         presentationController.backgroundColor = newValue.options.preferredPresentationBackgroundUIColor
                     } else if #available(iOS 15.0, *) {
                         if let newValue = newValue.adaptiveTransition,
-                           let presentationController = adapter.viewController.presentationController as? SheetPresentationController
+                           let presentationController = presentationController as? SheetPresentationController
                         {
                             PresentationLinkTransition.SheetTransitionOptions.update(
                                 presentationController: presentationController,
@@ -218,7 +302,7 @@ private struct PresentationLinkAdapterBody<
                     break
 
                 case (.representable, .representable(let options, let transition)):
-                    if let presentationController = adapter.viewController.presentationController {
+                    if let presentationController = presentationController {
                         func project<T: PresentationLinkTransitionRepresentable>(
                             _ transition: T
                         ) {
@@ -249,10 +333,10 @@ private struct PresentationLinkAdapterBody<
                     break
 
                 default:
-                    if context.coordinator.adapter?.transition.options.preferredPresentationBackgroundUIColor != nil {
-                        context.coordinator.adapter?.viewController.view.backgroundColor = .systemBackground
+                    if adapter.transition.options.preferredPresentationBackgroundUIColor != nil {
+                        adapter.viewController.view.backgroundColor = .systemBackground
                     }
-                    context.coordinator.isBeingReused = true
+                    self.isBeingReused = true
                     isTransitioningPresentationController = true
                     isAnimated = false
 
@@ -262,19 +346,17 @@ private struct PresentationLinkAdapterBody<
                 }
             }
 
-            if let adapter = context.coordinator.adapter,
-               !context.coordinator.isBeingReused
-            {
+            if let adapter, !isBeingReused {
                 adapter.transition = transition.value
-                context.coordinator.overrideTraitCollection = traits
+                self.overrideTraitCollection = traits
                 adapter.update(
                     destination: destination,
                     context: context,
                     isPresented: isPresented
                 )
             } else {
-                let adapter: PresentationLinkDestinationViewControllerAdapter<Destination, SourceView>
-                if let oldValue = context.coordinator.adapter {
+                let adapter: PresentationLinkDestinationViewControllerAdapter<Destination, Representable>
+                if let oldValue = self.adapter {
                     adapter = oldValue
                     adapter.transition = transition.value
                     adapter.update(
@@ -282,7 +364,7 @@ private struct PresentationLinkAdapterBody<
                         context: context,
                         isPresented: isPresented
                     )
-                    context.coordinator.isBeingReused = false
+                    self.isBeingReused = false
                 } else {
                     adapter = PresentationLinkDestinationViewControllerAdapter(
                         destination: destination,
@@ -290,30 +372,30 @@ private struct PresentationLinkAdapterBody<
                         transition: transition.value,
                         context: context,
                         isPresented: isPresented,
-                        onDismiss: { [weak coordinator = context.coordinator] in
-                            coordinator?.onDismiss($0, transaction: $1)
+                        onDismiss: { [weak self] in
+                            self?.onDismiss($0, transaction: $1)
                         }
                     )
-                    context.coordinator.adapter = adapter
+                    self.adapter = adapter
                 }
 
                 if case .default = adapter.transition { } else {
-                    adapter.viewController.transitioningDelegate = context.coordinator
+                    adapter.viewController.transitioningDelegate = self
                 }
 
                 switch adapter.transition {
                 case .`default`:
                     if let presentationController = adapter.viewController.presentationController {
-                        presentationController.delegate = context.coordinator
+                        presentationController.delegate = self
                         presentationController.overrideTraitCollection = traits
-                        context.coordinator.presentationController = presentationController
+                        self.presentationController = presentationController
 
                         if #available(iOS 15.0, *),
                            let sheetPresentationController = presentationController as? UISheetPresentationController
                         {
-                            sheetPresentationController.delegate = context.coordinator
+                            sheetPresentationController.delegate = self
                         } else if let popoverPresentationController = presentationController as? UIPopoverPresentationController {
-                            popoverPresentationController.delegate = context.coordinator
+                            popoverPresentationController.delegate = self
                             popoverPresentationController.sourceView = sourceView
                         }
                     }
@@ -322,67 +404,65 @@ private struct PresentationLinkAdapterBody<
                     // transitioningDelegate + .custom breaks .overCurrentContext
                     adapter.viewController.modalPresentationStyle = .overCurrentContext
                     if let presentationController = adapter.viewController.presentationController {
-                        presentationController.delegate = context.coordinator
+                        presentationController.delegate = self
                         presentationController.overrideTraitCollection = traits
-                        context.coordinator.presentationController = presentationController
+                        self.presentationController = presentationController
                     }
 
                 case .fullscreen:
                     adapter.viewController.modalPresentationStyle = .overFullScreen
                     if let presentationController = adapter.viewController.presentationController {
-                        presentationController.delegate = context.coordinator
+                        presentationController.delegate = self
                         presentationController.overrideTraitCollection = traits
-                        context.coordinator.presentationController = presentationController
+                        self.presentationController = presentationController
                     }
 
                 case .popover:
-                    context.coordinator.sourceView = sourceView
-                    context.coordinator.overrideTraitCollection = traits
+                    self.sourceView = sourceView
+                    self.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
                 case .sheet(let options):
-                    context.coordinator.sourceView = sourceView
-                    context.coordinator.overrideTraitCollection = traits
+                    self.sourceView = sourceView
+                    self.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
                     if options.prefersZoomTransition, #available(iOS 18.0, *) {
                         let zoomOptions = options.zoomTransitionOptions?.toUIKit() ?? UIViewController.Transition.ZoomOptions()
-                        let coordinator = context.coordinator
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
-                            guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak self] _ in
+                            guard let sourceView = self?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
-                            zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomPanGestureDidChange(_:)))
+                            zoomGesture.addTarget(self, action: #selector(zoomPanGestureDidChange(_:)))
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
-                            zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomEdgePanGestureDidChange(_:)))
+                            zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
                         }
                     }
 
                 case .zoom(let options):
                     if #available(iOS 18.0, *) {
                         let zoomOptions = options.zoomTransitionOptions.toUIKit()
-                        let coordinator = context.coordinator
-                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak coordinator] _ in
-                            guard let sourceView = coordinator?.sourceView, sourceView.window != nil else { return nil }
+                        adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak self] _ in
+                            guard let sourceView = self?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
-                            zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomPanGestureDidChange(_:)))
+                            zoomGesture.addTarget(self, action: #selector(zoomPanGestureDidChange(_:)))
                         }
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
-                            zoomGesture.addTarget(context.coordinator, action: #selector(Coordinator.zoomEdgePanGestureDidChange(_:)))
+                            zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
                         }
                     }
-                    context.coordinator.sourceView = sourceView
-                    context.coordinator.overrideTraitCollection = traits
+                    self.sourceView = sourceView
+                    self.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
                 case .representable(_, let transition):
                     assert(!swift_getIsClassType(transition), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
-                    context.coordinator.sourceView = sourceView
-                    context.coordinator.overrideTraitCollection = traits
+                    self.sourceView = sourceView
+                    self.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
                 }
 
@@ -390,7 +470,7 @@ private struct PresentationLinkAdapterBody<
                     adapter.viewController.presentationDelegate = nil
                 } else {
                     // Swizzle to hook up for programatic dismissal
-                    adapter.viewController.presentationDelegate = context.coordinator
+                    adapter.viewController.presentationDelegate = self
                 }
 
                 var presentingViewController = presentingViewController
@@ -402,18 +482,18 @@ private struct PresentationLinkAdapterBody<
                 let present: () -> Void = {
                     guard
                         isPresented.wrappedValue,
-                        let viewController = context.coordinator.adapter?.viewController
+                        let viewController = self.adapter?.viewController
                     else {
-                        context.coordinator.didDismiss()
+                        self.didDismiss()
                         return
                     }
                     presentingViewController.present(
                         viewController,
                         animated: isAnimated
                     ) { [isAnimated, isTransitioningPresentationController] in
-                        context.coordinator.animation = nil
-                        context.coordinator.didPresentAnimated = isAnimated
-                        if context.coordinator.adapter !== adapter {
+                        self.animation = nil
+                        self.didPresentAnimated = isAnimated
+                        if self.adapter !== adapter {
                             viewController.dismiss(animated: isAnimated)
                         } else if !isPresented.wrappedValue {
                             let transaction = Transaction(animation: nil)
@@ -424,7 +504,7 @@ private struct PresentationLinkAdapterBody<
                             viewController
                                 .setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
                             if isTransitioningPresentationController {
-                                viewController.presentationDelegate = context.coordinator
+                                viewController.presentationDelegate = self
                             }
                         }
                     }
@@ -491,764 +571,712 @@ private struct PresentationLinkAdapterBody<
                     }
                 }
             }
-        } else if !isPresented.wrappedValue,
-            context.coordinator.adapter != nil,
-            !context.coordinator.isBeingReused
-        {
-            context.coordinator.isPresented = isPresented
-            context.coordinator.onDismiss(1, transaction: context.transaction)
+        } else if !isPresented.wrappedValue, adapter != nil, !isBeingReused {
+            onDismiss(1, transaction: context.transaction)
         }
     }
 
-    func _overrideSizeThatFits(
-        _ size: inout CGSize,
-        in proposedSize: _ProposedSize,
-        uiView: UIViewType
-    ) {
-        size = uiView.sizeThatFits(ProposedSize(proposedSize).replacingUnspecifiedDimensions(by: UIView.layoutFittingExpandedSize))
-    }
-
-    static func dismantleUIView(
-        _ uiView: UIViewType,
-        coordinator: Coordinator
-    ) {
-        coordinator.onDismantle()
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(isPresented: isPresented)
-    }
-
-    final class Coordinator: NSObject,
-                             UIViewControllerTransitioningDelegate,
-                             UIAdaptivePresentationControllerDelegate,
-                             UISheetPresentationControllerDelegate,
-                             UIPopoverPresentationControllerDelegate,
-                             UIViewControllerPresentationDelegate
-    {
-        var isPresented: Binding<Bool>
-        var adapter: PresentationLinkDestinationViewControllerAdapter<Destination, SourceView>?
-        var isBeingReused = false
-        var animation: Animation?
-        var didPresentAnimated = false
-        weak var sourceView: UIView?
-        var overrideTraitCollection: UITraitCollection? {
-            didSet {
-                if #available(iOS 17.0, *) {
-                    guard oldValue?.changedTraits(from: overrideTraitCollection).isEmpty != true else { return }
-                    presentationController?.overrideTraitCollection = overrideTraitCollection
-                } else {
-                    presentationController?.overrideTraitCollection = overrideTraitCollection
+    func onDismantle() {
+        sourceView = nil
+        if let adapter {
+            if adapter.transition.options.shouldAutomaticallyDismissDestination {
+                let transaction = Transaction(animation: didPresentAnimated ? .default : nil)
+                withCATransaction {
+                    self.onDismiss(1, transaction: transaction)
                 }
+            } else {
+                adapter.coordinator = self
             }
         }
+    }
 
-        var isTransitionDismissReady = false
-        var feedbackGenerator: UIImpactFeedbackGenerator?
+    private func makeContext(
+        options: PresentationLinkTransition.Options
+    ) -> PresentationLinkTransitionRepresentableContext {
+        PresentationLinkTransitionRepresentableContext(
+            sourceView: sourceView,
+            options: options,
+            environment: adapter?.environment ?? .init(),
+            transaction: Transaction(animation: animation ?? (didPresentAnimated ? .default : nil))
+        )
+    }
 
-        weak var presentationController: UIPresentationController?
-        weak var presentingViewController: UIViewController?
-
-        init(isPresented: Binding<Bool>) {
-            self.isPresented = isPresented
-        }
-
-        func onDismantle() {
-            sourceView = nil
-            if let adapter {
-                if adapter.transition.options.shouldAutomaticallyDismissDestination {
-                    let transaction = Transaction(animation: didPresentAnimated ? .default : nil)
-                    withCATransaction {
-                        self.onDismiss(1, transaction: transaction)
-                    }
-                } else {
-                    adapter.coordinator = self
-                }
-            }
-        }
-
-        private func makeContext(
-            options: PresentationLinkTransition.Options
-        ) -> PresentationLinkTransitionRepresentableContext {
-            PresentationLinkTransitionRepresentableContext(
-                sourceView: sourceView,
-                options: options,
-                environment: adapter?.environment ?? .init(),
-                transaction: Transaction(animation: animation ?? (didPresentAnimated ? .default : nil))
-            )
-        }
-
-        func onDismiss(_ count: Int, transaction: Transaction) {
-            guard let viewController = adapter?.viewController, let presentationController else { return }
-            if count > 0 {
-                animation = transaction.animation
-                didPresentAnimated = false
-                if viewController.isBeingPresented,
-                   let presentationController = presentationController as? PresentationController,
-                   let transition = presentationController.transition
-                {
-                    transition.cancel()
-                    onDismiss(transaction)
-                } else {
-                    viewController._dismiss(
-                        count: count,
-                        animated: transaction.isAnimated
-                    ) { [weak self] in
-                        guard self?.adapter?.viewController == viewController else { return }
-                        self?.onDismiss(transaction)
-                    }
-                }
+    func onDismiss(_ count: Int, transaction: Transaction) {
+        guard let viewController = adapter?.viewController, let presentationController else { return }
+        if count > 0 {
+            animation = transaction.animation
+            didPresentAnimated = false
+            if viewController.isBeingPresented,
+               let presentationController = presentationController as? PresentationController,
+               let transition = presentationController.transition
+            {
+                transition.cancel()
+                onDismiss(transaction)
             } else {
                 viewController._dismiss(
                     count: count,
                     animated: transaction.isAnimated
-                )
-            }
-        }
-
-        func onDismiss(_ transaction: Transaction) {
-            if isPresented.wrappedValue == true {
-                withTransaction(transaction) {
-                    isPresented.wrappedValue = false
+                ) { [weak self] in
+                    guard self?.adapter?.viewController == viewController else { return }
+                    self?.onDismiss(transaction)
                 }
             }
-            didDismiss()
-        }
-
-        func didDismiss() {
-            if adapter?.transition.options.isDestinationReusable == true {
-                isBeingReused = true
-            } else {
-                adapter = nil
-                isBeingReused = false
-            }
-        }
-
-        // MARK: - UIViewControllerPresentationDelegate
-
-        func viewControllerDidDismiss(
-            _ viewController: UIViewController,
-            presentingViewController: UIViewController?,
-            animated: Bool
-        ) {
-            guard adapter?.viewController == viewController else { return }
-
-            // Break the retain cycle
-            adapter?.coordinator = nil
-
-            onDismiss(Transaction())
-
-            // Dismiss already handled by the presentation controller below
-            if let presentingViewController {
-                presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: animated)
-                presentingViewController.fixSwiftUIHitTesting()
-            }
-        }
-
-        // MARK: - UIAdaptivePresentationControllerDelegate
-
-        func presentationControllerWillDismiss(
-            _ presentationController: UIPresentationController
-        ) {
-            guard
-                presentationController == self.presentationController,
-                let adapter,
-                adapter.transition.options.shouldTransitionIsPresentedAlongsideTransition,
-                let viewController = adapter.viewController,
-                presentationController.presentedViewController == viewController
-            else {
-                return
-            }
-
-            let transaction = Transaction(animation: animation ?? .default)
-            if let transitionCoordinator = viewController.transitionCoordinator {
-                if transitionCoordinator.isInteractive {
-                    transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
-                        if !ctx.isCancelled {
-                            guard presentationController == self?.presentationController else { return }
-                            self?.onDismiss(transaction)
-                        }
-                    }
-                } else {
-                    transitionCoordinator.animate { _ in
-                        self.onDismiss(transaction)
-                    }
-                }
-            } else {
-                onDismiss(transaction)
-            }
-        }
-
-        func presentationControllerDidDismiss(
-            _ presentationController: UIPresentationController
-        ) {
-            guard
-                presentationController == self.presentationController,
-                presentationController.presentedViewController == adapter?.viewController
-            else {
-                return
-            }
-            onDismiss(Transaction())
-
-            // Break the retain cycle
-            adapter?.coordinator = nil
-
-            self.presentationController = nil
-
-            presentationController.presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: true)
-            presentationController.presentingViewController.fixSwiftUIHitTesting()
-        }
-
-        func presentationControllerShouldDismiss(
-            _ presentationController: UIPresentationController
-        ) -> Bool {
-            guard
-                presentationController == self.presentationController,
-                presentationController.presentedViewController == adapter?.viewController
-            else {
-                return true
-            }
-
-            guard let transition = adapter?.transition else { return true }
-            switch transition {
-            case .zoom(let options):
-                guard options.options.isInteractive else { return false }
-                // By default, zoom is too easy to dismiss a presented view rather than pop
-                let zoomEdgeGesture = presentationController.presentedViewController
-                    .view
-                    .gestureRecognizers?
-                    .compactMap({ $0.isZoomDismissEdgeGesture ? $0 as? UIPanGestureRecognizer : nil })
-                    .first
-                if let zoomEdgeGesture, zoomEdgeGesture.state == .possible {
-                    let navigationController = presentationController.presentedViewController as? UINavigationController ?? presentationController.presentedViewController.firstDescendent(ofType: UINavigationController.self)
-                    if let navigationController,
-                        navigationController.viewControllers.count > 1,
-                        let edgeGesture = navigationController.interactivePopGestureRecognizer as? UIScreenEdgePanGestureRecognizer,
-                        edgeGesture.isEnabled
-                    {
-                        let translation = zoomEdgeGesture.location(in: presentationController.presentedViewController.view)
-                        let edgeDistance: CGFloat = 16
-                        if edgeGesture.edges.contains(.left) {
-                            if translation.x <= edgeDistance {
-                                return false
-                            }
-                        }
-                        if edgeGesture.edges.contains(.right) {
-                            let width = presentationController.presentedViewController.view.bounds.width
-                            if translation.x >= (width - edgeDistance) {
-                                return false
-                            }
-                        }
-                    }
-                }
-                return true
-            default:
-                return transition.options.isInteractive
-            }
-        }
-
-        func presentationControllerDidAttemptToDismiss(
-            _ presentationController: UIPresentationController
-        ) {
-            presentationController.presentedViewController.fixSwiftUIHitTesting()
-        }
-
-        func adaptivePresentationStyle(
-            for controller: UIPresentationController
-        ) -> UIModalPresentationStyle {
-            adaptivePresentationStyle(
-                for: controller,
-                traitCollection: controller.traitCollection
+        } else {
+            viewController._dismiss(
+                count: count,
+                animated: transaction.isAnimated
             )
         }
+    }
 
-        func adaptivePresentationStyle(
-            for controller: UIPresentationController,
-            traitCollection: UITraitCollection
-        ) -> UIModalPresentationStyle {
-            guard let adapter, presentationController == self.presentationController else { return .none }
-            switch adapter.transition {
-            case .popover(let options):
-                return options.adaptiveTransition != nil && traitCollection.horizontalSizeClass == .compact ? .pageSheet : .none
-
-            case .representable(_, let transition):
-                return transition.adaptivePresentationStyle(
-                    for: controller,
-                    traitCollection: traitCollection
-                )
-
-            default:
-                return .none
+    func onDismiss(_ transaction: Transaction) {
+        if isPresented.wrappedValue == true {
+            withTransaction(transaction) {
+                isPresented.wrappedValue = false
             }
         }
+        didDismiss()
+    }
 
-        func presentationController(
-            _ presentationController: UIPresentationController,
-            prepare adaptivePresentationController: UIPresentationController
-        ) {
-            guard let adapter, presentationController == self.presentationController else { return }
-            switch adapter.transition {
-            case .popover(let options):
-                if #available(iOS 15.0, *) {
-                    if let options = options.adaptiveTransition,
-                       let presentationController = adaptivePresentationController as? SheetPresentationController
-                    {
-                        PresentationLinkTransition.SheetTransitionOptions.update(
-                            presentationController: presentationController,
-                            animation: nil,
-                            from: .init(),
-                            to: options
-                        )
+    func didDismiss() {
+        if adapter?.transition.options.isDestinationReusable == true {
+            isBeingReused = true
+        } else {
+            adapter = nil
+            isBeingReused = false
+        }
+    }
+
+    // MARK: - UIViewControllerPresentationDelegate
+
+    func viewControllerDidDismiss(
+        _ viewController: UIViewController,
+        presentingViewController: UIViewController?,
+        animated: Bool
+    ) {
+        guard adapter?.viewController == viewController else { return }
+
+        // Break the retain cycle
+        adapter?.coordinator = nil
+
+        onDismiss(Transaction())
+
+        // Dismiss already handled by the presentation controller below
+        if let presentingViewController {
+            presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: animated)
+            presentingViewController.fixSwiftUIHitTesting()
+        }
+    }
+
+    // MARK: - UIAdaptivePresentationControllerDelegate
+
+    func presentationControllerWillDismiss(
+        _ presentationController: UIPresentationController
+    ) {
+        guard
+            presentationController == self.presentationController,
+            let adapter,
+            adapter.transition.options.shouldTransitionIsPresentedAlongsideTransition,
+            let viewController = adapter.viewController,
+            presentationController.presentedViewController == viewController
+        else {
+            return
+        }
+
+        let transaction = Transaction(animation: animation ?? .default)
+        if let transitionCoordinator = viewController.transitionCoordinator {
+            if transitionCoordinator.isInteractive {
+                transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
+                    if !ctx.isCancelled {
+                        guard presentationController == self?.presentationController else { return }
+                        self?.onDismiss(transaction)
                     }
                 }
-
-            case .representable(let options, let transition):
-                let context = PresentationLinkTransitionRepresentableContext(
-                    sourceView: sourceView,
-                    options: options,
-                    environment: adapter.environment,
-                    transaction: Transaction(animation: animation)
-                )
-                transition.updateAdaptivePresentationController(
-                    adaptivePresentationController: adaptivePresentationController,
-                    context: context
-                )
-
-            default:
-                break
+            } else {
+                transitionCoordinator.animate { _ in
+                    self.onDismiss(transaction)
+                }
             }
+        } else {
+            onDismiss(transaction)
+        }
+    }
+
+    func presentationControllerDidDismiss(
+        _ presentationController: UIPresentationController
+    ) {
+        guard
+            presentationController == self.presentationController,
+            presentationController.presentedViewController == adapter?.viewController
+        else {
+            return
+        }
+        onDismiss(Transaction())
+
+        // Break the retain cycle
+        adapter?.coordinator = nil
+
+        self.presentationController = nil
+
+        presentationController.presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: true)
+        presentationController.presentingViewController.fixSwiftUIHitTesting()
+    }
+
+    func presentationControllerShouldDismiss(
+        _ presentationController: UIPresentationController
+    ) -> Bool {
+        guard
+            presentationController == self.presentationController,
+            presentationController.presentedViewController == adapter?.viewController
+        else {
+            return true
         }
 
-        // MARK: - UIViewControllerTransitioningDelegate
+        guard let transition = adapter?.transition else { return true }
+        switch transition {
+        case .zoom(let options):
+            guard options.options.isInteractive else { return false }
+            // By default, zoom is too easy to dismiss a presented view rather than pop
+            let zoomEdgeGesture = presentationController.presentedViewController
+                .view
+                .gestureRecognizers?
+                .compactMap({ $0.isZoomDismissEdgeGesture ? $0 as? UIPanGestureRecognizer : nil })
+                .first
+            if let zoomEdgeGesture, zoomEdgeGesture.state == .possible {
+                let navigationController = presentationController.presentedViewController as? UINavigationController ?? presentationController.presentedViewController.firstDescendent(ofType: UINavigationController.self)
+                if let navigationController,
+                    navigationController.viewControllers.count > 1,
+                    let edgeGesture = navigationController.interactivePopGestureRecognizer as? UIScreenEdgePanGestureRecognizer,
+                    edgeGesture.isEnabled
+                {
+                    let translation = zoomEdgeGesture.location(in: presentationController.presentedViewController.view)
+                    let edgeDistance: CGFloat = 16
+                    if edgeGesture.edges.contains(.left) {
+                        if translation.x <= edgeDistance {
+                            return false
+                        }
+                    }
+                    if edgeGesture.edges.contains(.right) {
+                        let width = presentationController.presentedViewController.view.bounds.width
+                        if translation.x >= (width - edgeDistance) {
+                            return false
+                        }
+                    }
+                }
+            }
+            return true
+        default:
+            return transition.options.isInteractive
+        }
+    }
 
-        func animationController(
-            forPresented presented: UIViewController,
-            presenting: UIViewController,
-            source: UIViewController
-        ) -> UIViewControllerAnimatedTransitioning? {
-            switch adapter?.transition {
-            case .sheet:
-                #if targetEnvironment(macCatalyst)
-                if #available(iOS 15.0, *) {
-                    let transition = MacSheetTransition(
-                        isPresenting: true,
-                        animation: animation
+    func presentationControllerDidAttemptToDismiss(
+        _ presentationController: UIPresentationController
+    ) {
+        presentationController.presentedViewController.fixSwiftUIHitTesting()
+    }
+
+    func adaptivePresentationStyle(
+        for controller: UIPresentationController
+    ) -> UIModalPresentationStyle {
+        adaptivePresentationStyle(
+            for: controller,
+            traitCollection: controller.traitCollection
+        )
+    }
+
+    func adaptivePresentationStyle(
+        for controller: UIPresentationController,
+        traitCollection: UITraitCollection
+    ) -> UIModalPresentationStyle {
+        guard let adapter, presentationController == self.presentationController else { return .none }
+        switch adapter.transition {
+        case .popover(let options):
+            return options.adaptiveTransition != nil && traitCollection.horizontalSizeClass == .compact ? .pageSheet : .none
+
+        case .representable(_, let transition):
+            return transition.adaptivePresentationStyle(
+                for: controller,
+                traitCollection: traitCollection
+            )
+
+        default:
+            return .none
+        }
+    }
+
+    func presentationController(
+        _ presentationController: UIPresentationController,
+        prepare adaptivePresentationController: UIPresentationController
+    ) {
+        guard let adapter, presentationController == self.presentationController else { return }
+        switch adapter.transition {
+        case .popover(let options):
+            if #available(iOS 15.0, *) {
+                if let options = options.adaptiveTransition,
+                   let presentationController = adaptivePresentationController as? SheetPresentationController
+                {
+                    PresentationLinkTransition.SheetTransitionOptions.update(
+                        presentationController: presentationController,
+                        animation: nil,
+                        from: .init(),
+                        to: options
                     )
-                    transition.wantsInteractiveStart = false
-                    return transition
                 }
-                #endif
-                return nil
+            }
 
-            case .popover:
-                guard
-                    presentationController is UIPopoverPresentationController
-                else {
-                    return nil
-                }
-                let animationController = PopoverControllerTransition(
+        case .representable(let options, let transition):
+            let context = PresentationLinkTransitionRepresentableContext(
+                sourceView: sourceView,
+                options: options,
+                environment: adapter.environment,
+                transaction: Transaction(animation: animation)
+            )
+            transition.updateAdaptivePresentationController(
+                adaptivePresentationController: adaptivePresentationController,
+                context: context
+            )
+
+        default:
+            break
+        }
+    }
+
+    // MARK: - UIViewControllerTransitioningDelegate
+
+    func animationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController,
+        source: UIViewController
+    ) -> UIViewControllerAnimatedTransitioning? {
+        switch adapter?.transition {
+        case .sheet:
+            #if targetEnvironment(macCatalyst)
+            if #available(iOS 15.0, *) {
+                let transition = MacSheetTransition(
                     isPresenting: true,
                     animation: animation
                 )
-                return animationController
+                transition.wantsInteractiveStart = false
+                return transition
+            }
+            #endif
+            return nil
 
-            case .representable(let options, let transition):
-                guard let presentationController else { return nil }
-                let animationController = transition.animationController(
-                    forPresented: presented,
-                    presenting: presenting,
-                    presentationController: presentationController,
-                    context: makeContext(options: options)
-                )
-                return animationController
-
-            default:
+        case .popover:
+            guard
+                presentationController is UIPopoverPresentationController
+            else {
                 return nil
             }
+            let animationController = PopoverControllerTransition(
+                isPresenting: true,
+                animation: animation
+            )
+            return animationController
+
+        case .representable(let options, let transition):
+            guard let presentationController else { return nil }
+            let animationController = transition.animationController(
+                forPresented: presented,
+                presenting: presenting,
+                presentationController: presentationController,
+                context: makeContext(options: options)
+            )
+            return animationController
+
+        default:
+            return nil
         }
+    }
 
-        func animationController(
-            forDismissed dismissed: UIViewController
-        ) -> UIViewControllerAnimatedTransitioning? {
-            switch adapter?.transition {
-            case .sheet:
-                #if targetEnvironment(macCatalyst)
-                if #available(iOS 15.0, *),
-                   let presentationController = dismissed.presentationController as? MacSheetPresentationController
-                {
-                    let transition = MacSheetTransition(
-                        isPresenting: false,
-                        animation: animation
-                    )
-                    transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
-                    presentationController.transition = transition
-                    return transition
-                }
-                #endif
-                return nil
-
-            case .popover:
-                guard
-                    presentationController is UIPopoverPresentationController
-                else {
-                    return nil
-                }
-                let animationController = PopoverControllerTransition(
+    func animationController(
+        forDismissed dismissed: UIViewController
+    ) -> UIViewControllerAnimatedTransitioning? {
+        switch adapter?.transition {
+        case .sheet:
+            #if targetEnvironment(macCatalyst)
+            if #available(iOS 15.0, *),
+               let presentationController = dismissed.presentationController as? MacSheetPresentationController
+            {
+                let transition = MacSheetTransition(
                     isPresenting: false,
                     animation: animation
                 )
-                return animationController
+                transition.wantsInteractiveStart = presentationController.wantsInteractiveTransition
+                presentationController.transition = transition
+                return transition
+            }
+            #endif
+            return nil
 
-            case .representable(let options, let transition):
-                guard let presentationController else { return nil }
-                let animationController = transition.animationController(
-                    forDismissed: dismissed,
-                    presentationController: presentationController,
-                    context: makeContext(options: options)
-                )
-                if let transition = animationController as? UIPercentDrivenInteractiveTransition, transition.wantsInteractiveStart {
-                    if let presentationController = dismissed.presentationController as? InteractivePresentationController {
-                        transition.wantsInteractiveStart = transition.wantsInteractiveStart && options.isInteractive && presentationController.wantsInteractiveTransition
-                    } else if !options.isInteractive {
-                        transition.wantsInteractiveStart = false
-                    }
-                }
-                return animationController
-
-            default:
+        case .popover:
+            guard
+                presentationController is UIPopoverPresentationController
+            else {
                 return nil
             }
-        }
-
-        func interactionControllerForPresentation(
-            using animator: UIViewControllerAnimatedTransitioning
-        ) -> UIViewControllerInteractiveTransitioning? {
-            switch adapter?.transition {
-            case .representable(let options, let transition):
-                return transition.interactionControllerForPresentation(
-                    using: animator,
-                    context: makeContext(options: options)
-                )
-
-            default:
-                return nil
-            }
-        }
-
-        func interactionControllerForDismissal(
-            using animator: UIViewControllerAnimatedTransitioning
-        ) -> UIViewControllerInteractiveTransitioning? {
-            switch adapter?.transition {
-            case .sheet:
-                #if targetEnvironment(macCatalyst)
-                if #available(iOS 15.0, *) {
-                    return animator as? MacSheetTransition
-                }
-                #endif
-                return nil
-
-            case .representable(let options, let transition):
-                return transition.interactionControllerForDismissal(
-                    using: animator,
-                    context: makeContext(options: options)
-                )
-
-            default:
-                return nil
-            }
-        }
-
-        func presentationController(
-            forPresented presented: UIViewController,
-            presenting: UIViewController?,
-            source: UIViewController
-        ) -> UIPresentationController? {
-            let presentationController = makePresentationController(
-                forPresented: presented,
-                presenting: presenting,
-                source: source
+            let animationController = PopoverControllerTransition(
+                isPresenting: false,
+                animation: animation
             )
-            self.presentationController = presentationController
-            return presentationController
+            return animationController
+
+        case .representable(let options, let transition):
+            guard let presentationController else { return nil }
+            let animationController = transition.animationController(
+                forDismissed: dismissed,
+                presentationController: presentationController,
+                context: makeContext(options: options)
+            )
+            if let transition = animationController as? UIPercentDrivenInteractiveTransition, transition.wantsInteractiveStart {
+                if let presentationController = dismissed.presentationController as? InteractivePresentationController {
+                    transition.wantsInteractiveStart = transition.wantsInteractiveStart && options.isInteractive && presentationController.wantsInteractiveTransition
+                } else if !options.isInteractive {
+                    transition.wantsInteractiveStart = false
+                }
+            }
+            return animationController
+
+        default:
+            return nil
         }
+    }
 
-        func makePresentationController(
-            forPresented presented: UIViewController,
-            presenting: UIViewController?,
-            source: UIViewController
-        ) -> UIPresentationController? {
-            switch adapter?.transition {
-            case .sheet(let options):
-                if #available(iOS 15.0, *) {
-                    #if targetEnvironment(macCatalyst)
-                    let presentationController = MacSheetPresentationController(
-                        preferredCornerRadius: options.preferredCornerRadius,
-                        presentedViewController: presented,
-                        presenting: presenting
-                    )
-                    let selected = options.selected?.wrappedValue
-                    presentationController.detent = options.detents.first(where: { $0.identifier == selected }) ?? options.detents.first ?? .large
-                    presentationController.selected = options.selected
-                    presentationController.largestUndimmedDetentIdentifier = options.largestUndimmedDetentIdentifier
-                    return presentationController
-                    #else
-                    let presentationController = SheetPresentationController(
-                        presentedViewController: presented,
-                        presenting: presenting
-                    )
-                    presentationController.detents = options.detents.map {
-                        $0.toUIKit(in: presentationController)
-                    }
-                    presentationController.selectedDetentIdentifier = (options.selected?.wrappedValue ?? options.detents.first?.identifier)?.toUIKit()
-                    presentationController.largestUndimmedDetentIdentifier = options.largestUndimmedDetentIdentifier?.toUIKit()
-                    presentationController.prefersGrabberVisible = options.prefersGrabberVisible
-                    presentationController.preferredCornerRadiusOptions = options.preferredCornerRadius
-                    presentationController.prefersScrollingExpandsWhenScrolledToEdge = options.prefersScrollingExpandsWhenScrolledToEdge
-                    presentationController.prefersEdgeAttachedInCompactHeight = options.prefersEdgeAttachedInCompactHeight
-                    presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = options.widthFollowsPreferredContentSizeWhenEdgeAttached
-                    if options.prefersSourceViewAlignment {
-                        presentationController.sourceView = sourceView
-                    }
-                    if #available(iOS 17.0, *) {
-                        presentationController.prefersPageSizing = options.prefersPageSizing
-                    }
-                    presentationController.preferredBackgroundColor = options.options.preferredPresentationBackgroundUIColor
-                    let layoutDirection = (overrideTraitCollection ?? presentationController.traitCollection).layoutDirection
-                    presentationController.preferredPresentationSafeAreaInsets = options.options.preferredPresentationSafeAreaInsets.map {
-                        UIEdgeInsets(edgeInsets: $0, layoutDirection: layoutDirection)
-                    }
-                    if #available(iOS 26.0, *),
-                       options.options.preferredPresentationBackgroundColor == nil,
-                       options.detents.contains(where: { $0.identifier != .large || $0.identifier != .fullScreen }),
-                       options.selected?.wrappedValue != .large,
-                       options.selected?.wrappedValue != .fullScreen
-                    {
-                        presented.view.backgroundColor = .clear
-                    }
-                    presentationController.overrideTraitCollection = overrideTraitCollection
-                    presentationController.delegate = self
-                    return presentationController
-                    #endif
-                }
+    func interactionControllerForPresentation(
+        using animator: UIViewControllerAnimatedTransitioning
+    ) -> UIViewControllerInteractiveTransitioning? {
+        switch adapter?.transition {
+        case .representable(let options, let transition):
+            return transition.interactionControllerForPresentation(
+                using: animator,
+                context: makeContext(options: options)
+            )
 
-            case .popover(let options):
-                let presentationController = PopoverPresentationController(
+        default:
+            return nil
+        }
+    }
+
+    func interactionControllerForDismissal(
+        using animator: UIViewControllerAnimatedTransitioning
+    ) -> UIViewControllerInteractiveTransitioning? {
+        switch adapter?.transition {
+        case .sheet:
+            #if targetEnvironment(macCatalyst)
+            if #available(iOS 15.0, *) {
+                return animator as? MacSheetTransition
+            }
+            #endif
+            return nil
+
+        case .representable(let options, let transition):
+            return transition.interactionControllerForDismissal(
+                using: animator,
+                context: makeContext(options: options)
+            )
+
+        default:
+            return nil
+        }
+    }
+
+    func presentationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController?,
+        source: UIViewController
+    ) -> UIPresentationController? {
+        let presentationController = makePresentationController(
+            forPresented: presented,
+            presenting: presenting,
+            source: source
+        )
+        self.presentationController = presentationController
+        return presentationController
+    }
+
+    func makePresentationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController?,
+        source: UIViewController
+    ) -> UIPresentationController? {
+        switch adapter?.transition {
+        case .sheet(let options):
+            if #available(iOS 15.0, *) {
+                #if targetEnvironment(macCatalyst)
+                let presentationController = MacSheetPresentationController(
+                    preferredCornerRadius: options.preferredCornerRadius,
                     presentedViewController: presented,
                     presenting: presenting
                 )
-                presentationController.canOverlapSourceViewRect = options.canOverlapSourceViewRect
-                presentationController.permittedArrowDirections = options.permittedArrowDirections(
-                    layoutDirection: presentationController.traitCollection.layoutDirection
-                )
-                let presentingViewController = presenting ?? source
-                presentationController.passthroughViews = options.isPassthrough ? [presentingViewController.view] : nil
-                presentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
-                presentationController.popoverLayoutMargins = options.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(
-                    layoutDirection: .init(presentationController.traitCollection.layoutDirection) ?? .leftToRight
-                ) ?? .zero
-                presentationController.sourceView = sourceView
-                presentationController.overrideTraitCollection = overrideTraitCollection
-                presentationController.delegate = self
+                let selected = options.selected?.wrappedValue
+                presentationController.detent = options.detents.first(where: { $0.identifier == selected }) ?? options.detents.first ?? .large
+                presentationController.selected = options.selected
+                presentationController.largestUndimmedDetentIdentifier = options.largestUndimmedDetentIdentifier
                 return presentationController
-
-            case .representable(let options, let transition):
-                let context = makeContext(options: options)
-                func project<T: PresentationLinkTransitionRepresentable>(
-                    _ transition: T
-                ) -> UIPresentationController {
-                    let presentationController = transition.makeUIPresentationController(
-                        presented: presented,
-                        presenting: presenting,
-                        source: source,
-                        context: context
-                    )
-                    transition.updateUIPresentationController(
-                        presentationController: presentationController,
-                        context: context
-                    )
-                    return presentationController
-                }
-                let presentationController = _openExistential(transition, do: project)
-                presentationController.overrideTraitCollection = overrideTraitCollection
-                presentationController.delegate = self
-                return presentationController
-
-            case .zoom:
-                let presentationController = DelegatedPresentationController(
+                #else
+                let presentationController = SheetPresentationController(
                     presentedViewController: presented,
                     presenting: presenting
                 )
+                presentationController.detents = options.detents.map {
+                    $0.toUIKit(in: presentationController)
+                }
+                presentationController.selectedDetentIdentifier = (options.selected?.wrappedValue ?? options.detents.first?.identifier)?.toUIKit()
+                presentationController.largestUndimmedDetentIdentifier = options.largestUndimmedDetentIdentifier?.toUIKit()
+                presentationController.prefersGrabberVisible = options.prefersGrabberVisible
+                presentationController.preferredCornerRadiusOptions = options.preferredCornerRadius
+                presentationController.prefersScrollingExpandsWhenScrolledToEdge = options.prefersScrollingExpandsWhenScrolledToEdge
+                presentationController.prefersEdgeAttachedInCompactHeight = options.prefersEdgeAttachedInCompactHeight
+                presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = options.widthFollowsPreferredContentSizeWhenEdgeAttached
+                if options.prefersSourceViewAlignment {
+                    presentationController.sourceView = sourceView
+                }
+                if #available(iOS 17.0, *) {
+                    presentationController.prefersPageSizing = options.prefersPageSizing
+                }
+                presentationController.preferredBackgroundColor = options.options.preferredPresentationBackgroundUIColor
+                let layoutDirection = (overrideTraitCollection ?? presentationController.traitCollection).layoutDirection
+                presentationController.preferredPresentationSafeAreaInsets = options.options.preferredPresentationSafeAreaInsets.map {
+                    UIEdgeInsets(edgeInsets: $0, layoutDirection: layoutDirection)
+                }
+                if #available(iOS 26.0, *),
+                   options.options.preferredPresentationBackgroundColor == nil,
+                   options.detents.contains(where: { $0.identifier != .large || $0.identifier != .fullScreen }),
+                   options.selected?.wrappedValue != .large,
+                   options.selected?.wrappedValue != .fullScreen
+                {
+                    presented.view.backgroundColor = .clear
+                }
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
-
-            default:
-                break
+                #endif
             }
 
-            let presentationController = PresentationController(
+        case .popover(let options):
+            let presentationController = PopoverPresentationController(
+                presentedViewController: presented,
+                presenting: presenting
+            )
+            presentationController.canOverlapSourceViewRect = options.canOverlapSourceViewRect
+            presentationController.permittedArrowDirections = options.permittedArrowDirections(
+                layoutDirection: presentationController.traitCollection.layoutDirection
+            )
+            let presentingViewController = presenting ?? source
+            presentationController.passthroughViews = options.isPassthrough ? [presentingViewController.view] : nil
+            presentationController.dimmingView.backgroundColor = options.dimmingColor?.toUIColor() ?? DimmingView.backgroundColor
+            presentationController.backgroundColor = options.options.preferredPresentationBackgroundUIColor
+            presentationController.popoverLayoutMargins = options.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(
+                layoutDirection: .init(presentationController.traitCollection.layoutDirection) ?? .leftToRight
+            ) ?? .zero
+            presentationController.sourceView = sourceView
+            presentationController.overrideTraitCollection = overrideTraitCollection
+            presentationController.delegate = self
+            return presentationController
+
+        case .representable(let options, let transition):
+            let context = makeContext(options: options)
+            func project<T: PresentationLinkTransitionRepresentable>(
+                _ transition: T
+            ) -> UIPresentationController {
+                let presentationController = transition.makeUIPresentationController(
+                    presented: presented,
+                    presenting: presenting,
+                    source: source,
+                    context: context
+                )
+                transition.updateUIPresentationController(
+                    presentationController: presentationController,
+                    context: context
+                )
+                return presentationController
+            }
+            let presentationController = _openExistential(transition, do: project)
+            presentationController.overrideTraitCollection = overrideTraitCollection
+            presentationController.delegate = self
+            return presentationController
+
+        case .zoom:
+            let presentationController = DelegatedPresentationController(
                 presentedViewController: presented,
                 presenting: presenting
             )
             presentationController.overrideTraitCollection = overrideTraitCollection
             presentationController.delegate = self
             return presentationController
+
+        default:
+            break
         }
 
-        func presentationController(
-            _ presentationController: UIPresentationController,
-            willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
-            transitionCoordinator: UIViewControllerTransitionCoordinator?
-        ) {
-            #if !targetEnvironment(macCatalyst)
-            if #available(iOS 15.0, *) {
-                if let sheetPresentationController = presentationController as? SheetPresentationController {
-                    transitionCoordinator?.animate(alongsideTransition: { [weak self] _ in
-                        self?.sheetPresentationControllerDidChangeSelectedDetentIdentifier(sheetPresentationController)
-                    }, completion: { [weak self] ctx in
-                        guard !ctx.isCancelled, let self, let panGesture = sheetPresentationController.panGesture else { return }
-                        panGesture.addTarget(self, action: #selector(Coordinator.sheetPanGestureDidChange(_:)))
-                    })
-                }
+        let presentationController = PresentationController(
+            presentedViewController: presented,
+            presenting: presenting
+        )
+        presentationController.overrideTraitCollection = overrideTraitCollection
+        presentationController.delegate = self
+        return presentationController
+    }
+
+    func presentationController(
+        _ presentationController: UIPresentationController,
+        willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
+        transitionCoordinator: UIViewControllerTransitionCoordinator?
+    ) {
+        #if !targetEnvironment(macCatalyst)
+        if #available(iOS 15.0, *) {
+            if let sheetPresentationController = presentationController as? SheetPresentationController {
+                transitionCoordinator?.animate(alongsideTransition: { [weak self] _ in
+                    self?.sheetPresentationControllerDidChangeSelectedDetentIdentifier(sheetPresentationController)
+                }, completion: { [weak self] ctx in
+                    guard !ctx.isCancelled, let self else { return }
+                    if let panGesture = sheetPresentationController.panGesture {
+                        panGesture.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
+                    }
+                    if let scrollView = sheetPresentationController.presentedViewController.contentScrollView(for: .bottom) {
+                        scrollView.panGestureRecognizer.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
+                    }
+                })
             }
-            #endif
         }
+        #endif
+    }
 
-        // MARK: - UISheetPresentationControllerDelegate
+    // MARK: - UISheetPresentationControllerDelegate
 
-        @available(iOS 15.0, *)
-        @available(macOS, unavailable)
-        @available(tvOS, unavailable)
-        @available(watchOS, unavailable)
-        func sheetPresentationControllerDidChangeSelectedDetentIdentifier(
-            _ sheetPresentationController: UISheetPresentationController
-        ) {
-            if case .sheet(let options) = adapter?.transition {
-                func applySelection() {
-                    let newValue = sheetPresentationController.selectedDetentIdentifier.map {
-                        PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier($0.rawValue)
+    @available(iOS 15.0, *)
+    @available(macOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
+    func sheetPresentationControllerDidChangeSelectedDetentIdentifier(
+        _ sheetPresentationController: UISheetPresentationController
+    ) {
+        if case .sheet(let options) = adapter?.transition {
+            func applySelection() {
+                let newValue = sheetPresentationController.selectedDetentIdentifier.map {
+                    PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier($0.rawValue)
+                }
+                if let selected = options.selected, selected.wrappedValue != newValue {
+                    selected.wrappedValue = newValue
+                }
+                if #available(iOS 26.0, *) {
+                    var backgroundColor = options.options.preferredPresentationBackgroundUIColor ?? .systemBackground
+                    switch newValue {
+                    case .large, .fullScreen:
+                        break
+                    default:
+                        guard let maximumDetentValue = sheetPresentationController.maximumDetentValue else { return }
+                        let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
+                        backgroundColor = isClear ? .clear : backgroundColor
                     }
-                    if let selected = options.selected, selected.wrappedValue != newValue {
-                        selected.wrappedValue = newValue
-                    }
-                    if #available(iOS 26.0, *) {
-                        var backgroundColor = options.options.preferredPresentationBackgroundUIColor ?? .systemBackground
-                        switch newValue {
-                        case .large, .fullScreen:
-                            break
-                        default:
-                            guard let maximumDetentValue = sheetPresentationController.maximumDetentValue else { return }
-                            let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
-                            backgroundColor = isClear ? .clear : backgroundColor
-                        }
 
-                        if sheetPresentationController.panGesture?.state == .ended {
-                            sheetPresentationController.animateChanges {
-                                sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
-                            }
-                        } else {
+                    if sheetPresentationController.panGesture?.state == .ended {
+                        sheetPresentationController.animateChanges {
                             sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
                         }
-                    }
-                }
-
-                if sheetPresentationController.selectedDetentIdentifier?.rawValue == PresentationLinkTransition.SheetTransitionOptions.Detent.ideal.identifier.rawValue {
-                    if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
-                        sheetPresentationController.invalidateDetents()
-                        applySelection()
                     } else {
-                        sheetPresentationController.detents = options.detents.map {
-                            $0.toUIKit(in: sheetPresentationController)
-                        }
-                        withCATransaction {
-                            applySelection()
-                        }
+                        sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
                     }
-                } else {
-                    applySelection()
                 }
             }
+
+            if sheetPresentationController.selectedDetentIdentifier?.rawValue == PresentationLinkTransition.SheetTransitionOptions.Detent.ideal.identifier.rawValue {
+                if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
+                    sheetPresentationController.invalidateDetents()
+                    applySelection()
+                } else {
+                    sheetPresentationController.detents = options.detents.map {
+                        $0.toUIKit(in: sheetPresentationController)
+                    }
+                    withCATransaction {
+                        applySelection()
+                    }
+                }
+            } else {
+                applySelection()
+            }
         }
+    }
 
-        // MARK: - Zoom Transition
+    // MARK: - Zoom Transition
 
-        @objc
-        func zoomPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
-            gestureDidChange(panGesture: panGesture, isDismiss: true)
-        }
+    @objc
+    func zoomPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
+        gestureDidChange(panGesture: panGesture, isDismiss: true)
+    }
 
-        @objc
-        func zoomEdgePanGestureDidChange(_ edgePanGesture: UIScreenEdgePanGestureRecognizer) {
-            gestureDidChange(panGesture: edgePanGesture, isDismiss: false)
-        }
+    @objc
+    func zoomEdgePanGestureDidChange(_ edgePanGesture: UIScreenEdgePanGestureRecognizer) {
+        gestureDidChange(panGesture: edgePanGesture, isDismiss: false)
+    }
 
-        private func gestureDidChange(
-            panGesture: UIPanGestureRecognizer,
-            isDismiss: Bool
-        ) {
-            let threshold = isDismiss ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
-            gestureDidChange(panGesture: panGesture, isDismiss: isDismiss, threshold: threshold)
-        }
+    private func gestureDidChange(
+        panGesture: UIPanGestureRecognizer,
+        isDismiss: Bool
+    ) {
+        let threshold = isDismiss ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
+        gestureDidChange(panGesture: panGesture, isDismiss: isDismiss, threshold: threshold)
+    }
 
-        // MARK: - Sheet Transition
+    // MARK: - Sheet Transition
 
-        @objc
-        func sheetPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
-            guard let view = panGesture.view else { return }
-            let threshold = view.bounds.height / 2
-            gestureDidChange(panGesture: panGesture, isDismiss: true, threshold: threshold)
-        }
+    @objc
+    func sheetPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
+        guard let view = panGesture.view else { return }
+        let threshold = view.bounds.height / 2
+        gestureDidChange(panGesture: panGesture, isDismiss: true, threshold: threshold)
+    }
 
-        private func gestureDidChange(
-            panGesture: UIPanGestureRecognizer,
-            isDismiss: Bool,
-            threshold: CGFloat
-        ) {
-            switch panGesture.state {
-            case .ended, .cancelled:
-                isTransitionDismissReady = false
-                feedbackGenerator = nil
+    private func gestureDidChange(
+        panGesture: UIPanGestureRecognizer,
+        isDismiss: Bool,
+        threshold: CGFloat
+    ) {
+        switch panGesture.state {
+        case .ended, .cancelled:
+            isTransitionDismissReady = false
+            feedbackGenerator = nil
+        default:
+            var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
+            switch adapter?.transition {
+            case .zoom(let options):
+                hapticsStyle = options.hapticsStyle
+            case .sheet(let options):
+                hapticsStyle = options.hapticsStyle
             default:
-                var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
-                switch adapter?.transition {
-                case .zoom(let options):
-                    hapticsStyle = options.hapticsStyle
-                case .sheet(let options):
-                    hapticsStyle = options.hapticsStyle
-                default:
-                    break
+                break
+            }
+            guard let hapticsStyle, let view = panGesture.view else { return }
+            let velocity = isDismiss ? panGesture.velocity(in: view).y : panGesture.velocity(in: view).x
+            let translation = isDismiss ? panGesture.translation(in: view).y : panGesture.translation(in: view).x
+            func impactOccurred(
+                intensity: CGFloat,
+                location: @autoclosure () -> CGPoint
+            ) {
+                if #available(iOS 17.5, *) {
+                    feedbackGenerator?.impactOccurred(intensity: intensity, at: location())
+                } else {
+                    feedbackGenerator?.impactOccurred(intensity: intensity)
                 }
-                guard let hapticsStyle, let view = panGesture.view else { return }
-                let velocity = isDismiss ? panGesture.velocity(in: view).y : panGesture.velocity(in: view).x
-                let translation = isDismiss ? panGesture.translation(in: view).y : panGesture.translation(in: view).x
-                func impactOccurred(
-                    intensity: CGFloat,
-                    location: @autoclosure () -> CGPoint
-                ) {
-                    if #available(iOS 17.5, *) {
-                        feedbackGenerator?.impactOccurred(intensity: intensity, at: location())
-                    } else {
-                        feedbackGenerator?.impactOccurred(intensity: intensity)
-                    }
-                }
+            }
 
-                if feedbackGenerator == nil {
-                    let feedbackGenerator: UIImpactFeedbackGenerator
-                    if #available(iOS 17.5, *) {
-                        feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle, view: view)
-                    } else {
-                        feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle)
-                    }
-                    feedbackGenerator.prepare()
-                    self.feedbackGenerator = feedbackGenerator
-                } else if !isTransitionDismissReady, translation >= threshold, velocity >= 0 {
-                    isTransitionDismissReady = true
-                    impactOccurred(intensity: 1, location: panGesture.location(in: view))
-                } else if isTransitionDismissReady, translation < threshold, velocity < 0
-                {
-                    impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
-                    isTransitionDismissReady = false
+            if feedbackGenerator == nil {
+                let feedbackGenerator: UIImpactFeedbackGenerator
+                if #available(iOS 17.5, *) {
+                    feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle, view: view)
+                } else {
+                    feedbackGenerator = UIImpactFeedbackGenerator(style: hapticsStyle)
                 }
+                feedbackGenerator.prepare()
+                self.feedbackGenerator = feedbackGenerator
+            } else if !isTransitionDismissReady, translation >= threshold, velocity >= 0 {
+                isTransitionDismissReady = true
+                impactOccurred(intensity: 1, location: panGesture.location(in: view))
+            } else if isTransitionDismissReady, translation < threshold, velocity < 0
+            {
+                impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
+                isTransitionDismissReady = false
             }
         }
     }
@@ -1258,8 +1286,8 @@ private struct PresentationLinkAdapterBody<
 @MainActor @preconcurrency
 private class PresentationLinkDestinationViewControllerAdapter<
     Destination: View,
-    SourceView: View
->: ViewControllerAdapter<Destination, PresentationLinkAdapterBody<Destination, SourceView>> {
+    Representable: UIViewRepresentable
+>: ViewControllerAdapter<Destination, Representable> {
 
     typealias DestinationController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
@@ -1270,13 +1298,13 @@ private class PresentationLinkDestinationViewControllerAdapter<
     var onDismiss: (Int, Transaction) -> Void
 
     // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
-    var coordinator: PresentationLinkAdapterBody<Destination, SourceView>.Coordinator?
+    var coordinator: NSObject?
 
     init(
         destination: Destination,
         sourceView: UIView,
         transition: PresentationLinkTransition.Value,
-        context: PresentationLinkAdapterBody<Destination, SourceView>.Context,
+        context: Representable.Context,
         isPresented: Binding<Bool>,
         onDismiss: @escaping (Int, Transaction) -> Void
     ) {
@@ -1301,7 +1329,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
 
     func update(
         destination: Destination,
-        context: PresentationLinkAdapterBody<Destination, SourceView>.Context,
+        context: Representable.Context,
         isPresented: Binding<Bool>
     ) {
         self.isPresented = isPresented
@@ -1311,7 +1339,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
 
     override func makeHostingController(
         content: Destination,
-        context: PresentationLinkAdapterBody<Destination, SourceView>.Context
+        context: Representable.Context
     ) -> UIViewController {
         let modifier = PresentationBridgeAdapter(
             presentationCoordinator: PresentationCoordinator(
@@ -1337,7 +1365,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
 
     override func updateHostingController(
         content: Destination,
-        context: PresentationLinkAdapterBody<Destination, SourceView>.Context
+        context: Representable.Context
     ) {
         let modifier = PresentationBridgeAdapter(
             presentationCoordinator: PresentationCoordinator(
@@ -1373,7 +1401,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
     }
 
     override func updateViewController(
-        context: PresentationLinkAdapterBody<Destination, SourceView>.Context
+        context: Representable.Context
     ) {
         viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
         if let backgroundColor = transition.options.preferredPresentationBackgroundUIColor {
