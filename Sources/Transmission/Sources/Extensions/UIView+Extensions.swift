@@ -67,4 +67,76 @@ extension UIView {
     }
 }
 
+extension UIView {
+
+    public var isSwiftUIPlatformViewHost: Bool {
+        _typeName(Self.self).hasPrefix("SwiftUI.PlatformViewHost")
+    }
+
+    private static var didSwizzleCAActionKey: UInt8 = 0
+
+    public func disableInitialImplicitFrameAnimations() {
+        let aClass: AnyClass = type(of: self)
+        Self.disableInitialImplicitFrameAnimations(aClass: aClass)
+    }
+
+    public static func disableInitialImplicitFrameAnimations(aClass: AnyClass) {
+        guard objc_getAssociatedObject(aClass, &Self.didSwizzleCAActionKey) as? Bool != true else { return }
+        objc_setAssociatedObject(aClass, &Self.didSwizzleCAActionKey, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+
+        let originalSelector = #selector(action(for:forKey:))
+        let swizzledSelector = #selector(swizzled_action(for:forKey:))
+
+        guard
+            let originalMethod = class_getInstanceMethod(aClass, originalSelector),
+            let swizzledMethod = class_getInstanceMethod(UIView.self, swizzledSelector)
+        else { return }
+
+        var didAdd = false
+        if originalMethod == class_getInstanceMethod(UIView.self, originalSelector) {
+            didAdd = class_addMethod(
+                aClass,
+                originalSelector,
+                method_getImplementation(swizzledMethod),
+                method_getTypeEncoding(swizzledMethod)
+            )
+        }
+
+        if didAdd {
+            class_replaceMethod(
+                aClass,
+                swizzledSelector,
+                method_getImplementation(originalMethod),
+                method_getTypeEncoding(originalMethod)
+            )
+        } else {
+            method_exchangeImplementations(originalMethod, swizzledMethod)
+        }
+    }
+
+    @objc
+    private func swizzled_action(for layer: CALayer, forKey event: String) -> CAAction? {
+        if isInitialFrameAnimationAction(for: layer, forKey: event) {
+            if isSwiftUIPlatformViewHost,
+                responds(to: NSSelectorFromString("hostedView")),
+                let hostedView = value(forKey: "hostedView") as? UIView
+            {
+                if let action = hostedView.action(for: hostedView.layer, forKey: event), action is NSNull {
+                    return NSNull()
+                }
+            } else {
+                return NSNull()
+            }
+        }
+        let action = swizzled_action(for: layer, forKey: event)
+        return action
+    }
+
+    public func isInitialFrameAnimationAction(for layer: CALayer, forKey event: String) -> Bool {
+        guard layer.bounds.size == .zero else { return false }
+        return event == "bounds" || event == "position" || event == "anchorPoint"
+    }
+}
+
+
 #endif

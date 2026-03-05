@@ -209,7 +209,13 @@ extension PresentationLinkTransition {
                 @available(macOS, unavailable)
                 @available(tvOS, unavailable)
                 @available(watchOS, unavailable)
-                public static let ideal = Identifier("ideal")
+                public static let small = Identifier("Transmission.small")
+
+                @available(iOS 15.0, *)
+                @available(macOS, unavailable)
+                @available(tvOS, unavailable)
+                @available(watchOS, unavailable)
+                public static let ideal = Identifier("Transmission.ideal")
 
                 @available(iOS 15.0, *)
                 @available(macOS, unavailable)
@@ -286,6 +292,13 @@ extension PresentationLinkTransition {
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
             public static let medium = Detent(identifier: .medium)
+
+            /// Creates a small detent.
+            @available(iOS 15.0, *)
+            @available(macOS, unavailable)
+            @available(tvOS, unavailable)
+            @available(watchOS, unavailable)
+            public static let small = Detent(identifier: .small, height: 160)
 
             /// Creates a detent with an auto-resolved height of the views ideal size.
             @available(iOS 15.0, *)
@@ -561,12 +574,14 @@ extension PresentationLinkTransition {
         public typealias PermittedArrowDirections = Edge.Set
 
         public var options: Options
+        public var dimmingColor: Color?
         public var permittedArrowDirections: PermittedArrowDirections
         public var canOverlapSourceViewRect: Bool
         public var isPassthrough: Bool
         public var adaptiveTransition: SheetTransitionOptions?
 
         public init(
+            dimmingColor: Color? = nil,
             permittedArrowDirections: PermittedArrowDirections = .all,
             canOverlapSourceViewRect: Bool = false,
             isPassthrough: Bool = false,
@@ -578,6 +593,7 @@ extension PresentationLinkTransition {
             if let isInteractive {
                 self.options.isInteractive = isInteractive
             }
+            self.dimmingColor = dimmingColor
             self.permittedArrowDirections = permittedArrowDirections
             self.canOverlapSourceViewRect = canOverlapSourceViewRect
             self.isPassthrough = isPassthrough
@@ -804,6 +820,7 @@ extension PresentationLinkTransition {
 
     /// The popover presentation style.
     public static func popover(
+        dimmingColor: Color? = nil,
         permittedArrowDirections: PresentationLinkTransition.PopoverTransitionOptions.PermittedArrowDirections = .all,
         canOverlapSourceViewRect: Bool = false,
         isPassthrough: Bool = false,
@@ -813,6 +830,7 @@ extension PresentationLinkTransition {
         PresentationLinkTransition(
             value: .popover(
                 .init(
+                    dimmingColor: dimmingColor,
                     permittedArrowDirections: permittedArrowDirections,
                     canOverlapSourceViewRect: canOverlapSourceViewRect,
                     isPassthrough: isPassthrough,

@@ -22,22 +22,40 @@ public struct IndexedDestinationLinkPath<Key: Hashable & Sendable, Value: Sendab
 
 @frozen
 public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollection {
-    private var path: [Value]
+
+    @usableFromInline
+    struct Storage: Sendable {
+        var id: UInt = Seed.generate()
+        var value: Value
+    }
+    private var path: [Storage]
 
     public init() {
         self.path = []
     }
 
     public init<Values: Collection>(path: Values) where Values.Element == Value {
-        self.path = Array(path)
+        self.path = path.map({ Storage(value: $0) })
     }
 
     public mutating func append(_ value: Value) {
-        path.append(value)
+        path.append(Storage(value: value))
+    }
+
+    public mutating func append(_ values: Value...) {
+        path.append(contentsOf: values.map({ Storage(value: $0) }))
     }
 
     public mutating func pop(count: Int = 1) {
         path.removeLast(Swift.min(path.count, count))
+    }
+
+    public func id(for index: Index) -> UInt {
+        path[index].id
+    }
+
+    public var ids: Set<UInt> {
+        Set(indices.map({ id(for: $0) }))
     }
 
     // MARK: RandomAccessCollection
@@ -56,14 +74,14 @@ public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollec
     public nonisolated subscript(position: Int) -> Value? {
         get {
             guard path.indices.contains(position) else { return nil }
-            return path[position]
+            return path[position].value
         }
         set {
             if let newValue {
                 if path.indices.contains(position) {
-                    path[position] = newValue
+                    path[position].value = newValue
                 } else {
-                    path.insert(newValue, at: position)
+                    path.insert(Storage(value: newValue), at: position)
                 }
             } else if path.indices.contains(position) {
                 path.remove(at: position)
@@ -76,76 +94,8 @@ public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollec
     }
 }
 
-/// A modifier that manages the push of multiple destination views from a ``DestinationLinkPath``
-///
-/// > Tip: You can support deep linking to multiple views with this modifier
-///
-@available(iOS 14.0, *)
-public struct DestinationLinkPathAdapterModifier<Value: Sendable, Destination: View>: ViewModifier {
-
-    @Binding var path: DestinationLinkPath<Value>
-    var transition: (Value) -> DestinationLinkTransition
-    var destination: (Value) -> Destination
-    var index: Int
-
-    public init(
-        path: Binding<DestinationLinkPath<Value>>,
-        transition: @escaping (Value) -> DestinationLinkTransition,
-        destination: @escaping (Value) -> Destination
-    ) {
-        self._path = path
-        self.transition = transition
-        self.destination = destination
-        self.index = 0
-    }
-
-    init(
-        path: Binding<DestinationLinkPath<Value>>,
-        transition: @escaping (Value) -> DestinationLinkTransition,
-        destination: @escaping (Value) -> Destination,
-        index: Int
-    ) {
-        self._path = path
-        self.transition = transition
-        self.destination = destination
-        self.index = index
-    }
-
-    public func body(content: Content) -> some View {
-        content
-            .destination(
-                $path[index],
-                transition: path[index].map { transition($0) } ?? .default
-            ) { $value in
-                destination(value)
-                    .modifier(
-                        DestinationLinkPathAdapterModifier(
-                            path: $path,
-                            transition: transition,
-                            destination: destination,
-                            index: index + 1,
-                        )
-                    )
-            }
-    }
-}
-
-@available(iOS 14.0, *)
-extension View {
-
-    public func destination<Value, Destination: View>(
-        path: Binding<DestinationLinkPath<Value>>,
-        transition: @escaping (Value) -> DestinationLinkTransition,
-        destination: @escaping (Value) -> Destination
-    ) -> some View {
-        modifier(
-            DestinationLinkPathAdapterModifier(
-                path: path,
-                transition: transition,
-                destination: destination
-            )
-        )
-    }
-}
+extension IndexedDestinationLinkPath: Equatable where Value: Equatable { }
+extension DestinationLinkPath: Equatable where Value: Equatable { }
+extension DestinationLinkPath.Storage: Equatable where Value: Equatable { }
 
 #endif

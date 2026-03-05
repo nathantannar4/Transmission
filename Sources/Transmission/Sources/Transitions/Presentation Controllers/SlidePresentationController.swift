@@ -104,7 +104,7 @@ open class SlidePresentationController: InteractivePresentationController {
         super.transformPresentedView(transform: transform)
 
         if transform.isIdentity {
-            if let presentedView {
+            if let presentedView, panGesture.state == .possible {
                 CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView)
             }
             updateShadow(progress: 0)

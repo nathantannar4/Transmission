@@ -223,6 +223,14 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     private func onPanGesture(_ gestureRecognizer: UIPanGestureRecognizer) {
         guard let presentedView else { return }
         let scrollView = gestureRecognizer.view as? UIScrollView ?? trackingScrollView
+
+        if gestureRecognizer.state == .began,
+            presentedViewController.isBeingPresented,
+            let frame = presentedView.layer.presentation()?.frame
+        {
+            gestureRecognizer.setTranslation(frame.origin, in: containerView)
+        }
+
         let gestureTranslation = gestureRecognizer.translation(in: presentedView)
         let delta = CGPoint(
             x: gestureTranslation.x - lastTranslation.x,
@@ -511,6 +519,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     ) {
                         self.transformPresentedView(transform: .identity)
                         self.presentedView?.layoutIfNeeded()
+                    } completion: { _ in
+                        self.transformPresentedView(transform: .identity)
                     }
                 }
 

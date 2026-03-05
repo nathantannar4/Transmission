@@ -91,10 +91,8 @@ extension UIViewController {
     var _activePresentationController: UIPresentationController? {
         if #available(iOS 16.0, *) {
             return activePresentationController
-        } else if let presentingViewController {
-            return presentingViewController.presentationController
         }
-        return nil
+        return presentationController
     }
 
     func firstDescendent<T: UIViewController>(ofType type: T.Type) -> T? {

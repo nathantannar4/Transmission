@@ -65,6 +65,10 @@ open class PresentationHostingWindowController<Content: View>: UIViewController 
         super.viewDidLayoutSubviews()
         hostingController.view.frame = view.bounds
     }
+
+    open func update(content: Content, transaction: Transaction) {
+        hostingController.update(content: content, transaction: transaction)
+    }
 }
 
 #endif

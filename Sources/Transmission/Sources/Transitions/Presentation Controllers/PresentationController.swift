@@ -227,7 +227,9 @@ open class PresentationController: DelegatedPresentationController {
     }
 
     open func layoutDimmingView() {
-        if let presentationController = presentingViewController._activePresentationController {
+        if !(presentedViewController.view.backgroundColor?.isTranslucent ?? true),
+            let presentationController = presentingViewController._activePresentationController
+        {
             let frame = presentationController.presentedView?.frame ?? presentationController.frameOfPresentedViewInContainerView
             let dimmingViewFrame = presentingViewController.view.convert(
                 presentingViewController.view.convert(
@@ -247,20 +249,16 @@ open class PresentationController: DelegatedPresentationController {
                 dimmingView.layer.cornerCurve = presentedView.layer.cornerCurve
                 dimmingView.layer.maskedCorners = presentedView.layer.maskedCorners
             }
-        } else if let presentedView = presentingViewController.view {
-            let dimmingViewFrame = presentedView.convert(
-                presentedView.bounds,
-                to: containerView
-            )
-            dimmingView.frame = dimmingViewFrame.rounded(scale: containerView?.window?.screen.scale ?? 1)
+        } else {
+            dimmingView.frame = containerView?.bounds ?? .zero
             #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *) {
-                dimmingView.cornerConfiguration = presentedView.cornerConfiguration
+                dimmingView.cornerConfiguration = .corners(topLeftRadius: nil, topRightRadius: nil, bottomLeftRadius: nil, bottomRightRadius: nil)
             }
             #endif
-            dimmingView.layer.cornerRadius = presentedView.layer.cornerRadius
-            dimmingView.layer.cornerCurve = presentedView.layer.cornerCurve
-            dimmingView.layer.maskedCorners = presentedView.layer.maskedCorners
+            dimmingView.layer.cornerRadius = 0
+            dimmingView.layer.cornerCurve = .circular
+            dimmingView.layer.maskedCorners = .all
         }
     }
 

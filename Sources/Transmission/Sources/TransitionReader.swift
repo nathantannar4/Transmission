@@ -55,12 +55,8 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader(
-            onDidMoveToWindow: { viewController in
-                var parent = viewController
-                while let next = parent?.parent {
-                    parent = next
-                }
-                context.coordinator.presentingViewController = parent
+            onDidMoveToWindow: { [weak coordinator = context.coordinator] viewController in
+                coordinator?.presentingViewController = viewController
             }
         )
         return uiView
@@ -105,10 +101,16 @@ final class TransitionReaderCoordinator: NSObject {
         if let presentingViewController {
             presentingViewController.transitionReaderCoordinator = self
 
-            presentingViewController.swizzle_beginAppearanceTransition { [unowned self] in
+            var transitionViewController = presentingViewController
+            if let transitionCoordinator = presentingViewController.transitionCoordinator,
+                let toVC = transitionCoordinator.viewController(forKey: .to)
+            {
+                transitionViewController = toVC
+            }
+            transitionViewController.swizzle_beginAppearanceTransition { [unowned self] in
                 self.transitionCoordinatorDidChange()
             }
-            presentingViewController.swizzle_endAppearanceTransition { [unowned self] in
+            transitionViewController.swizzle_endAppearanceTransition { [unowned self] in
                 self.transitionCoordinatorDidChange()
             }
         }
@@ -131,7 +133,13 @@ final class TransitionReaderCoordinator: NSObject {
                 } else {
                     transitionDidChange(transitionCoordinator, isInProgress: false)
                     transitionCoordinator.animate { [weak self] ctx in
+                        guard self?.displayLink == nil else { return }
                         self?.transitionDidChange(ctx, isInProgress: true)
+                    }
+
+                    transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
+                        guard self?.displayLink == nil else { return }
+                        self?.transitionCoordinatorDidChange()
                     }
                 }
             } else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
@@ -167,7 +175,10 @@ final class TransitionReaderCoordinator: NSObject {
         _ transitionContext: UIViewControllerTransitionCoordinatorContext,
         isInProgress: Bool
     ) {
-        let isPresenting = transitionContext.viewController(forKey: .to) == presentingViewController
+        var isPresenting = false
+        if let presentingViewController, let toVC = transitionContext.viewController(forKey: .to) {
+            isPresenting = toVC == presentingViewController || presentingViewController.isDescendent(of: toVC)
+        }
         let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
         let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented?.view
 

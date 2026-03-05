@@ -10,6 +10,7 @@ struct DestinationLinkExamples: View {
     enum Transition: Hashable {
         case `default`
         case slide
+        case push
         case zoom
         case matchedGeometry
     }
@@ -22,6 +23,10 @@ struct DestinationLinkExamples: View {
         case .default:
             return .default(
                 options: .init(isInteractive: isInteractive)
+            )
+        case .push:
+            return .push(
+                isInteractive: isInteractive
             )
         case .slide:
             return .slide(
@@ -58,6 +63,7 @@ struct DestinationLinkExamples: View {
 
                 Picker(selection: $transition) {
                     Text(".default").tag(Transition.default)
+                    Text(".push").tag(Transition.push)
                     Text(".slide").tag(Transition.slide)
                     Text(".zoom").tag(Transition.zoom)
                     Text(".matchedGeometry").tag(Transition.matchedGeometry)

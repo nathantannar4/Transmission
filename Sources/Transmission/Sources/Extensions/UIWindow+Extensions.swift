@@ -44,7 +44,7 @@ extension UIWindow {
     ) {
         resignKey()
         if let parent {
-            windowLevel = parent.windowLevel
+            windowLevel = min(windowLevel, parent.windowLevel)
             rootViewController?.setNeedsStatusBarAppearanceUpdate(animated: animation != nil)
         }
         UIView.animate(
