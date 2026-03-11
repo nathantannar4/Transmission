@@ -110,14 +110,39 @@ extension View {
     /// See Also:
     ///  - ``WindowLinkModifier``
     ///
-    public func window<T, D: View>(
+    public func window<T, Destination: View>(
         _ value: Binding<T?>,
         level: WindowLinkLevel = .default,
         transition: WindowLinkTransition = .opacity,
-        @ViewBuilder destination: (Binding<T>) -> D
+        @ViewBuilder destination: (T) -> Destination
     ) -> some View {
         window(level: level, transition: transition, isPresented: value.isNotNil()) {
-            OptionalAdapter(value, content: destination)
+            Optional(value, content: destination)
+        }
+    }
+
+    /// A modifier that presents a destination view in a new `UIWindow`
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``WindowLinkModifier``
+    ///
+    public func window<T, Destination: View>(
+        _ value: Binding<T?>,
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        @ViewBuilder destination: (Binding<T>) -> Destination
+    ) -> some View {
+        window(level: level, transition: transition, isPresented: value.isNotNil()) {
+            Optional(value, content: destination)
         }
     }
 

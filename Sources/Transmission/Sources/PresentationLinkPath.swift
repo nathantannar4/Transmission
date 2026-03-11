@@ -6,6 +6,7 @@
 
 import SwiftUI
 
+@available(iOS 14.0, *)
 @frozen
 public struct PresentationLinkPath<Value: Sendable>: Sendable, RandomAccessCollection {
     private var path: [Value]
@@ -66,6 +67,7 @@ public struct PresentationLinkPath<Value: Sendable>: Sendable, RandomAccessColle
     }
 }
 
+@available(iOS 14.0, *)
 extension PresentationLinkPath: Equatable where Value: Equatable { }
 
 #endif

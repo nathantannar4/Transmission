@@ -5,7 +5,9 @@
 #if os(iOS)
 
 import SwiftUI
+import Engine
 
+@available(iOS 14.0, *)
 @frozen
 public struct IndexedDestinationLinkPath<Key: Hashable & Sendable, Value: Sendable>: Sendable {
     private var paths: [Key: DestinationLinkPath<Value>]
@@ -20,12 +22,19 @@ public struct IndexedDestinationLinkPath<Key: Hashable & Sendable, Value: Sendab
     }
 }
 
+@available(iOS 14.0, *)
 @frozen
 public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollection {
 
+    @available(iOS 14.0, *)
+    @frozen
+    public struct ID: Hashable, Sendable {
+        var seed: Seed
+    }
+
     @usableFromInline
     struct Storage: Sendable {
-        var id: UInt = Seed.generate()
+        var id: ID = .init(seed: Seed.generate())
         var value: Value
     }
     private var path: [Storage]
@@ -50,11 +59,11 @@ public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollec
         path.removeLast(Swift.min(path.count, count))
     }
 
-    public func id(for index: Index) -> UInt {
+    public func id(for index: Index) -> ID {
         path[index].id
     }
 
-    public var ids: Set<UInt> {
+    public var ids: Set<ID> {
         Set(indices.map({ id(for: $0) }))
     }
 
@@ -94,8 +103,13 @@ public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollec
     }
 }
 
+@available(iOS 14.0, *)
 extension IndexedDestinationLinkPath: Equatable where Value: Equatable { }
+
+@available(iOS 14.0, *)
 extension DestinationLinkPath: Equatable where Value: Equatable { }
+
+@available(iOS 14.0, *)
 extension DestinationLinkPath.Storage: Equatable where Value: Equatable { }
 
 #endif

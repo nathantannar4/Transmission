@@ -121,11 +121,7 @@ private struct ConditionalLinkAdapterBody<
 
     func makeUIView(context: Context) -> UIViewType {
         let uiView = UIViewType(
-            onDidMoveToWindow: { viewController in
-                withCATransaction {
-                    presentingViewController = viewController
-                }
-            },
+            presentingViewController: $presentingViewController,
             content: sourceView,
             useHostingController: useHostingControllerAsSourceView
         )

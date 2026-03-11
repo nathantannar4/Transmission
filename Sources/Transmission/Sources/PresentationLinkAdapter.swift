@@ -125,11 +125,7 @@ private struct PresentationLinkAdapterBody<
         context: Context
     ) -> UIViewType {
         let uiView = UIViewType(
-            onDidMoveToWindow: { viewController in
-                withCATransaction {
-                    presentingViewController = viewController
-                }
-            },
+            presentingViewController: $presentingViewController,
             content: sourceView,
             useHostingController: {
                 switch transition.value {
@@ -701,22 +697,28 @@ final class PresentationLinkCoordinator<
         if let transitionCoordinator = viewController.transitionCoordinator,
             transitionCoordinator.viewController(forKey: .from) == viewController
         {
-            if transitionCoordinator.isInteractive {
+            let isInteractive = transitionCoordinator.isInteractive
+            if isInteractive {
                 transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
                     if !ctx.isCancelled {
                         guard presentationController == self?.presentationController else { return }
                         self?.onDismiss(transaction)
+                        self?.didDismiss()
                     }
                 }
             }
+            let isInterruptible = transitionCoordinator.isInterruptible
             transitionCoordinator.animate { [weak self] ctx in
                 if !ctx.isInteractive {
                     self?.onDismiss(transaction)
+                    if !isInterruptible {
+                        self?.didDismiss()
+                    }
                 }
             } completion: { ctx in
                 if ctx.isCancelled {
                     self.isPresented.wrappedValue = true
-                } else {
+                } else if !isInteractive, isInterruptible {
                     self.didDismiss()
                 }
             }
@@ -1370,7 +1372,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             presentationCoordinator: PresentationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
-                seed: unsafeBitCast(self, to: UInt.self),
+                seed: .constant(self),
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
             )
         )
@@ -1396,7 +1398,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
             presentationCoordinator: PresentationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
-                seed: unsafeBitCast(self, to: UInt.self),
+                seed: .constant(self),
                 dismissBlock: { [weak self] in self?.dismiss($0, $1) }
             )
         )
@@ -1419,7 +1421,7 @@ private class PresentationLinkDestinationViewControllerAdapter<
         let presentationCoordinator = PresentationCoordinator(
             isPresented: isPresented.wrappedValue,
             sourceView: sourceView,
-            seed: unsafeBitCast(self, to: UInt.self),
+            seed: .constant(self),
             dismissBlock: { [weak self] in self?.dismiss($0, $1) }
         )
         environment.presentationCoordinator = presentationCoordinator

@@ -5,13 +5,14 @@
 #if os(iOS)
 
 import SwiftUI
+import Engine
 
 class ViewControllerReader: UIView {
 
-    let onDidMoveToWindow: (UIViewController?) -> Void
+    let presentingViewController: Binding<UIViewController?>
 
-    init(onDidMoveToWindow: @escaping (UIViewController?) -> Void) {
-        self.onDidMoveToWindow = onDidMoveToWindow
+    init(presentingViewController: Binding<UIViewController?>) {
+        self.presentingViewController = presentingViewController
         super.init(frame: .zero)
         isHidden = true
     }
@@ -26,22 +27,29 @@ class ViewControllerReader: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        onDidMoveToWindow(viewController)
+        guard presentingViewController.wrappedValue == nil else { return }
+        let viewController = viewController
+        withCATransaction { [presentingViewController] in
+            presentingViewController.wrappedValue = viewController
+        }
     }
 }
 
+@available(iOS 14.0, *)
 struct TransitionSourceViewContent<Content: View>: View {
     var content: Content
-    var animation: Animation?
-    var update: UInt
+    var transaction: Transaction
+
+    @UpdatePhase var updatePhase
 
     var body: some View {
         content
-            .animation(animation, value: update)
+            .transaction(transaction, value: updatePhase)
             .transaction { $0.animation = nil }
     }
 }
 
+@available(iOS 14.0, *)
 class TransitionSourceView<Content: View>: ViewControllerReader {
 
     var hostingView: TransitionSourceHostingView<TransitionSourceViewContent<Content>>? {
@@ -64,17 +72,16 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
     private var hostStorage: Storage?
 
     init(
-        onDidMoveToWindow: @escaping (UIViewController?) -> Void,
+        presentingViewController: Binding<UIViewController?>,
         content: Content,
         useHostingController: Bool
     ) {
-        super.init(onDidMoveToWindow: onDidMoveToWindow)
+        super.init(presentingViewController: presentingViewController)
         if Content.self != EmptyView.self {
             isHidden = false
             let content = TransitionSourceViewContent(
                 content: content,
-                animation: nil,
-                update: 0
+                transaction: Transaction()
             )
             if useHostingController {
                 let hostingController = TransitionSourceHostingController(content: content)
@@ -99,8 +106,7 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
         guard let hostingView else { return }
         hostingView.content = TransitionSourceViewContent(
             content: content,
-            animation: transaction.animation,
-            update: hostingView.content.update &+ 1
+            transaction: transaction
         )
     }
 
@@ -207,6 +213,114 @@ class TransitionSourceHostingController<Content: View>: UIViewController {
 
     override func loadView() {
         view = hostingView
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct TransitionSourceView_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Preview()
+        }
+    }
+
+    struct Preview: View {
+        @State var isExpanded: Bool = false
+
+        var body: some View {
+            let size: CGFloat = isExpanded ? 200 : 100
+            VStack {
+                TransitionSourceViewPreview {
+                    ZStack {
+                        Color.red
+
+                        if #available(iOS 16.0, *) {
+                            Text(isExpanded ? "Expanded" : "Collapsed")
+                                .contentTransition(.numericText())
+                        } else {
+                            Text(isExpanded ? "Expanded" : "Collapsed")
+                        }
+                    }
+                }
+                .frame(width: size, height: size)
+
+                TransitionSourceViewPreview {
+                    ZStack {
+                        Color.red
+
+                        if #available(iOS 16.0, *) {
+                            Text(isExpanded ? "Expanded" : "Collapsed")
+                                .contentTransition(.numericText())
+                        } else {
+                            Text(isExpanded ? "Expanded" : "Collapsed")
+                        }
+                    }
+                    .frame(width: size, height: size)
+                }
+
+                TransitionSourceViewPreview {
+                    ZStack {
+                        Color.red
+
+                        if #available(iOS 16.0, *) {
+                            Text(isExpanded ? "Expanded" : "Collapsed")
+                                .contentTransition(.numericText())
+                        } else {
+                            Text(isExpanded ? "Expanded" : "Collapsed")
+                        }
+                    }
+                    .frame(width: size, height: size)
+                }
+                .frame(width: size, height: size)
+            }
+            .onTapGesture {
+                withAnimation {
+                    isExpanded.toggle()
+                }
+            }
+        }
+    }
+
+    struct TransitionSourceViewPreview<Content: View>: UIViewRepresentable {
+        var content: Content
+
+        init(@ViewBuilder content: () -> Content) {
+            self.content = content()
+        }
+
+        func makeUIView(context: Context) -> TransitionSourceView<Content> {
+            TransitionSourceView(
+                presentingViewController: .constant(nil),
+                content: content,
+                useHostingController: false
+            )
+        }
+
+        func updateUIView(_ uiView: TransitionSourceView<Content>, context: Context) {
+            uiView.update(
+                content: content,
+                transaction: context.transaction
+            )
+        }
+
+        @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+        func sizeThatFits(
+            _ proposal: ProposedViewSize,
+            uiView: TransitionSourceView<Content>,
+            context: Context
+        ) -> CGSize? {
+            return uiView.sizeThatFits(ProposedSize(proposal))
+        }
+
+        func _overrideSizeThatFits(
+            _ size: inout CGSize,
+            in proposedSize: _ProposedSize,
+            uiView: TransitionSourceView<Content>
+        ) {
+            size = uiView.sizeThatFits(ProposedSize(proposedSize))
+        }
     }
 }
 

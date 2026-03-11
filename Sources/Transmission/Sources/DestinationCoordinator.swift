@@ -23,7 +23,7 @@ public struct DestinationCoordinator: Equatable, @unchecked Sendable {
     var dismissBlock: @MainActor (Int, Transaction) -> Void
 
     @usableFromInline
-    var seed: UInt
+    var seed: Seed
 
     public init(
         isPresented: Bool,
@@ -52,7 +52,7 @@ public struct DestinationCoordinator: Equatable, @unchecked Sendable {
     init(
         isPresented: Bool,
         sourceView: UIView?,
-        seed: UInt,
+        seed: Seed,
         dismissBlock: @MainActor @escaping (Int, Transaction) -> Void
     ) {
         self.isPresented = isPresented

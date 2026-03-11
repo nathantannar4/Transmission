@@ -18,7 +18,9 @@ open class DestinationHostingController<
         if let sourceViewController, sourceViewController.shouldRenderForContentUpdate {
             // Render so the modifier that controls the presentation of this hosting controller
             // can run and update.
-            sourceViewController.render()
+            withCATransaction { [weak sourceViewController] in
+                sourceViewController?.render()
+            }
         }
     }
 }

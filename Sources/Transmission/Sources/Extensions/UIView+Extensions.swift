@@ -70,7 +70,7 @@ extension UIView {
 extension UIView {
 
     public var isSwiftUIPlatformViewHost: Bool {
-        _typeName(Self.self).hasPrefix("SwiftUI.PlatformViewHost")
+        _typeName(Self.self).contains("PlatformViewHost")
     }
 
     private static var didSwizzleCAActionKey: UInt8 = 0
@@ -116,17 +116,15 @@ extension UIView {
 
     @objc
     private func swizzled_action(for layer: CALayer, forKey event: String) -> CAAction? {
-        if isInitialFrameAnimationAction(for: layer, forKey: event) {
-            if isSwiftUIPlatformViewHost,
-                responds(to: NSSelectorFromString("hostedView")),
-                let hostedView = value(forKey: "hostedView") as? UIView
-            {
-                if let action = hostedView.action(for: hostedView.layer, forKey: event), action is NSNull {
-                    return NSNull()
-                }
-            } else {
+        if isSwiftUIPlatformViewHost,
+            responds(to: NSSelectorFromString("hostedView")),
+            let hostedView = value(forKey: "hostedView") as? UIView
+        {
+            if let action = hostedView.action(for: hostedView.layer, forKey: event), action is NSNull {
                 return NSNull()
             }
+        } else if isInitialFrameAnimationAction(for: layer, forKey: event) {
+            return NSNull()
         }
         let action = swizzled_action(for: layer, forKey: event)
         return action

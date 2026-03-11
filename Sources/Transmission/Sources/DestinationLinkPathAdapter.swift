@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import SwiftUI
+import Engine
 
 /// A modifier that manages the push of multiple destination views from a ``DestinationLinkPath``
 ///
@@ -73,11 +74,7 @@ private struct DestinationLinkPathAdapter<
 
     func makeUIView(context: Context) -> UIViewType {
         let uiView = UIViewType(
-            onDidMoveToWindow: { viewController in
-                withCATransaction {
-                    presentingViewController = viewController
-                }
-            }
+            presentingViewController: $presentingViewController,
         )
         return uiView
     }
@@ -118,7 +115,7 @@ final class DestinationLinkPathCoordinator<
     var path: Binding<DestinationLinkPath<Value>>
 
     typealias ChildCoordinator = DestinationLinkCoordinator<Destination, Representable>
-    var coordinators: [UInt: ChildCoordinator] = [:]
+    var coordinators: [DestinationLinkPath<Value>.ID: ChildCoordinator] = [:]
 
     init(path: Binding<DestinationLinkPath<Value>>) {
         self.path = path
@@ -134,7 +131,7 @@ final class DestinationLinkPathCoordinator<
     ) {
         guard let navigationController = presentingViewController?._navigationController else { return }
 
-        var added = Set<UInt>()
+        var added = Set<DestinationLinkPath<Value>.ID>()
         var removed = self.path.wrappedValue.ids
             .subtracting(path.wrappedValue.ids)
         self.path = path

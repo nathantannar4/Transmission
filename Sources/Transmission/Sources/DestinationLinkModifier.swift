@@ -101,10 +101,31 @@ extension View {
     public func destination<T, Destination: View>(
         _ value: Binding<T?>,
         transition: DestinationLinkTransition = .default,
+        @ViewBuilder destination: (T) -> Destination
+    ) -> some View {
+        self.destination(transition: transition, isPresented: value.isNotNil()) {
+            Optional(value, content: destination)
+        }
+    }
+
+    /// A modifier that pushes a destination view in a new `UIViewController`.
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    public func destination<T, Destination: View>(
+        _ value: Binding<T?>,
+        transition: DestinationLinkTransition = .default,
         @ViewBuilder destination: (Binding<T>) -> Destination
     ) -> some View {
         self.destination(transition: transition, isPresented: value.isNotNil()) {
-            OptionalAdapter(value, content: destination)
+            Optional(value, content: destination)
         }
     }
 
@@ -220,7 +241,7 @@ struct DestinationLinkModifier_Previews: PreviewProvider {
 
         var body: some View {
             HStack {
-                ForEach(1...5, id: \.self) { index in
+                ForEach(1...7, id: \.self) { index in
                     Button(index.description) {
                         withAnimation {
                             value = index
@@ -266,6 +287,22 @@ struct DestinationLinkModifier_Previews: PreviewProvider {
                 let uiViewController = UIViewController()
                 uiViewController.view.backgroundColor = .orange
                 return uiViewController
+            }
+            .destination(
+                Binding<Int?>(
+                    get: { value == 6 ? value : nil },
+                    set: { value = $0 ?? 0 }
+                )
+            ) { value in
+                Text(value.description)
+            }
+            .destination(
+                Binding<Int?>(
+                    get: { value == 7 ? value : nil },
+                    set: { value = $0 ?? 0 }
+                )
+            ) { $value in
+                Text(value.description)
             }
         }
     }

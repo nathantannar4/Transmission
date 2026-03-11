@@ -124,11 +124,7 @@ private struct DestinationLinkAdapterBody<
         context: Context
     ) -> UIViewType {
         let uiView = UIViewType(
-            onDidMoveToWindow: { viewController in
-                withCATransaction {
-                    presentingViewController = viewController
-                }
-            },
+            presentingViewController: $presentingViewController,
             content: sourceView,
             useHostingController: {
                 switch transition.value {
@@ -407,12 +403,17 @@ final class DestinationLinkCoordinator<
     }
 
     func didPop() {
-        if let viewController = adapter?.viewController {
-            adapter?.navigationController?.delegates
-                .remove(
-                    delegate: self,
-                    for: viewController
-                )
+        if let viewController = adapter?.viewController,
+            let navigationController = adapter?.navigationController
+        {
+            navigationController.setOverrideTraitCollection(
+                nil,
+                forChild: viewController
+            )
+            navigationController.delegates.remove(
+                delegate: self,
+                for: viewController
+            )
         }
         adapter = nil
     }
@@ -479,6 +480,7 @@ final class DestinationLinkCoordinator<
     func navigationController(
         _ navigationController: UINavigationController,
         didPop viewController: UIViewController,
+        isCancel: Bool,
         animated: Bool
     ) {
         guard
@@ -492,22 +494,33 @@ final class DestinationLinkCoordinator<
 
         let transaction = Transaction(animation: animated ? animation ?? .default : nil)
         if let transitionCoordinator = navigationController.transitionCoordinator {
-            if transitionCoordinator.isInteractive {
-                transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
-                    if !ctx.isCancelled {
-                        self?.onPop(transaction)
+            if #unavailable(iOS 18.0, ), isCancel {
+                //  transitionCoordinator.animate not fired
+                onPop(transaction)
+            } else {
+                let isInteractive = transitionCoordinator.isInteractive
+                if isInteractive {
+                    transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
+                        if !ctx.isCancelled {
+                            self?.onPop(transaction)
+                            self?.didPop()
+                        }
                     }
                 }
-            }
-            transitionCoordinator.animate { [weak self] ctx in
-                if !ctx.isInteractive {
-                    self?.onPop(transaction)
-                }
-            } completion: { [weak self] ctx in
-                if ctx.isCancelled {
-                    self?.isPresented.wrappedValue = true
-                } else {
-                    self?.didPop()
+                let isInterruptible = transitionCoordinator.isInterruptible
+                transitionCoordinator.animate { [weak self] ctx in
+                    if !ctx.isInteractive {
+                        self?.onPop(transaction)
+                        if !isInterruptible {
+                            self?.didPop()
+                        }
+                    }
+                } completion: { [weak self] ctx in
+                    if ctx.isCancelled, !isCancel {
+                        self?.isPresented.wrappedValue = true
+                    } else if !isInteractive, isInterruptible {
+                        self?.didPop()
+                    }
                 }
             }
         } else {
@@ -737,6 +750,7 @@ protocol DestinationLinkDelegate: UINavigationControllerDelegate{
     func navigationController(
         _ navigationController: UINavigationController,
         didPop viewController: UIViewController,
+        isCancel: Bool,
         animated: Bool
     )
 }
@@ -899,16 +913,6 @@ final class DestinationLinkDelegateProxy: NSObject,
                     shouldFinish = (percentage >= threshold && targetVelocity <= targetVelocityThreshold) || (percentage > 0 && targetVelocity <= -800)
                 }
             }
-            // `completionSpeed` handling seems to differ across iOS version
-            if #available(iOS 18.0, *) {
-                if shouldFinish {
-                    transition.completionSpeed = max(1 - percentage, 0.35)
-                } else {
-                    transition.completionSpeed = max(percentage, 0.35)
-                }
-            } else {
-                transition.completionSpeed = max(1 - percentage, 0.35)
-            }
             let delta = (!shouldFinish || isInterruptedInteractiveTransition ? (1 - percentage) : percentage) * navigationController.view.frame.width
             if isInterruptedInteractiveTransition || !shouldFinish {
                 targetVelocity = -targetVelocity
@@ -923,6 +927,14 @@ final class DestinationLinkDelegateProxy: NSObject,
                 dx: dx,
                 dy: 0
             )
+            // `completionSpeed` handling seems to differ across iOS version
+            if #available(iOS 18.0, *) {
+                if shouldFinish {
+                    transition.completionSpeed = 1 - percentage
+                } else {
+                    transition.completionSpeed = percentage
+                }
+            }
             transition.timingCurve = UISpringTimingParameters(
                 dampingRatio: 0.84,
                 initialVelocity: initialVelocity
@@ -951,6 +963,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                     delegate.navigationController(
                         navigationController,
                         didPop: fromVC,
+                        isCancel: true,
                         animated: true
                     )
                 }
@@ -1035,7 +1048,12 @@ final class DestinationLinkDelegateProxy: NSObject,
         animated: Bool
     ) {
         let delegate = delegates[ObjectIdentifier(viewController)]?.value
-        delegate?.navigationController(navigationController, didPop: viewController, animated: animated)
+        delegate?.navigationController(
+            navigationController,
+            didPop: viewController,
+            isCancel: false,
+            animated: animated
+        )
     }
 
     func navigationController(
@@ -1045,7 +1063,11 @@ final class DestinationLinkDelegateProxy: NSObject,
     ) {
         for viewController in viewControllers {
             let delegate = delegates[ObjectIdentifier(viewController)]?.value
-            delegate?.navigationController(navigationController, willPop: viewControllers, animated: animated)
+            delegate?.navigationController(
+                navigationController,
+                willPop: viewControllers,
+                animated: animated
+            )
         }
     }
 
@@ -1466,7 +1488,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
             destinationCoordinator: DestinationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
-                seed: unsafeBitCast(self, to: UInt.self),
+                seed: .constant(self),
                 dismissBlock: { [weak self] in self?.pop($0, $1) }
             )
         )
@@ -1492,7 +1514,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
             destinationCoordinator: DestinationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,
-                seed: unsafeBitCast(self, to: UInt.self),
+                seed: .constant(self),
                 dismissBlock: { [weak self] in self?.pop($0, $1) }
             )
         )
@@ -1515,7 +1537,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
         let destinationCoordinator = DestinationCoordinator(
             isPresented: isPresented.wrappedValue,
             sourceView: sourceView,
-            seed: unsafeBitCast(self, to: UInt.self),
+            seed: .constant(self),
             dismissBlock: { [weak self] in self?.pop($0, $1) }
         )
         environment.destinationCoordinator = destinationCoordinator

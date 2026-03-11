@@ -105,6 +105,30 @@ extension View {
     ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
+    ///
+    public func presentation<T, Destination: View>(
+        _ value: Binding<T?>,
+        transition: PresentationLinkTransition = .default,
+        @ViewBuilder destination: (T) -> Destination
+    ) -> some View {
+        presentation(transition: transition, isPresented: value.isNotNil()) {
+            Optional(value, content: destination)
+        }
+    }
+
+    /// A modifier that presents a destination view in a new `UIViewController`.
+    ///
+    /// To present the destination view with an animation, `isPresented` should
+    /// be updated with a transaction that has an animation. For example:
+    ///
+    /// ```
+    /// withAnimation {
+    ///     isPresented = true
+    /// }
+    /// ```
+    ///
+    /// See Also:
+    ///  - ``PresentationLinkModifier``
     ///  
     public func presentation<T, Destination: View>(
         _ value: Binding<T?>,
@@ -112,7 +136,7 @@ extension View {
         @ViewBuilder destination: (Binding<T>) -> Destination
     ) -> some View {
         presentation(transition: transition, isPresented: value.isNotNil()) {
-            OptionalAdapter(value, content: destination)
+            Optional(value, content: destination)
         }
     }
 
