@@ -135,7 +135,7 @@ open class SlidePresentationController: InteractivePresentationController {
             if fromPresentationController is SlidePresentationController || fromPresentationController == nil {
                 if let portalView = PortalView(sourceView: presentingViewController.view) {
                     portalView.hidesSourceView = true
-                    portalView.layer.cornerCurve = .continuous
+                    portalView.layer.cornerCurve = .circular
                     portalView.layer.masksToBounds = true
                     portalView.layer.cornerRadius = UIScreen.main.displayCornerRadius()
                     containerView?.insertSubview(portalView, at: 0)

@@ -192,7 +192,7 @@ extension UINavigationController {
     func swizzled_setViewControllers(_ viewControllers: [UIViewController], animated: Bool) {
         let vcs = self.viewControllers
             .filter { !viewControllers.contains($0) }
-        if let pushDelegate, viewControllers.count > 1 {
+        if let pushDelegate, vcs.count > 0 {
             pushDelegate.navigationController(self, willPop: vcs, animated: animated)
         }
         swizzled_setViewControllers(viewControllers, animated: animated)

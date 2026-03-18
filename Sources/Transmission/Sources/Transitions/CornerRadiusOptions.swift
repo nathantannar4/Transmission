@@ -58,10 +58,11 @@ public enum CornerRadiusOptions: Equatable, Sendable {
         public static func screen(
             min: CGFloat = 12
         ) -> RoundedRectangle {
-            RoundedRectangle(
-                cornerRadius: UIScreen.main.displayCornerRadius(min: min),
+            let cornerRadius = UIScreen.main.displayCornerRadius
+            return RoundedRectangle(
+                cornerRadius: max(min, cornerRadius),
                 mask: .all,
-                style: .continuous,
+                style: min > cornerRadius ? .continuous : .circular,
                 isContainerConcentric: false
             )
         }

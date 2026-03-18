@@ -112,11 +112,11 @@ final class TransitionReaderCoordinator: NSObject {
             {
                 transitionViewController = toVC
             }
-            transitionViewController.swizzle_beginAppearanceTransition { [unowned self] in
-                self.transitionCoordinatorDidChange()
+            transitionViewController.swizzle_beginAppearanceTransition { [weak self] in
+                self?.transitionCoordinatorDidChange()
             }
-            transitionViewController.swizzle_endAppearanceTransition { [unowned self] in
-                self.transitionCoordinatorDidChange()
+            transitionViewController.swizzle_endAppearanceTransition { [weak self] in
+                self?.transitionCoordinatorDidChange()
             }
         }
 

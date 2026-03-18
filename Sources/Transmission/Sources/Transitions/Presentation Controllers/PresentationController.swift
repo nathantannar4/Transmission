@@ -47,7 +47,7 @@ open class PresentationController: DelegatedPresentationController {
 
     public var presentedViewShadow: ShadowOptions = .clear {
         didSet {
-            guard presentedViewController.isBeingPresented, presentedViewController.isBeingDismissed else { return }
+            guard !presentedViewController.isBeingPresented, !presentedViewController.isBeingDismissed else { return }
             updateShadow(progress: 1)
         }
     }

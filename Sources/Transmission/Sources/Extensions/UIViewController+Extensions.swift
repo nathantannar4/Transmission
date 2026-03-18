@@ -13,9 +13,10 @@ extension UIViewController {
         animated: Bool,
         completion: ((Bool) -> Void)? = nil
     ) {
-        guard let navigationController = navigationController,
-              let index = navigationController.viewControllers.firstIndex(of: self),
-              index > 0
+        guard
+            let navigationController = navigationController,
+            let index = navigationController.viewControllers.firstIndex(of: self),
+            index > 0 || navigationController.viewControllers.count > 1
         else {
             completion?(false)
             return
@@ -54,16 +55,7 @@ extension UIViewController {
             }
             return presentingViewController
         }()
-        targetViewController.dismiss(animated: animated) {
-            guard let completion else { return }
-            if animated {
-                CATransaction.begin()
-                CATransaction.setCompletionBlock(completion)
-                CATransaction.commit()
-            } else {
-                completion()
-            }
-        }
+        targetViewController.dismiss(animated: animated, completion: completion)
     }
 
     var _transitionCoordinator: UIViewControllerTransitionCoordinator? {

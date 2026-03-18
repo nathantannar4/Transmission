@@ -16,6 +16,7 @@ import SwiftUI
 @frozen
 public struct DismissPresentationLink<Label: View>: View {
 
+    var count: Int
     var animation: Animation?
     var label: Label
     var onDismiss: (() -> Void)?
@@ -23,10 +24,12 @@ public struct DismissPresentationLink<Label: View>: View {
     @Environment(\.presentationCoordinator) var presentationCoordinator
 
     public init(
+        count: Int = 1,
         animation: Animation? = .default,
         onDismiss: (() -> Void)? = nil,
         @ViewBuilder label: () -> Label
     ) {
+        self.count = count
         self.animation = animation
         self.label = label()
         self.onDismiss = onDismiss
@@ -35,7 +38,7 @@ public struct DismissPresentationLink<Label: View>: View {
     public var body: some View {
         Button {
             onDismiss?()
-            presentationCoordinator.dismiss(animation: animation)
+            presentationCoordinator.dismiss(count: count, animation: animation)
         } label: {
             label
         }

@@ -50,6 +50,14 @@ public struct PresentationCoordinator: Equatable, @unchecked Sendable {
         }
     }
 
+    init(hostingController: UIViewController) {
+        self.isPresented = false
+        self.seed = .constant(hostingController)
+        self.dismissBlock = { [weak hostingController] count, transaction in
+            hostingController?._dismiss(count: count, animated: transaction.isAnimated)
+        }
+    }
+
     @inlinable
     init(
         isPresented: Bool,
@@ -141,6 +149,11 @@ extension EnvironmentValues {
         get {
             if let coordinator = self[PresentationCoordinatorKey.self] {
                 return coordinator
+            }
+            if let hostingController {
+                return PresentationCoordinator(
+                    hostingController: hostingController
+                )
             }
             if #available(iOS 15.0, *) {
                 let dismissAction = dismiss

@@ -367,22 +367,17 @@ final class DestinationLinkCoordinator<
             animation = transaction.animation
             didPresentAnimated = false
             isPushing = false
-            if let presented = viewController.presentedViewController {
-                presented.dismiss(animated: transaction.isAnimated) {
-                    viewController._popViewController(
-                        count: count,
-                        animated: transaction.isAnimated
-                    ) { [weak self] success in
-                        guard success, self?.adapter?.viewController == viewController else { return }
-                        self?.didPop()
-                    }
-                }
-            } else {
+        }
+        if let presented = viewController.presentedViewController {
+            presented._dismiss(
+                count: .max,
+                animated: transaction.isAnimated
+            ) { [weak self] in
                 viewController._popViewController(
                     count: count,
                     animated: transaction.isAnimated
                 ) { [weak self] success in
-                    guard success, self?.adapter?.viewController == viewController else { return }
+                    guard success, count > 0, self?.adapter?.viewController == viewController else { return }
                     self?.didPop()
                 }
             }
@@ -390,7 +385,10 @@ final class DestinationLinkCoordinator<
             viewController._popViewController(
                 count: count,
                 animated: transaction.isAnimated
-            )
+            ) { [weak self] success in
+                guard success, count > 0, self?.adapter?.viewController == viewController else { return }
+                self?.didPop()
+            }
         }
     }
 
@@ -512,7 +510,9 @@ final class DestinationLinkCoordinator<
                     if !ctx.isInteractive {
                         self?.onPop(transaction)
                         if !isInterruptible {
-                            self?.didPop()
+                            withCATransaction {
+                                self?.didPop()
+                            }
                         }
                     }
                 } completion: { [weak self] ctx in

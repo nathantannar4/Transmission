@@ -604,36 +604,29 @@ final class PresentationLinkCoordinator<
         if count > 0 {
             animation = transaction.animation
             didPresentAnimated = false
-            if viewController.isBeingPresented,
-               let presentationController = presentationController as? PresentationController,
-               let transition = presentationController.transition
-            {
-                transition.cancel()
-                if let transitionCoordinator = viewController.transitionCoordinator {
-                    transitionCoordinator.animate { [weak self] ctx in
-                        self?.onDismiss(transaction)
-                    } completion: { [weak self] _ in
-                        self?.didDismiss()
-                    }
-                } else {
-                    onDismiss(transaction)
-                    didDismiss()
-                }
-            } else {
-                viewController._dismiss(
-                    count: count,
-                    animated: transaction.isAnimated
-                ) { [weak self] in
-                    guard self?.adapter?.viewController == viewController else { return }
+        }
+        if count > 0,
+            viewController.isBeingPresented,
+            let presentationController = presentationController as? PresentationController,
+            let transition = presentationController.transition
+        {
+            transition.cancel()
+            if let transitionCoordinator = viewController.transitionCoordinator {
+                transitionCoordinator.animate { [weak self] ctx in
+                    self?.onDismiss(transaction)
+                } completion: { [weak self] _ in
                     self?.didDismiss()
                 }
+            } else {
+                onDismiss(transaction)
+                didDismiss()
             }
         } else {
             viewController._dismiss(
                 count: count,
                 animated: transaction.isAnimated
             ) { [weak self] in
-                guard self?.adapter?.viewController == viewController else { return }
+                guard count > 0, self?.adapter?.viewController == viewController else { return }
                 self?.didDismiss()
             }
         }
@@ -712,7 +705,9 @@ final class PresentationLinkCoordinator<
                 if !ctx.isInteractive {
                     self?.onDismiss(transaction)
                     if !isInterruptible {
-                        self?.didDismiss()
+                        withCATransaction {
+                            self?.didDismiss()
+                        }
                     }
                 }
             } completion: { ctx in
@@ -1146,12 +1141,12 @@ final class PresentationLinkCoordinator<
         return presentationController
     }
 
+    #if !targetEnvironment(macCatalyst)
     func presentationController(
         _ presentationController: UIPresentationController,
         willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
         transitionCoordinator: UIViewControllerTransitionCoordinator?
     ) {
-        #if !targetEnvironment(macCatalyst)
         if #available(iOS 15.0, *) {
             if let sheetPresentationController = presentationController as? SheetPresentationController {
                 transitionCoordinator?.animate(alongsideTransition: { [weak self] _ in
@@ -1167,11 +1162,12 @@ final class PresentationLinkCoordinator<
                 })
             }
         }
-        #endif
     }
+    #endif
 
     // MARK: - UISheetPresentationControllerDelegate
 
+    #if !targetEnvironment(macCatalyst)
     @available(iOS 15.0, *)
     @available(macOS, unavailable)
     @available(tvOS, unavailable)
@@ -1225,6 +1221,7 @@ final class PresentationLinkCoordinator<
             }
         }
     }
+    #endif
 
     // MARK: - Zoom Transition
 
