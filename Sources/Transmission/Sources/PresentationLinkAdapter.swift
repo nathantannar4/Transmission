@@ -173,7 +173,7 @@ private struct PresentationLinkAdapterBody<
         in proposedSize: _ProposedSize,
         uiView: UIViewType
     ) {
-        size = uiView.sizeThatFits(ProposedSize(proposedSize))
+        size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
     static func dismantleUIView(
@@ -192,10 +192,111 @@ private struct PresentationLinkAdapterBody<
 
 @MainActor @preconcurrency
 @available(iOS 14.0, *)
+class PresentationLinkCoordinatorBase: NSObject, UIAdaptivePresentationControllerDelegate, UIViewControllerTransitioningDelegate {
+
+    // MARK: - UIAdaptivePresentationControllerDelegate
+
+    func adaptivePresentationStyle(
+        for controller: UIPresentationController
+    ) -> UIModalPresentationStyle {
+        return .none
+    }
+
+    func adaptivePresentationStyle(
+        for controller: UIPresentationController,
+        traitCollection: UITraitCollection
+    ) -> UIModalPresentationStyle {
+        return .none
+    }
+
+    @available(iOS 15.0, *)
+    func presentationController(
+        _ presentationController: UIPresentationController,
+        prepare adaptivePresentationController: UIPresentationController
+    ) {
+
+    }
+
+    func presentationController(
+        _ presentationController: UIPresentationController,
+        willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
+        transitionCoordinator: (any UIViewControllerTransitionCoordinator)?
+    ) {
+
+    }
+
+    func presentationControllerShouldDismiss(_ presentationController: UIPresentationController) -> Bool {
+        return true
+    }
+
+    func presentationControllerWillDismiss(_ presentationController: UIPresentationController) {
+
+    }
+
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+
+    }
+
+    func presentationControllerDidAttemptToDismiss(_ presentationController: UIPresentationController) {
+
+    }
+
+    // MARK: - UIViewControllerTransitioningDelegate
+
+    func presentationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController?,
+        source: UIViewController
+    ) -> UIPresentationController? {
+        return nil
+    }
+
+    func animationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController,
+        source: UIViewController
+    ) -> (any UIViewControllerAnimatedTransitioning)? {
+        return nil
+    }
+
+    func animationController(
+        forDismissed dismissed: UIViewController
+    ) -> (any UIViewControllerAnimatedTransitioning)? {
+        return nil
+    }
+
+    func interactionControllerForPresentation(
+        using animator: any UIViewControllerAnimatedTransitioning
+    ) -> (any UIViewControllerInteractiveTransitioning)? {
+        return nil
+    }
+
+    func interactionControllerForDismissal(
+        using animator: any UIViewControllerAnimatedTransitioning
+    ) -> (any UIViewControllerInteractiveTransitioning)? {
+        return nil
+    }
+}
+
+@available(iOS 15.0, *)
+extension PresentationLinkCoordinatorBase: UISheetPresentationControllerDelegate {
+
+    func sheetPresentationControllerDidChangeSelectedDetentIdentifier(
+        _ sheetPresentationController: UISheetPresentationController
+    ) {
+
+    }
+}
+
+@available(iOS 14.0, *)
+extension PresentationLinkCoordinatorBase: UIPopoverPresentationControllerDelegate { }
+
+@MainActor @preconcurrency
+@available(iOS 14.0, *)
 final class PresentationLinkCoordinator<
     Destination: View,
     Representable: UIViewRepresentable
->: NSObject, UIViewControllerTransitioningDelegate, UIAdaptivePresentationControllerDelegate, UISheetPresentationControllerDelegate, UIPopoverPresentationControllerDelegate, UIViewControllerPresentationDelegate
+>: PresentationLinkCoordinatorBase, UIViewControllerPresentationDelegate
 {
     var viewController: UIViewController? { adapter?.viewController }
 
@@ -673,7 +774,7 @@ final class PresentationLinkCoordinator<
 
     // MARK: - UIAdaptivePresentationControllerDelegate
 
-    func presentationControllerWillDismiss(
+    override func presentationControllerWillDismiss(
         _ presentationController: UIPresentationController
     ) {
         guard
@@ -723,7 +824,7 @@ final class PresentationLinkCoordinator<
         }
     }
 
-    func presentationControllerDidDismiss(
+    override func presentationControllerDidDismiss(
         _ presentationController: UIPresentationController
     ) {
         guard
@@ -744,7 +845,7 @@ final class PresentationLinkCoordinator<
         presentationController.presentingViewController.fixSwiftUIHitTesting()
     }
 
-    func presentationControllerShouldDismiss(
+    override func presentationControllerShouldDismiss(
         _ presentationController: UIPresentationController
     ) -> Bool {
         guard
@@ -792,13 +893,13 @@ final class PresentationLinkCoordinator<
         }
     }
 
-    func presentationControllerDidAttemptToDismiss(
+    override func presentationControllerDidAttemptToDismiss(
         _ presentationController: UIPresentationController
     ) {
         presentationController.presentedViewController.fixSwiftUIHitTesting()
     }
 
-    func adaptivePresentationStyle(
+    override func adaptivePresentationStyle(
         for controller: UIPresentationController
     ) -> UIModalPresentationStyle {
         adaptivePresentationStyle(
@@ -807,7 +908,7 @@ final class PresentationLinkCoordinator<
         )
     }
 
-    func adaptivePresentationStyle(
+    override func adaptivePresentationStyle(
         for controller: UIPresentationController,
         traitCollection: UITraitCollection
     ) -> UIModalPresentationStyle {
@@ -827,24 +928,23 @@ final class PresentationLinkCoordinator<
         }
     }
 
-    func presentationController(
+    @available(iOS 15.0, *)
+    override func presentationController(
         _ presentationController: UIPresentationController,
         prepare adaptivePresentationController: UIPresentationController
     ) {
         guard let adapter, presentationController == self.presentationController else { return }
         switch adapter.transition {
         case .popover(let options):
-            if #available(iOS 15.0, *) {
-                if let options = options.adaptiveTransition,
-                   let presentationController = adaptivePresentationController as? SheetPresentationController
-                {
-                    PresentationLinkTransition.SheetTransitionOptions.update(
-                        presentationController: presentationController,
-                        animation: nil,
-                        from: .init(),
-                        to: options
-                    )
-                }
+            if let options = options.adaptiveTransition,
+                let presentationController = adaptivePresentationController as? SheetPresentationController
+            {
+                PresentationLinkTransition.SheetTransitionOptions.update(
+                    presentationController: presentationController,
+                    animation: nil,
+                    from: .init(),
+                    to: options
+                )
             }
 
         case .representable(let options, let transition):
@@ -866,7 +966,7 @@ final class PresentationLinkCoordinator<
 
     // MARK: - UIViewControllerTransitioningDelegate
 
-    func animationController(
+    override func animationController(
         forPresented presented: UIViewController,
         presenting: UIViewController,
         source: UIViewController
@@ -912,7 +1012,7 @@ final class PresentationLinkCoordinator<
         }
     }
 
-    func animationController(
+    override func animationController(
         forDismissed dismissed: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
         switch adapter?.transition {
@@ -965,7 +1065,7 @@ final class PresentationLinkCoordinator<
         }
     }
 
-    func interactionControllerForPresentation(
+    override func interactionControllerForPresentation(
         using animator: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning? {
         switch adapter?.transition {
@@ -980,7 +1080,7 @@ final class PresentationLinkCoordinator<
         }
     }
 
-    func interactionControllerForDismissal(
+    override func interactionControllerForDismissal(
         using animator: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning? {
         switch adapter?.transition {
@@ -1003,7 +1103,7 @@ final class PresentationLinkCoordinator<
         }
     }
 
-    func presentationController(
+    override func presentationController(
         forPresented presented: UIViewController,
         presenting: UIViewController?,
         source: UIViewController
@@ -1142,16 +1242,16 @@ final class PresentationLinkCoordinator<
     }
 
     #if !targetEnvironment(macCatalyst)
-    func presentationController(
+    override func presentationController(
         _ presentationController: UIPresentationController,
         willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
         transitionCoordinator: UIViewControllerTransitionCoordinator?
     ) {
         if #available(iOS 15.0, *) {
-            if let sheetPresentationController = presentationController as? SheetPresentationController {
-                transitionCoordinator?.animate(alongsideTransition: { [weak self] _ in
+            if let sheetPresentationController = presentationController as? UISheetPresentationController {
+                transitionCoordinator?.animate { [weak self] _ in
                     self?.sheetPresentationControllerDidChangeSelectedDetentIdentifier(sheetPresentationController)
-                }, completion: { [weak self] ctx in
+                } completion: { [weak self] ctx in
                     guard !ctx.isCancelled, let self else { return }
                     if let panGesture = sheetPresentationController.panGesture {
                         panGesture.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
@@ -1159,7 +1259,7 @@ final class PresentationLinkCoordinator<
                     if let scrollView = sheetPresentationController.presentedViewController.contentScrollView(for: .bottom) {
                         scrollView.panGestureRecognizer.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
                     }
-                })
+                }
             }
         }
     }
@@ -1169,10 +1269,7 @@ final class PresentationLinkCoordinator<
 
     #if !targetEnvironment(macCatalyst)
     @available(iOS 15.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    func sheetPresentationControllerDidChangeSelectedDetentIdentifier(
+    override func sheetPresentationControllerDidChangeSelectedDetentIdentifier(
         _ sheetPresentationController: UISheetPresentationController
     ) {
         if case .sheet(let options) = adapter?.transition {

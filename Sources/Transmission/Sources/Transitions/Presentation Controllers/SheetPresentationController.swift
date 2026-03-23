@@ -28,7 +28,7 @@ open class MacSheetTransition: SlidePresentationControllerTransition {
 }
 
 @available(iOS 15.0, *)
-open class MacSheetPresentationController: SlidePresentationController {
+open class MacSheetPresentationController: InteractivePresentationController {
 
     public var detent: PresentationLinkTransition.SheetTransitionOptions.Detent = .large {
         didSet {
@@ -38,6 +38,8 @@ open class MacSheetPresentationController: SlidePresentationController {
 
     var selected: Binding<PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier?>?
     var largestUndimmedDetentIdentifier: PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier?
+
+    public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
 
     private var prevPresentationController: MacSheetPresentationController? {
         presentingViewController._activePresentationController as? MacSheetPresentationController
@@ -139,15 +141,8 @@ open class MacSheetPresentationController: SlidePresentationController {
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
-        let cornerRadius = preferredCornerRadius ?? .rounded(cornerRadius: 12)
-        super.init(
-            edge: .bottom,
-            prefersScaleEffect: false,
-            preferredFromCornerRadius: cornerRadius,
-            preferredToCornerRadius: cornerRadius,
-            presentedViewController: presentedViewController,
-            presenting: presentingViewController
-        )
+        self.preferredCornerRadius = preferredCornerRadius
+        super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
         presentedViewShadow = .minimal
     }
 
@@ -155,6 +150,11 @@ open class MacSheetPresentationController: SlidePresentationController {
         super.presentationTransitionWillBegin()
 
         selected?.wrappedValue = detent.identifier
+
+        if let presentedView {
+            let toCornerRadius = preferredCornerRadius ?? .screen(min: 12)
+            toCornerRadius.apply(to: presentedView)
+        }
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
             transitionCoordinator.animate(alongsideTransition: { [unowned self] _ in

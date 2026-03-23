@@ -172,7 +172,7 @@ private struct DestinationLinkAdapterBody<
         in proposedSize: _ProposedSize,
         uiView: UIViewType
     ) {
-        size = uiView.sizeThatFits(ProposedSize(proposedSize))
+        size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
     static func dismantleUIView(

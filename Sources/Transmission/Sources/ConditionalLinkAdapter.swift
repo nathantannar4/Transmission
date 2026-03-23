@@ -156,7 +156,7 @@ private struct ConditionalLinkAdapterBody<
         in proposedSize: _ProposedSize,
         uiView: UIViewType
     ) {
-        size = uiView.sizeThatFits(ProposedSize(proposedSize))
+        size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
     static func dismantleUIView(

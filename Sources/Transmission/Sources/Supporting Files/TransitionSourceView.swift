@@ -110,16 +110,8 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
         )
     }
 
-    func sizeThatFits(_ proposal: ProposedSize) -> CGSize {
-        let fittingSize = proposal
-            .replacingUnspecifiedDimensions(
-                by: CGSize(
-                    width: CGFloat.infinity,
-                    height: CGFloat.infinity
-                )
-            )
-        let size = sizeThatFits(fittingSize)
-        return size
+    func sizeThatFits(_ proposal: ProposedSize) -> CGSize? {
+        hostingView?.sizeThatFits(proposal)
     }
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {
@@ -308,7 +300,7 @@ struct TransitionSourceView_Previews: PreviewProvider {
         @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
         func sizeThatFits(
             _ proposal: ProposedViewSize,
-            uiView: TransitionSourceView<Content>,
+            uiView: UIViewType,
             context: Context
         ) -> CGSize? {
             return uiView.sizeThatFits(ProposedSize(proposal))
@@ -317,9 +309,9 @@ struct TransitionSourceView_Previews: PreviewProvider {
         func _overrideSizeThatFits(
             _ size: inout CGSize,
             in proposedSize: _ProposedSize,
-            uiView: TransitionSourceView<Content>
+            uiView: UIViewType
         ) {
-            size = uiView.sizeThatFits(ProposedSize(proposedSize))
+            size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
         }
     }
 }
