@@ -5,58 +5,16 @@
 #if os(iOS)
 
 import SwiftUI
-import Engine
-
-class ViewControllerReader: UIView {
-
-    let presentingViewController: Binding<UIViewController?>
-
-    init(presentingViewController: Binding<UIViewController?>) {
-        self.presentingViewController = presentingViewController
-        super.init(frame: .zero)
-        isHidden = true
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func sizeThatFits(_ size: CGSize) -> CGSize {
-        return size
-    }
-
-    override func didMoveToWindow() {
-        super.didMoveToWindow()
-        guard presentingViewController.wrappedValue == nil else { return }
-        let viewController = viewController
-        withCATransaction { [presentingViewController] in
-            presentingViewController.wrappedValue = viewController
-        }
-    }
-}
+import UIKit
 
 @available(iOS 14.0, *)
-struct TransitionSourceViewContent<Content: View>: View {
-    var content: Content
-    var transaction: Transaction
+open class TransitionSourceView<Content: View>: UIView {
 
-    @UpdatePhase var updatePhase
-
-    var body: some View {
-        content
-            .transaction(transaction, value: updatePhase)
-            .transaction { $0.animation = nil }
-    }
-}
-
-@available(iOS 14.0, *)
-class TransitionSourceView<Content: View>: ViewControllerReader {
-
-    var hostingView: TransitionSourceHostingView<TransitionSourceViewContent<Content>>? {
+    public var sourceView: UIView? {
         hostStorage?.hostingView
     }
 
-    enum Storage {
+    private enum Storage {
         case hostingView(TransitionSourceHostingView<TransitionSourceViewContent<Content>>)
         case hostingController(TransitionSourceHostingController<TransitionSourceViewContent<Content>>)
 
@@ -71,12 +29,15 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
     }
     private var hostStorage: Storage?
 
-    init(
-        presentingViewController: Binding<UIViewController?>,
+    private let presentingViewController: Binding<UIViewController?>?
+
+    public init(
+        presentingViewController: Binding<UIViewController?>? = nil,
         content: Content,
-        useHostingController: Bool
+        useHostingController: Bool = false
     ) {
-        super.init(presentingViewController: presentingViewController)
+        self.presentingViewController = presentingViewController
+        super.init(frame: .zero)
         if Content.self != EmptyView.self {
             isHidden = false
             let content = TransitionSourceViewContent(
@@ -94,37 +55,46 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
                 addSubview(hostingView)
                 hostStorage = .hostingView(hostingView)
             }
+        } else {
+            isHidden = true
         }
         clipsToBounds = false
     }
 
-    required init?(coder: NSCoder) {
+    public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func update(content: Content, transaction: Transaction) {
-        guard let hostingView else { return }
+    open func update(
+        content: Content,
+        transaction: Transaction,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: UIColor? = nil
+    ) {
+        guard let hostingView = hostStorage?.hostingView else { return }
+        hostingView.cornerRadius = cornerRadius
+        hostingView.backgroundColor = backgroundColor
         hostingView.content = TransitionSourceViewContent(
             content: content,
             transaction: transaction
         )
     }
 
-    func sizeThatFits(_ proposal: ProposedSize) -> CGSize? {
-        hostingView?.sizeThatFits(proposal)
+    open func sizeThatFits(_ proposal: ProposedSize) -> CGSize? {
+        hostStorage?.hostingView.sizeThatFits(proposal)
     }
 
-    override func sizeThatFits(_ size: CGSize) -> CGSize {
-        hostingView?.sizeThatFits(size) ?? super.sizeThatFits(size)
+    open override func sizeThatFits(_ size: CGSize) -> CGSize {
+        hostStorage?.hostingView.sizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        hostingView?.hitTest(point, with: event)
+    open override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        hostStorage?.hostingView.hitTest(point, with: event) ?? super.hitTest(point, with: event)
     }
 
-    override func didMoveToSuperview() {
+    open override func didMoveToSuperview() {
         super.didMoveToSuperview()
-        if hostingView != nil, let superview {
+        if hostStorage != nil, let superview {
             if let superclass = superview.superclass {
                 UIView.disableInitialImplicitFrameAnimations(aClass: superclass)
             }
@@ -132,13 +102,27 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
         }
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        hostingView?.frame = bounds
+    open override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard
+            let presentingViewController,
+            presentingViewController.wrappedValue == nil
+        else {
+            return
+        }
+        let viewController = viewController
+        withCATransaction { [presentingViewController] in
+            presentingViewController.wrappedValue = viewController
+        }
     }
 
-    override func action(for layer: CALayer, forKey event: String) -> CAAction? {
-        if let hostingView, isInitialFrameAnimationAction(for: layer, forKey: event) {
+    open override func layoutSubviews() {
+        super.layoutSubviews()
+        hostStorage?.hostingView.frame = bounds
+    }
+
+    open override func action(for layer: CALayer, forKey event: String) -> CAAction? {
+        if let hostingView = hostStorage?.hostingView, isInitialFrameAnimationAction(for: layer, forKey: event) {
             if let action = hostingView.action(for: hostingView.layer, forKey: event), action is NSNull {
                 return NSNull()
             }
@@ -148,7 +132,20 @@ class TransitionSourceView<Content: View>: ViewControllerReader {
     }
 }
 
-class TransitionSourceHostingView<Content: View>: HostingView<Content> {
+@available(iOS 14.0, *)
+private struct TransitionSourceViewContent<Content: View>: View {
+    var content: Content
+    var transaction: Transaction
+
+    @UpdatePhase var updatePhase
+
+    var body: some View {
+        content
+            .transaction(transaction, value: updatePhase)
+    }
+}
+
+private class TransitionSourceHostingView<Content: View>: HostingView<Content> {
 
     var cornerRadius: CornerRadiusOptions? {
         didSet {
@@ -171,14 +168,8 @@ class TransitionSourceHostingView<Content: View>: HostingView<Content> {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        updateLayerCornerRadius()
+        cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
         hasInitialLayout = true
-    }
-
-    private func updateLayerCornerRadius() {
-        if let cornerRadius = cornerRadius {
-            cornerRadius.apply(to: self)
-        }
     }
 
     override func action(for layer: CALayer, forKey event: String) -> CAAction? {
@@ -190,7 +181,7 @@ class TransitionSourceHostingView<Content: View>: HostingView<Content> {
     }
 }
 
-class TransitionSourceHostingController<Content: View>: UIViewController {
+private class TransitionSourceHostingController<Content: View>: UIViewController {
 
     let hostingView: TransitionSourceHostingView<Content>
 
@@ -198,7 +189,7 @@ class TransitionSourceHostingController<Content: View>: UIViewController {
         self.hostingView = TransitionSourceHostingView(content: content)
         super.init(nibName: nil, bundle: nil)
     }
-    
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }

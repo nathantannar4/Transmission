@@ -38,5 +38,32 @@ private struct ViewControllerReaderAdapterBody: UIViewRepresentable {
     func updateUIView(_ uiView: ViewControllerReader, context: Context) { }
 }
 
+class ViewControllerReader: UIView {
+
+    let presentingViewController: Binding<UIViewController?>
+
+    init(presentingViewController: Binding<UIViewController?>) {
+        self.presentingViewController = presentingViewController
+        super.init(frame: .zero)
+        isHidden = true
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        return size
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard presentingViewController.wrappedValue == nil else { return }
+        let viewController = viewController
+        withCATransaction { [presentingViewController] in
+            presentingViewController.wrappedValue = viewController
+        }
+    }
+}
 
 #endif

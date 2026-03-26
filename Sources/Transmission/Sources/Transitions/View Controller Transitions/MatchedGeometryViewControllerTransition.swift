@@ -164,7 +164,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
             }
-            fromCornerRadius.apply(to: presentedPortalView ?? presentedView, height: sourceFrame.height)
+            fromCornerRadius.apply(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
 
 
             if prefersZoomEffect {
@@ -257,9 +257,9 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
                     toCornerRadius.apply(to: sourceViewPortalView)
                 }
             } else {
-                fromCornerRadius.apply(to: presentedPortalView ?? presentedView, height: sourceFrame.height)
+                fromCornerRadius.apply(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
                 if let sourceViewPortalView {
-                    fromCornerRadius.apply(to: sourceViewPortalView, height: sourceFrame.height)
+                    fromCornerRadius.apply(to: sourceViewPortalView, size: sourceFrame.size)
                 }
             }
 

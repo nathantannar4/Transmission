@@ -146,16 +146,19 @@ private struct PresentationLinkAdapterBody<
         _ uiView: UIViewType,
         context: Context
     ) {
-        uiView.update(content: sourceView, transaction: context.transaction)
-        uiView.hostingView?.cornerRadius = cornerRadius
-        uiView.hostingView?.backgroundColor = backgroundColor?.toUIColor()
+        uiView.update(
+            content: sourceView,
+            transaction: context.transaction,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor?.toUIColor(in: context.environment)
+        )
         context.coordinator.onUpdate(
             presentingViewController: presentingViewController,
             isPresented: isPresented,
             transition: transition,
             destination: destination,
             context: context,
-            sourceView: uiView.hostingView ?? uiView
+            sourceView: uiView.sourceView ?? uiView
         )
     }
 
@@ -574,7 +577,7 @@ final class PresentationLinkCoordinator<
 
                 var presentingViewController = presentingViewController
                 if !transition.value.options.shouldAutomaticallyDismissPresentedView {
-                    while let presenting = presentingViewController.presentedViewController {
+                    while let presenting = presentingViewController.presentedViewController, !presenting.isBeingPresented, !presenting.isBeingDismissed {
                         presentingViewController = presenting
                     }
                 }
@@ -1405,7 +1408,7 @@ final class PresentationLinkCoordinator<
 
 @available(iOS 14.0, *)
 @MainActor @preconcurrency
-private class PresentationLinkDestinationViewControllerAdapter<
+class PresentationLinkDestinationViewControllerAdapter<
     Destination: View,
     Representable: UIViewRepresentable
 >: ViewControllerAdapter<Destination, Representable> {

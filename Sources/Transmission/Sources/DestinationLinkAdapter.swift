@@ -145,16 +145,19 @@ private struct DestinationLinkAdapterBody<
         _ uiView: UIViewType,
         context: Context
     ) {
-        uiView.update(content: sourceView, transaction: context.transaction)
-        uiView.hostingView?.cornerRadius = cornerRadius
-        uiView.hostingView?.backgroundColor = backgroundColor?.toUIColor()
+        uiView.update(
+            content: sourceView,
+            transaction: context.transaction,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor?.toUIColor(in: context.environment)
+        )
         context.coordinator.onUpdate(
             presentingViewController: presentingViewController,
             isPresented: isPresented,
             transition: transition,
             destination: destination,
             context: context,
-            sourceView: uiView.hostingView ?? uiView
+            sourceView: uiView.sourceView ?? uiView
         )
     }
 
@@ -1434,7 +1437,7 @@ extension UINavigationController {
 
 @available(iOS 14.0, *)
 @MainActor @preconcurrency
-private class DestinationLinkDestinationViewControllerAdapter<
+class DestinationLinkDestinationViewControllerAdapter<
     Destination: View,
     Representable: UIViewRepresentable
 >: ViewControllerAdapter<Destination, Representable> {
