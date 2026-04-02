@@ -136,17 +136,44 @@ class ContextMenuAccessoryViewAdapter<
 @available(iOS 14.0, *)
 extension View {
 
-    @MainActor
     func makeUIAccessoryView(
         interaction: UIContextMenuInteraction,
         configuration: UIContextMenuConfiguration
     ) -> UIView? {
-        let initSelector = NSSelectorFromString("initWithFrame:configuration:")
+        let hostingView = AccessoryHostingView(
+            content: AccessoryView(
+                content: self,
+                transaction: Transaction(animation: .default)
+            )
+        )
+        hostingView.disablesSafeArea = true
+
+        let accessoryView = UIContextMenuInteraction.makeUIAccessoryView(
+            contentView: hostingView,
+            layout: self as? ContextMenuAccessoryLayout,
+            interaction: interaction,
+            configuration: configuration
+        )
+        accessoryView?.accessoryHostingView = hostingView
+        return accessoryView
+    }
+}
+
+@available(iOS 14.0, *)
+extension UIContextMenuInteraction {
+
+    public static func makeUIAccessoryView(
+        contentView: UIView,
+        layout: ContextMenuAccessoryLayout? = nil,
+        interaction: UIContextMenuInteraction,
+        configuration: UIContextMenuConfiguration
+    ) -> UIView? {
         typealias Init = @convention(c) (AnyObject, Selector, CGRect, AnyObject) -> Unmanaged<UIView>
         guard
+            // initWithFrame:configuration:
+            let initSelector = NSSelectorFromBase64EncodedString("aW5pdFdpdGhGcmFtZTpjb25maWd1cmF0aW9uOg=="),
             // _UIContextMenuAccessoryView
-            let aClassName = NSStringFromBase64EncodedString("X1VJQ29udGV4dE1lbnVBY2Nlc3NvcnlWaWV3"),
-            let aClass = NSClassFromString(aClassName) as? UIView.Type,
+            let aClass = NSClassFromBase64EncodedString("X1VJQ29udGV4dE1lbnVBY2Nlc3NvcnlWaWV3") as? UIView.Type,
             aClass.instancesRespond(to: initSelector),
             let initMethod = class_getInstanceMethod(aClass, initSelector)
         else {
@@ -157,7 +184,6 @@ extension View {
         let allocSelector = NSSelectorFromString("alloc")
         guard let instance = aClass.perform(allocSelector)?.takeUnretainedValue() else { return nil }
 
-        let layout = self as? ContextMenuAccessoryLayout
         let location = layout?.location ?? .preview
         let alignment = layout?.alignment ?? {
             switch location {
@@ -167,13 +193,6 @@ extension View {
             }
         }()
 
-        let hostingView = AccessoryHostingView(
-            content: AccessoryView(
-                content: self,
-                transaction: Transaction(animation: .default)
-            )
-        )
-        hostingView.disablesSafeArea = true
 
         let fittingSize: CGSize = {
             guard let view = interaction.view, let window = view.window else { return UIScreen.main.bounds.size }
@@ -193,23 +212,26 @@ extension View {
                 )
             }
         }()
-        hostingView.frame.size = hostingView.sizeThatFits(fittingSize)
+        contentView.frame.size = contentView.sizeThatFits(fittingSize)
 
-        let uiView = `init`(instance, initSelector, hostingView.bounds, configuration).takeRetainedValue()
+        let accessoryView = `init`(instance, initSelector, contentView.bounds, configuration).takeRetainedValue()
 
-        let locationSelector = NSSelectorFromString("setLocation:")
-        if uiView.responds(to: locationSelector) {
+        // setLocation:
+        if let aSelector = NSSelectorFromBase64EncodedString("c2V0TG9jYXRpb246"),
+            accessoryView.responds(to: aSelector)
+        {
             let rawValue: Int = switch location {
             case .background: 0
             case .preview: 1
             case .menu: 2
             }
-            uiView.setValue(rawValue, forKey: "location")
+            accessoryView.setValue(rawValue, forKey: "location")
         }
 
-        let anchorSelector = NSSelectorFromString("setAnchor:")
-        if uiView.responds(to: anchorSelector),
-            let method = class_getInstanceMethod(aClass, anchorSelector)
+        // setAnchor:
+        if let aSelector = NSSelectorFromBase64EncodedString("c2V0QW5jaG9yOg=="),
+            accessoryView.responds(to: aSelector),
+            let method = class_getInstanceMethod(aClass, aSelector)
         {
             var anchor = ContextMenuAccessoryViewAnchor(
                 placement: {
@@ -239,23 +261,26 @@ extension View {
                     method_getImplementation(method),
                     to: (@convention(c) (AnyObject, Selector, UnsafeRawPointer) -> Void).self
                 )
-                setAnchor(uiView, anchorSelector, anchorPtr)
+                setAnchor(accessoryView, aSelector, anchorPtr)
             }
         }
 
-        let offsetSelector = NSSelectorFromString("setOffset:")
-        if uiView.responds(to: offsetSelector) {
+        // setOffset:
+        if let aSelector = NSSelectorFromBase64EncodedString("c2V0T2Zmc2V0Og=="),
+            accessoryView.responds(to: aSelector)
+        {
             var offset = layout?.offset ?? .zero
             if let anchor = layout?.anchor {
-                offset.x += (anchor.x - 0.5) * hostingView.frame.size.width
-                offset.y += (anchor.y - 0.5) * hostingView.frame.size.height
+                offset.x += (anchor.x - 0.5) * contentView.frame.size.width
+                offset.y += (anchor.y - 0.5) * contentView.frame.size.height
             }
-            uiView.setValue(offset, forKey: "offset")
+            accessoryView.setValue(offset, forKey: "offset")
         }
 
-
-        let trackingAxisSelector = NSSelectorFromString("setTrackingAxis:")
-        if uiView.responds(to: trackingAxisSelector) {
+        // setTrackingAxis:
+        if let aSelector = NSSelectorFromBase64EncodedString("c2V0VHJhY2tpbmdBeGlzOg=="),
+            accessoryView.responds(to: aSelector)
+        {
             let trackingAxis = layout?.trackingAxis ?? []
             var rawValue: Int = 0
             if trackingAxis.contains(.horizontal) {
@@ -264,17 +289,17 @@ extension View {
             if trackingAxis.contains(.vertical) {
                 rawValue |= 1 << 1
             }
-            uiView.setValue(rawValue, forKey: "trackingAxis")
+            accessoryView.setValue(rawValue, forKey: "trackingAxis")
         }
 
-        uiView.accessoryHostingView = hostingView
-        let container = AccessoryHostingViewContainer(
-            hostingView: hostingView,
+
+        let container = AccessoryViewContainer(
+            contentView: contentView,
             fittingSize: fittingSize
         )
-        uiView.addSubview(container)
-        container.constrain(to: uiView)
-        return uiView
+        accessoryView.addSubview(container)
+        container.constrain(to: accessoryView)
+        return accessoryView
     }
 }
 
@@ -302,15 +327,15 @@ final class AccessoryHostingView<Content: View>: HostingView<AccessoryView<Conte
 }
 
 @available(iOS 14.0, *)
-private class AccessoryHostingViewContainer: UIView {
-    let hostingView: UIView
+private class AccessoryViewContainer: UIView {
+    let contentView: UIView
     let fittingSize: CGSize
 
-    init(hostingView: UIView, fittingSize: CGSize) {
-        self.hostingView = hostingView
+    init(contentView: UIView, fittingSize: CGSize) {
+        self.contentView = contentView
         self.fittingSize = fittingSize
-        super.init(frame: hostingView.frame)
-        addSubview(hostingView)
+        super.init(frame: contentView.frame)
+        addSubview(contentView)
     }
 
     required init?(coder: NSCoder) {
@@ -319,7 +344,7 @@ private class AccessoryHostingViewContainer: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let sizeThatFits = hostingView.sizeThatFits(fittingSize)
+        let sizeThatFits = contentView.sizeThatFits(fittingSize)
         let scale = window?.screen.scale ?? 1
         let frame = CGRect(
             origin: CGPoint(
@@ -328,10 +353,10 @@ private class AccessoryHostingViewContainer: UIView {
             ),
             size: sizeThatFits
         )
-        if hostingView.frame != frame {
-            UIView.animate(withDuration: 0.35) { [hostingView] in
-                hostingView.frame = frame
-                hostingView.layoutIfNeeded()
+        if contentView.frame != frame {
+            UIView.animate(withDuration: 0.35) { [contentView] in
+                contentView.frame = frame
+                contentView.layoutIfNeeded()
             }
         }
     }

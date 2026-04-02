@@ -7,41 +7,6 @@
 import SwiftUI
 import Engine
 
-@available(iOS 16.0, *)
-public enum ContextMenuOrder {
-
-    /// The default order
-    case automatic
-
-    /// Allows the system to choose the appropriate ordering strategy for the current context.
-    case priority
-
-    /// Order menu elements according to priority. Keeping the first element in the UIMenu closest to user's interaction point.
-    case fixed
-}
-
-@available(iOS 14.0, *)
-public protocol ContextMenuProvider {
-
-    @available(iOS 16.0, *)
-    var order: ContextMenuOrder { get }
-
-    @MainActor @preconcurrency func makeUIMenu(context: Context) -> UIMenu
-
-    typealias Context = ContextMenuProviderContext
-}
-
-@frozen
-@available(iOS 14.0, *)
-public struct ContextMenuProviderContext {
-    public var environment: EnvironmentValues
-}
-
-@available(iOS 16.0, *)
-extension ContextMenuProvider {
-    public var order: ContextMenuOrder { .automatic }
-}
-
 /// A view manages the presentation of a context menu. The presentation is
 /// sourced from this view.
 ///
@@ -435,6 +400,16 @@ final class ContextMenuLinkCoordinator<
             parameters.backgroundColor = .clear
             parameters.visiblePath = UIBezierPath(rect: CGRect(origin: .zero, size: CGSize(width: sourceView.bounds.width, height: 0)))
             parameters.shadowPath = UIBezierPath()
+            let preview = UITargetedPreview(
+                view: {
+                    if #available(iOS 26.0, *) {
+                        return sourceView
+                    }
+                    return sourceView.superview ?? sourceView
+                }(),
+                parameters: parameters
+            )
+            return preview
         } else {
             parameters.backgroundColor = sourceView.backgroundColor ?? .clear
             if visibleInset != 0 {
@@ -444,12 +419,12 @@ final class ContextMenuLinkCoordinator<
             if sourceView.layer.cornerRadius < 1 {
                 parameters.shadowPath = UIBezierPath()
             }
+            let preview = UITargetedPreview(
+                view: sourceView,
+                parameters: parameters
+            )
+            return preview
         }
-        let preview = UITargetedPreview(
-            view: sourceView,
-            parameters: parameters
-        )
-        return preview
     }
 
     func contextMenuInteraction(
@@ -713,7 +688,7 @@ extension UIContextMenuInteraction {
         guard
             let aSelector,
             responds(to: aSelector),
-            let view = view
+            let view
         else {
             return
         }
