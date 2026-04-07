@@ -8,7 +8,7 @@ import UIKit
 
 extension CGAffineTransform {
 
-    init(
+    public init(
         to targetRect: CGRect,
         from sourceRect: CGRect,
         preserveAspectRatio: Bool = true

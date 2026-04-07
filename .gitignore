@@ -4,6 +4,5 @@
 /*.xcodeproj
 xcuserdata/
 DerivedData/
-/.swiftpm
 .netrc
 Package.resolved

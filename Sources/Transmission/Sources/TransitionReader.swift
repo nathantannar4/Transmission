@@ -113,17 +113,17 @@ final class TransitionReaderCoordinator: NSObject {
                 transitionViewController = toVC
             }
             transitionViewController.swizzle_beginAppearanceTransition { [weak self] in
-                self?.transitionCoordinatorDidChange()
+                self?.transitionCoordinatorDidChange(isAppearing: true)
             }
             transitionViewController.swizzle_endAppearanceTransition { [weak self] in
-                self?.transitionCoordinatorDidChange()
+                self?.transitionCoordinatorDidChange(isAppearing: false)
             }
         }
 
-        transitionCoordinatorDidChange()
+        transitionCoordinatorDidChange(isAppearing: true)
     }
 
-    private func transitionCoordinatorDidChange() {
+    private func transitionCoordinatorDidChange(isAppearing: Bool) {
         if let presentingViewController = presentingViewController {
             if let transitionCoordinator = presentingViewController.transitionCoordinator, displayLink == nil {
                 if transitionCoordinator.isInteractive {
@@ -136,7 +136,7 @@ final class TransitionReaderCoordinator: NSObject {
                         self?.transitionDidChange(ctx, isInProgress: true)
                     }
                 } else {
-                    transitionDidChange(transitionCoordinator, isInProgress: false)
+                    transitionDidChange(transitionCoordinator, isInProgress: isAppearing)
                     transitionCoordinator.animate { [weak self] ctx in
                         guard self?.displayLink == nil else { return }
                         self?.transitionDidChange(ctx, isInProgress: true)
@@ -144,7 +144,7 @@ final class TransitionReaderCoordinator: NSObject {
 
                     transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
                         guard self?.displayLink == nil else { return }
-                        self?.transitionCoordinatorDidChange()
+                        self?.transitionCoordinatorDidChange(isAppearing: isAppearing)
                     }
                 }
             } else if presentingViewController.isBeingPresented || presentingViewController.isBeingDismissed {
@@ -197,7 +197,7 @@ final class TransitionReaderCoordinator: NSObject {
             withTransaction(transaction) {
                 proxy.wrappedValue.progress = newValue
             }
-        } else if isInProgress || transitionContext.isCancelled || transitionContext.presentationStyle == .none {
+        } else if isInProgress || transitionContext.isCancelled {
             let newValue: CGFloat = transitionContext.isCancelled
                 ? isPresenting ? 0 : 1
                 : isPresenting ? 1 : 0

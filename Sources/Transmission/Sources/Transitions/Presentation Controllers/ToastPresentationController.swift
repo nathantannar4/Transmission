@@ -130,72 +130,72 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
 
         guard
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
-            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
+            let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
         else {
             transitionContext.completeTransition(false)
             return
         }
 
         if isPresenting {
+            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
             }
             presentedView.frame = presentedFrame
             presentedView.layoutIfNeeded()
+            presentedFrame = presentedView.frame
 
-            (presented as? AnyHostingController)?.render()
+            configureTransitionReaderCoordinator(
+                presented: presented,
+                presentedView: presentedView,
+                presentedFrame: &presentedFrame
+            )
 
-            if let transitionReaderCoordinator = presented.transitionReaderCoordinator {
-                transitionReaderCoordinator.update(isPresented: true)
-
-                presentedView.setNeedsLayout()
-                presentedView.layoutIfNeeded()
-
-                if let presentationController = presented.presentationController as? PresentationController {
-                    presentedFrame = presentationController.frameOfPresentedViewInContainerView
+            let transform = {
+                switch edge {
+                case .top, .leading:
+                    return CGAffineTransform(
+                        translationX: 0,
+                        y: -presentedView.frame.maxY
+                    )
+                case .bottom, .trailing:
+                    return CGAffineTransform(
+                        translationX: 0,
+                        y: transitionContext.containerView.frame.height - presentedFrame.minY
+                    )
                 }
-
-                transitionReaderCoordinator.update(isPresented: false)
-                presentedView.setNeedsLayout()
-                presentedView.layoutIfNeeded()
-                transitionReaderCoordinator.update(isPresented: true)
-            }
-
-            switch edge {
-            case .top, .leading:
-                let transform = CGAffineTransform(
-                    translationX: 0,
-                    y: -presentedView.frame.maxY
-                )
-                presentedView.frame = presentedFrame.applying(transform)
-            case .bottom, .trailing:
-                let transform = CGAffineTransform(
-                    translationX: 0,
-                    y: transitionContext.containerView.frame.height - presentedFrame.minY
-                )
-                presentedView.frame = presentedFrame.applying(transform)
-            }
+            }()
+            presentedView.transform = transform
+            presentedView.alpha = 1
             animator.addAnimations {
-                presentedView.frame = presentedFrame
+                presentedView.transform = .identity
             }
         } else {
+            if presentingView.superview == nil {
+                transitionContext.containerView.insertSubview(presentingView, at: 0)
+                presentingView.frame = transitionContext.finalFrame(for: presenting)
+                presentingView.layoutIfNeeded()
+            }
+            let frame = transitionContext.finalFrame(for: presented)
+            let dy = transitionContext.containerView.frame.height - frame.origin.y
+            let transform: CGAffineTransform = {
+                switch edge {
+                case .top, .leading:
+                    return CGAffineTransform(translationX: 0, y: -presentedView.frame.maxY)
+                case .bottom, .trailing:
+                    return CGAffineTransform(
+                        translationX: 0,
+                        y: transitionContext.containerView.frame.height - presentedView.frame.minY
+                    )
+                }
+            }()
             presentedView.layoutIfNeeded()
 
-            let finalFrame: CGRect
-            switch edge {
-            case .top, .leading:
-                let transform = CGAffineTransform(translationX: 0, y: -presentedView.frame.maxY)
-                finalFrame = presentedView.frame.applying(transform)
-            case .bottom, .trailing:
-                let transform = CGAffineTransform(
-                    translationX: 0,
-                    y: transitionContext.containerView.frame.height - presentedView.frame.minY
-                )
-                finalFrame = presentedView.frame.applying(transform)
-            }
             animator.addAnimations {
-                presentedView.frame = finalFrame
+                presentedView.transform = transform
             }
         }
         animator.addCompletion { animatingPosition in

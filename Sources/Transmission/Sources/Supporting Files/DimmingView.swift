@@ -2,6 +2,8 @@
 // Copyright (c) Nathan Tannar
 //
 
+#if os(iOS)
+
 import UIKit
 
 open class DimmingView: UIView {
@@ -18,3 +20,5 @@ open class DimmingView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 }
+
+#endif

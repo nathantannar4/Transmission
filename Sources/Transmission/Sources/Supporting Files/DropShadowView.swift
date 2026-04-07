@@ -2,6 +2,8 @@
 // Copyright (c) Nathan Tannar
 //
 
+#if os(iOS)
+
 import UIKit
 
 @available(iOS 14.0, *)
@@ -23,3 +25,5 @@ open class DropShadowView: UIView {
         layer.shadowPath = CGPath(rect: bounds, transform: nil)
     }
 }
+
+#endif

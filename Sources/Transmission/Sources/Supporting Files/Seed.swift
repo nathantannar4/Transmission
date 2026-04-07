@@ -2,11 +2,9 @@
 // Copyright (c) Nathan Tannar
 //
 
-#if os(iOS)
-
 import SwiftUI
 
-@available(iOS 14.0, *)
+@available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *)
 @usableFromInline
 enum Seed: Hashable, Sendable {
     case updatePhase(UpdatePhase.Value)
@@ -30,5 +28,3 @@ enum Seed: Hashable, Sendable {
         .constant(ObjectIdentifier(object))
     }
 }
-
-#endif

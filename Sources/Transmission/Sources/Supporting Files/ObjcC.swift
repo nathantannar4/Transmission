@@ -12,6 +12,17 @@ func NSStringFromBase64EncodedString(
     return aSelectorName
 }
 
+func NSClassFromBase64EncodedString(
+    _ aClassNameBase64Encoded: String
+) -> NSObject.Type? {
+    guard
+        let aClassName = NSStringFromBase64EncodedString(aClassNameBase64Encoded)
+    else {
+        return nil
+    }
+    return NSClassFromString(aClassName) as? NSObject.Type
+}
+
 func NSSelectorFromBase64EncodedString(
     _ aSelectorNameBase64Encoded: String
 ) -> Selector? {

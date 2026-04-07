@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import SwiftUI
 import Transmission
 
 extension PresentationLinkTransition {
@@ -37,6 +38,13 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
         context: Context
     ) {
 
+    }
+
+    func updateHostingController<Content: View>(
+        presenting: PresentationHostingController<Content>,
+        context: Context
+    ) {
+        presenting.disableSafeArea = true
     }
 
     func animationController(
@@ -115,30 +123,42 @@ class DynamicIslandPresentationController: InteractivePresentationController {
     }
 
     override func presentedViewTransform(for translation: CGPoint) -> CGAffineTransform {
-        let dy = frictionCurve(translation.y, coefficient: 0.1)
+        let dy = frictionCurve(translation.y, coefficient: 1)
         let frame = frameOfPresentedViewInContainerView
         let scale = 1 + (dy / 600)
         return CGAffineTransform(
-            scaleX: scale,
+            scaleX: 1,
             y: scale
         )
         .translatedBy(
-            x: (1 - scale) * 0.5 * frame.size.width,
-            y: 0
+            x: 0,
+            y: -(1 - scale) * 0.5 * frame.size.height
         )
+    }
+
+    override func transformPresentedView(transform: CGAffineTransform) {
+        presentedView?.transform = transform
+    }
+
+    override func transitionAlongsidePresentation(progress: CGFloat) {
+        super.transitionAlongsidePresentation(progress: progress)
+        updateCornerRadius()
     }
 
     override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-
         presentedView?.layer.cornerCurve = .continuous
-        presentedView?.layer.cornerRadius = max(UIScreen.main._displayCornerRadius - 11, 0)
+        presentedView?.layer.cornerRadius = 37 / 2
     }
 
     override func layoutPresentedView(frame: CGRect) {
         super.layoutPresentedView(frame: frame)
+        updateCornerRadius()
+    }
 
-        presentedView?.layer.cornerRadius = min(frame.size.height / 2, max(UIScreen.main._displayCornerRadius - 11, 0))
+    private func updateCornerRadius() {
+        let cornerRadius = (presentedView?.bounds.height ?? 0) / 2
+        presentedView?.layer.cornerRadius = min(cornerRadius, UIScreen.main._displayCornerRadius - 11)
     }
 }
 
@@ -150,45 +170,56 @@ class DynamicIslandPresentationControllerTransition: PresentationControllerTrans
     ) {
 
         guard
-            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from)
+            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
+            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
+            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
+            let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
         else {
             transitionContext.completeTransition(false)
             return
         }
 
-        let dynamicIslandFrame = CGRect(x: 135, y: 11, width: 123, height: 36)
-        let hostingController = presented as? AnyHostingController
-        let oldValue = hostingController?.disableSafeArea ?? false
-        hostingController?.disableSafeArea = true
-        let cornerRadius = presented.view.layer.cornerRadius
+        let dynamicIslandFrame = CGRect(
+            x: (UIScreen.main.bounds.size.width - 126) / 2,
+            y: 14,
+            width: 126,
+            height: 37
+        )
 
         if isPresenting {
-            let finalFrame = transitionContext.finalFrame(for: presented)
-            transitionContext.containerView.addSubview(presented.view)
-            presented.view.frame = dynamicIslandFrame
-            presented.view.layer.cornerRadius = dynamicIslandFrame.height / 2
-            presented.view.clipsToBounds = true
-            presented.view.layoutIfNeeded()
-            hostingController?.render()
+            presentedView.alpha = 0
+            var presentedFrame = transitionContext.finalFrame(for: presented)
+            if presentedView.superview == nil {
+                transitionContext.containerView.addSubview(presentedView)
+            }
+            presentedView.frame = presentedFrame
+            presentedView.layoutIfNeeded()
+            presentedFrame = presentedView.frame
+
+            configureTransitionReaderCoordinator(
+                presented: presented,
+                presentedView: presentedView,
+                presentedFrame: &presentedFrame
+            )
+
+            presentedView.frame = dynamicIslandFrame
+            presentedView.alpha = 1
             animator.addAnimations {
-                presented.view.frame = finalFrame
-                presented.view.layer.cornerRadius = min(finalFrame.size.height / 2, cornerRadius)
-                hostingController?.disableSafeArea = oldValue
-                presented.view.layoutIfNeeded()
+                presentedView.frame = presentedFrame
             }
         } else {
-            let initialFrame = transitionContext.initialFrame(for: presented)
-            presented.view.frame = initialFrame
-            presented.view.clipsToBounds = true
+            if presentingView.superview == nil {
+                transitionContext.containerView.insertSubview(presentingView, at: 0)
+                presentingView.frame = transitionContext.finalFrame(for: presenting)
+                presentingView.layoutIfNeeded()
+            }
+            presentedView.layoutIfNeeded()
+
             animator.addAnimations {
-                presented.view.frame = dynamicIslandFrame
-                presented.view.layer.cornerRadius = dynamicIslandFrame.height / 2
-                presented.view.layoutIfNeeded()
+                presentedView.frame = dynamicIslandFrame
             }
         }
         animator.addCompletion { animatingPosition in
-            hostingController?.disableSafeArea = oldValue
-            presented.view.layoutIfNeeded()
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

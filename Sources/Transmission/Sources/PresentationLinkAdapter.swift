@@ -574,7 +574,7 @@ final class PresentationLinkCoordinator<
 
                 var presentingViewController = presentingViewController
                 if !transition.value.options.shouldAutomaticallyDismissPresentedView {
-                    while let presenting = presentingViewController.presentedViewController {
+                    while let presenting = presentingViewController.presentedViewController, !presenting.isBeingPresented, !presenting.isBeingDismissed {
                         presentingViewController = presenting
                     }
                 }
@@ -1220,7 +1220,7 @@ final class PresentationLinkCoordinator<
             return presentationController
 
         case .zoom:
-            let presentationController = DelegatedPresentationController(
+            let presentationController = FullScreenPresentationController(
                 presentedViewController: presented,
                 presenting: presenting
             )

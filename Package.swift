@@ -8,7 +8,9 @@ let package = Package(
         .iOS(.v13),
         .macOS(.v10_15),
         .macCatalyst(.v13),
-        .visionOS(.v1),
+        .tvOS(.v13),
+        .watchOS(.v6),
+        .visionOS(.v1)
     ],
     products: [
         .library(
@@ -17,7 +19,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "2.6.2"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "2.6.5"),
     ],
     targets: [
         .target(

@@ -2,6 +2,8 @@
 // Copyright (c) Nathan Tannar
 //
 
+#if os(iOS)
+
 import SwiftUI
 
 extension EdgeInsets {
@@ -22,3 +24,5 @@ extension UIEdgeInsets {
         )
     }
 }
+
+#endif

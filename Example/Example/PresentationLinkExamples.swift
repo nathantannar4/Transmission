@@ -250,7 +250,7 @@ struct PresentationLinkExamples: View {
             Text("Examples")
                 .font(.subheadline.weight(.medium))
 
-            PresentationLink {
+            PresentationLink(transition: .sheet) {
                 TransitionReader { proxy in
                     Color.blue
                         .opacity(proxy.progress)
@@ -263,7 +263,26 @@ struct PresentationLinkExamples: View {
             } label: {
                 VStack(alignment: .leading) {
                     Text("Animate alongside presentation")
-                    Text("w/ `TransitionReader`")
+                    Text("w/ `TransitionReader` .sheet")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            }
+
+            PresentationLink(transition: .card) {
+                TransitionReader { proxy in
+                    Color.blue
+                        .opacity(proxy.progress)
+                        .overlay {
+                            Text(proxy.progress.description)
+                                .foregroundStyle(.white)
+                        }
+                        .ignoresSafeArea()
+                }
+            } label: {
+                VStack(alignment: .leading) {
+                    Text("Animate alongside presentation")
+                    Text("w/ `TransitionReader` .card")
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
