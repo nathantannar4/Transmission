@@ -245,11 +245,18 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
-    private var dropShadowView: UIView? {
-        if let lastSubview = containerView?.subviews.last, lastSubview.isDropShadowView {
-            return lastSubview
+    public var shouldAdjustDetentsForKeyboard: Bool {
+        get { shouldAdjustDetentsToAvoidKeyboard }
+        set {
+            let oldValue = shouldAdjustDetentsToAvoidKeyboard
+            guard newValue != oldValue else { return }
+            shouldAdjustDetentsToAvoidKeyboard = newValue
+            if newValue {
+                unregisterKeyboardNotifications()
+            } else {
+                registerKeyboardNotifications()
+            }
         }
-        return nil
     }
 
     public override init(
@@ -260,6 +267,10 @@ open class SheetPresentationController: UISheetPresentationController {
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     open override func presentationTransitionWillBegin() {
@@ -314,7 +325,7 @@ open class SheetPresentationController: UISheetPresentationController {
 
     private func updateBackgroundColor() {
         if let preferredBackgroundColor {
-            dropShadowView?.layer.shadowColor = preferredBackgroundColor.cgColor
+            dimmingView?.layer.shadowColor = preferredBackgroundColor.cgColor
         }
         if #available(iOS 26.0, *) {
             let hasTranslucentBackground = preferredBackgroundColor?.isTranslucent == true
@@ -337,16 +348,56 @@ open class SheetPresentationController: UISheetPresentationController {
             disableSolariumInsets = preferredPresentationSafeAreaInsets == .zero
         }
     }
-}
 
-extension UIView {
+    // MARK: - Keyboard Handling
 
-    private static let UIDropShadowView: AnyClass? = NSClassFromString("UIDropShadowView")
-    var isDropShadowView: Bool {
-        guard let aClass = Self.UIDropShadowView else {
-            return false
+    private func unregisterKeyboardNotifications() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    private func registerKeyboardNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(layoutContainerViewForKeyboardNotification(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(layoutContainerViewForKeyboardNotification(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    @objc
+    private func layoutContainerViewForKeyboardNotification(_ notification: Notification) {
+        guard
+            let userInfo = notification.userInfo,
+            let duration = userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
+            let curve = userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int
+        else {
+            return
         }
-        return isKind(of: aClass)
+        UIView.animate(
+            withDuration: duration,
+            delay: 0,
+            options: UIView.AnimationOptions(rawValue: UInt(curve << 16))
+        ) {
+            if #available(iOS 16.0, *) {
+                self.invalidateDetents()
+            }
+            self.containerView?.layoutIfNeeded()
+        }
     }
 }
 #endif
@@ -376,6 +427,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             return false
         }()
         #else
+        presentationController.shouldAdjustDetentsForKeyboard = newValue.shouldAdjustDetentsForKeyboard
         presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
         presentationController.preferredPresentationSafeAreaInsets = newValue.options.preferredPresentationSafeAreaInsets.map {
             UIEdgeInsets(edgeInsets: $0, layoutDirection: presentationController.traitCollection.layoutDirection)

@@ -519,6 +519,7 @@ extension PresentationLinkTransition {
         public var prefersEdgeAttachedInCompactHeight: Bool
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
         public var prefersPageSizing: Bool
+        public var shouldAdjustDetentsForKeyboard: Bool
         public var prefersZoomTransition: Bool
         public var zoomTransitionOptions: ZoomTransitionOptions?
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
@@ -527,7 +528,6 @@ extension PresentationLinkTransition {
             selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
             detents: [SheetTransitionOptions.Detent]? = nil,
             largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
-            isInteractive: Bool? = nil,
             prefersGrabberVisible: Bool = false,
             preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             prefersSourceViewAlignment: Bool = false,
@@ -535,15 +535,13 @@ extension PresentationLinkTransition {
             prefersEdgeAttachedInCompactHeight: Bool = false,
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
             prefersPageSizing: Bool = false,
+            shouldAdjustDetentsForKeyboard: Bool = true,
             prefersZoomTransition: Bool = false,
             zoomTransitionOptions: ZoomTransitionOptions? = nil,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
             options: Options = .init()
         ) {
             self.options = options
-            if let isInteractive {
-                self.options.isInteractive = isInteractive
-            }
             self.selected = selected
             if #available(iOS 15.0, *) {
                 self.detents = detents ?? [.large]
@@ -563,6 +561,7 @@ extension PresentationLinkTransition {
             self.prefersEdgeAttachedInCompactHeight = prefersEdgeAttachedInCompactHeight
             self.widthFollowsPreferredContentSizeWhenEdgeAttached = widthFollowsPreferredContentSizeWhenEdgeAttached
             self.prefersPageSizing = prefersPageSizing
+            self.shouldAdjustDetentsForKeyboard = shouldAdjustDetentsForKeyboard
             self.prefersZoomTransition = prefersZoomTransition
             self.zoomTransitionOptions = zoomTransitionOptions
             self.hapticsStyle = hapticsStyle

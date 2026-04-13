@@ -1157,6 +1157,7 @@ final class PresentationLinkCoordinator<
                 if #available(iOS 17.0, *) {
                     presentationController.prefersPageSizing = options.prefersPageSizing
                 }
+                presentationController.shouldAdjustDetentsForKeyboard = options.shouldAdjustDetentsForKeyboard
                 presentationController.preferredBackgroundColor = options.options.preferredPresentationBackgroundUIColor
                 let layoutDirection = (overrideTraitCollection ?? presentationController.traitCollection).layoutDirection
                 presentationController.preferredPresentationSafeAreaInsets = options.options.preferredPresentationSafeAreaInsets.map {
@@ -1472,14 +1473,15 @@ private class PresentationLinkDestinationViewControllerAdapter<
         )
         let hostingController = DestinationController(content: content.modifier(modifier))
         hostingController.sourceViewController = sourceView?.viewController as? AnyHostingController
-        transition.update(
+        configure(
             hostingController,
             context: PresentationLinkTransitionRepresentableContext(
                 sourceView: sourceView,
                 options: transition.options,
                 environment: context.environment,
                 transaction: context.transaction
-            )
+            ),
+            isUpdate: false
         )
         return hostingController
     }
@@ -1498,14 +1500,15 @@ private class PresentationLinkDestinationViewControllerAdapter<
         )
         let hostingController = viewController as! DestinationController
         hostingController.update(content: content.modifier(modifier), transaction: context.transaction)
-        transition.update(
+        configure(
             hostingController,
             context: PresentationLinkTransitionRepresentableContext(
                 sourceView: sourceView,
                 options: transition.options,
                 environment: context.environment,
                 transaction: context.transaction
-            )
+            ),
+            isUpdate: true
         )
     }
 
@@ -1533,33 +1536,29 @@ private class PresentationLinkDestinationViewControllerAdapter<
     func dismiss(_ count: Int, _ transaction: Transaction) {
         onDismiss(count, transaction)
     }
-}
 
-@available(iOS 14.0, *)
-extension PresentationLinkTransition.Value {
-
-    @MainActor @preconcurrency
-    func update<Content: View>(
+    func configure<Content: View>(
         _ viewController: PresentationHostingController<Content>,
-        context: @autoclosure () -> PresentationLinkTransitionRepresentableContext
+        context: PresentationLinkTransitionRepresentableContext,
+        isUpdate: Bool
     ) {
 
-        viewController.modalPresentationCapturesStatusBarAppearance = options.modalPresentationCapturesStatusBarAppearance
+        viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
 
         let shouldUpdateBackgroundColor = {
-            if case .popover = self {
+            if case .popover = transition {
                 return false
             }
-            if #available(iOS 26.0, *), case .sheet = self {
+            if #available(iOS 26.0, *), case .sheet = transition, isUpdate {
                 return false
             }
             return true
         }()
-        if shouldUpdateBackgroundColor, let backgroundColor = options.preferredPresentationBackgroundUIColor {
+        if shouldUpdateBackgroundColor, let backgroundColor = transition.options.preferredPresentationBackgroundUIColor {
             viewController.view.backgroundColor = backgroundColor
         }
 
-        switch self {
+        switch transition {
         case .sheet(let options):
             if #available(iOS 15.0, *) {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal || $0.resolution != nil })
@@ -1573,7 +1572,7 @@ extension PresentationLinkTransition.Value {
             viewController.tracksContentSize = true
 
         case .representable(_, let transition):
-            transition.updateHostingController(presenting: viewController, context: context())
+            transition.updateHostingController(presenting: viewController, context: context)
 
         default:
             break

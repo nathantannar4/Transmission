@@ -145,21 +145,73 @@ extension UISheetPresentationController {
         return gesture
     }
 
+    var dimmingView: UIView? {
+        guard
+            // dimmingView
+            let aSelector = NSStringFromBase64EncodedString("ZGltbWluZ1ZpZXc="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let dimmingView = value(forKey: aSelector) as? UIView
+        else {
+            return nil
+        }
+        return dimmingView
+    }
+
+    var dropShadowView: UIView? {
+        guard
+            // dropShadowView
+            let aSelector = NSStringFromBase64EncodedString("ZHJvcFNoYWRvd1ZpZXc="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let dropShadowView = value(forKey: aSelector) as? UIView
+        else {
+            return nil
+        }
+        return dropShadowView
+    }
+
     @available(iOS 26.0, *)
     var disableSolariumInsets: Bool {
         get {
-            // disableSolariumInsets
-            let aSelectorDisableSolariumInsets = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz")
-            if let aSelectorDisableSolariumInsets, responds(to: NSSelectorFromString("_" + aSelectorDisableSolariumInsets)) {
-                return value(forKey: aSelectorDisableSolariumInsets) as? Bool ?? false
+            guard
+                // disableSolariumInsets
+                let key = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz"),
+                responds(to: NSSelectorFromString("_" + key)),
+                let value = value(forKey: key) as? Bool
+            else {
+                return false
             }
-            return false
+            return value
         }
         set {
             // disableSolariumInsets
-            let aSelectorDisableSolariumInsets = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz")
-            if let aSelectorDisableSolariumInsets, responds(to: NSSelectorFromString("_" + aSelectorDisableSolariumInsets)) {
-                setValue(newValue, forKey: aSelectorDisableSolariumInsets)
+            let key = NSStringFromBase64EncodedString("ZGlzYWJsZVNvbGFyaXVtSW5zZXRz")
+            // _setDisableSolariumInsets:
+            let aSelector = NSSelectorFromBase64EncodedString("X3NldERpc2FibGVTb2xhcml1bUluc2V0czo=")
+            if let key, let aSelector, responds(to: aSelector) {
+                setValue(newValue, forKey: key)
+            }
+        }
+    }
+
+    var shouldAdjustDetentsToAvoidKeyboard: Bool {
+        get {
+            guard
+                // shouldAdjustDetentsToAvoidKeyboard
+                let key = NSStringFromBase64EncodedString("c2hvdWxkQWRqdXN0RGV0ZW50c1RvQXZvaWRLZXlib2FyZA=="),
+                responds(to: NSSelectorFromString("_" + key)),
+                let value = value(forKey: key) as? Bool
+            else {
+                return true
+            }
+            return value
+        }
+        set {
+            // shouldAdjustDetentsToAvoidKeyboard
+            let key = NSStringFromBase64EncodedString("c2hvdWxkQWRqdXN0RGV0ZW50c1RvQXZvaWRLZXlib2FyZA==")
+            // _setShouldAdjustDetentsToAvoidKeyboard:
+            let aSelector = NSSelectorFromBase64EncodedString("X3NldFNob3VsZEFkanVzdERldGVudHNUb0F2b2lkS2V5Ym9hcmQ6")
+            if let key, let aSelector, responds(to: aSelector) {
+                setValue(newValue, forKey: key)
             }
         }
     }
