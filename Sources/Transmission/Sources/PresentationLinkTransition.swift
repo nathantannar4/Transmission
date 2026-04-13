@@ -227,6 +227,13 @@ extension PresentationLinkTransition {
             }
 
             public struct ResolutionContext {
+                var ctx: Any?
+
+                @available(iOS 16.0, *)
+                public var context: UISheetPresentationControllerDetentResolutionContext? {
+                    ctx as? UISheetPresentationControllerDetentResolutionContext
+                }
+
                 /// The trait collection of the sheet's containerView. Effectively the
                 /// same as the window's traitCollection, and does not include overrides
                 /// from the sheet's overrideTraitCollection.
@@ -242,7 +249,7 @@ extension PresentationLinkTransition {
             public var identifier: Identifier
 
             var height: CGFloat?
-            var resolution: (@Sendable (ResolutionContext) -> CGFloat?)?
+            var resolution: (@MainActor @Sendable (ResolutionContext) -> CGFloat?)?
 
             public static func == (
                 lhs: PresentationLinkTransition.SheetTransitionOptions.Detent,
@@ -361,7 +368,7 @@ extension PresentationLinkTransition {
             @available(watchOS, unavailable)
             public static func custom(
                 _ identifier: Identifier,
-                resolver: @Sendable @escaping (ResolutionContext) -> CGFloat?
+                resolver: @MainActor @Sendable @escaping (ResolutionContext) -> CGFloat?
             ) -> Detent {
                 precondition(identifier.isCustom, "A custom detent identifier must be provided.")
                 return Detent(identifier: identifier, resolution: resolver)
@@ -446,6 +453,7 @@ extension PresentationLinkTransition {
                     if let resolution, #available(iOS 16.0, *)  {
                         return .custom(identifier: identifier.toUIKit()) { [unowned presentationController] context in
                             let ctx = ResolutionContext(
+                                ctx: context,
                                 containerTraitCollection: context.containerTraitCollection,
                                 maximumDetentValue: context.maximumDetentValue,
                                 idealDetentValue: {
@@ -520,6 +528,7 @@ extension PresentationLinkTransition {
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
         public var prefersPageSizing: Bool
         public var shouldAdjustDetentsForKeyboard: Bool
+        public var prefersSheetInset: Bool
         public var prefersZoomTransition: Bool
         public var zoomTransitionOptions: ZoomTransitionOptions?
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
@@ -534,8 +543,9 @@ extension PresentationLinkTransition {
             prefersScrollingExpandsWhenScrolledToEdge: Bool = true,
             prefersEdgeAttachedInCompactHeight: Bool = false,
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
-            prefersPageSizing: Bool = false,
+            prefersPageSizing: Bool = true,
             shouldAdjustDetentsForKeyboard: Bool = true,
+            prefersSheetInset: Bool = true,
             prefersZoomTransition: Bool = false,
             zoomTransitionOptions: ZoomTransitionOptions? = nil,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
@@ -562,6 +572,7 @@ extension PresentationLinkTransition {
             self.widthFollowsPreferredContentSizeWhenEdgeAttached = widthFollowsPreferredContentSizeWhenEdgeAttached
             self.prefersPageSizing = prefersPageSizing
             self.shouldAdjustDetentsForKeyboard = shouldAdjustDetentsForKeyboard
+            self.prefersSheetInset = prefersSheetInset
             self.prefersZoomTransition = prefersZoomTransition
             self.zoomTransitionOptions = zoomTransitionOptions
             self.hapticsStyle = hapticsStyle

@@ -1159,9 +1159,8 @@ final class PresentationLinkCoordinator<
                 }
                 presentationController.shouldAdjustDetentsForKeyboard = options.shouldAdjustDetentsForKeyboard
                 presentationController.preferredBackgroundColor = options.options.preferredPresentationBackgroundUIColor
-                let layoutDirection = (overrideTraitCollection ?? presentationController.traitCollection).layoutDirection
-                presentationController.preferredPresentationSafeAreaInsets = options.options.preferredPresentationSafeAreaInsets.map {
-                    UIEdgeInsets(edgeInsets: $0, layoutDirection: layoutDirection)
+                if #available(iOS 26.0, *) {
+                    presentationController.prefersSheetInset = options.prefersSheetInset
                 }
                 if #available(iOS 26.0, *),
                    options.options.preferredPresentationBackgroundColor == nil,
@@ -1560,13 +1559,15 @@ private class PresentationLinkDestinationViewControllerAdapter<
 
         switch transition {
         case .sheet(let options):
+            viewController.disableSafeArea = options.options.preferredPresentationSafeAreaInsets == .zero
             if #available(iOS 15.0, *) {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached || options.detents.contains(where: { $0.identifier == .ideal || $0.resolution != nil })
             } else {
                 viewController.tracksContentSize = options.widthFollowsPreferredContentSizeWhenEdgeAttached
             }
 
-        case .popover:
+        case .popover(let options):
+            viewController.disableSafeArea = options.options.preferredPresentationSafeAreaInsets == .zero
             viewController.view.backgroundColor = nil
             viewController.view.clipsToBounds = false
             viewController.tracksContentSize = true

@@ -238,11 +238,10 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
-    public var preferredPresentationSafeAreaInsets: UIEdgeInsets? {
-        didSet {
-            guard preferredPresentationSafeAreaInsets != oldValue else { return }
-            updatePresentedViewInset()
-        }
+    @available(iOS 26.0, *)
+    public var prefersSheetInset: Bool {
+        get { !disableSolariumInsets }
+        set { disableSolariumInsets = !newValue }
     }
 
     public var shouldAdjustDetentsForKeyboard: Bool {
@@ -251,6 +250,7 @@ open class SheetPresentationController: UISheetPresentationController {
             let oldValue = shouldAdjustDetentsToAvoidKeyboard
             guard newValue != oldValue else { return }
             shouldAdjustDetentsToAvoidKeyboard = newValue
+            guard presentedView != nil else { return }
             if newValue {
                 unregisterKeyboardNotifications()
             } else {
@@ -276,6 +276,9 @@ open class SheetPresentationController: UISheetPresentationController {
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
         updateBackgroundColor()
+        if !shouldAdjustDetentsForKeyboard {
+            registerKeyboardNotifications()
+        }
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -340,13 +343,6 @@ open class SheetPresentationController: UISheetPresentationController {
                 perform(aSelectorSetNonLargeBackground, with: hasTranslucentBackground ? UIColor.clear : nil)
             }
         }
-        updatePresentedViewInset()
-    }
-
-    private func updatePresentedViewInset() {
-        if #available(iOS 26.0, *) {
-            disableSolariumInsets = preferredPresentationSafeAreaInsets == .zero
-        }
     }
 
     // MARK: - Keyboard Handling
@@ -362,6 +358,7 @@ open class SheetPresentationController: UISheetPresentationController {
             name: UIResponder.keyboardWillHideNotification,
             object: nil
         )
+        panGesture?.removeTarget(self, action: #selector(didPan(_:)))
     }
 
     private func registerKeyboardNotifications() {
@@ -377,26 +374,91 @@ open class SheetPresentationController: UISheetPresentationController {
             name: UIResponder.keyboardWillHideNotification,
             object: nil
         )
+        panGesture?.addTarget(self, action: #selector(didPan(_:)))
+    }
+
+    @objc
+    func _shouldDismissByDragging() -> Bool {
+        if !shouldAdjustDetentsForKeyboard {
+            return false
+        }
+        guard
+            let aClass = class_getSuperclass(Self.self),
+            // _shouldDismissByDragging
+            let aSelector = NSSelectorFromBase64EncodedString("X3Nob3VsZERpc21pc3NCeURyYWdnaW5n"),
+            let imp = class_getMethodImplementation(aClass, aSelector)
+        else {
+            return true
+        }
+        typealias Fn = @convention(c) (AnyObject, Selector) -> Bool
+        let fn = unsafeBitCast(imp, to: Fn.self)
+        let shouldDismiss = fn(self, aSelector)
+        return shouldDismiss
+    }
+
+    @objc
+    private func didPan(_ gesture: UIPanGestureRecognizer) {
+        switch gesture.state {
+        case .ended:
+            guard !shouldAdjustDetentsForKeyboard else { return }
+            if presentedViewController.isBeingDismissed,
+                let transitionCoordinator = presentedViewController.transitionCoordinator,
+                !transitionCoordinator.isCancelled
+            {
+                return
+            }
+            presentedViewController.fixSwiftUIHitTesting()
+            withCATransaction {
+                self.animateChanges {
+                    self.containerView?.layoutIfNeeded()
+                }
+            }
+        default:
+            break
+        }
     }
 
     @objc
     private func layoutContainerViewForKeyboardNotification(_ notification: Notification) {
         guard
+            !presentedViewController.isBeingDismissed,
+            presentedViewController.presentedViewController == nil,
+            detents.contains(where: { $0.isDynamic }),
             let userInfo = notification.userInfo,
             let duration = userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
             let curve = userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int
         else {
             return
         }
-        UIView.animate(
-            withDuration: duration,
-            delay: 0,
-            options: UIView.AnimationOptions(rawValue: UInt(curve << 16))
+        if #available(iOS 26.0, *) {
+            layoutContainerView(duration: duration, options: UIView.AnimationOptions(rawValue: UInt(curve << 16)))
+        } else {
+            withCATransaction {
+                self.layoutContainerView(duration: duration, options: UIView.AnimationOptions(rawValue: UInt(curve << 16)))
+            }
+        }
+    }
+
+    private func layoutContainerView(
+        duration: TimeInterval,
+        options: UIView.AnimationOptions
+    ) {
+        guard let containerView else { return }
+        UIView.transition(
+            with: containerView,
+            duration: duration,
+            options:  [
+                .beginFromCurrentState,
+                .allowUserInteraction,
+                options
+            ]
         ) {
             if #available(iOS 16.0, *) {
                 self.invalidateDetents()
             }
             self.containerView?.layoutIfNeeded()
+        } completion: { [weak self] _ in
+            self?.presentedViewController.fixSwiftUIHitTesting()
         }
     }
 }
@@ -429,23 +491,29 @@ extension PresentationLinkTransition.SheetTransitionOptions {
         #else
         presentationController.shouldAdjustDetentsForKeyboard = newValue.shouldAdjustDetentsForKeyboard
         presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
-        presentationController.preferredPresentationSafeAreaInsets = newValue.options.preferredPresentationSafeAreaInsets.map {
-            UIEdgeInsets(edgeInsets: $0, layoutDirection: presentationController.traitCollection.layoutDirection)
+        if #available(iOS 26.0, *) {
+            presentationController.prefersSheetInset = newValue.prefersSheetInset
         }
         let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
         let hasChanges: Bool = {
+            if #available(iOS 17.0, *), oldValue.prefersPageSizing != newValue.prefersPageSizing {
+                return true
+            }
+            if #available(iOS 26.0, *), oldValue.prefersSheetInset != newValue.prefersSheetInset {
+                return true
+            }
             if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {
                 return true
-            } else if oldValue.largestUndimmedDetentIdentifier != newValue.largestUndimmedDetentIdentifier {
+            }
+            if oldValue.largestUndimmedDetentIdentifier != newValue.largestUndimmedDetentIdentifier {
                 return true
-            } else if let selected = selectedDetentIdentifier,
+            }
+            if let selected = selectedDetentIdentifier,
                       presentationController.selectedDetentIdentifier != selected
             {
                 return true
-            } else if oldValue.detents != detents {
-                return true
             }
-            if #available(iOS 17.0, *), oldValue.prefersPageSizing != newValue.prefersPageSizing {
+            if oldValue.detents != detents {
                 return true
             }
             return false
@@ -470,7 +538,10 @@ extension PresentationLinkTransition.SheetTransitionOptions {
                 }
                 #endif
             }
-            if let animation {
+            if let animation,
+                !presentationController.presentedViewController.isBeingPresented,
+                !presentationController.presentedViewController.isBeingDismissed
+            {
                 withCATransaction {
                     #if targetEnvironment(macCatalyst)
                     UIView.animate(with: animation) {
