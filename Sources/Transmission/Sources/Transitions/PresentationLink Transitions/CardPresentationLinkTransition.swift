@@ -111,6 +111,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
             self.hapticsStyle = hapticsStyle
         }
     }
+
     public var options: Options
 
     public init(options: Options = .init()) {

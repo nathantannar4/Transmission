@@ -11,40 +11,75 @@ import Engine
 @available(iOS 14.0, *)
 public struct DestinationLinkTransition: Sendable {
 
-    enum Value: @unchecked Sendable {
-        case `default`(Options)
-        case zoom(ZoomOptions)
-        case representable(Options, any DestinationLinkTransitionRepresentable)
-
-        var options: Options {
-            switch self {
-            case .zoom(let options):
-                return options.options
-            case .default(let options), .representable(let options, _):
-                return options
-            }
-        }
+    @frozen
+    public enum Value: Sendable {
+        case `default`
+        case zoom(ZoomDestinationLinkTransition.Options)
+        case representable(any DestinationLinkTransitionRepresentable)
     }
-    var value: Value
+
+    public var value: Value
+    public var options: Options
+
+    @inlinable
+    public init(
+        value: Value,
+        options: Options = .init()
+    ) {
+        self.value = value
+        self.options = options
+    }
+
+    @inlinable
+    public func isInteractive(_ isInteractive: Bool) -> DestinationLinkTransition {
+        var copy = self
+        copy.options.isInteractive = isInteractive
+        return copy
+    }
+
+    @inlinable
+    public func preferredColorScheme(_ preferredColorScheme: ColorScheme?) -> DestinationLinkTransition {
+        var copy = self
+        copy.options.preferredPresentationColorScheme = preferredColorScheme
+        return copy
+    }
+}
+
+
+@available(iOS 14.0, *)
+extension DestinationLinkTransition {
 
     /// The default presentation style of the `UINavigationController`.
-    public static let `default`: DestinationLinkTransition = DestinationLinkTransition(value: .default(.init()))
+    public static let `default` = DestinationLinkTransition(value: .default)
 
-    /// The zoom presentation style.
-    @available(iOS 18.0, *)
-    public static let zoom = DestinationLinkTransition(value: .zoom(.init()))
-
-    /// The zoom presentation style if available, otherwise the default transition style.
-    public static var zoomIfAvailable: DestinationLinkTransition {
-        if #available(iOS 18.0, *) {
-            return .zoom
-        }
-        return .default
+    /// The default presentation style of the `UINavigationController`.
+    public static func `default`(
+        options: DestinationLinkTransition.Options
+    ) -> DestinationLinkTransition {
+        DestinationLinkTransition(
+            value: .default,
+            options: options
+        )
     }
 
     /// A custom presentation style.
-    public static func custom<T: DestinationLinkTransitionRepresentable>(_ transition: T) -> DestinationLinkTransition {
-        DestinationLinkTransition(value: .representable(.init(), transition))
+    public static func custom<T: DestinationLinkTransitionRepresentable>(
+        _ transition: T
+    ) -> DestinationLinkTransition {
+        DestinationLinkTransition(
+            value: .representable(transition)
+        )
+    }
+
+    /// A custom presentation style.
+    public static func custom<T: DestinationLinkTransitionRepresentable>(
+        options: DestinationLinkTransition.Options,
+        _ transition: T
+    ) -> DestinationLinkTransition {
+        DestinationLinkTransition(
+            value: .representable(transition),
+            options: options
+        )
     }
 }
 
@@ -105,90 +140,6 @@ extension DestinationLinkTransition {
                 return preferredPresentationBackgroundColor?.toUIColor()
             }
         }
-    }
-
-    /// The transition options for a zoom transition.
-    @frozen
-    public struct ZoomOptions {
-        public var options: Options
-        public var zoomTransitionOptions: ZoomTransitionOptions
-
-        public init(
-            dimmingColor: Color? = nil,
-            dimmingVisualEffect: UIBlurEffect.Style? = nil,
-            prefersScalePresentingView: Bool = true,
-            options: Options = .init()
-        ) {
-            self.options = options
-            self.zoomTransitionOptions = ZoomTransitionOptions(
-                dimmingColor: dimmingColor,
-                dimmingVisualEffect: dimmingVisualEffect,
-                prefersScalePresentingView: prefersScalePresentingView
-            )
-        }
-    }
-}
-
-@available(iOS 14.0, *)
-extension DestinationLinkTransition {
-    /// The default presentation style of the `UINavigationController`.
-    public static func `default`(
-        options: DestinationLinkTransition.Options
-    ) -> DestinationLinkTransition {
-        DestinationLinkTransition(value: .default(options))
-    }
-
-    /// The zoom presentation style.
-    @available(iOS 18.0, *)
-    public static func zoom(
-        dimmingColor: Color? = nil,
-        dimmingVisualEffect: UIBlurEffect.Style? = nil,
-        prefersScalePresentingView: Bool = true,
-        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> DestinationLinkTransition {
-        DestinationLinkTransition(
-            value: .zoom(
-                .init(
-                    dimmingColor: dimmingColor,
-                    dimmingVisualEffect: dimmingVisualEffect,
-                    prefersScalePresentingView: prefersScalePresentingView,
-                    options: .init(
-                        isInteractive: isInteractive,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor,
-                        hapticsStyle: hapticsStyle
-                    )
-                )
-            )
-        )
-    }
-
-    /// The zoom presentation style.
-    @available(iOS 18.0, *)
-    public static func zoom(
-        options: ZoomOptions
-    ) -> DestinationLinkTransition {
-        DestinationLinkTransition(value: .zoom(options))
-    }
-
-    /// The zoom presentation style if available, otherwise a fallback transition style.
-    public static func zoomIfAvailable(
-        options: ZoomOptions,
-        otherwise fallback: DestinationLinkTransition = .default
-    ) -> DestinationLinkTransition {
-        if #available(iOS 18.0, *) {
-            return .zoom(options: options)
-        }
-        return fallback
-    }
-
-    /// A custom presentation style.
-    public static func custom<T: DestinationLinkTransitionRepresentable>(
-        options: DestinationLinkTransition.Options,
-        _ transition: T
-    ) -> DestinationLinkTransition {
-        DestinationLinkTransition(value: .representable(options, transition))
     }
 }
 

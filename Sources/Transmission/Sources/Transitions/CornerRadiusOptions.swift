@@ -123,20 +123,21 @@ public enum CornerRadiusOptions: Equatable, Sendable {
         }
     }
 
-    public func cornerRadius(for height: CGFloat) -> CGFloat {
+    public func cornerRadius(for size: CGSize? = nil) -> CGFloat {
         switch self {
         case .rounded(let options):
             return options.cornerRadius ?? 0
         case .circle:
-            return height / 2
+            guard let size else { return 0 }
+            return min(size.width / 2, size.height / 2)
         case .capsule(let options):
-            return options.cornerRadius(for: height)
+            return options.cornerRadius(for: size)
         }
     }
 
     public static func rounded(
         cornerRadius: CGFloat,
-        style: CALayerCornerCurve = .circular
+        style: CALayerCornerCurve = .continuous
     ) -> CornerRadiusOptions {
         .rounded(
             cornerRadius: cornerRadius,
@@ -207,37 +208,38 @@ public enum CornerRadiusOptions: Equatable, Sendable {
     @MainActor @preconcurrency
     public func apply(
         to view: UIView,
-        height: CGFloat? = nil,
+        size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
+        let size = size ?? view.bounds.size
         switch self {
         case .rounded(let options):
-            options.apply(to: view, masksToBounds: masksToBounds)
+            options.apply(to: view, size: size, masksToBounds: masksToBounds)
         case .capsule(let options):
-            options.apply(to: view, height: height ?? view.bounds.height, masksToBounds: masksToBounds)
+            options.apply(to: view, size: size, masksToBounds: masksToBounds)
         case .circle:
             #if canImport(FoundationModels) // Xcode 26
             if #available(iOS 26.0, *) {
                 view.cornerConfiguration = .capsule()
             }
             #endif
-            apply(to: view.layer, height: height ?? view.bounds.height, masksToBounds: masksToBounds)
+            apply(to: view.layer, size: size, masksToBounds: masksToBounds)
         }
     }
 
     @MainActor @preconcurrency
     public func apply(
         to layer: CALayer,
-        height: CGFloat,
+        size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
         switch self {
         case .rounded(let options):
-            options.apply(to: layer, masksToBounds: masksToBounds)
+            options.apply(to: layer, size: size, masksToBounds: masksToBounds)
         case .capsule(let options):
-            options.apply(to: layer, masksToBounds: masksToBounds)
+            options.apply(to: layer, size: size, masksToBounds: masksToBounds)
         case .circle:
-            layer.cornerRadius = cornerRadius(for: height)
+            layer.cornerRadius = cornerRadius(for: size ?? layer.bounds.size)
             layer.maskedCorners = mask
             layer.cornerCurve = style
             layer.masksToBounds = masksToBounds
@@ -250,6 +252,7 @@ extension CornerRadiusOptions.RoundedRectangle {
     @MainActor @preconcurrency
     public func apply(
         to view: UIView,
+        size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
         #if canImport(FoundationModels) // Xcode 26
@@ -265,15 +268,18 @@ extension CornerRadiusOptions.RoundedRectangle {
             )
         }
         #endif
-        apply(to: view.layer, masksToBounds: masksToBounds)
+        apply(to: view.layer, size: size ?? view.bounds.size, masksToBounds: masksToBounds)
     }
 
     @MainActor @preconcurrency
     public func apply(
         to layer: CALayer,
+        size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
-        layer.cornerRadius = cornerRadius ?? 0
+        let size = size ?? layer.bounds.size
+        let maxCornerRadius = min(size.width / 2, size.height / 2)
+        layer.cornerRadius = min(cornerRadius ?? 0, maxCornerRadius)
         layer.maskedCorners = mask
         layer.cornerCurve = style
         layer.masksToBounds = masksToBounds
@@ -285,7 +291,7 @@ extension CornerRadiusOptions.Capsule {
     @MainActor @preconcurrency
     public func apply(
         to view: UIView,
-        height: CGFloat? = nil,
+        size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
         #if canImport(FoundationModels) // Xcode 26
@@ -293,23 +299,27 @@ extension CornerRadiusOptions.Capsule {
             view.cornerConfiguration = .capsule(maximumRadius: maxCornerRadius.map { Double($0) })
         }
         #endif
-        apply(to: view.layer, height: height, masksToBounds: masksToBounds)
+        apply(to: view.layer, size: size ?? view.bounds.size, masksToBounds: masksToBounds)
     }
 
     @MainActor @preconcurrency
     public func apply(
         to layer: CALayer,
-        height: CGFloat? = nil,
+        size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
-        layer.cornerRadius = cornerRadius(for: height ?? layer.bounds.height)
+        layer.cornerRadius = cornerRadius(for: size ?? layer.bounds.size)
         layer.cornerCurve = style
     }
 
     public func cornerRadius(
-        for height: CGFloat
+        for size: CGSize? = nil
     ) -> CGFloat {
-        max(minCornerRadius ?? 0, min(height / 2, maxCornerRadius ?? height))
+        if let size {
+            let idealCornerRadius = min(size.width / 2, size.height / 2)
+            return max(min(minCornerRadius ?? 0, idealCornerRadius), min(maxCornerRadius ?? .infinity, idealCornerRadius))
+        }
+        return minCornerRadius ?? 0
     }
 }
 

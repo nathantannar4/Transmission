@@ -30,14 +30,14 @@ open class MacSheetTransition: SlidePresentationControllerTransition {
 @available(iOS 15.0, *)
 open class MacSheetPresentationController: InteractivePresentationController {
 
-    public var detent: PresentationLinkTransition.SheetTransitionOptions.Detent = .large {
+    public var detent: SheetPresentationLinkTransition.Detent = .large {
         didSet {
             dimmingView.isHidden = largestUndimmedDetentIdentifier == detent.identifier
         }
     }
 
-    var selected: Binding<PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier?>?
-    var largestUndimmedDetentIdentifier: PresentationLinkTransition.SheetTransitionOptions.Detent.Identifier?
+    var selected: Binding<SheetPresentationLinkTransition.Detent.Identifier?>?
+    var largestUndimmedDetentIdentifier: SheetPresentationLinkTransition.Detent.Identifier?
 
     public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
 
@@ -250,7 +250,6 @@ open class SheetPresentationController: UISheetPresentationController {
             let oldValue = shouldAdjustDetentsToAvoidKeyboard
             guard newValue != oldValue else { return }
             shouldAdjustDetentsToAvoidKeyboard = newValue
-            guard presentedView != nil else { return }
             if newValue {
                 unregisterKeyboardNotifications()
             } else {
@@ -276,9 +275,6 @@ open class SheetPresentationController: UISheetPresentationController {
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
         updateBackgroundColor()
-        if !shouldAdjustDetentsForKeyboard {
-            registerKeyboardNotifications()
-        }
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -286,6 +282,10 @@ open class SheetPresentationController: UISheetPresentationController {
 
         if completed {
             presentedViewController.fixSwiftUIHitTesting()
+            panGesture?.addTarget(self, action: #selector(didPan(_:)))
+            if let scrollView = presentedViewController.contentScrollView(for: .bottom) {
+                scrollView.panGestureRecognizer.addTarget(self, action: #selector(didPan(_:)))
+            }
         } else {
             delegate?.presentationControllerDidDismiss?(self)
         }
@@ -345,6 +345,37 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
+    @objc
+    private func didPan(_ gesture: UIPanGestureRecognizer) {
+        switch gesture.state {
+        case .ended:
+            if selectedDetentIdentifier == .large {
+                var shouldDismiss = gesture.velocity(in: gesture.view).y >= 4000
+                if shouldDismiss, let scrollView = gesture.view as? UIScrollView {
+                    shouldDismiss = scrollView.contentOffset.y <= scrollView.adjustedContentInset.top
+                }
+                if shouldDismiss, delegate?.presentationControllerShouldDismiss?(self) != false {
+                    presentedViewController.dismiss(animated: true)
+                }
+            } else if !shouldAdjustDetentsForKeyboard {
+                if presentedViewController.isBeingDismissed,
+                   let transitionCoordinator = presentedViewController.transitionCoordinator,
+                   !transitionCoordinator.isCancelled
+                {
+                    return
+                }
+                presentedViewController.fixSwiftUIHitTesting()
+                withCATransaction {
+                    self.animateChanges {
+                        self.containerView?.layoutIfNeeded()
+                    }
+                }
+            }
+        default:
+            break
+        }
+    }
+
     // MARK: - Keyboard Handling
 
     private func unregisterKeyboardNotifications() {
@@ -358,7 +389,6 @@ open class SheetPresentationController: UISheetPresentationController {
             name: UIResponder.keyboardWillHideNotification,
             object: nil
         )
-        panGesture?.removeTarget(self, action: #selector(didPan(_:)))
     }
 
     private func registerKeyboardNotifications() {
@@ -374,7 +404,6 @@ open class SheetPresentationController: UISheetPresentationController {
             name: UIResponder.keyboardWillHideNotification,
             object: nil
         )
-        panGesture?.addTarget(self, action: #selector(didPan(_:)))
     }
 
     @objc
@@ -394,28 +423,6 @@ open class SheetPresentationController: UISheetPresentationController {
         let fn = unsafeBitCast(imp, to: Fn.self)
         let shouldDismiss = fn(self, aSelector)
         return shouldDismiss
-    }
-
-    @objc
-    private func didPan(_ gesture: UIPanGestureRecognizer) {
-        switch gesture.state {
-        case .ended:
-            guard !shouldAdjustDetentsForKeyboard else { return }
-            if presentedViewController.isBeingDismissed,
-                let transitionCoordinator = presentedViewController.transitionCoordinator,
-                !transitionCoordinator.isCancelled
-            {
-                return
-            }
-            presentedViewController.fixSwiftUIHitTesting()
-            withCATransaction {
-                self.animateChanges {
-                    self.containerView?.layoutIfNeeded()
-                }
-            }
-        default:
-            break
-        }
     }
 
     @objc
@@ -465,14 +472,15 @@ open class SheetPresentationController: UISheetPresentationController {
 #endif
 
 @available(iOS 15.0, *)
-extension PresentationLinkTransition.SheetTransitionOptions {
+extension SheetPresentationLinkTransition.Options {
 
     @MainActor @preconcurrency
     static func update(
         presentationController: SheetPresentationController,
         animation: Animation?,
         from oldValue: Self,
-        to newValue: Self
+        to newValue: Self,
+        preferredBackgroundColor: UIColor?
     ) {
         let detents = newValue.detents
         #if targetEnvironment(macCatalyst)
@@ -489,11 +497,14 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             return false
         }()
         #else
+        presentationController.prefersScrollingExpandsWhenScrolledToEdge = newValue.prefersScrollingExpandsWhenScrolledToEdge
+        presentationController.prefersEdgeAttachedInCompactHeight = newValue.prefersEdgeAttachedInCompactHeight
+        presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = newValue.widthFollowsPreferredContentSizeWhenEdgeAttached
         presentationController.shouldAdjustDetentsForKeyboard = newValue.shouldAdjustDetentsForKeyboard
-        presentationController.preferredBackgroundColor = newValue.options.preferredPresentationBackgroundUIColor
         if #available(iOS 26.0, *) {
             presentationController.prefersSheetInset = newValue.prefersSheetInset
         }
+        presentationController.preferredBackgroundColor = preferredBackgroundColor
         let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
         let hasChanges: Bool = {
             if #available(iOS 17.0, *), oldValue.prefersPageSizing != newValue.prefersPageSizing {
@@ -505,11 +516,14 @@ extension PresentationLinkTransition.SheetTransitionOptions {
             if oldValue.preferredCornerRadius != newValue.preferredCornerRadius {
                 return true
             }
+            if oldValue.prefersGrabberVisible != newValue.prefersGrabberVisible {
+                return true
+            }
             if oldValue.largestUndimmedDetentIdentifier != newValue.largestUndimmedDetentIdentifier {
                 return true
             }
             if let selected = selectedDetentIdentifier,
-                      presentationController.selectedDetentIdentifier != selected
+                presentationController.selectedDetentIdentifier != selected
             {
                 return true
             }
@@ -532,6 +546,7 @@ extension PresentationLinkTransition.SheetTransitionOptions {
                 if let selected = newValue.selected {
                     presentationController.selectedDetentIdentifier = selected.wrappedValue?.toUIKit()
                 }
+                presentationController.prefersGrabberVisible = newValue.prefersGrabberVisible
                 presentationController.preferredCornerRadiusOptions = newValue.preferredCornerRadius
                 if #available(iOS 17.0, *) {
                     presentationController.prefersPageSizing = newValue.prefersPageSizing

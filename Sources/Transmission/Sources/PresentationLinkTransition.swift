@@ -9,61 +9,74 @@ import EngineCore
 
 /// The transition and presentation style for a ``PresentationLink`` or ``PresentationLinkModifier``.
 @available(iOS 14.0, *)
+@frozen
 public struct PresentationLinkTransition: Sendable {
 
-    enum Value: Sendable {
-        case `default`(Options)
-        case sheet(SheetTransitionOptions)
-        case currentContext(Options)
-        case fullscreen(Options)
-        case popover(PopoverTransitionOptions)
-        case zoom(ZoomOptions)
-        case representable(Options, any PresentationLinkTransitionRepresentable)
-
-        var options: Options {
-            switch self {
-            case .default(let options):
-                return options
-            case .sheet(let options):
-                return options.options
-            case .popover(let options):
-                return options.options
-            case .zoom(let options):
-                return options.options
-            case .currentContext(let options),
-                .fullscreen(let options),
-                .representable(let options, _):
-                return options
-            }
-        }
+    @frozen
+    public enum Value: Sendable {
+        case `default`
+        case sheet(SheetPresentationLinkTransition.Options)
+        case currentContext
+        case fullscreen
+        case popover(PopoverPresentationLinkTransition.Options)
+        case zoom(ZoomPresentationLinkTransition.Options)
+        case representable(any PresentationLinkTransitionRepresentable)
     }
-    var value: Value
+    public var value: Value
+    public var options: Options
+
+    @inlinable
+    public init(value: Value, options: Options = .init()) {
+        self.value = value
+        self.options = options
+    }
+
+    @inlinable
+    public func isInteractive(_ isInteractive: Bool) -> PresentationLinkTransition {
+        var copy = self
+        copy.options.isInteractive = isInteractive
+        return copy
+    }
+
+    @inlinable
+    public func preferredColorScheme(_ preferredColorScheme: ColorScheme?) -> PresentationLinkTransition {
+        var copy = self
+        copy.options.preferredPresentationColorScheme = preferredColorScheme
+        return copy
+    }
+}
+
+@available(iOS 14.0, *)
+extension PresentationLinkTransition {
 
     /// The default presentation style of the `UIViewController`.
-    public static let `default` = PresentationLinkTransition(value: .default(.init()))
+    public static let `default` = PresentationLinkTransition(value: .default)
 
-    /// The sheet presentation style.
-    public static let sheet = PresentationLinkTransition(value: .sheet(.init()))
+    /// The default presentation style of the `UIViewController`.
+    public static func `default`(
+        options: PresentationLinkTransition.Options
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .default, options: options)
+    }
 
     /// The current context presentation style.
-    public static let currentContext = PresentationLinkTransition(value: .currentContext(.init()))
+    public static let currentContext = PresentationLinkTransition(value: .currentContext)
+
+    /// The current context presentation style.
+    public static func currentContext(
+        options: PresentationLinkTransition.Options
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .currentContext, options: options)
+    }
 
     /// The fullscreen presentation style.
-    public static let fullscreen = PresentationLinkTransition(value: .fullscreen(.init()))
+    public static let fullscreen = PresentationLinkTransition(value: .fullscreen)
 
-    /// The popover presentation style.
-    public static let popover = PresentationLinkTransition(value: .popover(.init()))
-
-    /// The zoom presentation style.
-    @available(iOS 18.0, *)
-    public static let zoom = PresentationLinkTransition(value: .zoom(.init()))
-
-    /// The zoom presentation style if available, otherwise a backwards compatible variant of the matched geometry presentation style.
-    public static var zoomIfAvailable: PresentationLinkTransition {
-        if #available(iOS 18.0, *) {
-            return .zoom
-        }
-        return .matchedGeometryZoom
+    /// The fullscreen presentation style.
+    public static func fullscreen(
+        options: PresentationLinkTransition.Options
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(value: .fullscreen, options: options)
     }
 
     /// A custom presentation style.
@@ -72,7 +85,22 @@ public struct PresentationLinkTransition: Sendable {
     >(
         _ transition: T
     ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .representable(.init(), transition))
+        PresentationLinkTransition(
+            value: .representable(transition)
+        )
+    }
+
+    /// A custom presentation style.
+    public static func custom<
+        T: PresentationLinkTransitionRepresentable
+    >(
+        options: PresentationLinkTransition.Options,
+        _ transition: T
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(
+            value: .representable(transition),
+            options: options
+        )
     }
 }
 
@@ -130,807 +158,6 @@ extension PresentationLinkTransition {
                 return preferredPresentationBackgroundColor?.toUIColor()
             }
         }
-    }
-}
-
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-    /// The transition options for a sheet transition.
-    @frozen
-    public struct SheetTransitionOptions {
-        /// The detent of the sheet transition
-        @frozen
-        public struct Detent: Equatable {
-            /// The identifier of a detent
-            @frozen
-            public struct Identifier: Equatable, ExpressibleByStringLiteral, CustomDebugStringConvertible, RawRepresentable {
-                public var rawValue: String
-
-                public init(rawValue: String) {
-                    self.rawValue = rawValue
-                }
-
-                public init(_ rawValue: String) {
-                    self.rawValue = rawValue
-                }
-
-                public init(stringLiteral value: StringLiteralType) {
-                    self.init(value)
-                }
-
-                public var debugDescription: String {
-                    if #available(iOS 15.0, *) {
-                        switch self {
-                        case .large:
-                            return "large"
-                        case .medium:
-                            return "medium"
-                        default:
-                            return rawValue
-                        }
-                    }
-                    return rawValue
-                }
-
-                var isCustom: Bool {
-                    if #available(iOS 15.0, *) {
-                        switch self {
-                        case .large, .medium, .ideal:
-                            return false
-                        default:
-                            break
-                        }
-                    }
-                    if #available(iOS 18.0, *), self == .fullScreen {
-                        return false
-                    }
-                    return true
-                }
-
-                @available(iOS 18.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
-                public static let fullScreen = Identifier("com.apple.UIKit.full")
-
-                @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
-                public static let large = Identifier(UISheetPresentationController.Detent.Identifier.large.rawValue)
-
-                @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
-                public static let medium = Identifier(UISheetPresentationController.Detent.Identifier.medium.rawValue)
-
-                @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
-                public static let small = Identifier("Transmission.small")
-
-                @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
-                public static let ideal = Identifier("Transmission.ideal")
-
-                @available(iOS 15.0, *)
-                @available(macOS, unavailable)
-                @available(tvOS, unavailable)
-                @available(watchOS, unavailable)
-                func toUIKit() -> UISheetPresentationController.Detent.Identifier {
-                    .init(rawValue: rawValue)
-                }
-            }
-
-            public struct ResolutionContext {
-                var ctx: Any?
-
-                @available(iOS 16.0, *)
-                public var context: UISheetPresentationControllerDetentResolutionContext? {
-                    ctx as? UISheetPresentationControllerDetentResolutionContext
-                }
-
-                /// The trait collection of the sheet's containerView. Effectively the
-                /// same as the window's traitCollection, and does not include overrides
-                /// from the sheet's overrideTraitCollection.
-                public let containerTraitCollection: UITraitCollection
-
-                /// The maximum value a detent can have.
-                public let maximumDetentValue: CGFloat
-
-                /// The ideal value a detent would have.
-                public let idealDetentValue: () -> CGFloat
-            }
-
-            public var identifier: Identifier
-
-            var height: CGFloat?
-            var resolution: (@MainActor @Sendable (ResolutionContext) -> CGFloat?)?
-
-            public static func == (
-                lhs: PresentationLinkTransition.SheetTransitionOptions.Detent,
-                rhs: PresentationLinkTransition.SheetTransitionOptions.Detent
-            ) -> Bool {
-                if lhs.identifier != rhs.identifier {
-                    return false
-                }
-                if lhs.height != rhs.height {
-                    return false
-                }
-                if (lhs.resolution != nil && rhs.resolution == nil) || (lhs.resolution == nil && rhs.resolution != nil) {
-                    return false
-                }
-                return true
-            }
-
-            /// Creates a full screen detent.
-            @available(iOS 18.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static let fullScreen = Detent(identifier: .fullScreen)
-
-            /// Creates a large detent.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static let large = Detent(identifier: .large)
-
-            /// Creates a full screen detent if preferred and available, otherwise the large detent.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static func large(prefersFullScreen: Bool = false) -> Detent {
-                if prefersFullScreen, #available(iOS 18.0, *) {
-                    return .fullScreen
-                }
-                return .large
-            }
-
-            /// Creates a medium detent.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static let medium = Detent(identifier: .medium)
-
-            /// Creates a small detent.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static let small = Detent(identifier: .small, height: 160)
-
-            /// Creates a detent with an auto-resolved height of the views ideal size.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static let ideal = Detent(identifier: .ideal) { ctx in
-                return ctx.idealDetentValue()
-            }
-
-            /// Creates a detent with an auto-resolved height of the views ideal size bounded between a min/max.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static func ideal(
-                minimum: CGFloat? = nil,
-                maximum: CGFloat? = nil
-            ) -> Detent {
-                return Detent(identifier: .ideal) { ctx in
-                    let ideal = ctx.idealDetentValue()
-                    let minimum = minimum ?? ideal
-                    let maximum = maximum ?? ctx.maximumDetentValue
-                    return max(minimum, min(ideal, maximum))
-                }
-            }
-
-            /// Creates a detent with a constant height.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static func constant(
-                _ identifier: Identifier,
-                height: CGFloat
-            ) -> Detent {
-                precondition(identifier.isCustom, "A custom detent identifier must be provided.")
-                return Detent(identifier: identifier, height: height)
-            }
-
-            /// Creates a detent with a height relative to the maximum detent height.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static func percentage(
-                _ identifier: Identifier,
-                multiplier: CGFloat
-            ) -> Detent {
-                precondition(identifier.isCustom, "A custom detent identifier must be provided.")
-                return Detent(identifier: identifier) { ctx in
-                    return ctx.maximumDetentValue * multiplier
-                }
-            }
-
-            /// Creates a detent that's height is lazily resolved.
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            public static func custom(
-                _ identifier: Identifier,
-                resolver: @MainActor @Sendable @escaping (ResolutionContext) -> CGFloat?
-            ) -> Detent {
-                precondition(identifier.isCustom, "A custom detent identifier must be provided.")
-                return Detent(identifier: identifier, resolution: resolver)
-            }
-
-            @available(iOS 15.0, *)
-            @available(macOS, unavailable)
-            @available(tvOS, unavailable)
-            @available(watchOS, unavailable)
-            @MainActor
-            public func toUIKit(
-                in presentationController: UISheetPresentationController
-            ) -> UISheetPresentationController.Detent {
-                switch identifier {
-                case .large:
-                    return .large()
-                case .medium:
-                    return .medium()
-                default:
-                    if #available(iOS 18.0, *), self == .fullScreen {
-                        return .fullScreen() ?? .large()
-                    }
-                    let idealResolution: @MainActor (UISheetPresentationController) -> CGFloat = { presentationController in
-                        let scale = presentationController.presentedView?.window?.screen.scale ?? 1.0
-                        guard let containerView = presentationController.containerView else {
-                            let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height
-                            return idealHeight.rounded(scale: scale)
-                        }
-                        let width = containerView.frame.width
-                        @MainActor
-                        func idealHeight(for viewController: UIViewController) -> CGFloat {
-                            func innerIdealHeight(for viewController: UIViewController) -> CGFloat? {
-                                if let navigationController = viewController as? UINavigationController,
-                                   let topViewController = navigationController.topViewController
-                                {
-                                    return idealHeight(for: topViewController)
-                                } else if let splitViewController = viewController as? UISplitViewController,
-                                          let topViewController = splitViewController.viewController(for: .primary)
-                                {
-                                    return idealHeight(for: topViewController)
-                                } else if let tabBarController = viewController as? UITabBarController,
-                                          let selectedViewController = tabBarController.selectedViewController
-                                {
-                                    return idealHeight(for: selectedViewController)
-                                } else if let pageViewController = viewController as? UIPageViewController,
-                                          let selectedViewController = pageViewController.viewControllers?.first
-                                {
-                                    return idealHeight(for: selectedViewController)
-                                }
-                                return nil
-                            }
-
-                            // Edge cases for when the presentedViewController does not have an ideal height
-                            var height: CGFloat = 0
-                            if let idealHeight = innerIdealHeight(for: viewController) {
-                                height = idealHeight
-                            } else if viewController is AnyHostingController,
-                                viewController.children.count == 1,
-                                let idealHeight = innerIdealHeight(for: viewController.children[0])
-                            {
-                                height = idealHeight
-                            }
-                            if height == 0 {
-                                let bottomSafeArea = viewController.view.safeAreaInsets.bottom
-                                height = viewController.view.idealHeight(for: width)
-                                if height <= bottomSafeArea {
-                                    height = containerView.frame.height
-                                }
-                                height -= bottomSafeArea
-                                if #available(iOS 26.0, *), !presentationController.disableSolariumInsets {
-                                    // 150 is the minimum before safe area gets wonky
-                                    height = max(height, 151)
-                                }
-                            }
-                            return height.rounded(scale: scale)
-                        }
-
-                        let idealHeight = idealHeight(for: presentationController.presentedViewController)
-                        return idealHeight
-                    }
-
-                    if let resolution, #available(iOS 16.0, *)  {
-                        return .custom(identifier: identifier.toUIKit()) { [unowned presentationController] context in
-                            let ctx = ResolutionContext(
-                                ctx: context,
-                                containerTraitCollection: context.containerTraitCollection,
-                                maximumDetentValue: context.maximumDetentValue,
-                                idealDetentValue: {
-                                    idealResolution(presentationController)
-                                }
-                            )
-                            let resolved = resolution(ctx)
-                            return min(ceil(resolved ?? ctx.maximumDetentValue), ctx.maximumDetentValue)
-                        }
-                    }
-                    var constant: CGFloat?
-                    if let resolution, let maximumDetentValue = presentationController.maximumDetentValue {
-                        let ctx = ResolutionContext(
-                            containerTraitCollection: presentationController.traitCollection,
-                            maximumDetentValue: maximumDetentValue,
-                            idealDetentValue: { [unowned presentationController] in
-                                idealResolution(presentationController)
-                            }
-                        )
-                        let resolved = resolution(ctx)
-                        constant = resolved.map { min(ceil($0), maximumDetentValue) }
-                    } else {
-                        constant = height
-                    }
-                    guard let constant else { return .large() }
-                    // _detentWithIdentifier:constant:
-                    let aSelector = NSSelectorFromBase64EncodedString("X2RldGVudFdpdGhJZGVudGlmaWVyOmNvbnN0YW50Og==")
-                    guard UISheetPresentationController.Detent.responds(to: aSelector) else {
-                        if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
-                            return .custom(identifier: identifier.toUIKit()) { context in
-                                return constant
-                            }
-                        }
-                        return .large()
-                    }
-                    let result = UISheetPresentationController.Detent.perform(
-                        aSelector,
-                        with: identifier.rawValue,
-                        with: constant
-                    )
-                    guard let detent = result?.takeUnretainedValue() as? UISheetPresentationController.Detent else {
-                        return .large()
-                    }
-                    if let resolution {
-                        detent.resolution = { containerTraitCollection, maximumDetentValue in
-                            let ctx = ResolutionContext(
-                                containerTraitCollection: containerTraitCollection,
-                                maximumDetentValue: maximumDetentValue,
-                                idealDetentValue: { [unowned presentationController] in
-                                    idealResolution(presentationController)
-                                }
-                            )
-                            let max = maximumDetentValue
-                            let resolved = resolution(ctx)
-                            return min(ceil(resolved ?? max), max)
-                        }
-                    }
-                    return detent
-                }
-            }
-        }
-
-        public var options: Options
-        public var selected: Binding<Detent.Identifier?>?
-        public var detents: [Detent]
-        public var largestUndimmedDetentIdentifier: Detent.Identifier?
-        public var prefersGrabberVisible: Bool
-        public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
-        public var prefersSourceViewAlignment: Bool
-        public var prefersScrollingExpandsWhenScrolledToEdge: Bool
-        public var prefersEdgeAttachedInCompactHeight: Bool
-        public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
-        public var prefersPageSizing: Bool
-        public var shouldAdjustDetentsForKeyboard: Bool
-        public var prefersSheetInset: Bool
-        public var prefersZoomTransition: Bool
-        public var zoomTransitionOptions: ZoomTransitionOptions?
-        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
-
-        public init(
-            selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
-            detents: [SheetTransitionOptions.Detent]? = nil,
-            largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
-            prefersGrabberVisible: Bool = false,
-            preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-            prefersSourceViewAlignment: Bool = false,
-            prefersScrollingExpandsWhenScrolledToEdge: Bool = true,
-            prefersEdgeAttachedInCompactHeight: Bool = false,
-            widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
-            prefersPageSizing: Bool = true,
-            shouldAdjustDetentsForKeyboard: Bool = true,
-            prefersSheetInset: Bool = true,
-            prefersZoomTransition: Bool = false,
-            zoomTransitionOptions: ZoomTransitionOptions? = nil,
-            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-            options: Options = .init()
-        ) {
-            self.options = options
-            self.selected = selected
-            if #available(iOS 15.0, *) {
-                self.detents = detents ?? [.large]
-            } else {
-                self.detents = []
-            }
-            self.largestUndimmedDetentIdentifier = largestUndimmedDetentIdentifier
-            self.prefersGrabberVisible = prefersGrabberVisible
-            self.preferredCornerRadius = {
-                if let preferredCornerRadius {
-                    return preferredCornerRadius
-                }
-                return prefersZoomTransition ? MainActor.assumeIsolated({.screen()}) : nil
-            }()
-            self.prefersSourceViewAlignment = prefersSourceViewAlignment
-            self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
-            self.prefersEdgeAttachedInCompactHeight = prefersEdgeAttachedInCompactHeight
-            self.widthFollowsPreferredContentSizeWhenEdgeAttached = widthFollowsPreferredContentSizeWhenEdgeAttached
-            self.prefersPageSizing = prefersPageSizing
-            self.shouldAdjustDetentsForKeyboard = shouldAdjustDetentsForKeyboard
-            self.prefersSheetInset = prefersSheetInset
-            self.prefersZoomTransition = prefersZoomTransition
-            self.zoomTransitionOptions = zoomTransitionOptions
-            self.hapticsStyle = hapticsStyle
-        }
-    }
-
-    @frozen
-    public struct PopoverTransitionOptions {
-        public typealias PermittedArrowDirections = Edge.Set
-
-        public var options: Options
-        public var dimmingColor: Color?
-        public var permittedArrowDirections: PermittedArrowDirections
-        public var canOverlapSourceViewRect: Bool
-        public var isPassthrough: Bool
-        public var adaptiveTransition: SheetTransitionOptions?
-
-        public init(
-            dimmingColor: Color? = nil,
-            permittedArrowDirections: PermittedArrowDirections = .all,
-            canOverlapSourceViewRect: Bool = false,
-            isPassthrough: Bool = false,
-            adaptiveTransition: SheetTransitionOptions? = nil,
-            isInteractive: Bool? = nil,
-            options: PresentationLinkTransition.Options = .init()
-        ) {
-            self.options = options
-            if let isInteractive {
-                self.options.isInteractive = isInteractive
-            }
-            self.dimmingColor = dimmingColor
-            self.permittedArrowDirections = permittedArrowDirections
-            self.canOverlapSourceViewRect = canOverlapSourceViewRect
-            self.isPassthrough = isPassthrough
-            self.adaptiveTransition = adaptiveTransition
-        }
-
-        func permittedArrowDirections(layoutDirection: UITraitEnvironmentLayoutDirection) -> UIPopoverArrowDirection {
-            if permittedArrowDirections == .all {
-                return .any
-            }
-            var directions: UIPopoverArrowDirection = []
-            if permittedArrowDirections.contains(.top) {
-                directions.insert(.up)
-            }
-            if permittedArrowDirections.contains(.bottom) {
-                directions.insert(.down)
-            }
-            if permittedArrowDirections.contains(.leading) {
-                directions.insert(layoutDirection == .leftToRight ? .left : .right)
-            }
-            if permittedArrowDirections.contains(.trailing) {
-                directions.insert(layoutDirection == .leftToRight ? .right : .left)
-            }
-            return directions
-        }
-    }
-
-    /// The transition options for a zoom transition.
-    @frozen
-    public struct ZoomOptions {
-        public var options: Options
-        public var zoomTransitionOptions: ZoomTransitionOptions
-        public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
-
-        public var dimmingColor: Color? {
-            get { zoomTransitionOptions.dimmingColor }
-            set { zoomTransitionOptions.dimmingColor = newValue }
-        }
-
-        public var dimmingVisualEffect: UIBlurEffect.Style? {
-            get { zoomTransitionOptions.dimmingVisualEffect }
-            set { zoomTransitionOptions.dimmingVisualEffect = newValue }
-        }
-
-        public var prefersScalePresentingView: Bool {
-            get { zoomTransitionOptions.prefersScalePresentingView }
-            set { zoomTransitionOptions.prefersScalePresentingView = newValue }
-        }
-
-        public init(
-            dimmingColor: Color? = nil,
-            dimmingVisualEffect: UIBlurEffect.Style? = nil,
-            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-            prefersScalePresentingView: Bool = true,
-            options: Options = .init()
-        ) {
-            self.options = options
-            self.zoomTransitionOptions = ZoomTransitionOptions(
-                dimmingColor: dimmingColor,
-                dimmingVisualEffect: dimmingVisualEffect,
-                prefersScalePresentingView: prefersScalePresentingView
-            )
-            self.hapticsStyle = hapticsStyle
-        }
-    }
-}
-
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-
-    /// The default presentation style of the `UIViewController`.
-    public static func `default`(
-        options: PresentationLinkTransition.Options
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .default(options))
-    }
-
-    /// The sheet presentation style.
-    @_disfavoredOverload
-    public static func sheet(
-        detent: SheetTransitionOptions.Detent,
-        prefersGrabberVisible: Bool = false,
-        preferredCornerRadius: CGFloat? = nil,
-        prefersZoomTransition: Bool = false,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .sheet(
-                .init(
-                    detents: [detent],
-                    prefersGrabberVisible: prefersGrabberVisible,
-                    preferredCornerRadius: preferredCornerRadius.map { .containerConcentric(minimum: $0) },
-                    prefersEdgeAttachedInCompactHeight: {
-                        if #available(iOS 26.0, *) {
-                            return detent.identifier == .ideal
-                        }
-                        return false
-                    }(),
-                    prefersZoomTransition: prefersZoomTransition,
-                    options: .init(
-                        isInteractive: isInteractive,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-                    )
-                )
-            )
-        )
-    }
-
-    /// The sheet presentation style.
-    public static func sheet(
-        detent: SheetTransitionOptions.Detent,
-        prefersGrabberVisible: Bool = false,
-        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-        prefersZoomTransition: Bool = false,
-        zoomTransitionOptions: ZoomTransitionOptions? = nil,
-        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-        isInteractive: Bool = true,
-        preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .sheet(
-                .init(
-                    detents: [detent],
-                    prefersGrabberVisible: prefersGrabberVisible,
-                    preferredCornerRadius: preferredCornerRadius,
-                    prefersZoomTransition: prefersZoomTransition,
-                    zoomTransitionOptions: zoomTransitionOptions,
-                    hapticsStyle: hapticsStyle,
-                    options: .init(
-                        isInteractive: isInteractive,
-                        preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-                    )
-                )
-            )
-        )
-    }
-
-    /// The sheet presentation style.
-    @_disfavoredOverload
-    public static func sheet(
-        selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
-        detents: [SheetTransitionOptions.Detent],
-        prefersGrabberVisible: Bool = false,
-        preferredCornerRadius: CGFloat? = nil,
-        largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
-        prefersZoomTransition: Bool = false,
-        isInteractive: Bool = true,
-        preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .sheet(
-                .init(
-                    selected: selected,
-                    detents: detents,
-                    largestUndimmedDetentIdentifier: largestUndimmedDetentIdentifier,
-                    prefersGrabberVisible: prefersGrabberVisible,
-                    preferredCornerRadius: preferredCornerRadius.map { .containerConcentric(minimum: $0) },
-                    prefersZoomTransition: prefersZoomTransition,
-                    options: .init(
-                        isInteractive: isInteractive,
-                        preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-                    )
-                )
-            )
-        )
-    }
-
-    /// The sheet presentation style.
-    public static func sheet(
-        selected: Binding<SheetTransitionOptions.Detent.Identifier?>? = nil,
-        detents: [SheetTransitionOptions.Detent],
-        prefersGrabberVisible: Bool = false,
-        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-        largestUndimmedDetentIdentifier: SheetTransitionOptions.Detent.Identifier? = nil,
-        prefersZoomTransition: Bool = false,
-        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .sheet(
-                .init(
-                    selected: selected,
-                    detents: detents,
-                    largestUndimmedDetentIdentifier: largestUndimmedDetentIdentifier,
-                    prefersGrabberVisible: prefersGrabberVisible,
-                    preferredCornerRadius: preferredCornerRadius,
-                    prefersZoomTransition: prefersZoomTransition,
-                    hapticsStyle: hapticsStyle,
-                    options: .init(
-                        isInteractive: isInteractive,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-                    )
-                )
-            )
-        )
-    }
-
-    /// The sheet presentation style.
-    public static func sheet(
-        options: SheetTransitionOptions
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .sheet(options))
-    }
-
-    /// The current context presentation style.
-    public static func currentContext(
-        options: PresentationLinkTransition.Options
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .currentContext(options))
-    }
-
-    /// The fullscreen presentation style.
-    public static func fullscreen(
-        options: PresentationLinkTransition.Options
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .fullscreen(options))
-    }
-
-    /// The popover presentation style.
-    public static func popover(
-        dimmingColor: Color? = nil,
-        permittedArrowDirections: PresentationLinkTransition.PopoverTransitionOptions.PermittedArrowDirections = .all,
-        canOverlapSourceViewRect: Bool = false,
-        isPassthrough: Bool = false,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .popover(
-                .init(
-                    dimmingColor: dimmingColor,
-                    permittedArrowDirections: permittedArrowDirections,
-                    canOverlapSourceViewRect: canOverlapSourceViewRect,
-                    isPassthrough: isPassthrough,
-                    options: .init(
-                        isInteractive: isInteractive,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-                    )
-                )
-            )
-        )
-    }
-
-    /// The popover presentation style.
-    public static func popover(
-        options: PopoverTransitionOptions
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .popover(options))
-    }
-
-    /// The zoom presentation style.
-    @available(iOS 18.0, *)
-    public static func zoom(
-        dimmingColor: Color? = nil,
-        dimmingVisualEffect: UIBlurEffect.Style? = nil,
-        prefersScalePresentingView: Bool = true,
-        hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(
-            value: .zoom(
-                .init(
-                    dimmingColor: dimmingColor,
-                    dimmingVisualEffect: dimmingVisualEffect,
-                    hapticsStyle: hapticsStyle,
-                    prefersScalePresentingView: prefersScalePresentingView,
-                    options: .init(
-                        isInteractive: isInteractive,
-                        preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-                    )
-                )
-            )
-        )
-    }
-
-    /// The zoom presentation style.
-    @available(iOS 18.0, *)
-    public static func zoom(
-        options: ZoomOptions
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .zoom(options))
-    }
-
-    /// The zoom presentation style if available, otherwise a backwards compatible variant of the matched geometry presentation style.
-    public static func zoomIfAvailable(
-        options: ZoomOptions
-    ) -> PresentationLinkTransition {
-        if #available(iOS 18.0, *) {
-            return .zoom(options: options)
-        }
-        return .matchedGeometry(
-            .init(
-                prefersScaleEffect: true,
-                prefersZoomEffect: true,
-                initialOpacity: 0,
-                preferredPresentationShadow: options.options.preferredPresentationBackgroundColor == .clear ? .clear : .prominent
-            ),
-            options: options.options
-        )
-    }
-
-    /// The zoom presentation style if available, otherwise a fallback transition style.
-    public static func zoomIfAvailable(
-        options: ZoomOptions,
-        otherwise fallback: PresentationLinkTransition
-    ) -> PresentationLinkTransition {
-        if #available(iOS 18.0, *) {
-            return .zoom(options: options)
-        }
-        return fallback
-    }
-
-    /// A custom presentation style.
-    public static func custom<
-        T: PresentationLinkTransitionRepresentable
-    >(
-        options: PresentationLinkTransition.Options,
-        _ transition: T
-    ) -> PresentationLinkTransition {
-        PresentationLinkTransition(value: .representable(options, transition))
     }
 }
 

@@ -191,5 +191,52 @@ extension DestinationSourceViewLink {
     }
 }
 
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct DestinationSourceViewLink_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            VStack {
+                let label = ZStack {
+                    Color.red
+
+                    Text("Present")
+                }
+                .overlay(
+                    Text("Badge")
+                        .padding(2)
+                        .background(Capsule().fill(Color.yellow))
+                        .offset(x: 12, y: 12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                )
+
+                // No clipping, cornerRadius is just used for the transition
+                DestinationSourceViewLink(
+                    transition: .zoomIfAvailable,
+                    cornerRadius: .rounded(cornerRadius: 12)
+                ) {
+                    Text("Destination")
+                } label: {
+                    label
+                }
+                .frame(width: 100, height: 100)
+
+                // Clips if a backgroundColor is applied
+                DestinationSourceViewLink(
+                    transition: .zoomIfAvailable,
+                    cornerRadius: .rounded(cornerRadius: 12),
+                    backgroundColor: .clear
+                ) {
+                    Text("Destination")
+                } label: {
+                    label
+                }
+                .frame(width: 100, height: 100)
+            }
+        }
+    }
+}
+
 
 #endif

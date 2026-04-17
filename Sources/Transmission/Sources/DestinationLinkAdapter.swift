@@ -130,7 +130,7 @@ private struct DestinationLinkAdapterBody<
                 switch transition.value {
                 case .zoom(let options):
                     if #unavailable(iOS 26.0) {
-                        return !options.zoomTransitionOptions.prefersScalePresentingView
+                        return !options.prefersScalePresentingView
                     }
                     return false
                 default:
@@ -145,16 +145,19 @@ private struct DestinationLinkAdapterBody<
         _ uiView: UIViewType,
         context: Context
     ) {
-        uiView.update(content: sourceView, transaction: context.transaction)
-        uiView.hostingView?.cornerRadius = cornerRadius
-        uiView.hostingView?.backgroundColor = backgroundColor?.toUIColor()
+        uiView.update(
+            content: sourceView,
+            transaction: context.transaction,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor?.toUIColor(in: context.environment)
+        )
         context.coordinator.onUpdate(
             presentingViewController: presentingViewController,
             isPresented: isPresented,
             transition: transition,
             destination: destination,
             context: context,
-            sourceView: uiView.hostingView ?? uiView
+            sourceView: uiView.sourceView ?? uiView
         )
     }
 
@@ -238,7 +241,7 @@ final class DestinationLinkCoordinator<
 
             let traits = UITraitCollection(
                 traitsFrom: [
-                    UITraitCollection(userInterfaceStyle: .init(transition.value.options.preferredPresentationColorScheme))
+                    UITraitCollection(userInterfaceStyle: .init(transition.options.preferredPresentationColorScheme))
                 ]
             )
 
@@ -247,7 +250,7 @@ final class DestinationLinkCoordinator<
                     traits,
                     forChild: adapter.viewController
                 )
-                adapter.transition = transition.value
+                adapter.transition = transition
                 adapter.update(
                     destination: destination,
                     context: context,
@@ -257,7 +260,7 @@ final class DestinationLinkCoordinator<
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
                     sourceView: sourceView,
-                    transition: transition.value,
+                    transition: transition,
                     context: context,
                     navigationController: navigationController,
                     isPresented: isPresented,
@@ -266,13 +269,13 @@ final class DestinationLinkCoordinator<
                     }
                 )
                 self.adapter = adapter
-                switch adapter.transition {
+                switch adapter.transition.value {
                 case .`default`:
                     break
 
                 case .zoom(let options):
                     if #available(iOS 18.0, *) {
-                        let zoomOptions = options.zoomTransitionOptions.toUIKit()
+                        let zoomOptions = options.toUIKit()
                         zoomOptions.interactiveDismissShouldBegin = { [weak adapter] context in
                             context.willBegin && (adapter?.transition.options.isInteractive ?? true)
                         }
@@ -289,8 +292,8 @@ final class DestinationLinkCoordinator<
                     }
                     self.sourceView = sourceView
 
-                case .representable(_, let transition):
-                    assert(!swift_getIsClassType(transition), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
+                case .representable(let representable):
+                    assert(!swift_getIsClassType(representable), "DestinationLinkCustomTransition must be value types (either a struct or an enum); it was a class")
                     self.sourceView = sourceView
                 }
 
@@ -422,7 +425,7 @@ final class DestinationLinkCoordinator<
         edge: Bool
     ) -> Bool {
         guard let transition = adapter?.transition else { return true }
-        switch transition {
+        switch transition.value {
         case .zoom:
             return false
         default:
@@ -441,7 +444,7 @@ final class DestinationLinkCoordinator<
                 #endif
                 return false
             }()
-            if case .default = transition {
+            if case .default = transition.value {
                 return isBuiltInGesture
             } else {
                 return !isBuiltInGesture
@@ -468,10 +471,10 @@ final class DestinationLinkCoordinator<
             return
         }
         if viewControllers.count > 1 {
-            if #available(iOS 18.0, *), viewController != viewControllers.first, case .zoom = adapter?.transition {
+            if #available(iOS 18.0, *), viewController != viewControllers.first, case .zoom = adapter?.transition.value {
                 viewController.preferredTransition = nil
             }
-            adapter?.transition = .default(adapter?.transition.options ?? .init())
+            adapter?.transition = .default(options: adapter?.transition.options ?? .init())
         }
     }
 
@@ -601,21 +604,21 @@ final class DestinationLinkCoordinator<
         _ navigationController: UINavigationController,
         interactionControllerFor animationController: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning? {
-        switch adapter?.transition {
-
-        case .representable(let options, let transition):
+        guard let transition = adapter?.transition else { return nil }
+        switch transition.value {
+        case .representable(let representable):
             if isPushing == true {
-                return transition.navigationController(
+                return representable.navigationController(
                     navigationController,
                     interactionControllerForPush: animationController,
-                    context: makeContext(options: options)
+                    context: makeContext(options: transition.options)
                 )
 
             } else {
-                return transition.navigationController(
+                return representable.navigationController(
                     navigationController,
                     interactionControllerForPop: animationController,
-                    context: makeContext(options: options)
+                    context: makeContext(options: transition.options)
                 )
             }
 
@@ -630,30 +633,29 @@ final class DestinationLinkCoordinator<
         from fromVC: UIViewController,
         to toVC: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
-        switch adapter?.transition {
-
-        case .representable(let options, let transition):
+        guard let transition = adapter?.transition else { return nil }
+        switch transition.value {
+        case .representable(let representable):
             switch operation {
             case .push:
                 guard adapter?.viewController == toVC else { return nil }
-                return transition.navigationController(
+                return representable.navigationController(
                     navigationController,
                     pushing: toVC,
                     from: fromVC,
-                    context: makeContext(options: options)
+                    context: makeContext(options: transition.options)
                 )
 
             case .pop:
-
                 guard adapter?.viewController == fromVC else { return nil }
-                let animationController = transition.navigationController(
+                let animationController = representable.navigationController(
                     navigationController,
                     popping: fromVC,
                     to: toVC,
-                    context: makeContext(options: options)
+                    context: makeContext(options: transition.options)
                 )
-                if !options.isInteractive, let transition = animationController as? UIPercentDrivenInteractiveTransition {
-                    transition.wantsInteractiveStart = false
+                if !transition.options.isInteractive, let interactiveTransition = animationController as? UIPercentDrivenInteractiveTransition {
+                    interactiveTransition.wantsInteractiveStart = false
                 }
                 return animationController
 
@@ -1434,14 +1436,14 @@ extension UINavigationController {
 
 @available(iOS 14.0, *)
 @MainActor @preconcurrency
-private class DestinationLinkDestinationViewControllerAdapter<
+class DestinationLinkDestinationViewControllerAdapter<
     Destination: View,
     Representable: UIViewRepresentable
 >: ViewControllerAdapter<Destination, Representable> {
 
     typealias DestinationController = DestinationHostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
-    var transition: DestinationLinkTransition.Value
+    var transition: DestinationLinkTransition
     weak var sourceView: UIView?
     var environment: EnvironmentValues
     var isPresented: Binding<Bool>
@@ -1455,7 +1457,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
     init(
         destination: Destination,
         sourceView: UIView,
-        transition: DestinationLinkTransition.Value,
+        transition: DestinationLinkTransition,
         context: Representable.Context,
         navigationController: UINavigationController?,
         isPresented: Binding<Bool>,
@@ -1494,7 +1496,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
         )
         let hostingController = DestinationController(content: content.modifier(modifier))
         hostingController.sourceViewController = sourceView?.viewController as? AnyHostingController
-        transition.update(
+        configure(
             hostingController,
             context: DestinationLinkTransitionRepresentableContext(
                 sourceView: sourceView,
@@ -1520,7 +1522,7 @@ private class DestinationLinkDestinationViewControllerAdapter<
         )
         let hostingController = viewController as! DestinationController
         hostingController.update(content: content.modifier(modifier), transaction: context.transaction)
-        transition.update(
+        configure(
             hostingController,
             context: DestinationLinkTransitionRepresentableContext(
                 sourceView: sourceView,
@@ -1546,26 +1548,21 @@ private class DestinationLinkDestinationViewControllerAdapter<
     func pop(_ count: Int, _ transaction: Transaction) {
         onPop(count, transaction)
     }
-}
 
-@available(iOS 14.0, *)
-extension DestinationLinkTransition.Value {
-
-    @MainActor @preconcurrency
-    func update<Content: View>(
+    func configure<Content: View>(
         _ viewController: DestinationHostingController<Content>,
-        context: @autoclosure () -> DestinationLinkTransitionRepresentableContext
+        context: DestinationLinkTransitionRepresentableContext
     ) {
 
-        viewController.hidesBottomBarWhenPushed = options.hidesBottomBarWhenPushed
-        if let preferredPresentationBackgroundUIColor = options.preferredPresentationBackgroundUIColor {
+        viewController.hidesBottomBarWhenPushed = transition.options.hidesBottomBarWhenPushed
+        if let preferredPresentationBackgroundUIColor = transition.options.preferredPresentationBackgroundUIColor {
             viewController.view.backgroundColor = preferredPresentationBackgroundUIColor
         }
 
-        if case .representable(_, let representable) = self {
+        if case .representable(let representable) = transition.value {
             representable.updateHostingController(
                 presenting: viewController,
-                context: context()
+                context: context
             )
         }
     }

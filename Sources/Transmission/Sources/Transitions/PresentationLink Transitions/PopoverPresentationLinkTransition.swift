@@ -8,6 +8,103 @@ import UIKit
 import SwiftUI
 
 @available(iOS 14.0, *)
+extension PresentationLinkTransition {
+
+    /// The popover presentation style.
+    public static let popover: PresentationLinkTransition = .popover()
+
+    /// The popover presentation style.
+    public static func popover(
+        dimmingColor: Color? = nil,
+        permittedArrowDirections: PopoverPresentationLinkTransition.PermittedArrowDirections = .all,
+        canOverlapSourceViewRect: Bool = false,
+        isPassthrough: Bool = false,
+        isInteractive: Bool = true,
+        preferredPresentationBackgroundColor: Color? = nil
+    ) -> PresentationLinkTransition {
+        .popover(
+            .init(
+                dimmingColor: dimmingColor,
+                permittedArrowDirections: permittedArrowDirections,
+                canOverlapSourceViewRect: canOverlapSourceViewRect,
+                isPassthrough: isPassthrough
+            ),
+            options: .init(
+                isInteractive: isInteractive,
+                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
+            )
+        )
+    }
+
+    /// The popover presentation style.
+    public static func popover(
+        _ transitionOptions: PopoverPresentationLinkTransition.Options,
+        options: PresentationLinkTransition.Options = .init()
+    ) -> PresentationLinkTransition {
+        PresentationLinkTransition(
+            value: .popover(transitionOptions),
+            options: options
+        )
+    }
+}
+
+/// The transition options for a popover transition.
+@frozen
+public struct PopoverPresentationLinkTransition: Sendable {
+    public typealias PermittedArrowDirections = Edge.Set
+
+    /// The transition options for a sheet transition.
+    @frozen
+    public struct Options: Sendable {
+        public var dimmingColor: Color?
+        public var permittedArrowDirections: PermittedArrowDirections
+        public var canOverlapSourceViewRect: Bool
+        public var isPassthrough: Bool
+        public var adaptiveTransition: SheetPresentationLinkTransition.Options?
+
+        public init(
+            dimmingColor: Color? = nil,
+            permittedArrowDirections: PermittedArrowDirections = .all,
+            canOverlapSourceViewRect: Bool = false,
+            isPassthrough: Bool = false,
+            adaptiveTransition: SheetPresentationLinkTransition.Options? = nil
+        ) {
+            self.dimmingColor = dimmingColor
+            self.permittedArrowDirections = permittedArrowDirections
+            self.canOverlapSourceViewRect = canOverlapSourceViewRect
+            self.isPassthrough = isPassthrough
+            self.adaptiveTransition = adaptiveTransition
+        }
+
+        func permittedArrowDirections(layoutDirection: UITraitEnvironmentLayoutDirection) -> UIPopoverArrowDirection {
+            if permittedArrowDirections == .all {
+                return .any
+            }
+            var directions: UIPopoverArrowDirection = []
+            if permittedArrowDirections.contains(.top) {
+                directions.insert(.up)
+            }
+            if permittedArrowDirections.contains(.bottom) {
+                directions.insert(.down)
+            }
+            if permittedArrowDirections.contains(.leading) {
+                directions.insert(layoutDirection == .leftToRight ? .left : .right)
+            }
+            if permittedArrowDirections.contains(.trailing) {
+                directions.insert(layoutDirection == .leftToRight ? .right : .left)
+            }
+            return directions
+        }
+    }
+
+    public var options: Options
+
+    public init(options: Options = .init()) {
+        self.options = options
+    }
+}
+
+@available(iOS 14.0, *)
 open class PopoverControllerTransition: PresentationControllerTransition {
 
     public override init(

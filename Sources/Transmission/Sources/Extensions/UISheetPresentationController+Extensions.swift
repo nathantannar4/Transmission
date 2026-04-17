@@ -49,7 +49,7 @@ extension UISheetPresentationController.Detent {
         case UISheetPresentationController.Detent.Identifier.large.rawValue,
             UISheetPresentationController.Detent.Identifier.medium.rawValue:
             return false
-        case PresentationLinkTransition.SheetTransitionOptions.Detent.ideal.identifier.rawValue:
+        case SheetPresentationLinkTransition.Detent.ideal.identifier.rawValue:
             return true
         default:
             if #available(iOS 16.0, *) {

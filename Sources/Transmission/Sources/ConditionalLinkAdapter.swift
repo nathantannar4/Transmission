@@ -129,16 +129,19 @@ private struct ConditionalLinkAdapterBody<
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
-        uiView.update(content: sourceView, transaction: context.transaction)
-        uiView.hostingView?.cornerRadius = cornerRadius
-        uiView.hostingView?.backgroundColor = backgroundColor?.toUIColor()
+        uiView.update(
+            content: sourceView,
+            transaction: context.transaction,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor?.toUIColor(in: context.environment)
+        )
         context.coordinator.onUpdate(
             presentingViewController: presentingViewController,
             value: value,
             transition: transition,
             destination: destination,
             context: context,
-            sourceView: uiView.hostingView ?? uiView
+            sourceView: uiView.sourceView ?? uiView
         )
     }
 
