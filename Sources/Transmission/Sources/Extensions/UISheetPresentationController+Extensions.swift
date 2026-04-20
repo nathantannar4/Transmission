@@ -145,6 +145,30 @@ extension UISheetPresentationController {
         return gesture
     }
 
+    var supportsInteractiveTransition: Bool {
+        guard
+            !isDragging,
+            // _setInteractiveTransition:
+            let aSelector = NSSelectorFromBase64EncodedString("X3NldEludGVyYWN0aXZlVHJhbnNpdGlvbjo="),
+            responds(to: aSelector)
+        else {
+            return false
+        }
+        return true
+    }
+
+    var isDragging: Bool {
+        guard
+            // _isDragging
+            let aSelector = NSStringFromBase64EncodedString("X2lzRHJhZ2dpbmc="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let value = value(forKey: aSelector) as? Bool
+        else {
+            return false
+        }
+        return value
+    }
+
     var dimmingView: UIView? {
         guard
             // dimmingView

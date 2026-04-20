@@ -227,7 +227,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             isPresenting: true,
             animation: context.transaction.animation
         )
-        if let presentationController = presentationController as? PresentationController {
+        if let presentationController = presentationController as? PercentDrivenInteractivePresentationController {
             presentationController.attach(to: transition)
         } else {
             transition.wantsInteractiveStart = false
@@ -251,7 +251,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
             isPresenting: false,
             animation: context.transaction.animation
         )
-        if let presentationController = presentationController as? PresentationController {
+        if let presentationController = presentationController as? PercentDrivenInteractivePresentationController {
             presentationController.attach(to: transition)
         } else {
             transition.wantsInteractiveStart = false

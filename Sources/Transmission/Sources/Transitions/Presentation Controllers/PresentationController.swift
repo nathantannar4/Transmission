@@ -9,7 +9,7 @@ import SwiftUI
 
 /// A presentation controller base class
 @available(iOS 14.0, *)
-open class PresentationController: DelegatedPresentationController {
+open class PresentationController: DelegatedPresentationController, PercentDrivenInteractivePresentationController {
 
     public private(set) var isTransitioningSize = false
     public private(set) var keyboardHeight: CGFloat = 0
@@ -63,9 +63,11 @@ open class PresentationController: DelegatedPresentationController {
         return nil
     }
 
-    open func attach(to transition: ViewControllerTransition) {
-        if transition.animation == .default, let preferredDefaultAnimation = preferredDefaultAnimation() {
-            transition.animation = preferredDefaultAnimation
+    open func attach(to transition: UIPercentDrivenInteractiveTransition) {
+        if let transition = transition as? ViewControllerTransition {
+            if transition.animation == .default, let preferredDefaultAnimation = preferredDefaultAnimation() {
+                transition.animation = preferredDefaultAnimation
+            }
         }
         transition.wantsInteractiveStart = transition.wantsInteractiveStart && wantsInteractiveTransition
         self.transition = transition
@@ -341,6 +343,7 @@ open class PresentationController: DelegatedPresentationController {
                 let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
                 if shouldDismiss {
                     delegate?.presentationControllerWillDismiss?(self)
+                    transition.pause()
                     transition.cancel()
                     self.transition = nil
                     dimmingView.isUserInteractionEnabled = false

@@ -10,25 +10,7 @@ import Engine
 
 #if targetEnvironment(macCatalyst)
 @available(iOS 15.0, *)
-public typealias SheetPresentationController = MacSheetPresentationController
-
-@available(iOS 15.0, *)
-open class MacSheetTransition: SlidePresentationControllerTransition {
-
-    public init(
-        isPresenting: Bool,
-        animation: Animation?
-    ) {
-        super.init(
-            edge: .bottom,
-            isPresenting: isPresenting,
-            animation: animation
-        )
-    }
-}
-
-@available(iOS 15.0, *)
-open class MacSheetPresentationController: InteractivePresentationController {
+open class SheetPresentationController: InteractivePresentationController {
 
     public var detent: SheetPresentationLinkTransition.Detent = .large {
         didSet {
@@ -37,12 +19,16 @@ open class MacSheetPresentationController: InteractivePresentationController {
     }
 
     var selected: Binding<SheetPresentationLinkTransition.Detent.Identifier?>?
-    var largestUndimmedDetentIdentifier: SheetPresentationLinkTransition.Detent.Identifier?
+    var largestUndimmedDetentIdentifier: SheetPresentationLinkTransition.Detent.Identifier? {
+        didSet {
+            dimmingView.isHidden = largestUndimmedDetentIdentifier == detent.identifier
+        }
+    }
 
     public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
 
-    private var prevPresentationController: MacSheetPresentationController? {
-        presentingViewController._activePresentationController as? MacSheetPresentationController
+    private var prevPresentationController: SheetPresentationController? {
+        presentingViewController._activePresentationController as? SheetPresentationController
     }
 
     private var depth = 0 {
@@ -220,9 +206,11 @@ open class MacSheetPresentationController: InteractivePresentationController {
         }
     }
 }
+
 #else
+
 @available(iOS 15.0, *)
-open class SheetPresentationController: UISheetPresentationController {
+open class SheetPresentationController: UISheetPresentationController, PercentDrivenInteractivePresentationController {
 
     public var preferredCornerRadiusOptions: CornerRadiusOptions.RoundedRectangle? {
         didSet {
@@ -258,6 +246,9 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 
+    /// The interactive transition driving the presentation or dismissal animation
+    public weak var transition: UIPercentDrivenInteractiveTransition?
+
     public override init(
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
@@ -270,6 +261,18 @@ open class SheetPresentationController: UISheetPresentationController {
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+
+    open func attach(to transition: UIPercentDrivenInteractiveTransition) {
+        transition.wantsInteractiveStart = transition.wantsInteractiveStart && isDragging
+        self.transition = transition
+
+        // _setInteractiveTransition:
+        if let aSelector = NSSelectorFromBase64EncodedString("X3NldEludGVyYWN0aXZlVHJhbnNpdGlvbjo="),
+           responds(to: aSelector)
+        {
+            perform(NSSelectorFromString("_setInteractiveTransition:"), with: transition)
+        }
     }
 
     open override func presentationTransitionWillBegin() {
@@ -305,20 +308,6 @@ open class SheetPresentationController: UISheetPresentationController {
         } else {
             delegate?.presentationControllerDidAttemptToDismiss?(self)
             presentedViewController.fixSwiftUIHitTesting()
-        }
-    }
-
-    open override func containerViewWillLayoutSubviews() {
-        super.containerViewWillLayoutSubviews()
-        // Fix presentation animation
-        if #available(iOS 26.0, *),
-            presentedViewController.isBeingPresented,
-            let presentedView,
-            presentedView.transform != .identity,
-            presentedView.transform.tx == 0
-        {
-            let dx = (1 - presentedView.transform.a) * presentedView.bounds.width / 2
-            presentedView.transform = presentedView.transform.translatedBy(x: dx, y: 0)
         }
     }
 
@@ -469,6 +458,7 @@ open class SheetPresentationController: UISheetPresentationController {
         }
     }
 }
+
 #endif
 
 @available(iOS 15.0, *)

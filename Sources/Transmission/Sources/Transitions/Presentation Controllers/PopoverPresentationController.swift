@@ -39,7 +39,7 @@ open class PopoverDimmingView: DimmingView {
     }
 }
 
-open class PopoverPresentationController: UIPopoverPresentationController {
+open class PopoverPresentationController: UIPopoverPresentationController, PercentDrivenInteractivePresentationController {
 
     public let dimmingView: PopoverDimmingView = {
         let view = PopoverDimmingView()
@@ -58,6 +58,24 @@ open class PopoverPresentationController: UIPopoverPresentationController {
                 super.passthroughViews = nil
             }
         }
+    }
+
+    /// The interactive transition driving the presentation or dismissal animation
+    public weak var transition: UIPercentDrivenInteractiveTransition?
+
+    public override init(
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?
+    ) {
+        super.init(
+            presentedViewController: presentedViewController,
+            presenting: presentingViewController
+        )
+    }
+
+    open func attach(to transition: UIPercentDrivenInteractiveTransition) {
+        transition.wantsInteractiveStart = false
+        self.transition = transition
     }
 
     open override func presentationTransitionWillBegin() {

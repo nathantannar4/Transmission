@@ -83,9 +83,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         )
     }
 
-    open override func attach(to transition: ViewControllerTransition) {
+    open override func attach(to transition: UIPercentDrivenInteractiveTransition) {
         super.attach(to: transition)
-        panGesture.isEnabled = transition.isInterruptible
+        if let transition = transition as? ViewControllerTransition {
+            panGesture.isEnabled = transition.isInterruptible
+        }
     }
 
     open override func presentationTransitionWillBegin() {

@@ -105,7 +105,7 @@ public struct PopoverPresentationLinkTransition: Sendable {
 }
 
 @available(iOS 14.0, *)
-open class PopoverControllerTransition: PresentationControllerTransition {
+open class PopoverPresentationControllerTransition: PresentationControllerTransition {
 
     public override init(
         isPresenting: Bool,

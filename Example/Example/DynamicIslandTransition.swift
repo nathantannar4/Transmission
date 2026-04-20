@@ -57,7 +57,7 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
             isPresenting: true,
             animation: context.transaction.animation
         )
-        if let presentationController = presentationController as? PresentationController {
+        if let presentationController = presentationController as? PercentDrivenInteractivePresentationController {
             presentationController.attach(to: transition)
         } else {
             transition.wantsInteractiveStart = false
@@ -74,7 +74,7 @@ struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {
             isPresenting: false,
             animation: context.transaction.animation
         )
-        if let presentationController = presentationController as? PresentationController {
+        if let presentationController = presentationController as? PercentDrivenInteractivePresentationController {
             presentationController.attach(to: transition)
         } else {
             transition.wantsInteractiveStart = false

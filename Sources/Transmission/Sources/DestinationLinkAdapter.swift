@@ -304,28 +304,28 @@ final class DestinationLinkCoordinator<
 
                 navigationController.delegates.add(delegate: self, for: adapter.viewController)
                 self.isPushing = true
-                let completion: () -> Void = {
-                    self.animation = nil
-                    self.didPresentAnimated = isAnimated
-                }
-                if let push {
-                    push(adapter.viewController, completion)
-                } else {
-                    let update: () -> Void = {
+                let present: () -> Void = {
+                    let completion: () -> Void = {
+                        self.animation = nil
+                        self.didPresentAnimated = isAnimated
+                    }
+                    if let push {
+                        push(adapter.viewController, completion)
+                    } else {
                         navigationController.pushViewController(
                             adapter.viewController,
                             animated: isAnimated,
                             completion: completion
                         )
                     }
-                    if let firstResponder = navigationController.topViewController?.firstResponder {
-                        withCATransaction {
-                            firstResponder.resignFirstResponder()
-                            update()
-                        }
-                    } else {
-                        update()
+                }
+                if let firstResponder = navigationController.topViewController?.firstResponder {
+                    withCATransaction {
+                        firstResponder.resignFirstResponder()
+                        present()
                     }
+                } else {
+                    present()
                 }
             } else {
                 withCATransaction {
@@ -365,7 +365,12 @@ final class DestinationLinkCoordinator<
     }
 
     func onPop(_ count: Int, transaction: Transaction) {
-        guard let viewController = adapter?.viewController else { return }
+        guard
+            let viewController = adapter?.viewController,
+            viewController.navigationController != nil
+        else {
+            return
+        }
         if count > 0 {
             animation = transaction.animation
             didPresentAnimated = false
@@ -385,6 +390,17 @@ final class DestinationLinkCoordinator<
                 }
             }
         } else {
+            if let transitionCoordinator = viewController.transitionCoordinator,
+                transitionCoordinator.viewController(forKey: .to) == viewController,
+                let transition = adapter?.navigationController?.delegates.transition(for: viewController)
+            {
+                transition.pause()
+                transition.cancel()
+                transitionCoordinator.animate { [weak self] _ in
+                    self?.onPop(transaction)
+                    self?.didPop()
+                }
+            }
             viewController._popViewController(
                 count: count,
                 animated: transaction.isAnimated
@@ -582,6 +598,12 @@ final class DestinationLinkCoordinator<
                     isNavigationBarHidden,
                     animated: animated
                 )
+            }
+        }
+        if isPushing == true, adapter?.viewController == viewController, !isPresented.wrappedValue {
+            let animation = animation ?? (animated ? .default : nil)
+            withAnimation(animation) {
+                isPresented.wrappedValue = true
             }
         }
         if isPushing != true {
@@ -835,6 +857,11 @@ final class DestinationLinkDelegateProxy: NSObject,
         for viewController: UIViewController
     ) {
         delegates[ObjectIdentifier(viewController)] = nil
+    }
+
+    func transition(for viewController: UIViewController) -> UIPercentDrivenInteractiveTransition? {
+        guard transitioningId == ObjectIdentifier(viewController) else { return nil }
+        return transition
     }
 
     @objc

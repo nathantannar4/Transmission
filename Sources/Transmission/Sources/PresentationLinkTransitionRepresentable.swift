@@ -170,7 +170,7 @@ public struct PresentationLinkDefaultPresentingTransition: PresentationLinkPrese
             isPresenting: true,
             animation: context.transaction.animation
         )
-        if let presentationController = presentationController as? PresentationController {
+        if let presentationController = presentationController as? PercentDrivenInteractivePresentationController {
             presentationController.attach(to: transition)
         } else {
             transition.wantsInteractiveStart = false
@@ -235,7 +235,7 @@ public struct PresentationLinkDefaultDismissingTransition: PresentationLinkDismi
             isPresenting: false,
             animation: context.transaction.animation
         )
-        if let presentationController = presentationController as? PresentationController {
+        if let presentationController = presentationController as? PercentDrivenInteractivePresentationController {
             presentationController.attach(to: transition)
         } else {
             transition.wantsInteractiveStart = false
@@ -307,7 +307,7 @@ extension PresentationLinkTransitionRepresentable
             isPresenting: true,
             animation: context.transaction.animation
         )
-        if let presentationController = presentationController as? PresentationController {
+        if let presentationController = presentationController as? PercentDrivenInteractivePresentationController {
             presentationController.attach(to: transition)
         } else {
             transition.wantsInteractiveStart = false
@@ -325,7 +325,7 @@ extension PresentationLinkTransitionRepresentable
             isPresenting: false,
             animation: context.transaction.animation
         )
-        if let presentationController = presentationController as? PresentationController {
+        if let presentationController = presentationController as? PercentDrivenInteractivePresentationController {
             presentationController.attach(to: transition)
         } else {
             transition.wantsInteractiveStart = false
