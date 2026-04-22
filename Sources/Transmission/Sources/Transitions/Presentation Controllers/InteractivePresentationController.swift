@@ -118,16 +118,16 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         delta: CGPoint,
         velocity: CGPoint
     ) -> Bool {
-        if edges.contains(.bottom), translation.y > 0 {
+        if edges.contains(.bottom), translation.y >= 0 {
             return abs(delta.y) >= abs(delta.x)
         }
-        if edges.contains(.top), translation.y < 0 {
+        if edges.contains(.top), translation.y <= 0 {
             return abs(delta.y) >= abs(delta.x)
         }
-        if edges.contains(.leading), translation.x < 0 {
+        if edges.contains(.leading), translation.x <= 0 {
             return abs(delta.x) >= abs(delta.y)
         }
-        if edges.contains(.trailing), translation.x > 0 {
+        if edges.contains(.trailing), translation.x >= 0 {
             return abs(delta.x) >= abs(delta.y)
         }
         return false
@@ -391,8 +391,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 )
                 if shouldFinish {
                     transition.finish()
-                    panGesture.isEnabled = false
-                    panGesture.isEnabled = true
                 } else {
                     transition.cancel()
                     resignedFirstResponder?.becomeFirstResponder()
@@ -530,6 +528,9 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 transformPresentedView(transform: .identity)
                 panGestureDidEnd()
             }
+        } else {
+            panGesture.setTranslation(.zero, in: presentedView)
+            lastTranslation = .zero
         }
     }
 

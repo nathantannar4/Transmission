@@ -386,6 +386,7 @@ final class DestinationLinkCoordinator<
                     animated: transaction.isAnimated
                 ) { [weak self] success in
                     guard success, count > 0, self?.adapter?.viewController == viewController else { return }
+                    self?.onPop(transaction)
                     self?.didPop()
                 }
             }
@@ -406,6 +407,7 @@ final class DestinationLinkCoordinator<
                 animated: transaction.isAnimated
             ) { [weak self] success in
                 guard success, count > 0, self?.adapter?.viewController == viewController else { return }
+                self?.onPop(transaction)
                 self?.didPop()
             }
         }
@@ -797,6 +799,7 @@ final class DestinationLinkDelegateProxy: NSObject,
     private weak var panGestureDelegate: UIGestureRecognizerDelegate?
     private var interactivePopEdgeGestureRecognizer: UIScreenEdgePanGestureRecognizer!
     private var interactivePopPanGestureRecognizer: UIPanGestureRecognizer!
+    private var simultaneousPanGestures: [UIPanGestureRecognizer] = []
 
     private var wantsInteractiveTransition = false
     private var queuedTransition: UIPercentDrivenInteractiveTransition?
@@ -840,6 +843,16 @@ final class DestinationLinkDelegateProxy: NSObject,
             action: #selector(panGestureDidChange(_:))
         )
         interactivePopPanGestureRecognizer.delegate = self
+        #if canImport(FoundationModels) // Xcode 26
+        if #available(iOS 26.0, *), let interactiveContentPopGestureRecognizer = navigationController.interactiveContentPopGestureRecognizer {
+            interactivePopPanGestureRecognizer.delaysTouchesBegan = interactiveContentPopGestureRecognizer.delaysTouchesBegan
+            interactivePopPanGestureRecognizer.delaysTouchesEnded = interactiveContentPopGestureRecognizer.delaysTouchesEnded
+        } else {
+            interactivePopPanGestureRecognizer.delaysTouchesBegan = true
+        }
+        #else
+        interactivePopPanGestureRecognizer.delaysTouchesBegan = true
+        #endif
         navigationController.view.addGestureRecognizer(interactivePopPanGestureRecognizer)
 
         navigationController.pushDelegate = self
@@ -907,6 +920,31 @@ final class DestinationLinkDelegateProxy: NSObject,
                     gestureRecognizer.setTranslation(frame.origin, in: nil)
                 }
             } else {
+                if !simultaneousPanGestures.isEmpty {
+                    var canBegin = abs(velocity.x) > abs(velocity.y)
+                    if canBegin {
+                        if navigationController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft {
+                            if velocity.x > 0 {
+                                canBegin = false
+                            }
+                        } else {
+                            if velocity.x < 0 {
+                                canBegin = false
+                            }
+                        }
+                    }
+                    if !canBegin {
+                        gestureRecognizer.isEnabled = false
+                        gestureRecognizer.isEnabled = true
+                        panGestureDidEnd()
+                        return
+                    } else {
+                        for gesture in simultaneousPanGestures {
+                            gesture.isEnabled = false
+                            gesture.isEnabled = true
+                        }
+                    }
+                }
                 navigationController.popViewController(animated: true)
             }
 
@@ -1011,6 +1049,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         isInterruptedInteractiveTransition = false
         isPopReady = false
         feedbackGenerator = nil
+        simultaneousPanGestures = []
         navigationController?.interactiveTransitionWillEnd()
     }
 
@@ -1182,6 +1221,15 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer {
             return true
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
+            #if canImport(FoundationModels) // Xcode 26
+            if #available(iOS 26.0, *), otherGestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
+                return false
+            }
+            #endif
+            if !isInterruptedInteractiveTransition, let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer {
+                simultaneousPanGestures.append(panGesture)
+                return true
+            }
             return otherGestureRecognizer.isZoomDismissGesture
         } else {
             if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
