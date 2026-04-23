@@ -319,7 +319,14 @@ final class DestinationLinkCoordinator<
                         )
                     }
                 }
-                if let firstResponder = navigationController.topViewController?.firstResponder {
+                if let transitionCoordinator = navigationController.transitionCoordinator,
+                   let toVC = transitionCoordinator.viewController(forKey: .to),
+                   toVC != navigationController.topViewController
+                {
+                    transitionCoordinator.animate(alongsideTransition: nil) { _ in
+                        present()
+                    }
+                } else if let firstResponder = navigationController.topViewController?.firstResponder {
                     withCATransaction {
                         firstResponder.resignFirstResponder()
                         present()
@@ -847,11 +854,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         if #available(iOS 26.0, *), let interactiveContentPopGestureRecognizer = navigationController.interactiveContentPopGestureRecognizer {
             interactivePopPanGestureRecognizer.delaysTouchesBegan = interactiveContentPopGestureRecognizer.delaysTouchesBegan
             interactivePopPanGestureRecognizer.delaysTouchesEnded = interactiveContentPopGestureRecognizer.delaysTouchesEnded
-        } else {
-            interactivePopPanGestureRecognizer.delaysTouchesBegan = true
         }
-        #else
-        interactivePopPanGestureRecognizer.delaysTouchesBegan = true
         #endif
         navigationController.view.addGestureRecognizer(interactivePopPanGestureRecognizer)
 
@@ -1152,6 +1155,10 @@ final class DestinationLinkDelegateProxy: NSObject,
             return false
         }
 
+        if let transitionCoordinator = navigationController.transitionCoordinator, transitionCoordinator.viewController(forKey: .to) != fromVC {
+            return false
+        }
+
         let shouldBegin: Bool? = {
             guard let delegate = delegates[ObjectIdentifier(fromVC)]?.value else {
                 return nil
@@ -1226,7 +1233,12 @@ final class DestinationLinkDelegateProxy: NSObject,
                 return false
             }
             #endif
-            if !isInterruptedInteractiveTransition, let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer {
+            if !isInterruptedInteractiveTransition,
+                let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer,
+                !panGesture.isScrollViewPanGesture,
+                !panGesture.isZoomDismissGesture,
+                !panGesture.delaysTouchesBegan
+            {
                 simultaneousPanGestures.append(panGesture)
                 return true
             }
