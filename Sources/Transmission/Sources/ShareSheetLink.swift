@@ -382,42 +382,55 @@ extension URL: ShareSheetItemProvider {
 public struct ShareSheetItem<T: NSItemProviderWriting>: ShareSheetItemProvider {
 
     var label: Text?
-    var object: () -> T
+    var item: () -> T
 
-    public init(label: LocalizedStringKey, _ object: @autoclosure @escaping () -> T) {
-        self.label = Text(label)
-        self.object = object
+    public init(
+        label: Text? = nil,
+        item: @autoclosure @escaping () -> T
+    ) {
+        self.label = label
+        self.item = item
     }
 
-    public init(label: String? = nil, _ object: @autoclosure @escaping () -> T) {
-        self.label = label.map { Text(verbatim: $0) }
-        self.object = object
+    public init(
+        label: LocalizedStringKey,
+        item: @autoclosure @escaping () -> T
+    ) {
+        self.init(label: Text(label), item: item())
+    }
+
+    @_disfavoredOverload
+    public init<S: StringProtocol>(
+        label: S?,
+        item: @autoclosure @escaping () -> T
+    ) {
+        self.init(label: Text(label), item: item())
     }
 
     public func makeUIActivityItemSource(context: Context) -> UIActivityItemSource {
-        Source(label: label?.resolve(in: context.environment), object: object())
+        Source(label: label?.resolve(in: context.environment), item: item())
     }
 
     private class Source: NSObject, UIActivityItemSource {
         let label: String?
-        let object: T
+        let item: T
 
-        init(label: String?, object: T) {
+        init(label: String?, item: T) {
             self.label = label
-            self.object = object
+            self.item = item
         }
 
         func activityViewControllerPlaceholderItem(
             _ activityViewController: UIActivityViewController
         ) -> Any {
-            object
+            item
         }
 
         func activityViewController(
             _ activityViewController: UIActivityViewController,
             itemForActivityType activityType: UIActivity.ActivityType?
         ) -> Any? {
-            object
+            item
         }
 
         func activityViewControllerLinkMetadata(
@@ -425,7 +438,7 @@ public struct ShareSheetItem<T: NSItemProviderWriting>: ShareSheetItemProvider {
         ) -> LPLinkMetadata? {
             let metadata = LPLinkMetadata()
             metadata.title = label
-            metadata.imageProvider = NSItemProvider(object: object)
+            metadata.imageProvider = NSItemProvider(object: item)
             return metadata
         }
     }

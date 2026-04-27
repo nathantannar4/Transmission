@@ -56,7 +56,6 @@ open class TransitionSourceView<Content: View>: UIView {
             }
         } else {
             isHidden = true
-            translatesAutoresizingMaskIntoConstraints = false
         }
         clipsToBounds = false
     }
@@ -78,6 +77,7 @@ open class TransitionSourceView<Content: View>: UIView {
             content: content,
             transaction: transaction
         )
+        hostingView.layoutIfNeeded()
     }
 
     open func sizeThatFits(_ proposal: ProposedSize) -> CGSize? {
@@ -86,10 +86,6 @@ open class TransitionSourceView<Content: View>: UIView {
 
     open override func sizeThatFits(_ size: CGSize) -> CGSize {
         hostStorage?.hostingView.sizeThatFits(size) ?? super.sizeThatFits(size)
-    }
-
-    open override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        hostStorage?.hostingView.hitTest(point, with: event) ?? super.hitTest(point, with: event)
     }
 
     open override func didMoveToSuperview() {
