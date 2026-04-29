@@ -13,7 +13,7 @@ public struct MenuElementView<Content: View>: MenuElementRepresentable {
 
     public var content: Content
     public var safeAreaInsets: EdgeInsets
-    public var attributes: MenuButton.Attributes
+    public var attributes: MenuElementAttributes
     public var action: (@MainActor () -> Void)?
 
     @inlinable
@@ -24,7 +24,7 @@ public struct MenuElementView<Content: View>: MenuElementRepresentable {
             }
             return EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
         }(),
-        attributes: MenuButton.Attributes = [],
+        attributes: MenuElementAttributes = [],
         @ViewBuilder content: () -> Content,
         action: (@MainActor () -> Void)? = nil
     ) {
@@ -50,10 +50,17 @@ public struct MenuElementView<Content: View>: MenuElementRepresentable {
     }
 
     public func updateUIMenuElement(_ element: inout UIMenuElementType, context: Context) {
-        let hostingView = element.contentView as? MenuElementHostingView<Content>
-        hostingView?.content.content = content
-        element.attributes = attributes.toUIKit()
-        element.primaryAction = action
+        // Can't reuse the element or there is a noticible flicker as the menu reloads
+        element = makeUIMenuElement(context: context)
+    }
+
+    public func _updateUIMenuElement(_ element: inout UIMenuElement, context: MenuRepresentableContext) {
+        if let aClass = UICustomViewMenuElement, element.isKind(of: aClass), var updated = element as? UIMenuElementType {
+            updateUIMenuElement(&updated, context: context)
+            element = updated
+        } else {
+            element = makeUIMenuElement(context: context)
+        }
     }
 }
 
@@ -97,6 +104,9 @@ struct MenuElementViewBody<Content: View>: View {
     }
 }
 
+// UICustomViewMenuElement
+let UICustomViewMenuElement = NSClassFromBase64EncodedString("VUlDdXN0b21WaWV3TWVudUVsZW1lbnQ=")
+
 extension UIMenuElement {
 
     @available(iOS 16.0, *)
@@ -124,20 +134,19 @@ extension UIMenuElement {
 
     @available(iOS 16.0, *)
     public static func customView(
-        contentView: @escaping @autoclosure () -> UIView
+        contentView: UIView
     ) -> (UIMenuElement & UIMenuLeaf)? {
         guard
-            // UICustomViewMenuElement
-            let aClassName = NSClassFromBase64EncodedString("VUlDdXN0b21WaWV3TWVudUVsZW1lbnQ="),
+            let aClass = UICustomViewMenuElement,
             // elementWithViewProvider:
             let aSelector = NSSelectorFromBase64EncodedString("ZWxlbWVudFdpdGhWaWV3UHJvdmlkZXI6"),
-            aClassName.responds(to: aSelector)
+            aClass.responds(to: aSelector)
         else {
             return nil
         }
-        let provider: @convention(block) () -> UIView = { contentView() }
+        let provider: @convention(block) () -> UIView = { contentView }
         guard
-            let element = aClassName.perform(aSelector, with: provider).takeUnretainedValue() as? UIMenuElement & UIMenuLeaf
+            let element = aClass.perform(aSelector, with: provider).takeUnretainedValue() as? UIMenuElement & UIMenuLeaf
         else {
             return nil
         }
@@ -177,6 +186,41 @@ extension UIMenuElement {
             return nil
         }
         return value(forKey: aSelector) as? UIView
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 16.0, *)
+struct MenuElementView_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Preview()
+        }
+    }
+
+    struct Preview: View {
+        @State var isSelected = false
+
+        var body: some View {
+            MenuSourceViewLink {
+                MenuButton(isSelected: isSelected) {
+                    withAnimation {
+                        isSelected.toggle()
+                    }
+                } label: {
+                    Text("isSelected")
+                }
+
+                MenuElementView {
+                    Text("Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } label: {
+                Text("Menu")
+            }
+        }
     }
 }
 

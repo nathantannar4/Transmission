@@ -24,27 +24,23 @@ public struct ContextMenuLinkModifier<
     Preview: View
 >: ViewModifier {
 
+    var transition: ContextMenuLinkPreviewTransition
     var isPresented: Binding<Bool>
     var menu: Menu
+    var preview: Preview
     var accessoryViews: AccessoryViews
 
     public init(
+        transition: ContextMenuLinkPreviewTransition = .default,
         isPresented: Binding<Bool>,
         @MenuBuilder menu: () -> Menu,
+        @ViewBuilder preview: () -> Preview = { EmptyView() },
         @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
-    ) where Preview == EmptyView {
-        self.isPresented = isPresented
-        self.menu = menu()
-        self.accessoryViews = accessoryViews()
-    }
-
-    public init(
-        isPresented: Binding<Bool>,
-        @MenuBuilder menu: () -> Menu,
-        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() },
     ) {
+        self.transition = transition
         self.isPresented = isPresented
         self.menu = menu()
+        self.preview = preview()
         self.accessoryViews = accessoryViews()
     }
 
@@ -52,12 +48,12 @@ public struct ContextMenuLinkModifier<
         content
             .background(
                 ContextMenuLinkAdapter(
-                    transition: .default,
+                    transition: transition,
                     isPresented: isPresented
                 ) {
                     menu
                 } preview: {
-                    EmptyView()
+                    preview
                 } content: {
                     EmptyView()
                 } accessoryViews: {
@@ -76,36 +72,22 @@ extension View {
     /// The context menu is only presented via the `isPresented` binding.
     ///
     public func contextMenuLink<
-        Menu: MenuElement
-    >(
-        isPresented: Binding<Bool>,
-        @MenuBuilder menu: () -> Menu,
-    ) -> some View {
-        modifier(
-            ContextMenuLinkModifier(
-                isPresented: isPresented,
-                menu: menu
-            )
-        )
-    }
-
-    /// A view manages the presentation of a context menu. The presentation is
-    /// sourced from this view, but does not raise a view with the presented menu.
-    ///
-    /// The context menu is only presented via the `isPresented` binding.
-    ///
-    public func contextMenuLink<
         Menu: MenuElement,
-        AccessoryViews: View
+        AccessoryViews: View,
+        Preview: View
     >(
+        transition: ContextMenuLinkPreviewTransition = .default,
         isPresented: Binding<Bool>,
         @MenuBuilder menu: () -> Menu,
-        @ViewBuilder accessoryViews: () -> AccessoryViews,
+        @ViewBuilder preview: () -> Preview = { EmptyView() },
+        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
     ) -> some View {
         modifier(
             ContextMenuLinkModifier(
+                transition: transition,
                 isPresented: isPresented,
                 menu: menu,
+                preview: preview,
                 accessoryViews: accessoryViews
             )
         )
@@ -144,6 +126,20 @@ struct ContextMenuLinkModifier_Previews: PreviewProvider {
 
                 } label: {
                     Text("Option B")
+                }
+            } preview: {
+                Color.white
+                    .frame(width: 300, height: 300)
+            } accessoryViews: {
+                ContextMenuAccessoryView(
+                    location: .preview,
+                    alignment: .topLeading,
+                    anchor: .top,
+                    trackingAxis: [.horizontal, .vertical]
+                ) {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white)
+                        .frame(width: 300, height: 44)
                 }
             }
         }

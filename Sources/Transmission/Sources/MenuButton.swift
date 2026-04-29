@@ -19,39 +19,16 @@ public struct MenuButton: MenuElementRepresentable {
             self.id = UIAction.Identifier(value)
         }
 
+        public init(rawValue value: String) {
+            self.id = UIAction.Identifier(value)
+        }
+
         public init(id: UIAction.Identifier) {
             self.id = id
         }
 
         func toUIKit() -> UIAction.Identifier {
             return id
-        }
-    }
-
-    public struct Attributes: OptionSet {
-        public var rawValue: UInt8
-        public init(rawValue: UInt8) {
-            self.rawValue = rawValue
-        }
-
-        public static var disabled: Attributes { Attributes(rawValue: 1 << 0) }
-
-        public static var destructive: Attributes { Attributes(rawValue: 1 << 1) }
-
-        public static var hidden: Attributes { Attributes(rawValue: 1 << 2) }
-
-        @available(iOS 16.0, *)
-        public static var keepsMenuPresented: Attributes { Attributes(rawValue: 1 << 3) }
-
-        func toUIKit() -> UIMenuElement.Attributes {
-            var attributes = UIMenuElement.Attributes()
-            if contains(.disabled) { attributes.insert(.disabled) }
-            if contains(.destructive) { attributes.insert(.destructive) }
-            if contains(.hidden) { attributes.insert(.hidden) }
-            if #available(iOS 16.0, *) {
-                if contains(.keepsMenuPresented) { attributes.insert(.keepsMenuPresented) }
-            }
-            return attributes
         }
     }
 
@@ -74,24 +51,40 @@ public struct MenuButton: MenuElementRepresentable {
 
     public var label: LabelElement
     public var id: ID?
-    public var attributes: Attributes
     public var state: State
+    public var attributes: MenuElementAttributes
     public var action: @MainActor () -> Void
 
     @inlinable
     public init(
-        image: Image? = nil,
         id: ID? = nil,
-        attributes: Attributes = [],
         state: State = .off,
+        attributes: MenuElementAttributes = [],
         action: @MainActor @escaping () -> Void,
-        @LabelElementBuilder label: () -> LabelElement = { LabelElement() }
+        @LabelElementBuilder label: () -> LabelElement
     ) {
         self.label = label()
         self.id = id
-        self.attributes = attributes
         self.state = state
+        self.attributes = attributes
         self.action = action
+    }
+
+    @inlinable
+    public init(
+        id: ID? = nil,
+        isSelected: Bool,
+        attributes: MenuElementAttributes = [.prefersKeepsMenuPresented],
+        action: @MainActor @escaping () -> Void,
+        @LabelElementBuilder label: () -> LabelElement
+    ) {
+        self.init(
+            id: id,
+            state: isSelected ? .on : .off,
+            attributes: attributes,
+            action: action,
+            label: label
+        )
     }
 
     public func makeUIMenuElement(context: Context) -> UIAction {
@@ -125,8 +118,8 @@ public struct MenuButton: MenuElementRepresentable {
             element.subtitle = label.subtitle?.resolve(in: context.environment)
         }
         element.image = label.image?.toUIImage(in: context.environment)
-        element.attributes = attributes.toUIKit()
         element.state = state.toUIKit()
+        element.attributes = attributes.toUIKit()
         element.handler = { _ in action() }
     }
 }
@@ -158,5 +151,65 @@ extension UIAction {
     }
 }
 
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct MenuButton_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Preview()
+        }
+    }
+
+    struct Preview: View {
+        @State var isSelected = false
+
+        var body: some View {
+            MenuSourceViewLink {
+                MenuButton(
+                    isSelected: isSelected
+                ) {
+                    withAnimation {
+                        isSelected.toggle()
+                    }
+                } label: {
+                    Text("isSelected")
+                }
+
+                MenuButton(
+                    isSelected: !isSelected
+                ) {
+                    withAnimation {
+                        isSelected.toggle()
+                    }
+                } label: {
+                    Text("!isSelected")
+                }
+
+                MenuButton(
+                    state: .mixed,
+                    attributes: .disabled
+                ) {
+
+                } label: {
+                    Image(systemName: "info.triangle")
+                    Text("Title")
+                    Text("Subtitle")
+                }
+
+                MenuButton(
+                    attributes: .destructive
+                ) {
+
+                } label: {
+                    Image(systemName: "trash")
+                    Text("Delete")
+                }
+            } label: {
+                Text("Menu")
+            }
+        }
+    }
+}
 
 #endif

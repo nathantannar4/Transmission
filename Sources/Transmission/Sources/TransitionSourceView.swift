@@ -8,7 +8,7 @@ import SwiftUI
 import UIKit
 
 @available(iOS 14.0, *)
-open class TransitionSourceView<Content: View>: UIView {
+open class TransitionSourceView<Content: View>: UIView, AnyHostingView {
 
     public var sourceView: UIView? {
         hostStorage?.hostingView
@@ -115,6 +115,10 @@ open class TransitionSourceView<Content: View>: UIView {
     open override func layoutSubviews() {
         super.layoutSubviews()
         hostStorage?.hostingView.frame = bounds
+    }
+
+    public func render() {
+        hostStorage?.hostingView.render()
     }
 
     open override func action(for layer: CALayer, forKey event: String) -> CAAction? {

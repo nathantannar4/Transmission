@@ -7,110 +7,102 @@
 import SwiftUI
 import Engine
 
-/// The primary action of the ``MenuLink``
-@frozen
-@available(iOS 14.0, *)
-public enum MenuLinkPrimaryAction {
-
-    /// The primary action is disabled, and the menu will pass through touches to the label
-    case disabled
-
-    /// Show the menu on tap
-    case showMenu
-
-    /// A custom handler on tap
-    case custom(@MainActor () -> Void)
-}
-
-/// The background style of the ``MenuLink``,
-///
-/// > Note: Neccesary for the correct glass morphing effect
-///
-@frozen
-@available(iOS 14.0, *)
-public enum MenuLinkBackgroundStyle {
-    case plain
-
-    @available(iOS 26.0, *)
-    case glass
-
-    @available(iOS 26.0, *)
-    case clearGlass
-}
-
-/// A view that manages the presentation of a context menu. The presentation is
-/// sourced from this view.
+/// A view that manages the presentation of a menu. The presentation is
+/// sourced from this view, but does not morph the view with the presented menu.
 ///
 /// See Also:
 ///  - ``MenuSourceViewLink``
+///  - ``MenuLinkAdapter``
 ///  - ``MenuLinkModifier``
 ///
-@frozen
 @available(iOS 14.0, *)
-public struct MenuLinkAdapter<
+@frozen
+public struct MenuLink<
     Menu: MenuElement,
-    Content: View
+    Label: View
 >: View {
 
-    var content: Content
+    var label: Label
     var menu: Menu
     var primaryAction: MenuLinkPrimaryAction
-    var cornerRadius: CornerRadiusOptions?
-    var background: MenuLinkBackgroundStyle
-    var visibleInset: CGFloat
-    var isPresented: Binding<Bool>
+
+    @StateOrBinding var isPresented: Bool
+
+    public init(
+        @MenuBuilder menu: () -> Menu,
+        @ViewBuilder label: () -> Label,
+        primaryAction: (@MainActor () -> Void)? = nil
+    ) {
+        self.init(
+            primaryAction: primaryAction.map { .custom($0) } ?? .showMenu,
+            menu: menu,
+            label: label
+        )
+    }
 
     public init(
         primaryAction: MenuLinkPrimaryAction,
-        cornerRadius: CornerRadiusOptions? = nil,
-        background: MenuLinkBackgroundStyle = .plain,
-        visibleInset: CGFloat = 0,
-        isPresented: Binding<Bool>,
         @MenuBuilder menu: () -> Menu,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder label: () -> Label
     ) {
-        self.content = content()
+        self.label = label()
         self.menu = menu()
         self.primaryAction = primaryAction
-        self.cornerRadius = cornerRadius
-        self.background = background
-        self.visibleInset = visibleInset
-        self.isPresented = isPresented
+        self._isPresented = .init(false)
+    }
+
+    public init(
+        isPresented: Binding<Bool>,
+        @MenuBuilder menu: () -> Menu,
+        @ViewBuilder label: () -> Label,
+        primaryAction: (@MainActor () -> Void)? = nil
+    ) {
+        self.init(
+            isPresented: isPresented,
+            primaryAction: primaryAction.map { .custom($0) } ?? .showMenu,
+            menu: menu,
+            label: label
+        )
+    }
+
+    public init(
+        isPresented: Binding<Bool>,
+        primaryAction: MenuLinkPrimaryAction,
+        @MenuBuilder menu: () -> Menu,
+        @ViewBuilder label: () -> Label
+    ) {
+        self.label = label()
+        self.menu = menu()
+        self.primaryAction = primaryAction
+        self._isPresented = .init(isPresented)
     }
 
     public var body: some View {
-        MenuLinkAdapterBody(
-            cornerRadius: cornerRadius,
-            background: background,
-            visibleInset: visibleInset,
-            isPresented: isPresented,
+        MenuLinkBody(
+            isPresented: $isPresented,
             menu: menu,
-            sourceView: content,
+            sourceView: label,
             primaryAction: primaryAction
         )
     }
 }
 
 @available(iOS 14.0, *)
-private struct MenuLinkAdapterBody<
+private struct MenuLinkBody<
     Menu: MenuElement,
     SourceView: View
 >: UIViewRepresentable {
 
-    var cornerRadius: CornerRadiusOptions?
-    var background: MenuLinkBackgroundStyle
-    var visibleInset: CGFloat
     var isPresented: Binding<Bool>
     var menu: Menu
     var sourceView: SourceView
     var primaryAction: MenuLinkPrimaryAction
 
-    typealias UIViewType = MenuLinkSourceView<Menu, SourceView>
+    typealias UIViewType = MenuLinkView<Menu, SourceView>
 
     func makeUIView(context: Context) -> UIViewType {
         let uiView = UIViewType(
             content: sourceView,
-            background: background,
             coordinator: context.coordinator
         )
         return uiView
@@ -120,8 +112,7 @@ private struct MenuLinkAdapterBody<
         uiView.primaryAction = primaryAction
         uiView.onUpdate(
             content: sourceView,
-            context: context,
-            cornerRadius: cornerRadius
+            context: context
         )
         context.coordinator.onUpdate(
             isPresented: isPresented,
@@ -129,7 +120,7 @@ private struct MenuLinkAdapterBody<
             menu: menu,
             preview: EmptyView(),
             context: context,
-            visibleInset: visibleInset,
+            visibleInset: 0,
             sourceView: uiView,
             interaction: uiView.contextMenuInteraction
         )
@@ -170,10 +161,10 @@ private struct MenuLinkAdapterBody<
 }
 
 @available(iOS 14.0, *)
-private class MenuLinkSourceView<
+private class MenuLinkView<
     Menu: MenuElement,
     Content: View
->: UIButton {
+>: UIControl {
 
     var sourceView: UIView {
         hostingView.sourceView ?? hostingView
@@ -191,40 +182,20 @@ private class MenuLinkSourceView<
     }
 
     private let hostingView: TransitionSourceView<Content>
-    private let coordinator: MenuLinkAdapterBody<Menu, Content>.Coordinator
-
-    var contentView: UIView {
-        if #available(iOS 15.0, *), configuration != nil,
-            let backgroundView = subviews.first,
-            let contentView = backgroundView.subviews.first
-        {
-            if let effectView = contentView as? UIVisualEffectView {
-                return effectView.contentView
-            }
-            return contentView
-        }
-        return self
-    }
+    private let coordinator: MenuLinkBody<Menu, Content>.Coordinator
 
     init(
         content: Content,
-        background: MenuLinkBackgroundStyle,
-        coordinator: MenuLinkAdapterBody<Menu, Content>.Coordinator
+        coordinator: MenuLinkBody<Menu, Content>.Coordinator
     ) {
         self.hostingView = TransitionSourceView(content: content)
         self.coordinator = coordinator
         super.init(frame: .zero)
 
-        if #available(iOS 15.0, *) {
-            self.configuration = background.makeConfiguration()
-            automaticallyUpdatesConfiguration = false
-        }
-
-        tintAdjustmentMode = .normal
         isContextMenuInteractionEnabled = true
 
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(hostingView)
+        hostingView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(hostingView)
 
         addTarget(self, action: #selector(didTriggerPrimaryAction), for: .primaryActionTriggered)
     }
@@ -251,13 +222,11 @@ private class MenuLinkSourceView<
 
     func onUpdate(
         content: Content,
-        context: MenuLinkAdapterBody<Menu, Content>.Context,
-        cornerRadius: CornerRadiusOptions?
+        context: MenuLinkBody<Menu, Content>.Context
     ) {
         hostingView.update(
             content: content,
-            transaction: context.transaction,
-            cornerRadius: cornerRadius
+            transaction: context.transaction
         )
     }
 
@@ -267,11 +236,6 @@ private class MenuLinkSourceView<
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {
         hostingView.sizeThatFits(size)
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        hostingView.frame = convert(bounds, to: hostingView)
     }
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
@@ -320,6 +284,27 @@ private class MenuLinkSourceView<
 
     override func contextMenuInteraction(
         _ interaction: UIContextMenuInteraction,
+        previewForHighlightingMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+        return coordinator.contextMenuInteraction(
+            interaction,
+            previewForHighlightingMenuWithConfiguration: configuration
+        )
+    }
+
+    override func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        previewForDismissingMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+        return coordinator.contextMenuInteraction(
+            interaction,
+            previewForDismissingMenuWithConfiguration: configuration
+        )
+    }
+
+    @available(iOS 16.0, *)
+    override func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
         configuration: UIContextMenuConfiguration,
         highlightPreviewForItemWithIdentifier identifier: any NSCopying
     ) -> UITargetedPreview? {
@@ -330,6 +315,7 @@ private class MenuLinkSourceView<
         )
     }
 
+    @available(iOS 16.0, *)
     override func contextMenuInteraction(
         _ interaction: UIContextMenuInteraction,
         configuration: UIContextMenuConfiguration,
@@ -343,35 +329,10 @@ private class MenuLinkSourceView<
     }
 }
 
-@available(iOS 14.0, *)
-extension MenuLinkBackgroundStyle {
-
-    @available(iOS 15.0, *)
-    @MainActor
-    func makeConfiguration() -> UIButton.Configuration {
-        #if canImport(FoundationModels) // Xcode 26
-        if #available(iOS 26.0, *) {
-            switch self {
-            case .glass:
-                return .glass()
-            case .clearGlass:
-                return .clearGlass()
-            default:
-                break
-            }
-        }
-        #endif
-
-        var configuration = UIButton.Configuration.plain()
-        configuration.background.cornerRadius = 0
-        return configuration
-    }
-}
-
 // MARK: - Previews
 
 @available(iOS 14.0, *)
-struct MenuLinkAdapter_Previews: PreviewProvider {
+struct MenuLink_Previews: PreviewProvider {
     static var previews: some View {
         ZStack {
             Preview()
@@ -379,108 +340,53 @@ struct MenuLinkAdapter_Previews: PreviewProvider {
     }
 
     struct Preview: View {
-        @State var isMenuAPresented = false
-        @State var isMenuBPresented = false
-        @State var isMenuCPresented = false
+        @State var isPresented = false
 
         var body: some View {
             VStack {
-                MenuLinkAdapter(
-                    primaryAction: .custom({ print("primary action") }),
-                    background: {
-                        if #available(iOS 26.0, *) {
-                            return .glass
-                        }
-                        return .plain
-                    }(),
-                    isPresented: $isMenuAPresented
-                ) {
+                MenuLink {
                     MenuButton {
 
                     } label: {
-                        Text("Option A")
+                        Image(systemName: "textformat.size.smaller")
+                        Text("Small")
                     }
 
                     MenuButton {
 
                     } label: {
-                        Text("Option B")
+                        Image(systemName: "textformat.size.larger")
+                        Text("Large")
                     }
-                } content: {
-                    VStack(alignment: .leading) {
-                        Text("Primary Action")
-                        Text("Holde to show menu")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding()
+                } label: {
+                    Text("Menu")
                 }
 
-                MenuLinkAdapter(
-                    primaryAction: .disabled,
-                    background: {
-                        if #available(iOS 26.0, *) {
-                            return .glass
-                        }
-                        return .plain
-                    }(),
-                    isPresented: $isMenuBPresented
+                MenuLink(
+                    isPresented: $isPresented,
+                    primaryAction: .disabled
                 ) {
                     MenuButton {
 
                     } label: {
-                        Text("Option A")
+                        Image(systemName: "textformat.size.smaller")
+                        Text("Small")
                     }
 
                     MenuButton {
 
                     } label: {
-                        Text("Option B")
+                        Image(systemName: "textformat.size.larger")
+                        Text("Large")
                     }
-                } content: {
+                } label: {
                     Button {
                         withAnimation {
-                            isMenuBPresented = true
+                            isPresented = true
                         }
                     } label: {
-                        Text("Show Menu")
+                        Text("Menu")
                     }
-                    .padding()
-                }
-
-                MenuLinkAdapter(
-                    primaryAction: .disabled,
-                    background: .plain,
-                    isPresented: $isMenuCPresented
-                ) {
-                    MenuButton {
-
-                    } label: {
-                        Text("Option A")
-                    }
-
-                    MenuButton {
-
-                    } label: {
-                        Text("Option B")
-                    }
-                } content: {
-                    Button {
-                        withAnimation {
-                            isMenuCPresented = true
-                        }
-                    } label: {
-                        Text("Show Menu")
-                    }
-                    .padding()
-                    .background(
-                        ZStack {
-                            if #available(iOS 15.0, *) {
-                                Rectangle()
-                                    .fill(Material.ultraThickMaterial)
-                            }
-                        }
-                    )
                 }
             }
         }

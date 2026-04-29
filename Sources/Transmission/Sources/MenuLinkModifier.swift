@@ -8,13 +8,14 @@ import SwiftUI
 import Engine
 
 /// A modifier that manages the presentation of a menu. The presentation is
-/// sourced from this view, but does not moprh the view with the presented menu.
+/// sourced from this view, but does not morph the view with the presented menu.
 ///
 /// The menu is only presented via the `isPresented` binding.
 ///
 /// See Also:
-///  - ``MenuLinkAdapter``
 ///  - ``MenuSourceViewLink``
+///  - ``MenuLink``
+///  - ``MenuLinkAdapter``
 ///
 @available(iOS 14.0, *)
 @frozen
@@ -36,12 +37,12 @@ public struct MenuLinkModifier<
     public func body(content: Content) -> some View {
         content
             .background(
-                MenuLinkAdapter(
-                    primaryAction: .disabled,
-                    isPresented: isPresented
+                MenuLink(
+                    isPresented: isPresented,
+                    primaryAction: .disabled
                 ) {
                     menu
-                } content: {
+                } label: {
                     EmptyView()
                 }
             )
@@ -51,6 +52,9 @@ public struct MenuLinkModifier<
 extension View {
 
     /// A modifier that manages the presentation of a menu
+    ///
+    /// The menu is only presented via the `isPresented` binding.
+    /// 
     @available(iOS 14.0, *)
     public func menuLink<Menu: MenuElement>(
         isPresented: Binding<Bool>,

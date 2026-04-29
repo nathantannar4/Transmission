@@ -33,6 +33,24 @@ extension MenuElementRepresentable {
             element = makeUIMenuElement(context: context)
         }
     }
+
+    public func _makeUIMenuElementsCount() -> Int? {
+        return 1
+    }
+
+    public func _makeUIMenuElements(context: Context) -> [UIMenuElement] {
+        return [
+            _makeUIMenuElement(context: context)
+        ]
+    }
+
+    public func _updateUIMenuElements(_ elements: inout [UIMenuElement], context: Context) {
+        if elements.count == 1 {
+            _updateUIMenuElement(&elements[0], context: context)
+        } else {
+            elements = _makeUIMenuElements(context: context)
+        }
+    }
 }
 
 @available(iOS 14.0, *)

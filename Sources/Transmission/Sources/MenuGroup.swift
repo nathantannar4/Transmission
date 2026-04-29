@@ -19,6 +19,11 @@ public struct MenuIdentifier: Hashable, ExpressibleByStringLiteral {
     }
 
     @inlinable
+    public init(rawValue value: String) {
+        self.id = UIMenu.Identifier(value)
+    }
+
+    @inlinable
     public init(id: UIMenu.Identifier) {
         self.id = id
     }
@@ -64,6 +69,27 @@ public struct MenuOptions: OptionSet {
     }
 }
 
+@available(iOS 14.0, *)
+@frozen
+public struct MenuDisplayPreferences {
+
+    @usableFromInline
+    var preferredLineLimit: Int?
+
+    @available(iOS 17.4, *)
+    public var lineLimit: Int? {
+        get { preferredLineLimit }
+        set { preferredLineLimit = newValue }
+    }
+
+    @inlinable
+    public init(
+        preferredLineLimit: Int? = nil
+    ) {
+        self.preferredLineLimit = preferredLineLimit
+    }
+}
+
 @frozen
 public struct MenuSize {
     @usableFromInline
@@ -96,6 +122,30 @@ public struct MenuSize {
         MenuSize(value: .automatic)
     }
 
+    @available(iOS, deprecated: 16.0, renamed: "small")
+    public static var prefersSmall: MenuSize {
+        if #available(iOS 16.0, *) {
+            return .small
+        }
+        return .automatic
+    }
+
+    @available(iOS, deprecated: 16.0, renamed: "medium")
+    public static var prefersMedium: MenuSize {
+        if #available(iOS 16.0, *) {
+            return .medium
+        }
+        return .automatic
+    }
+
+    @available(iOS, deprecated: 16.0, renamed: "large")
+    public static var prefersLarge: MenuSize {
+        if #available(iOS 16.0, *) {
+            return .large
+        }
+        return .automatic
+    }
+
     @available(iOS 16.0, *)
     func toUIKit() -> UIMenu.ElementSize {
         switch value {
@@ -124,109 +174,109 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
     public var id: ID?
     public var options: MenuOptions
     public var size: MenuSize
+    public var displayPreferences: MenuDisplayPreferences
     public var layoutProperties: MenuElementLayoutProperties
     public var content: Content
 
     @inlinable
     public init(
         id: ID? = nil,
-        options: MenuOptions = .init(),
+        options: MenuOptions = [],
         size: MenuSize = .automatic,
+        displayPreferences: MenuDisplayPreferences = MenuDisplayPreferences(),
         order: MenuElementsOrder = .automatic,
         @MenuBuilder content: () -> Content,
-        @LabelElementBuilder label: () -> LabelElement = { LabelElement() }
+        @LabelElementBuilder label: () -> LabelElement
     ) {
-        let label = label()
-        self.label = label
+        self.label = label()
         self.id = id
-        self.options = {
-            var options = options
-            if label.title == nil, label.subtitle == nil, label.image == nil {
-                options.insert(.displayInline)
-            }
-            return options
-        }()
+        self.options = options
         self.size = size
+        self.displayPreferences = displayPreferences
         self.layoutProperties = MenuElementLayoutProperties(order: order)
         self.content = content()
+    }
+
+    @inlinable
+    public init(
+        id: ID? = nil,
+        options: MenuOptions = [.displayInline],
+        size: MenuSize = .automatic,
+        displayPreferences: MenuDisplayPreferences = MenuDisplayPreferences(),
+        order: MenuElementsOrder = .automatic,
+        @MenuBuilder content: () -> Content
+    ) {
+        self.init(
+            id: id,
+            options: options,
+            size: size,
+            displayPreferences: displayPreferences,
+            order: order,
+            content: content,
+            label: { }
+        )
     }
 
     public typealias Menu = MenuBuilderMenu<Self>
 
     public func makeUIMenuElement(context: Context) -> Menu {
-        let element = content._makeUIMenuElement(context: context)
-        if let menu = element as? MenuBuilderMenu<Content> {
-            _updateUIMenuElement(menu, displayInline: true, context: context)
-        }
+        let children = content._makeUIMenuElements(context: context)
+        let menu: Menu
         if #available(iOS 16.0, *) {
-            let menu = Menu(
+            menu = Menu(
                 title: label.title?.resolve(in: context.environment) ?? "",
                 subtitle: label.subtitle?.resolve(in: context.environment),
                 image: label.image?.toUIImage(in: context.environment),
                 identifier: id?.toUIKit(),
                 options: options.toUIKit(),
                 preferredElementSize: size.toUIKit(),
-                children: [element]
+                children: children
             )
-            return menu
         } else if #available(iOS 15.0, *) {
-            let menu = Menu(
+            menu = Menu(
                 title: label.title?.resolve(in: context.environment) ?? "",
                 subtitle: label.subtitle?.resolve(in: context.environment),
                 image: label.image?.toUIImage(in: context.environment),
                 identifier: id?.toUIKit(),
                 options: options.toUIKit(),
-                children: [element]
+                children: children
             )
-            return menu
         } else {
-            let menu = Menu(
+            menu = Menu(
                 title: label.title?.resolve(in: context.environment) ?? "",
                 image: label.image?.toUIImage(in: context.environment),
                 identifier: id?.toUIKit(),
                 options: options.toUIKit(),
-                children: [element]
+                children: children
             )
-            return menu
         }
-    }
-
-    private func _updateUIMenuElement(_ element: UIMenu, displayInline: Bool, context: Context) {
-        if displayInline {
-            let options: MenuOptions = .displayInline
-            element.setValue(options.toUIKit().rawValue, forKey: "options")
-            if #available(iOS 16.0, *) {
-                element.setValue(size.toUIKit().rawValue, forKey: "preferredElementSize")
-            }
-        } else {
-            if let id {
-                element.setValue(id.toUIKit(), forKey: "identifier")
-            }
-            element.setValue(label.title?.resolve(in: context.environment) ?? "", forKey: "title")
-            if #available(iOS 15.0, *) {
-                element.setValue(label.subtitle?.resolve(in: context.environment), forKey: "subtitle")
-            }
-            element.setValue(label.image?.toUIImage(in: context.environment), forKey: "image")
-            element.setValue(options.toUIKit().rawValue, forKey: "options")
-            if #available(iOS 16.0, *) {
-                element.setValue(size.toUIKit().rawValue, forKey: "preferredElementSize")
-            }
+        if #available(iOS 17.4, *) {
+            let preferences = UIMenuDisplayPreferences()
+            preferences.maximumNumberOfTitleLines = displayPreferences.lineLimit ?? 0
+            menu.displayPreferences = preferences
         }
+        return menu
     }
 
     public func updateUIMenuElement(_ element: inout Menu, context: Context) {
-        _updateUIMenuElement(element, displayInline: false, context: context)
+        if let id {
+            element.setValue(id.toUIKit(), forKey: "identifier")
+        }
+        element.setValue(label.title?.resolve(in: context.environment) ?? "", forKey: "title")
+        if #available(iOS 15.0, *) {
+            element.setValue(label.subtitle?.resolve(in: context.environment), forKey: "subtitle")
+        }
+        element.setValue(label.image?.toUIImage(in: context.environment), forKey: "image")
+        element.setValue(options.toUIKit().rawValue, forKey: "options")
+        if #available(iOS 16.0, *) {
+            element.setValue(size.toUIKit().rawValue, forKey: "preferredElementSize")
+        }
+        if #available(iOS 17.4, *) {
+            element.displayPreferences?.maximumNumberOfTitleLines = displayPreferences.lineLimit ?? 0
+        }
+
         var updated = element.children
-        if updated.count == 1, let menu = updated.first as? MenuBuilderMenu<Content> {
-            _updateUIMenuElement(menu, displayInline: true, context: context)
-        }
-        if updated.count > 0 {
-            content._updateUIMenuElement(&updated[0], context: context)
-        } else {
-            updated = [
-                content._makeUIMenuElement(context: context)
-            ]
-        }
+        content._updateUIMenuElements(&updated, context: context)
         element = element.replacingChildren(updated) as! Menu
     }
 
@@ -237,6 +287,85 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
             stop = true
         } else {
             content._updateVisibleUIMenu(&menu, context: context, stop: &stop)
+        }
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct MenuGroup_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Preview()
+        }
+    }
+
+    struct Preview: View {
+        @State var isLarge = false
+
+        @MenuBuilder
+        var options: some MenuElement {
+            MenuButton(isSelected: !isLarge) {
+                withAnimation {
+                    isLarge = false
+                }
+            } label: {
+                Image(systemName: "textformat.size.smaller")
+                Text("Small")
+            }
+
+            MenuButton(isSelected: isLarge) {
+                withAnimation {
+                    isLarge = true
+                }
+            } label: {
+                Image(systemName: "textformat.size.larger")
+                Text("Large")
+            }
+        }
+
+        var body: some View {
+            MenuSourceViewLink {
+                MenuGroup(options: .displayInline, size: .prefersSmall) {
+                    options
+                } label: {
+                    Text("Options")
+                }
+
+                MenuGroup(options: .displayInline, size: .prefersMedium) {
+                    options
+                } label: {
+                    Text("Options")
+                }
+
+                MenuGroup(options: .displayInline, size: .prefersLarge) {
+                    options
+                } label: {
+                    Text("Options")
+                }
+
+                MenuGroup {
+                    MenuButton {
+
+                    } label: {
+                        Text("Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat.")
+                    }
+                }
+
+                MenuGroup {
+                    MenuButton {
+
+                    } label: {
+                        Text("Action")
+                    }
+                } label: {
+                    Image(systemName: "character.text.justify")
+                    Text("More")
+                }
+            } label: {
+                Text("Menu")
+            }
         }
     }
 }

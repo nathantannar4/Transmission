@@ -44,7 +44,7 @@ public struct ContextMenuLinkAdapter<
         @MenuBuilder menu: () -> Menu,
         @ViewBuilder preview: () -> Preview = { EmptyView() },
         @ViewBuilder content: () -> Content,
-        @ViewBuilder accessoryViews: () -> AccessoryViews,
+        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
     ) {
         self.content = content()
         self.menu = menu()
@@ -262,18 +262,18 @@ final class ContextMenuLinkCoordinator<
 
         guard let interaction else { return }
         let hasVisibleMenu = interaction.hasVisibleMenu
+        if isPresenting {
+            ignoreUpdates -= 1
+        }
         if isPresented.wrappedValue {
-            if hasVisibleMenu {
-                if isPresenting {
-                    ignoreUpdates -= 1
-                } else {
-                    let context = MenuRepresentableContext(
-                        transaction: context.transaction,
-                        environment: context.environment
-                    )
-                    interaction.update(menu, context: context)
-                }
+            if hasVisibleMenu, !isPresenting {
+                let context = MenuRepresentableContext(
+                    transaction: context.transaction,
+                    environment: context.environment
+                )
+                interaction.update(menu, context: context)
             } else if !hasVisibleMenu, !isDismissing {
+                isPresenting = true
                 withCATransaction {
                     interaction.presentMenu()
                 }
@@ -282,7 +282,7 @@ final class ContextMenuLinkCoordinator<
                     isPresented.wrappedValue = false
                 }
             }
-        } else if hasVisibleMenu, isPresented.wrappedValue == false {
+        } else if hasVisibleMenu, !isPresenting, isPresented.wrappedValue == false {
             withCATransaction {
                 interaction.dismissMenu()
             }
@@ -299,7 +299,6 @@ final class ContextMenuLinkCoordinator<
         }
         interaction = nil
         adapter = nil
-        isPresented.wrappedValue = false
     }
 
     func willShow(animation: Animation? = nil) {
@@ -323,6 +322,7 @@ final class ContextMenuLinkCoordinator<
     }
 
     func willHide(animation: Animation? = nil) {
+        isPresenting = false
         sourceViewSize = nil
         withAnimation(animation) {
             isPresented.wrappedValue = false
@@ -387,8 +387,12 @@ final class ContextMenuLinkCoordinator<
     ) {
         isDismissing = false
         if let animator {
-            isPresenting = true
-            ignoreUpdates = 2
+            if !isPresenting {
+                isPresenting = true
+                // Skip 2 superfulous updates when triggered via UI interaction, since updating the menu
+                // cancels touch interaction.
+                ignoreUpdates = 2
+            }
             animator.addAnimations { [weak self] in
                 guard let self else { return }
                 willShow(animation: .default)
@@ -426,12 +430,30 @@ final class ContextMenuLinkCoordinator<
 
     func contextMenuInteraction(
         _ interaction: UIContextMenuInteraction,
+        previewForDismissingMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+        guard #unavailable(iOS 16.0) else { return nil }
+        return contextMenuPreview(interaction)
+    }
+
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        previewForHighlightingMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+        guard #unavailable(iOS 16.0) else { return nil }
+        return contextMenuPreview(interaction)
+    }
+
+    @available(iOS 16.0, *)
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
         configuration: UIContextMenuConfiguration,
         highlightPreviewForItemWithIdentifier identifier: any NSCopying
     ) -> UITargetedPreview? {
         return contextMenuPreview(interaction)
     }
 
+    @available(iOS 16.0, *)
     func contextMenuInteraction(
         _ interaction: UIContextMenuInteraction,
         configuration: UIContextMenuConfiguration,
@@ -775,6 +797,75 @@ extension UIContextMenuInteraction {
         }
         let point = CGPoint(x: view.bounds.midX, y: view.bounds.midY)
         perform(aSelector, with: NSValue(cgPoint: point))
+    }
+}
+
+
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct ContextMenuLinkAdapter_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Preview()
+        }
+    }
+
+    struct Preview: View {
+        @State var isMenuAPresented = false
+        @State var isMenuBPresented = false
+        @State var isMenuCPresented = false
+
+        var body: some View {
+            VStack {
+                ContextMenuLinkAdapter(
+                    isPresented: $isMenuAPresented
+                ) {
+                    MenuButton {
+
+                    } label: {
+                        Text("Option A")
+                    }
+
+                    MenuButton {
+
+                    } label: {
+                        Text("Option B")
+                    }
+                } content: {
+                    VStack(alignment: .leading) {
+                        Text("Primary Action")
+                        Text("Holde to show menu")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                ContextMenuLinkAdapter(
+                    isPresented: $isMenuBPresented
+                ) {
+                    MenuButton {
+
+                    } label: {
+                        Text("Option A")
+                    }
+
+                    MenuButton {
+
+                    } label: {
+                        Text("Option B")
+                    }
+                } content: {
+                    Button {
+                        withAnimation {
+                            isMenuBPresented = true
+                        }
+                    } label: {
+                        Text("Show Menu")
+                    }
+                }
+            }
+        }
     }
 }
 
