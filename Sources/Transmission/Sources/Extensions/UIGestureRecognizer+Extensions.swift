@@ -60,6 +60,17 @@ extension UIGestureRecognizer {
         return isKind(of: aClass)
     }
 
+    var isSwiftSimultaneousUIGestureResponder: Bool {
+        guard
+            isSwiftUIGestureResponder,
+            responds(to: NSSelectorFromString("container")),
+            let container = value(forKey: "container") as? NSObject
+        else {
+            return false
+        }
+        return container.debugDescription.contains("simultaneous")
+    }
+
     var isSheetDismissPanGesture: Bool {
         guard name == "_UISheetInteractionBackgroundDismissRecognizer" else {
             return false

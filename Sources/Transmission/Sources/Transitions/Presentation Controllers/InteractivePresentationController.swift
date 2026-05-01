@@ -670,7 +670,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     ) -> Bool {
         guard gestureRecognizer == panGesture else { return false }
         if otherGestureRecognizer.isSwiftUIGestureResponder {
-            return true
+            return !otherGestureRecognizer.isSwiftSimultaneousUIGestureResponder
         }
         return otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
     }

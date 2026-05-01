@@ -81,7 +81,7 @@ open class CardPresentationController: InteractivePresentationController {
                 sizeThatFits.height = width
             }
             sizeThatFits.height += (2 * edgeInset)
-            if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
+            if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented, preferredSafeAreaInsets != .zero {
                 sizeThatFits.height += max((containerView?.safeAreaInsets.bottom ?? 0) - edgeInset, 0)
                 sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.top
                 sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.bottom
