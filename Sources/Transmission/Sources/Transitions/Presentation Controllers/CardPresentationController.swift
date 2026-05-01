@@ -94,15 +94,15 @@ open class CardPresentationController: InteractivePresentationController {
             width: width,
             height: height
         )
-
         let keyboardOverlap = keyboardOverlapInContainerView(
             of: frame,
             keyboardHeight: keyboardHeight
         )
-        frame.origin.y -= keyboardOverlap
-        if frame.origin.y < 0 {
-            frame.size.height += frame.origin.y
-            frame.origin.y = 0
+        frame.origin.y -= max(keyboardOverlap, keyboardOffset)
+        let minY = containerView?.safeAreaInsets.top ?? 0
+        if frame.origin.y < minY {
+            frame.size.height += (frame.origin.y - minY)
+            frame.origin.y = minY
         }
         frame = frame.inset(
             by: UIEdgeInsets(

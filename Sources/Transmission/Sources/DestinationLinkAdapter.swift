@@ -230,7 +230,7 @@ final class DestinationLinkCoordinator<
 
         if let presentingViewController, isPresented.wrappedValue {
 
-            let sourceTransaction = try? swift_getFieldValue("transaction", Transaction?.self, presentingViewController)
+            let sourceTransaction = (presentingViewController as? AnyHostingController)?.transaction
             let isAnimated = context.transaction.isAnimated
                 || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
                 || sourceTransaction?.isAnimated == true

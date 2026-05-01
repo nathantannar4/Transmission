@@ -99,7 +99,7 @@ open class PresentationHostingController<
                         duration: duration,
                         options: [
                             .beginFromCurrentState,
-                            UIView.AnimationOptions(rawValue: UInt(curve.rawValue << 16)),
+                            UIView.AnimationOptions(curve: curve),
                         ]
                     ) {
                         sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)

@@ -164,7 +164,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     open func transformPresentedView(transform: CGAffineTransform) {
         let scale = presentedViewController.view.window?.screen.scale ?? 1
         var frame = frameOfPresentedViewInContainerView.applying(transform)
-        frame.origin.y -= keyboardOffset
         frame.origin.x = frame.origin.x.rounded(scale: scale)
         frame.origin.y = frame.origin.y.rounded(scale: scale)
         frame.size.width = frame.size.width.rounded(scale: scale)
@@ -208,6 +207,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     }
 
     open override func keyboardHeightDidChange() {
+        super.keyboardHeightDidChange()
         if keyboardHeight == 0 {
             keyboardOffset = 0
         }
@@ -425,10 +425,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         if didResign {
                             resignedFirstResponder = firstResponder
                         }
-                        keyboardOffset = keyboardOverlapInContainerView(
+                        let offset = keyboardOverlapInContainerView(
                             of: frameOfPresentedViewInContainerView,
                             keyboardHeight: keyboardHeight
                         )
+                        keyboardOffset = offset
                     } else {
                         didResign = true
                     }
@@ -458,7 +459,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     shouldDismiss(),
                     dismissKeyboard()
                 {
-                    keyboardOffset = 0
                     if let scrollView {
                         let contentOffset = CGPoint(
                             x: -scrollView.adjustedContentInset.left,

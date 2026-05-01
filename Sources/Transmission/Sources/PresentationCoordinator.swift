@@ -150,7 +150,7 @@ extension EnvironmentValues {
             if let coordinator = self[PresentationCoordinatorKey.self] {
                 return coordinator
             }
-            if let hostingController {
+            if #available(iOS 17.0, *), let hostingController {
                 return PresentationCoordinator(
                     hostingController: hostingController
                 )

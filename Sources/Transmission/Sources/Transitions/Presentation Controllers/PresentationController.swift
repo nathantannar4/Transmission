@@ -11,7 +11,12 @@ import SwiftUI
 @available(iOS 14.0, *)
 open class PresentationController: DelegatedPresentationController, PercentDrivenInteractivePresentationController {
 
-    public private(set) var isTransitioningSize = false
+    public var isTransitioningSize: Bool {
+        sizeTransitionCoordinator != nil
+    }
+    private weak var sizeTransitionCoordinator: UIViewControllerTransitionCoordinator?
+
+    public private(set) var isTransitioningKeyboard = false
     public private(set) var keyboardHeight: CGFloat = 0
 
     public let dimmingView: DimmingView = {
@@ -27,7 +32,10 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
     public let shadowView = ShadowView()
 
     open var shouldAutoLayoutPresentedView: Bool {
-        transition == nil
+        if isTransitioningKeyboard {
+            return true
+        }
+        return transition == nil
             && !isTransitioningSize
             && !presentedViewController.isBeingPresented
             && !presentedViewController.isBeingDismissed
@@ -208,12 +216,15 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
         to size: CGSize,
         with coordinator: UIViewControllerTransitionCoordinator
     ) {
-        isTransitioningSize = true
+        sizeTransitionCoordinator = coordinator
         super.viewWillTransition(to: size, with: coordinator)
+        if keyboardHeight > 0 {
+            keyboardHeight = size.height / 2
+        }
         coordinator.animateAlongsideTransition(in: containerView) { _ in
             self.transitionAlongsideRotation()
         } completion: { _ in
-            self.isTransitioningSize = false
+            self.sizeTransitionCoordinator = nil
         }
     }
 
@@ -287,7 +298,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
     ) -> CGFloat {
         guard let containerView else { return 0 }
         let maxHeight = isTransitioningSize ? containerView.frame.width : containerView.frame.height
-        let dy = maxHeight - keyboardHeight - (isTransitioningSize ? frame.maxX : frame.maxY)
+        let dy = min(0, maxHeight - (isTransitioningSize ? frame.maxX : frame.maxY)) - keyboardHeight
         if dy < 0 {
             return abs(dy)
         }
@@ -306,33 +317,38 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
         let endFrame = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
         let dy = notification.name == UIResponder.keyboardWillHideNotification ? 0 : (endFrame?.size.height ?? 0)
 
-        guard keyboardHeight != dy else { return }
+        guard keyboardHeight != dy, !(isTransitioningSize && dy == 0) else { return }
         keyboardHeight = dy
+        isTransitioningKeyboard = true
         guard shouldAutoLayoutPresentedView, let containerView else {
             keyboardHeightDidChange()
+            isTransitioningKeyboard = false
             return
         }
         containerView.setNeedsLayout()
 
         guard
-            let duration = userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
+            let duration = sizeTransitionCoordinator?.transitionDuration ?? userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
             duration > 0,
-            let curve = userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt
+            let curve = sizeTransitionCoordinator?.completionCurve.rawValue ?? userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int
         else {
             keyboardHeightDidChange()
             containerView.layoutIfNeeded()
+            isTransitioningKeyboard = false
             return
         }
         UIView.animate(
             withDuration: duration,
             delay: 0,
             options: [
-                .init(rawValue: curve << 16),
+                UIView.AnimationOptions(curve: curve),
                 .beginFromCurrentState,
             ]
         ) {
             self.keyboardHeightDidChange()
             containerView.layoutIfNeeded()
+        } completion: { _ in
+            self.isTransitioningKeyboard = false
         }
     }
 

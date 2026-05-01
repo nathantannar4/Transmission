@@ -427,10 +427,10 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             return
         }
         if #available(iOS 26.0, *) {
-            layoutContainerView(duration: duration, options: UIView.AnimationOptions(rawValue: UInt(curve << 16)))
+            layoutContainerView(duration: duration, options: UIView.AnimationOptions(curve: curve))
         } else {
             withCATransaction {
-                self.layoutContainerView(duration: duration, options: UIView.AnimationOptions(rawValue: UInt(curve << 16)))
+                self.layoutContainerView(duration: duration, options: UIView.AnimationOptions(curve: curve))
             }
         }
     }

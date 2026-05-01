@@ -67,6 +67,17 @@ extension UIView {
     }
 }
 
+extension UIView.AnimationOptions {
+
+    init(curve: Int) {
+        self.init(rawValue: UInt(curve) << 16)
+    }
+
+    init(curve: UIView.AnimationCurve) {
+        self.init(curve: curve.rawValue)
+    }
+}
+
 extension UIView {
 
     public var isSwiftUIPlatformViewHost: Bool {

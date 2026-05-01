@@ -350,7 +350,7 @@ final class PresentationLinkCoordinator<
                 ]
             )
 
-            let sourceTransaction = try? swift_getFieldValue("transaction", Transaction?.self, presentingViewController)
+            let sourceTransaction = (presentingViewController as? AnyHostingController)?.transaction
             var isAnimated = context.transaction.isAnimated
                 || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
                 || sourceTransaction?.isAnimated == true
