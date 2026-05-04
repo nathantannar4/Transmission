@@ -267,12 +267,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         transition.wantsInteractiveStart = transition.wantsInteractiveStart && isDragging
         self.transition = transition
 
-        // _setInteractiveTransition:
-        if let aSelector = NSSelectorFromBase64EncodedString("X3NldEludGVyYWN0aXZlVHJhbnNpdGlvbjo="),
-           responds(to: aSelector)
-        {
-            perform(NSSelectorFromString("_setInteractiveTransition:"), with: transition)
-        }
+        interactionController = transition
     }
 
     open override func presentationTransitionWillBegin() {
@@ -337,6 +332,14 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     @objc
     private func didPan(_ gesture: UIPanGestureRecognizer) {
         switch gesture.state {
+        case .changed:
+            let translation = gesture.translation(in: gesture.view)
+            if #available(iOS 26.0, *), presentedViewController.isBeingDismissed, translation.y < 0, let interactionController, interactionController.completionSpeed < 1 {
+                // Fix UIKit transition delaying ending, `completionSpeed` is
+                interactionController.pause()
+                interactionController.completionSpeed = 1
+                interactionController.cancel()
+            }
         case .ended:
             if selectedDetentIdentifier == .large {
                 var shouldDismiss = gesture.velocity(in: gesture.view).y >= 4000

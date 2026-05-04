@@ -157,6 +157,30 @@ extension UISheetPresentationController {
         return true
     }
 
+    var interactionController: UIPercentDrivenInteractiveTransition? {
+        get {
+            guard
+                // _interactionController
+                let aSelector = NSStringFromBase64EncodedString("X2ludGVyYWN0aW9uQ29udHJvbGxlcg=="),
+                responds(to: NSSelectorFromString(aSelector)),
+                let transition = value(forKey: aSelector) as? UIPercentDrivenInteractiveTransition
+            else {
+                return nil
+            }
+            return transition
+        }
+        set {
+            // _setInteractiveTransition:
+            guard
+                let aSelector = NSSelectorFromBase64EncodedString("X3NldEludGVyYWN0aXZlVHJhbnNpdGlvbjo="),
+                responds(to: aSelector)
+            else {
+                return
+            }
+            perform(NSSelectorFromString("_setInteractiveTransition:"), with: newValue)
+        }
+    }
+
     var isDragging: Bool {
         guard
             // _isDragging
