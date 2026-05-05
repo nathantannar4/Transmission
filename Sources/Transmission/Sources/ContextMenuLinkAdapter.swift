@@ -109,6 +109,7 @@ private struct ContextMenuLinkAdapterBody<
     ) {
         uiView.update(
             content: sourceView,
+            accessoryViews: accessoryViews,
             transaction: context.transaction,
             cornerRadius: cornerRadius,
             backgroundColor: backgroundColor?.toUIColor(in: context.environment)
@@ -185,9 +186,11 @@ private class ContextMenuLinkSourceView<
     func update(
         content: Content,
         accessoryViews: AccessoryViews,
-        transaction: Transaction
+        transaction: Transaction,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: UIColor? = nil
     ) {
-        super.update(content: content, transaction: transaction)
+        super.update(content: content, transaction: transaction, cornerRadius: cornerRadius, backgroundColor: backgroundColor)
         contextMenuInteraction.update(accessoryViews: accessoryViews, transaction: transaction)
     }
 }
@@ -282,7 +285,7 @@ final class ContextMenuLinkCoordinator<
                     isPresented.wrappedValue = false
                 }
             }
-        } else if hasVisibleMenu, !isPresenting, isPresented.wrappedValue == false {
+        } else if hasVisibleMenu, isPresented.wrappedValue == false {
             withCATransaction {
                 interaction.dismissMenu()
             }
@@ -488,7 +491,14 @@ final class ContextMenuLinkCoordinator<
                     .insetBy(dx: visibleInset, dy: visibleInset)
                 parameters.visiblePath = UIBezierPath(rect: rect)
             }
-            if sourceView.layer.cornerRadius < 1 {
+            if sourceView.layer.cornerRadius == 0 {
+                if let path = sourceView.layer.sublayers?.lazy.compactMap({ ($0 as? CAShapeLayer)?.path }).first {
+                    parameters.shadowPath = UIBezierPath(cgPath: path)
+                } else if let cornerRadiusLayer = sourceView.layer.sublayers?.first(where: { $0.cornerRadius > 0 }) {
+                    parameters.shadowPath = UIBezierPath(roundedRect: cornerRadiusLayer.bounds, cornerRadius: cornerRadiusLayer.cornerRadius)
+                }
+            }
+            if sourceView.layer.cornerRadius < 1, parameters.shadowPath == nil {
                 parameters.shadowPath = UIBezierPath()
             }
             var container = sourceView.superview
@@ -799,7 +809,6 @@ extension UIContextMenuInteraction {
         perform(aSelector, with: NSValue(cgPoint: point))
     }
 }
-
 
 // MARK: - Previews
 

@@ -145,10 +145,7 @@ class ContextMenuAccessoryViewAdapter<
         ) where Content: View {
             stop = index >= adapter.accessoryViews.count
             if !stop, let hostingView = adapter.accessoryViews[index].accessoryHostingView as? AccessoryHostingView<Content> {
-                hostingView.content = AccessoryView(
-                    content: content,
-                    transaction: transaction
-                )
+                hostingView.update(content: content, transaction: transaction)
             }
             index += 1
         }
@@ -162,10 +159,25 @@ extension View {
         interaction: UIContextMenuInteraction,
         configuration: UIContextMenuConfiguration
     ) -> UIView? {
+        let presentationCoordinator = PresentationCoordinator(
+            isPresented: true,
+            sourceView: nil,
+            seed: Seed.constant(ObjectIdentifier(configuration))
+        ) { [weak interaction] _, transaction in
+            if transaction.isAnimated {
+                interaction?.dismissMenu()
+            } else {
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                interaction?.dismissMenu()
+                CATransaction.commit()
+            }
+        }
         let hostingView = AccessoryHostingView(
             content: AccessoryView(
                 content: self,
-                transaction: Transaction(animation: .default)
+                transaction: Transaction(animation: .default),
+                presentationCoordinator: presentationCoordinator
             )
         )
         hostingView.disablesSafeArea = true
@@ -329,13 +341,14 @@ extension UIContextMenuInteraction {
 struct AccessoryView<Content: View>: View {
     var content: Content
     var transaction: Transaction
+    var presentationCoordinator: PresentationCoordinator
 
     @UpdatePhase var updatePhase
 
     var body: some View {
         content
-            .fixedSize()
             .transaction(transaction, value: updatePhase)
+            .environment(\.presentationCoordinator, presentationCoordinator)
     }
 }
 
@@ -345,6 +358,12 @@ final class AccessoryHostingView<Content: View>: HostingView<AccessoryView<Conte
     override func setNeedsLayout() {
         super.setNeedsLayout()
         superview?.setNeedsLayout()
+    }
+
+    func update(content: Content, transaction: Transaction) {
+        self.content.content = content
+        self.content.transaction = transaction
+        layoutIfNeeded()
     }
 }
 
