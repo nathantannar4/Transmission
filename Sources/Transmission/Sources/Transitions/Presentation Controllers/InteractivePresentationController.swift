@@ -162,7 +162,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     }
 
     open func transformPresentedView(transform: CGAffineTransform) {
-        let scale = presentedViewController.view.window?.screen.scale ?? 1
+        let scale = presentedViewController.view.traitCollection.displayScale
         var frame = frameOfPresentedViewInContainerView.applying(transform)
         frame.origin.x = frame.origin.x.rounded(scale: scale)
         frame.origin.y = frame.origin.y.rounded(scale: scale)
@@ -179,10 +179,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         let frameOfPresentedViewInContainerView = frameOfPresentedViewInContainerView
         let frame = presentedViewController.view.frame
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
+        let scale = presentedView.traitCollection.displayScale
         let dyTop = (frame.origin.y - frameOfPresentedViewInContainerView.origin.y)
-            .rounded(scale: presentedView.window?.screen.scale ?? 1)
+            .rounded(scale: scale)
         let dyBottom = (-dyTop + frameOfPresentedViewInContainerView.size.height - frame.size.height)
-            .rounded(scale: presentedView.window?.screen.scale ?? 1)
+            .rounded(scale: scale)
         let overlapsTopSafeArea = frameOfPresentedViewInContainerView.origin.y <= safeAreaInsets.top
         let overlapsBottomSafeArea = (containerView?.frame.height ?? 0) - frameOfPresentedViewInContainerView.maxY <= safeAreaInsets.bottom
         let additionalSafeAreaInsets = UIEdgeInsets(

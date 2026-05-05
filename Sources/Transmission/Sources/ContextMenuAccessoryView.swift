@@ -367,7 +367,7 @@ private class AccessoryViewContainer: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let sizeThatFits = contentView.sizeThatFits(fittingSize)
-        let scale = window?.screen.scale ?? 1
+        let scale = traitCollection.displayScale
         let frame = CGRect(
             origin: CGPoint(
                 x: ((bounds.width - sizeThatFits.width) / 2).rounded(scale: scale),

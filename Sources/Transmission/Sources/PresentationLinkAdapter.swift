@@ -711,6 +711,7 @@ final class PresentationLinkCoordinator<
     func onDismiss(_ count: Int, transaction: Transaction) {
         guard
             let viewController = adapter?.viewController,
+            !viewController.isBeingDismissed,
             presentationController?.presentedViewController == viewController
         else {
             return

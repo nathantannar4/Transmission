@@ -6,6 +6,7 @@
 
 import UIKit
 import SwiftUI
+import Engine
 
 @available(iOS 14.0, *)
 extension PresentationLinkTransition {
@@ -280,7 +281,7 @@ public struct SheetPresentationLinkTransition: Sendable {
         ) -> Detent {
             return Detent(identifier: .ideal) { ctx in
                 let ideal = ctx.idealDetentValue()
-                let minimum = minimum ?? ideal
+                let minimum = minimum ?? 0
                 let maximum = maximum ?? ctx.maximumDetentValue
                 return max(minimum, min(ideal, maximum))
             }
@@ -345,7 +346,7 @@ public struct SheetPresentationLinkTransition: Sendable {
                     return .fullScreen() ?? .large()
                 }
                 let idealResolution: @MainActor (UISheetPresentationController) -> CGFloat = { presentationController in
-                    let scale = presentationController.presentedView?.window?.screen.scale ?? 1.0
+                    let scale = presentationController.presentedViewController.view.traitCollection.displayScale
                     guard let containerView = presentationController.containerView else {
                         let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height
                         return idealHeight.rounded(scale: scale)
@@ -385,21 +386,20 @@ public struct SheetPresentationLinkTransition: Sendable {
                             height = idealHeight
                         }
                         if height == 0 {
-                            let bottomSafeArea = viewController.view.safeAreaInsets.bottom
                             height = viewController.view.idealHeight(for: width)
-                            if height <= bottomSafeArea {
-                                height = containerView.frame.height
-                            }
-                            height -= bottomSafeArea
                             if #available(iOS 26.0, *), !presentationController.disableSolariumInsets {
                                 // 150 is the minimum before safe area gets wonky
                                 height = max(height, 151)
                             }
                         }
-                        return height.rounded(scale: scale)
+                        return height.rounded(scale: viewController.view.traitCollection.displayScale)
                     }
 
-                    let idealHeight = idealHeight(for: presentationController.presentedViewController)
+                    var idealHeight = idealHeight(for: presentationController.presentedViewController)
+                    if presentationController.presentedViewController.view.superview != nil {
+                        // Deduct the container view bottom safe area since that will be included by UIKit
+                        idealHeight -= containerView.safeAreaInsets.bottom
+                    }
                     return idealHeight
                 }
 

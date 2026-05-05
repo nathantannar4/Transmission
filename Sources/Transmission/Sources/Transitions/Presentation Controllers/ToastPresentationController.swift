@@ -50,7 +50,7 @@ open class ToastPresentationController: InteractivePresentationController {
     open override var frameOfPresentedViewInContainerView: CGRect {
         var insets = preferredSafeAreaInsets ?? containerView?.layoutMargins ?? .zero
         insets.bottom = max(insets.bottom, keyboardHeight + (insets.bottom - ((preferredSafeAreaInsets ?? containerView?.safeAreaInsets)?.bottom ?? 0)))
-        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius() ?? 0).rounded(scale: containerView?.window?.screen.scale ?? 1) : 0
+        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius() ?? 0).rounded(scale: presentedViewController.view.traitCollection.displayScale) : 0
         var frame = super.frameOfPresentedViewInContainerView
             .inset(by: insets)
             .insetBy(dx: inset, dy: 0)
@@ -98,7 +98,7 @@ open class ToastPresentationController: InteractivePresentationController {
 
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         let additionalSafeAreaInsets = super.presentedViewAdditionalSafeAreaInsets()
-        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius() ?? 0).rounded(scale: containerView?.window?.screen.scale ?? 1) : 0
+        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius() ?? 0).rounded(scale: presentedViewController.view.traitCollection.displayScale) : 0
         var edgeInsets = additionalSafeAreaInsets
         edgeInsets.top = max(edgeInsets.top, inset)
         edgeInsets.left = max(edgeInsets.left, inset)

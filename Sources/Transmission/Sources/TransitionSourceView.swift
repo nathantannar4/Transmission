@@ -14,6 +14,10 @@ open class TransitionSourceView<Content: View>: UIView, AnyHostingView {
         hostStorage?.hostingView
     }
 
+    open override var intrinsicContentSize: CGSize {
+        hostStorage?.hostingView.intrinsicContentSize ?? super.intrinsicContentSize
+    }
+
     private enum Storage {
         case hostingView(TransitionSourceHostingView<TransitionSourceViewContent<Content>>)
         case hostingController(TransitionSourceHostingController<TransitionSourceViewContent<Content>>)
