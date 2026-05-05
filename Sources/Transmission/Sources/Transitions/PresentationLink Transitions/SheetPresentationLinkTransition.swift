@@ -6,6 +6,7 @@
 
 import UIKit
 import SwiftUI
+import Engine
 
 @available(iOS 14.0, *)
 extension PresentationLinkTransition {
@@ -280,7 +281,7 @@ public struct SheetPresentationLinkTransition: Sendable {
         ) -> Detent {
             return Detent(identifier: .ideal) { ctx in
                 let ideal = ctx.idealDetentValue()
-                let minimum = minimum ?? ideal
+                let minimum = minimum ?? 0
                 let maximum = maximum ?? ctx.maximumDetentValue
                 return max(minimum, min(ideal, maximum))
             }
@@ -345,7 +346,7 @@ public struct SheetPresentationLinkTransition: Sendable {
                     return .fullScreen() ?? .large()
                 }
                 let idealResolution: @MainActor (UISheetPresentationController) -> CGFloat = { presentationController in
-                    let scale = presentationController.presentedView?.window?.screen.scale ?? 1.0
+                    let scale = presentationController.presentedViewController.view.traitCollection.displayScale
                     guard let containerView = presentationController.containerView else {
                         let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height
                         return idealHeight.rounded(scale: scale)
@@ -396,10 +397,14 @@ public struct SheetPresentationLinkTransition: Sendable {
                                 height = max(height, 151)
                             }
                         }
-                        return height.rounded(scale: scale)
+                        return height.rounded(scale: viewController.view.traitCollection.displayScale)
                     }
 
-                    let idealHeight = idealHeight(for: presentationController.presentedViewController)
+                    var idealHeight = idealHeight(for: presentationController.presentedViewController)
+                    if (presentationController.presentedViewController as? AnyHostingController)?.disableSafeArea == true {
+                        // Deduct the container view bottom safe area since that will be included by UIKit
+                        idealHeight -= containerView.safeAreaInsets.bottom
+                    }
                     return idealHeight
                 }
 

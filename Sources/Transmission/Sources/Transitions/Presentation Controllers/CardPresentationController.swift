@@ -65,8 +65,9 @@ open class CardPresentationController: InteractivePresentationController {
         let height: CGFloat = {
             var fittingWidth = width - (2 * edgeInset)
             let inset = (isKeyboardSessionActive ? cornerRadius / 2 : max((containerView?.safeAreaInsets.bottom ?? 0) - cornerRadius / 2, 0))
+            let scale = presentedViewController.view.traitCollection.displayScale
             if let preferredAspectRatio {
-                let height = (preferredAspectRatio * fittingWidth).rounded(scale: containerView?.window?.screen.scale ?? 1) + inset + edgeInset
+                let height = (preferredAspectRatio * fittingWidth).rounded(scale: scale) + inset + edgeInset
                 return height
             }
             if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
@@ -86,7 +87,7 @@ open class CardPresentationController: InteractivePresentationController {
                 sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.top
                 sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.bottom
             }
-            return min(frame.height, sizeThatFits.height).rounded(scale: containerView?.window?.screen.scale ?? 1)
+            return min(frame.height, sizeThatFits.height).rounded(scale: scale)
         }()
         frame = CGRect(
             x: frame.origin.x + (frame.width - width) / 2,
@@ -199,7 +200,7 @@ open class CardPresentationController: InteractivePresentationController {
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         let additionalSafeAreaInsets = super.presentedViewAdditionalSafeAreaInsets()
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
-        let inset = insetSafeAreaByCornerRadius ? (cornerRadius / 2).rounded(scale: containerView?.window?.screen.scale ?? 1) : 0
+        let inset = insetSafeAreaByCornerRadius ? (cornerRadius / 2).rounded(scale: presentedViewController.view.traitCollection.displayScale) : 0
         var edgeInsets = additionalSafeAreaInsets
         edgeInsets.top = max(edgeInsets.top, inset)
         edgeInsets.left = max(edgeInsets.left, inset)

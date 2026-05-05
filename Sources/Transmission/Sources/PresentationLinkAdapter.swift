@@ -711,6 +711,7 @@ final class PresentationLinkCoordinator<
     func onDismiss(_ count: Int, transaction: Transaction) {
         guard
             let viewController = adapter?.viewController,
+            !viewController.isBeingDismissed,
             presentationController?.presentedViewController == viewController
         else {
             return
@@ -1333,7 +1334,13 @@ final class PresentationLinkCoordinator<
 
             if sheetPresentationController.selectedDetentIdentifier?.rawValue == SheetPresentationLinkTransition.Detent.ideal.identifier.rawValue {
                 if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
-                    sheetPresentationController.invalidateDetents()
+                    if let transitionCoordinator = sheetPresentationController.presentedViewController.transitionCoordinator {
+                        transitionCoordinator.animate { _ in
+                            sheetPresentationController.invalidateDetents()
+                        }
+                    } else {
+                        sheetPresentationController.invalidateDetents()
+                    }
                     applySelection()
                 } else {
                     sheetPresentationController.detents = options.detents.map {

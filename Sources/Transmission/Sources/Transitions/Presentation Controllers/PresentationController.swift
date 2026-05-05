@@ -251,7 +251,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
                 ),
                 to: containerView
             )
-            dimmingView.frame = dimmingViewFrame.rounded(scale: containerView?.window?.screen.scale ?? 1)
+            dimmingView.frame = dimmingViewFrame.rounded(scale: dimmingView.traitCollection.displayScale)
             if let presentedView = presentationController.presentedView ?? presentationController.presentedViewController.view {
                 #if canImport(FoundationModels) // Xcode 26
                 if #available(iOS 26.0, *) {

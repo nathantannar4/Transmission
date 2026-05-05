@@ -29,7 +29,7 @@ open class PassthroughView: UIView {
 
                 // Check the raw pixels to support passthrough
                 let size = CGSize(width: 10, height: 10)
-                UIGraphicsBeginImageContextWithOptions(size, false, window?.screen.scale ?? 1)
+                UIGraphicsBeginImageContextWithOptions(size, false, traitCollection.displayScale)
                 defer { UIGraphicsEndImageContext() }
                 guard let context = UIGraphicsGetCurrentContext() else {
                     return result

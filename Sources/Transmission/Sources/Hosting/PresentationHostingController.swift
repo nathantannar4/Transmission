@@ -65,6 +65,10 @@ open class PresentationHostingController<
             let presentedView = sheetPresentationController.presentedView,
             let containerView = sheetPresentationController.containerView
         {
+            if isBeingPresented, didRelayoutDuringPresentation, tracksContentSize {
+                return
+            }
+
             guard
                 let selectedIdentifier = sheetPresentationController.selectedDetentIdentifier,
                 let detent = sheetPresentationController.detents.first(where: { $0.id == selectedIdentifier.rawValue && $0.isDynamic })
@@ -84,7 +88,7 @@ open class PresentationHostingController<
                 containerTraitCollection: sheetPresentationController.traitCollection,
                 maximumDetentValue: maximumDetentValue
             )
-            let height = view.frame.height - (view.safeAreaInsets.top + view.safeAreaInsets.bottom)
+            let height = view.frame.height - (disableSafeArea ? containerView.safeAreaInsets.bottom : view.safeAreaInsets.bottom)
             guard let resolvedDetentHeight, abs(resolvedDetentHeight - height) > 1e-5 else {
                 return
             }

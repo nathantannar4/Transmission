@@ -500,7 +500,7 @@ final class ContextMenuLinkCoordinator<
                 var transform = CGAffineTransform.identity
                 // Fixes resizing while menu is open
                 if let sourceViewSize, sourceViewSize != sourceView.bounds.size {
-                    let scale = sourceView.window?.screen.scale ?? 1
+                    let scale = sourceView.traitCollection.displayScale
                     let xOffset = ((sourceViewSize.width - sourceView.bounds.size.width) / 2).rounded(scale: scale)
                     let yOffset = ((sourceViewSize.height - sourceView.bounds.size.height) / 2).rounded(scale: scale)
                     if #available(iOS 26.0, *) {
