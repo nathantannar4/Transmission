@@ -1614,7 +1614,7 @@ class PresentationLinkDestinationViewControllerAdapter<
             representable.updateHostingController(presenting: viewController, context: context)
 
         default:
-            break
+            viewController.disableSafeArea = transition.options.preferredPresentationSafeAreaInsets == .zero
         }
     }
 }

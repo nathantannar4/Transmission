@@ -67,7 +67,7 @@ struct ShareSheetLinkExamples: View {
         ShareSheetLink(
             items: [
                 // Use `ShareSheetItem` for any `NSItemProviderWriting`
-                ShareSheetItem(label: "Logo", UIImage(resource: .logo))
+                ShareSheetItem(label: "Logo", item: UIImage(resource: .logo))
             ]
         ) {
             HStack {

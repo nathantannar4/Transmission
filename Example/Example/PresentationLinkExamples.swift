@@ -34,14 +34,12 @@ struct PresentationLinkExamples: View {
             )
         case .sheet:
             return .sheet(
-                options: .init(
-                    detents: [.ideal, .medium, .large],
-                    isInteractive: isInteractive
-                )
+                detents: [.ideal, .medium, .large],
+                isInteractive: isInteractive
             )
         case .popover:
             return .popover(
-                options: .init(isInteractive: isInteractive)
+                isInteractive: isInteractive
             )
         case .fullScreen:
             return .fullscreen(
@@ -56,7 +54,7 @@ struct PresentationLinkExamples: View {
         case .zoom:
             if #available(iOS 18.0, *) {
                 return .zoom(
-                    options: .init(options: .init(isInteractive: isInteractive))
+                    isInteractive: isInteractive
                 )
             }
             return .default
@@ -374,7 +372,7 @@ struct PresentationLinkExamples: View {
 
             PresentationLink(
                 transition: .zoomIfAvailable(
-                    options: .init(
+                    .init(
                         dimmingVisualEffect: .systemThickMaterial
                     )
                 )
@@ -630,6 +628,7 @@ struct InfoCardView: View {
                     }
 
                     Text("Lorem ipsum dolor sit amet consectetur adipiscing elit quisque faucibus ex sapien vitae pellentesque sem placerat in id cursus mi pretium tellus duis convallis tempus leo eu aenean sed diam.")
+                        .fixedSize(horizontal: false, vertical: true)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

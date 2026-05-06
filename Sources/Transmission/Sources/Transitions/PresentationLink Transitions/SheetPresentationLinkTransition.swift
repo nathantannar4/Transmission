@@ -392,15 +392,15 @@ public struct SheetPresentationLinkTransition: Sendable {
                                 height = containerView.frame.height
                             }
                             height -= bottomSafeArea
-                            if #available(iOS 26.0, *), !presentationController.disableSolariumInsets {
-                                // 150 is the minimum before safe area gets wonky
-                                height = max(height, 151)
-                            }
                         }
                         return height.rounded(scale: viewController.view.traitCollection.displayScale)
                     }
 
                     var idealHeight = idealHeight(for: presentationController.presentedViewController)
+                    if #available(iOS 26.0, *), !presentationController.disableSolariumInsets {
+                        // 150 is the minimum before safe area gets wonky
+                        idealHeight = max(idealHeight, 150)
+                    }
                     if (presentationController.presentedViewController as? AnyHostingController)?.disableSafeArea == true {
                         // Deduct the container view bottom safe area since that will be included by UIKit
                         idealHeight -= containerView.safeAreaInsets.bottom
@@ -409,12 +409,13 @@ public struct SheetPresentationLinkTransition: Sendable {
                 }
 
                 if let resolution, #available(iOS 16.0, *)  {
-                    return .custom(identifier: identifier.toUIKit()) { [unowned presentationController] context in
+                    return .custom(identifier: identifier.toUIKit()) { [weak presentationController] context in
+                        guard let presentationController else { return context.maximumDetentValue }
                         let ctx = ResolutionContext(
                             ctx: context,
                             containerTraitCollection: context.containerTraitCollection,
                             maximumDetentValue: context.maximumDetentValue,
-                            idealDetentValue: {
+                            idealDetentValue: { [unowned presentationController] in
                                 idealResolution(presentationController)
                             }
                         )
@@ -456,7 +457,8 @@ public struct SheetPresentationLinkTransition: Sendable {
                     return .large()
                 }
                 if let resolution {
-                    detent.resolution = { containerTraitCollection, maximumDetentValue in
+                    detent.resolution = { [weak presentationController] containerTraitCollection, maximumDetentValue in
+                        guard let presentationController else { return maximumDetentValue }
                         let ctx = ResolutionContext(
                             containerTraitCollection: containerTraitCollection,
                             maximumDetentValue: maximumDetentValue,
@@ -600,6 +602,12 @@ open class SheetPresentationControllerTransition: PresentationControllerTransiti
             presentedView.frame = presentedFrame
             presentedView.layoutIfNeeded()
             presentedFrame = presentedView.frame
+
+            configureTransitionReaderCoordinator(
+                presented: presented,
+                presentedView: presentedView,
+                presentedFrame: &presentedFrame
+            )
 
             let dy = transitionContext.containerView.frame.height - presentedFrame.origin.y
             let transform = CGAffineTransform(

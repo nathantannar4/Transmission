@@ -36,7 +36,7 @@ struct DestinationLinkExamples: View {
         case .zoom:
             if #available(iOS 18.0, *) {
                 return .zoom(
-                    options: .init(options: .init(isInteractive: isInteractive))
+                    isInteractive: isInteractive
                 )
             }
             return .default
@@ -192,7 +192,7 @@ struct DestinationLinkExamples: View {
                     // alongside as the "source view"
                     DestinationLinkAdapter(
                         transition: .zoomIfAvailable(
-                            options: .init(
+                            .init(
                                 dimmingVisualEffect: .systemThickMaterial
                             )
                         ),

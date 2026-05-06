@@ -53,24 +53,44 @@ private struct TransitionReaderAdapter: UIViewRepresentable {
 
     var proxy: Binding<TransitionReaderProxy>
 
-    func makeUIView(context: Context) -> ViewControllerReader {
-        let uiView = ViewControllerReader(
-            presentingViewController: Binding(
-                get: { [weak coordinator = context.coordinator] in
-                    return coordinator?.presentingViewController
-                },
-                set: { [weak coordinator = context.coordinator] viewController in
-                    coordinator?.presentingViewController = viewController
-                }
-            )
+    func makeUIView(context: Context) -> ViewControllerTransitionReader {
+        let uiView = ViewControllerTransitionReader(
+            didMoveToViewController: { [weak coordinator = context.coordinator] viewController in
+                coordinator?.presentingViewController = viewController
+            }
         )
         return uiView
     }
 
-    func updateUIView(_ uiView: ViewControllerReader, context: Context) { }
+    func updateUIView(_ uiView: ViewControllerTransitionReader, context: Context) { }
 
     func makeCoordinator() -> TransitionReaderCoordinator {
         TransitionReaderCoordinator(proxy: proxy)
+    }
+}
+
+private class ViewControllerTransitionReader: UIView {
+
+    let didMoveToViewController: (UIViewController?) -> Void
+
+    init(didMoveToViewController: @escaping (UIViewController?) -> Void) {
+        self.didMoveToViewController = didMoveToViewController
+        super.init(frame: .zero)
+        isHidden = true
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        return size
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        let viewController = viewController
+        didMoveToViewController(viewController)
     }
 }
 
@@ -120,7 +140,9 @@ final class TransitionReaderCoordinator: NSObject {
             }
         }
 
-        transitionCoordinatorDidChange(isAppearing: true)
+        withCATransaction {
+            self.transitionCoordinatorDidChange(isAppearing: true)
+        }
     }
 
     private func transitionCoordinatorDidChange(isAppearing: Bool) {
