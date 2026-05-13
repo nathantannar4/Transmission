@@ -350,12 +350,9 @@ final class PresentationLinkCoordinator<
                 ]
             )
 
-            let sourceTransaction = (presentingViewController as? AnyHostingController)?.transaction
             var isAnimated = context.transaction.isAnimated
                 || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
-                || sourceTransaction?.isAnimated == true
             let animation = context.transaction.animation
-                ?? sourceTransaction?.animation
                 ?? (isAnimated ? .default : nil)
             self.animation = animation
 
@@ -582,6 +579,9 @@ final class PresentationLinkCoordinator<
                     while let presenting = presentingViewController.presentedViewController, !presenting.isBeingPresented, !presenting.isBeingDismissed {
                         presentingViewController = presenting
                     }
+                }
+                while presentingViewController.view.window == nil, let parent = presentingViewController.parent {
+                    presentingViewController = parent
                 }
                 let present: () -> Void = {
                     guard
@@ -1189,6 +1189,7 @@ final class PresentationLinkCoordinator<
                 }
                 presentationController.shouldAdjustDetentsForKeyboard = options.shouldAdjustDetentsForKeyboard
                 presentationController.preferredBackgroundColor = transition.options.preferredPresentationBackgroundUIColor
+                presentationController.preferredGlassEffect = options.preferredGlassEffect
                 if #available(iOS 26.0, *) {
                     presentationController.prefersSheetInset = options.prefersSheetInset
                 }

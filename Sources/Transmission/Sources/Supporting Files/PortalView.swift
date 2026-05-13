@@ -339,21 +339,23 @@ struct PortalView_Previews: PreviewProvider {
                 .frame(width: 100, height: 100)
             }
 
-            ViewRepresentableAdapter {
-                let view = HostingView(
-                    content: Color.red.onTapGesture {
-                        print("Tapped")
+            if #available(iOS 14.0, *) {
+                ViewRepresentableAdapter {
+                    let view = HostingView(
+                        content: Color.red.onTapGesture {
+                            print("Tapped")
+                        }
+                    )
+                    let contentView = PortalViewContentView(
+                        contentView: view
+                    ) { portalView in
+                        portalView.hidesSourceView = true
+                        portalView.forwardsClientHitTestingToSourceView = true
                     }
-                )
-                let contentView = PortalViewContentView(
-                    contentView: view
-                ) { portalView in
-                    portalView.hidesSourceView = true
-                    portalView.forwardsClientHitTestingToSourceView = true
+                    return contentView
                 }
-                return contentView
+                .frame(width: 100, height: 100)
             }
-            .frame(width: 100, height: 100)
 
             ViewRepresentableAdapter {
                 let containerView = UIView()

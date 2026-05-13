@@ -44,6 +44,7 @@ public enum SnapshotRendererColorSpace {
 /// See Also:
 ///  - ``SnapshotItemProvider``
 @MainActor
+@available(iOS 14.0, *)
 public final class SnapshotRenderer<Content: View>: ObservableObject {
 
     public var content: Content {

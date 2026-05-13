@@ -8,10 +8,10 @@ import UIKit
 import SwiftUI
 
 @frozen
-public enum CornerRadiusOptions: Equatable, Sendable {
+public enum CornerRadiusOptions: Equatable, Sendable, Shape {
 
     @frozen
-    public struct RoundedRectangle: Equatable, Sendable {
+    public struct RoundedRectangle: Equatable, Sendable, Shape {
         public var cornerRadius: CGFloat?
         public var mask: CACornerMask
         public var style: CALayerCornerCurve
@@ -27,6 +27,32 @@ public enum CornerRadiusOptions: Equatable, Sendable {
             self.mask = mask
             self.style = style
             self.isContainerConcentric = isContainerConcentric
+        }
+
+        public nonisolated func path(in rect: CGRect) -> Path {
+            if isContainerConcentric, #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
+                return SwiftUI.ContainerRelativeShape().path(in: rect)
+            }
+            let cornerRadius = cornerRadius ?? 0
+            if mask != .all {
+                if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
+                    return UnevenRoundedRectangle(
+                        topLeadingRadius: mask.contains(.layerMinXMinYCorner) ? cornerRadius : 0,
+                        bottomLeadingRadius: mask.contains(.layerMinXMaxYCorner) ? cornerRadius : 0,
+                        bottomTrailingRadius: mask.contains(.layerMaxXMaxYCorner) ? cornerRadius : 0,
+                        topTrailingRadius: mask.contains(.layerMaxXMinYCorner) ? cornerRadius : 0,
+                        style: style.toSwiftUI()
+                    ).path(in: rect)
+                }
+                return RoundedCornersRectangle(
+                    topLeadingRadius: mask.contains(.layerMinXMinYCorner) ? cornerRadius : 0,
+                    bottomLeadingRadius: mask.contains(.layerMinXMaxYCorner) ? cornerRadius : 0,
+                    bottomTrailingRadius: mask.contains(.layerMaxXMaxYCorner) ? cornerRadius : 0,
+                    topTrailingRadius: mask.contains(.layerMaxXMinYCorner) ? cornerRadius : 0,
+                    style: style.toSwiftUI()
+                ).path(in: rect)
+            }
+            return SwiftUI.RoundedRectangle(cornerRadius: cornerRadius, style: style.toSwiftUI()).path(in: rect)
         }
 
         public static let identity: RoundedRectangle = .rounded(cornerRadius: 0)
@@ -93,15 +119,37 @@ public enum CornerRadiusOptions: Equatable, Sendable {
     }
 
     @frozen
-    public struct Capsule: Equatable, Sendable {
+    public struct Capsule: Equatable, Sendable, Shape {
         public var minCornerRadius: CGFloat?
         public var maxCornerRadius: CGFloat?
         public var style: CALayerCornerCurve
+
+        public nonisolated func path(in rect: CGRect) -> Path {
+            let cornerRadius = cornerRadius(for: rect.size)
+            if let minCornerRadius, minCornerRadius > cornerRadius {
+                return SwiftUI.RoundedRectangle(cornerRadius: minCornerRadius, style: style.toSwiftUI()).path(in: rect)
+            }
+            if let maxCornerRadius, maxCornerRadius < cornerRadius {
+                return SwiftUI.RoundedRectangle(cornerRadius: maxCornerRadius, style: style.toSwiftUI()).path(in: rect)
+            }
+            return SwiftUI.Capsule(style: style.toSwiftUI()).path(in: rect)
+        }
     }
 
     case rounded(RoundedRectangle)
     case circle
     case capsule(Capsule)
+
+    public nonisolated func path(in rect: CGRect) -> Path {
+        switch self {
+        case .rounded(let options):
+            return options.path(in: rect)
+        case .circle:
+            return Circle().path(in: rect)
+        case .capsule(let options):
+            return options.path(in: rect)
+        }
+    }
 
     public var mask: CACornerMask {
         switch self {
@@ -161,7 +209,7 @@ public enum CornerRadiusOptions: Equatable, Sendable {
     }
 
     public static func containerConcentric(
-        minimum cornerRadius: CGFloat,
+        minimum cornerRadius: CGFloat? = nil,
         style: CALayerCornerCurve = .continuous
     ) -> CornerRadiusOptions {
         containerConcentric(
@@ -172,7 +220,7 @@ public enum CornerRadiusOptions: Equatable, Sendable {
     }
 
     public static func containerConcentric(
-        minimum cornerRadius: CGFloat,
+        minimum cornerRadius: CGFloat? = nil,
         mask: CACornerMask,
         style: CALayerCornerCurve = .continuous
     ) -> CornerRadiusOptions {
@@ -211,7 +259,6 @@ public enum CornerRadiusOptions: Equatable, Sendable {
         size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
-        let size = size ?? view.bounds.size
         switch self {
         case .rounded(let options):
             options.apply(to: view, size: size, masksToBounds: masksToBounds)
@@ -274,7 +321,7 @@ extension CornerRadiusOptions.RoundedRectangle {
             view.cornerConfiguration = makeCornerConfiguration()
         }
         #endif
-        apply(to: view.layer, size: size ?? view.bounds.size, masksToBounds: masksToBounds)
+        apply(to: view.layer, size: size, masksToBounds: masksToBounds)
     }
 
     @MainActor @preconcurrency
@@ -283,9 +330,12 @@ extension CornerRadiusOptions.RoundedRectangle {
         size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
-        let size = size ?? layer.bounds.size
-        let maxCornerRadius = min(size.width / 2, size.height / 2)
-        layer.cornerRadius = min(cornerRadius ?? 0, maxCornerRadius)
+        if let size {
+            let maxCornerRadius = min(size.width / 2, size.height / 2)
+            layer.cornerRadius = min(cornerRadius ?? 0, maxCornerRadius)
+        } else {
+            layer.cornerRadius = cornerRadius ?? 0
+        }
         layer.maskedCorners = mask
         layer.cornerCurve = style
         layer.masksToBounds = masksToBounds
@@ -320,7 +370,7 @@ extension CornerRadiusOptions.Capsule {
             view.cornerConfiguration = makeCornerConfiguration()
         }
         #endif
-        apply(to: view.layer, size: size ?? view.bounds.size, masksToBounds: masksToBounds)
+        apply(to: view.layer, size: size, masksToBounds: masksToBounds)
     }
 
     @MainActor @preconcurrency
@@ -331,6 +381,7 @@ extension CornerRadiusOptions.Capsule {
     ) {
         layer.cornerRadius = cornerRadius(for: size ?? layer.bounds.size)
         layer.cornerCurve = style
+        layer.masksToBounds = masksToBounds
     }
 
     public func cornerRadius(
@@ -358,6 +409,28 @@ extension CACornerMask {
         .layerMinXMaxYCorner,
         .layerMinXMinYCorner
     ]
+
+    public static let topLeft: CACornerMask = .layerMinXMinYCorner
+
+    public static let topRight: CACornerMask = .layerMaxXMinYCorner
+
+    public static let bottomLeft: CACornerMask = .layerMinXMaxYCorner
+
+    public static let bottomRight: CACornerMask = .layerMaxXMaxYCorner
+}
+
+extension CALayerCornerCurve {
+
+    func toSwiftUI() -> RoundedCornerStyle {
+        switch self {
+        case .circular:
+            return .circular
+        case .continuous:
+            return .continuous
+        default:
+            return .circular
+        }
+    }
 }
 
 extension UIView {
@@ -371,6 +444,7 @@ extension UIView {
         layer.cornerRadius = source.layer.cornerRadius
         layer.maskedCorners = source.layer.maskedCorners
         layer.cornerCurve = source.layer.cornerCurve
+        layer.masksToBounds = source.layer.masksToBounds
     }
 }
 
@@ -383,67 +457,106 @@ struct CornerRadiusOptions_Previews: PreviewProvider {
         var color: Color = .blue
         var options: CornerRadiusOptions
 
-        class UIViewType: UIView {
-            var options: CornerRadiusOptions = .identity
+        class CornerRadiusView: UIView {
+            var options: CornerRadiusOptions = .identity {
+                didSet {
+                    guard oldValue != options else { return }
+                    options.apply(to: self)
+                }
+            }
 
             override func layoutSubviews() {
                 super.layoutSubviews()
-                options.apply(to: self)
-                print(layer.cornerRadius)
+                if #unavailable(iOS 26.0) {
+                    options.apply(to: self)
+                }
             }
         }
 
         var body: some View {
             ViewRepresentableAdapter {
-                let uiView = UIViewType()
+                let uiView = CornerRadiusView()
                 uiView.options = options
                 uiView.backgroundColor = color.toUIColor()
                 return uiView
             }
+
+            options
+                .fill(color)
         }
     }
 
     static var previews: some View {
         VStack {
-            Preview(options: .identity)
-                .frame(width: 50, height: 50)
+            VStack {
+                Preview(options: .identity)
+                    .frame(width: 50, height: 50)
+            }
 
-            HStack {
-                Preview(options: .rounded(cornerRadius: 12))
-                    .frame(width: 100, height: 50)
+            if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
+                HStack {
+                    ContainerRelativeShape()
+                        .fill(Color.blue)
+                        .frame(width: 100, height: 50)
+                        .containerShape(RoundedRectangle(cornerRadius: 12))
 
-                Preview(options: .containerConcentric(minimum: 12))
-                    .frame(width: 100, height: 50)
-
-                Preview(
-                    options: .rounded(
-                        cornerRadius: 12,
-                        mask: [.layerMaxXMaxYCorner, .layerMinXMinYCorner],
-                        style: .circular
-                    )
-                )
-                .frame(width: 100, height: 50)
+                    CornerRadiusOptions.containerConcentric()
+                        .fill(Color.blue)
+                        .frame(width: 100, height: 50)
+                        .containerShape(RoundedRectangle(cornerRadius: 12))
+                }
             }
 
             HStack {
-                Preview(options: .capsule)
-                    .frame(width: 100, height: 30)
+                VStack {
+                    Preview(options: .rounded(cornerRadius: 12))
+                        .frame(width: 100, height: 50)
+                }
 
-                Preview(options: .circle)
-                    .frame(width: 30, height: 30)
+                VStack {
+                    Preview(options: .containerConcentric(minimum: 12))
+                        .frame(width: 100, height: 50)
+                }
+
+                VStack {
+                    Preview(
+                        options: .rounded(
+                            cornerRadius: 12,
+                            mask: [.topLeft, .bottomRight],
+                            style: .circular
+                        )
+                    )
+                    .frame(width: 100, height: 50)
+                }
+            }
+
+            HStack {
+                VStack {
+                    Preview(options: .capsule)
+                        .frame(width: 100, height: 30)
+                }
+
+                VStack {
+                    Preview(options: .circle)
+                        .frame(width: 30, height: 30)
+                }
             }
 
             ZStack {
-                Preview(
-                    color: .red,
-                    options: .rounded(cornerRadius: 16)
-                )
-                .frame(width: 100, height: 50)
+                VStack {
+                    Preview(
+                        color: .red,
+                        options: .rounded(cornerRadius: 16, style: .circular)
+                    )
+                    .frame(width: 100, height: 50)
+                }
 
-                Preview(
-                    options: .rounded(cornerRadius: 16, style: .continuous)
-                )
-                .frame(width: 100, height: 50)
+                VStack {
+                    Preview(
+                        options: .rounded(cornerRadius: 16, style: .continuous)
+                    )
+                    .frame(width: 100, height: 50)
+                }
             }
         }
     }

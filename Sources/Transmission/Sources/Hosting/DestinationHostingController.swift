@@ -7,6 +7,7 @@
 import SwiftUI
 import Engine
 
+@available(iOS 14.0, *)
 open class DestinationHostingController<
     Content: View
 >: HostingController<Content> {

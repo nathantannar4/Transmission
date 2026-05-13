@@ -516,7 +516,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         withDuration: 0.35,
                         delay: 0,
                         usingSpringWithDamping: 0.84,
-                        initialSpringVelocity: 0
+                        initialSpringVelocity: 0,
+                        options: [
+                            .beginFromCurrentState,
+                            .allowUserInteraction,
+                        ]
                     ) {
                         self.transformPresentedView(transform: .identity)
                         self.presentedView?.layoutIfNeeded()
@@ -670,8 +674,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         guard gestureRecognizer == panGesture else { return false }
-        if otherGestureRecognizer.isSwiftUIGestureResponder {
-            return !otherGestureRecognizer.isSwiftSimultaneousUIGestureResponder
+        if otherGestureRecognizer.isSwiftUIGestureRecognizer {
+            return !otherGestureRecognizer.isSwiftSimultaneousUIResponderGestureRecognizer
         }
         return otherGestureRecognizer.isKind(of: UIScreenEdgePanGestureRecognizer.self)
     }
@@ -717,7 +721,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             }
             return true
         }
-        if otherGestureRecognizer.isSwiftUIGestureResponder {
+        if otherGestureRecognizer.isSwiftUIGestureRecognizer {
             return true
         }
         return trackingScrollView != nil

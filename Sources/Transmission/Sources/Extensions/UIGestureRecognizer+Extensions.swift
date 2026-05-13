@@ -52,18 +52,25 @@ extension UIGestureRecognizer {
         return view.isKind(of: aClass)
     }
 
+    private static let UIKitGestureRecognizer: AnyClass? = NSClassFromString("SwiftUI.UIKitGestureRecognizer")
+    var isSwiftUIGestureRecognizer: Bool {
+        guard let aClass = Self.UIKitGestureRecognizer else {
+            return false
+        }
+        return isKind(of: aClass)
+    }
+
     private static let UIKitResponderGestureRecognizer: AnyClass? = NSClassFromString("SwiftUI.UIKitResponderGestureRecognizer")
-    var isSwiftUIGestureResponder: Bool {
+    var isSwiftUIResponderGestureRecognizer: Bool {
         guard let aClass = Self.UIKitResponderGestureRecognizer else {
             return false
         }
         return isKind(of: aClass)
     }
 
-    var isSwiftSimultaneousUIGestureResponder: Bool {
+    var isSwiftSimultaneousUIResponderGestureRecognizer: Bool {
         guard
-            isSwiftUIGestureResponder,
-            responds(to: NSSelectorFromString("container")),
+            isSwiftUIResponderGestureRecognizer,
             let container = value(forKey: "container") as? NSObject
         else {
             return false

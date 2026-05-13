@@ -6,6 +6,7 @@
 
 import UIKit
 import SwiftUI
+import Engine
 
 @available(iOS 14.0, *)
 @MainActor @preconcurrency
@@ -14,14 +15,17 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     public let isPresenting: Bool
     public var animation: Animation?
     private var animator: UIViewPropertyAnimator?
-
-    private var transitionDuration: CGFloat = 0
-    open override var duration: CGFloat {
-        transitionDuration
-    }
     
     open var isInterruptible: Bool {
         wantsInteractiveStart || (animation?.delay ?? 0) == 0
+    }
+
+    open override var duration: CGFloat {
+        animator?.duration ?? super.duration
+    }
+
+    open override var percentComplete: CGFloat {
+        animator?.fractionComplete ?? super.percentComplete
     }
 
     public init(
@@ -38,7 +42,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     open override func startInteractiveTransition(
         _ transitionContext: UIViewControllerContextTransitioning
     ) {
-        transitionDuration = transitionDuration(using: transitionContext)
         super.startInteractiveTransition(transitionContext)
         if let presenting = transitionContext.viewController(forKey: isPresenting ? .to : .from) {
             presenting.transitionReaderAnimation = animation
@@ -55,7 +58,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     public func animateTransition(
         using transitionContext: UIViewControllerContextTransitioning
     ) {
-        transitionDuration = transitionDuration(using: transitionContext)
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
         animatedStarted(transitionContext: transitionContext)
 
@@ -86,37 +88,45 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     }
 
     open override func pause() {
+        let fractionComplete = animator?.isRunning == true ? animator?.fractionComplete : nil
         super.pause()
-        guard isInterruptible, animator?.isRunning == true else { return }
-        animator?.pauseAnimation()
+        if isInterruptible, animator?.isRunning == true {
+            animator?.pauseAnimation()
+        }
+        if let fractionComplete {
+            animator?.fractionComplete = fractionComplete
+        }
     }
 
     open override func update(_ percentComplete: CGFloat) {
         super.update(percentComplete)
-        guard isInterruptible, animator?.fractionComplete != percentComplete else { return }
-        animator?.fractionComplete = percentComplete
+        if isInterruptible, animator?.fractionComplete != percentComplete {
+            animator?.fractionComplete = percentComplete
+        }
     }
 
     open override func finish() {
         super.finish()
-        guard isInterruptible, animator?.isRunning == false else { return }
-        if animator?.fractionComplete == 1, animator?.state == .active {
-            animator?.stopAnimation(false)
-            animator?.finishAnimation(at: .end)
-        } else {
-            animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
+        if isInterruptible, animator?.isRunning == false {
+            if animator?.fractionComplete == 1, animator?.state == .active {
+                animator?.stopAnimation(false)
+                animator?.finishAnimation(at: .end)
+            } else {
+                animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
+            }
         }
     }
 
     open override func cancel() {
         super.cancel()
-        guard isInterruptible, animator?.isRunning == false else { return }
-        if animator?.fractionComplete == 0, animator?.state == .active {
-            animator?.stopAnimation(false)
-            animator?.finishAnimation(at: .start)
-        } else {
-            animator?.isReversed = true
-            animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
+        if isInterruptible, animator?.isRunning == false {
+            if animator?.fractionComplete == 0, animator?.state == .active {
+                animator?.stopAnimation(false)
+                animator?.finishAnimation(at: .start)
+            } else {
+                animator?.isReversed = true
+                animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
+            }
         }
     }
 

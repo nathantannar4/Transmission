@@ -7,6 +7,7 @@
 import SwiftUI
 import Engine
 
+@available(iOS 14.0, *)
 open class PresentationHostingController<
     Content: View
 >: HostingController<Content> {
@@ -36,8 +37,6 @@ open class PresentationHostingController<
     }
 
     open override func viewDidLayoutSubviews() {
-        var isAnimated = transaction?.isAnimated ?? false
-
         super.viewDidLayoutSubviews()
 
         if let sourceViewController, sourceViewController.shouldRenderForContentUpdate {
@@ -56,7 +55,7 @@ open class PresentationHostingController<
             return
         }
 
-        isAnimated = !isBeingPresented && (isAnimated || transitionCoordinator?.isAnimated ?? true)
+        let isAnimated = !isBeingPresented || transitionCoordinator?.isAnimated == true
 
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,

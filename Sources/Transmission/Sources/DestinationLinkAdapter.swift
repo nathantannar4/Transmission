@@ -230,12 +230,9 @@ final class DestinationLinkCoordinator<
 
         if let presentingViewController, isPresented.wrappedValue {
 
-            let sourceTransaction = (presentingViewController as? AnyHostingController)?.transaction
             let isAnimated = context.transaction.isAnimated
                 || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
-                || sourceTransaction?.isAnimated == true
             let animation = context.transaction.animation
-                ?? sourceTransaction?.animation
                 ?? (isAnimated ? .default : nil)
             self.animation = animation
 
@@ -383,40 +380,24 @@ final class DestinationLinkCoordinator<
             didPresentAnimated = false
             isPushing = false
         }
-        if let presented = viewController.presentedViewController {
-            presented._dismiss(
-                count: .max,
-                animated: transaction.isAnimated
-            ) { [weak self] in
-                viewController._popViewController(
-                    count: count,
-                    animated: transaction.isAnimated
-                ) { [weak self] success in
-                    guard success, count > 0, self?.adapter?.viewController == viewController else { return }
-                    self?.onPop(transaction)
-                    self?.didPop()
-                }
-            }
-        } else {
-            if let transitionCoordinator = viewController.transitionCoordinator,
-                transitionCoordinator.viewController(forKey: .to) == viewController,
-                let transition = adapter?.navigationController?.delegates.transition(for: viewController)
-            {
-                transition.pause()
-                transition.cancel()
-                transitionCoordinator.animate { [weak self] _ in
-                    self?.onPop(transaction)
-                    self?.didPop()
-                }
-            }
-            viewController._popViewController(
-                count: count,
-                animated: transaction.isAnimated
-            ) { [weak self] success in
-                guard success, count > 0, self?.adapter?.viewController == viewController else { return }
+        if let transitionCoordinator = viewController.transitionCoordinator,
+            transitionCoordinator.viewController(forKey: .to) == viewController,
+            let transition = adapter?.navigationController?.delegates.transition(for: viewController)
+        {
+            transition.pause()
+            transition.cancel()
+            transitionCoordinator.animate { [weak self] _ in
                 self?.onPop(transaction)
                 self?.didPop()
             }
+        }
+        viewController._popViewController(
+            count: count,
+            animated: transaction.isAnimated
+        ) { [weak self] success in
+            guard success, count > 0, self?.adapter?.viewController == viewController else { return }
+            self?.onPop(transaction)
+            self?.didPop()
         }
     }
 
@@ -536,9 +517,9 @@ final class DestinationLinkCoordinator<
                 let isInterruptible = transitionCoordinator.isInterruptible
                 transitionCoordinator.animate { [weak self] ctx in
                     if !ctx.isInteractive {
-                        self?.onPop(transaction)
-                        if !isInterruptible {
-                            withCATransaction {
+                        withCATransaction {
+                            self?.onPop(transaction)
+                            if !isInterruptible {
                                 self?.didPop()
                             }
                         }
@@ -1272,7 +1253,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             return false
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
             if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer || otherGestureRecognizer is UILongPressGestureRecognizer ||
-                otherGestureRecognizer.isSwiftUIGestureResponder {
+                otherGestureRecognizer.isSwiftUIGestureRecognizer {
                 return true
             }
             return false

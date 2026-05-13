@@ -7,7 +7,6 @@
 import SwiftUI
 import UIKit
 
-@available(iOS 14.0, *)
 open class TransitionSourceView<Content: View>: UIView {
 
     public var sourceView: UIView? {
@@ -19,10 +18,10 @@ open class TransitionSourceView<Content: View>: UIView {
     }
 
     private enum Storage {
-        case hostingView(TransitionSourceHostingView<TransitionSourceViewContent<Content>>)
-        case hostingController(TransitionSourceHostingController<TransitionSourceViewContent<Content>>)
+        case hostingView(TransitionSourceHostingView<Content>)
+        case hostingController(TransitionSourceHostingController<Content>)
 
-        var hostingView: TransitionSourceHostingView<TransitionSourceViewContent<Content>> {
+        var hostingView: TransitionSourceHostingView<Content> {
             switch self {
             case .hostingView(let hostingView):
                 return hostingView
@@ -43,18 +42,14 @@ open class TransitionSourceView<Content: View>: UIView {
         self.presentingViewController = presentingViewController
         super.init(frame: .zero)
         if Content.self != EmptyView.self {
-            let content = TransitionSourceViewContent(
-                content: content,
-                transaction: Transaction()
-            )
             if useHostingController {
                 let hostingController = TransitionSourceHostingController(content: content)
-                hostingController.view.translatesAutoresizingMaskIntoConstraints = false
+                hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
                 addSubview(hostingController.view)
                 hostStorage = .hostingController(hostingController)
             } else {
                 let hostingView = TransitionSourceHostingView(content: content)
-                hostingView.translatesAutoresizingMaskIntoConstraints = false
+                hostingView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
                 addSubview(hostingView)
                 hostStorage = .hostingView(hostingView)
             }
@@ -77,11 +72,7 @@ open class TransitionSourceView<Content: View>: UIView {
         guard let hostingView = hostStorage?.hostingView else { return }
         hostingView.cornerRadius = cornerRadius
         hostingView.backgroundColor = backgroundColor
-        hostingView.content = TransitionSourceViewContent(
-            content: content,
-            transaction: transaction
-        )
-        hostingView.layoutIfNeeded()
+        hostingView.update(content: content, transaction: transaction)
     }
 
     open func sizeThatFits(_ proposal: ProposedSize) -> CGSize? {
@@ -116,11 +107,6 @@ open class TransitionSourceView<Content: View>: UIView {
         }
     }
 
-    open override func layoutSubviews() {
-        super.layoutSubviews()
-        hostStorage?.hostingView.frame = bounds
-    }
-
     open override func action(for layer: CALayer, forKey event: String) -> CAAction? {
         if let hostingView = hostStorage?.hostingView, isInitialFrameAnimationAction(for: layer, forKey: event) {
             if let action = hostingView.action(for: hostingView.layer, forKey: event), action is NSNull {
@@ -132,25 +118,19 @@ open class TransitionSourceView<Content: View>: UIView {
     }
 }
 
-@available(iOS 14.0, *)
-private struct TransitionSourceViewContent<Content: View>: View {
-    var content: Content
-    var transaction: Transaction
-
-    @UpdatePhase var updatePhase
-
-    var body: some View {
-        content
-            .transaction(transaction, value: updatePhase)
-    }
-}
-
 private class TransitionSourceHostingView<Content: View>: HostingView<Content> {
 
     var cornerRadius: CornerRadiusOptions? {
         didSet {
             guard cornerRadius != oldValue else { return }
-            setNeedsLayout()
+            cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
+        }
+    }
+
+    override var backgroundColor: UIColor? {
+        didSet {
+            guard backgroundColor != oldValue else { return }
+            cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
         }
     }
 
@@ -160,6 +140,7 @@ private class TransitionSourceHostingView<Content: View>: HostingView<Content> {
         super.init(content: content)
         isHitTestingPassthrough = false
         disablesSafeArea = true
+        invalidatesIntrinsicContentSizeOnIdealSizeChange = true
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -168,8 +149,15 @@ private class TransitionSourceHostingView<Content: View>: HostingView<Content> {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
+        if #unavailable(iOS 26.0) {
+            cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
+        }
         hasInitialLayout = true
+    }
+
+    open override func invalidateIntrinsicContentSize() {
+        super.invalidateIntrinsicContentSize()
+        superview?.invalidateIntrinsicContentSize()
     }
 
     override func action(for layer: CALayer, forKey event: String) -> CAAction? {

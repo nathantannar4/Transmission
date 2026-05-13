@@ -145,7 +145,10 @@ class ContextMenuAccessoryViewAdapter<
         ) where Content: View {
             stop = index >= adapter.accessoryViews.count
             if !stop, let hostingView = adapter.accessoryViews[index].accessoryHostingView as? AccessoryHostingView<Content> {
-                hostingView.update(content: content, transaction: transaction)
+                hostingView.update(
+                    content: content,
+                    transaction: transaction
+                )
             }
             index += 1
         }
@@ -176,7 +179,6 @@ extension View {
         let hostingView = AccessoryHostingView(
             content: AccessoryView(
                 content: self,
-                transaction: Transaction(animation: .default),
                 presentationCoordinator: presentationCoordinator
             )
         )
@@ -339,31 +341,78 @@ extension UIContextMenuInteraction {
 
 @available(iOS 14.0, *)
 struct AccessoryView<Content: View>: View {
-    var content: Content
-    var transaction: Transaction
-    var presentationCoordinator: PresentationCoordinator
 
-    @UpdatePhase var updatePhase
+    var content: Content
+    var presentationCoordinator: PresentationCoordinator
 
     var body: some View {
         content
-            .transaction(transaction, value: updatePhase)
             .environment(\.presentationCoordinator, presentationCoordinator)
     }
 }
 
 @available(iOS 14.0, *)
-final class AccessoryHostingView<Content: View>: HostingView<AccessoryView<Content>> {
+final class AccessoryHostingView<Content: View>: HostingView<AccessoryContentView<AccessoryView<Content>>> {
+
+    init(content: AccessoryView<Content>) {
+        super.init(content: AccessoryContentView(content: content))
+        _rootView.content.sourceView = self
+    }
+
+    func update(content newValue: Content, transaction: Transaction) {
+        var content = content
+        content.content.content = newValue
+        update(content: content, transaction: transaction)
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func setNeedsLayout() {
         super.setNeedsLayout()
         superview?.setNeedsLayout()
     }
+}
 
-    func update(content: Content, transaction: Transaction) {
-        self.content.content = content
-        self.content.transaction = transaction
-        layoutIfNeeded()
+struct AccessoryContentView<Content: View>: View {
+
+    public var content: Content
+
+    weak var sourceView: UIView?
+
+    public var body: some View {
+        content
+            .modifier(IntrinsicContentSizeInvalidationModifier(sourceView: sourceView))
+    }
+}
+
+private struct IntrinsicContentSizeInvalidationModifier: VersionedViewModifier {
+
+    weak var sourceView: UIView?
+
+    @available(iOS 16.0, *)
+    func v4Body(content: Content) -> some View {
+        content
+            .onGeometryChange(for: CGSize.self) { proxy in
+                proxy.size
+            } action: { [weak sourceView] _ in
+                sourceView?.setNeedsLayout()
+            }
+    }
+
+    @available(iOS 14.0, *)
+    func v2Body(content: Content) -> some View {
+        content
+            .background(
+                GeometryReader { [weak sourceView] proxy in
+                    Color.clear
+                        .hidden()
+                        .onChange(of: proxy.size) { [weak sourceView] _ in
+                            sourceView?.setNeedsLayout()
+                        }
+                }
+            )
     }
 }
 

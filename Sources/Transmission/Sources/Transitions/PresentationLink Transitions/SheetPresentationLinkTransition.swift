@@ -25,6 +25,7 @@ extension PresentationLinkTransition {
         zoomTransitionOptions: ZoomTransitionOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
+        preferredGlassEffect: GlassEffect? = nil,
         preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
@@ -35,7 +36,8 @@ extension PresentationLinkTransition {
                 preferredCornerRadius: preferredCornerRadius,
                 prefersZoomTransition: prefersZoomTransition,
                 zoomTransitionOptions: zoomTransitionOptions,
-                hapticsStyle: hapticsStyle
+                hapticsStyle: hapticsStyle,
+                preferredGlassEffect: preferredGlassEffect
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -56,6 +58,7 @@ extension PresentationLinkTransition {
         prefersZoomTransition: Bool = false,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
+        preferredGlassEffect: GlassEffect? = nil,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .sheet(
@@ -66,7 +69,8 @@ extension PresentationLinkTransition {
                 prefersGrabberVisible: prefersGrabberVisible,
                 preferredCornerRadius: preferredCornerRadius,
                 prefersZoomTransition: prefersZoomTransition,
-                hapticsStyle: hapticsStyle
+                hapticsStyle: hapticsStyle,
+                preferredGlassEffect: preferredGlassEffect
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -494,6 +498,7 @@ public struct SheetPresentationLinkTransition: Sendable {
         public var prefersZoomTransition: Bool
         public var zoomTransitionOptions: ZoomTransitionOptions?
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
+        public var preferredGlassEffect: GlassEffect?
 
         public init(
             selected: Binding<SheetPresentationLinkTransition.Detent.Identifier?>? = nil,
@@ -510,7 +515,8 @@ public struct SheetPresentationLinkTransition: Sendable {
             prefersSheetInset: Bool = true,
             prefersZoomTransition: Bool = false,
             zoomTransitionOptions: ZoomTransitionOptions? = nil,
-            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
+            hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
+            preferredGlassEffect: GlassEffect? = nil
         ) {
             self.selected = selected
             if #available(iOS 15.0, *) {
@@ -536,6 +542,7 @@ public struct SheetPresentationLinkTransition: Sendable {
             self.prefersZoomTransition = prefersZoomTransition
             self.zoomTransitionOptions = zoomTransitionOptions
             self.hapticsStyle = hapticsStyle
+            self.preferredGlassEffect = preferredGlassEffect
         }
     }
 
@@ -609,15 +616,22 @@ open class SheetPresentationControllerTransition: PresentationControllerTransiti
                 presentedFrame: &presentedFrame
             )
 
-            let dy = transitionContext.containerView.frame.height - presentedFrame.origin.y
+            var dy = transitionContext.containerView.frame.height - presentedFrame.origin.y
+            if #available(iOS 26.0, *) {
+                dy += 20
+            }
             let transform = CGAffineTransform(
                 translationX: 0,
                 y: dy
             )
-            presentedView.frame = presentedFrame.applying(transform)
+            presentedView.transform = transform
             presentedView.alpha = 1
             animator.addAnimations {
-                presentedView.frame = presentedFrame
+                if #available(iOS 26.0, *) {
+                    presentedView.frame = presentedFrame
+                } else {
+                    presentedView.transform = .identity
+                }
             }
         } else {
             if presentingView.superview == nil {
@@ -625,7 +639,7 @@ open class SheetPresentationControllerTransition: PresentationControllerTransiti
                 presentingView.frame = transitionContext.finalFrame(for: presenting)
                 presentingView.layoutIfNeeded()
             }
-            let frame = presentedView.frame
+            let frame = transitionContext.initialFrame(for: presented)
             let dy = transitionContext.containerView.frame.height - frame.origin.y
             let transform = CGAffineTransform(
                 translationX: 0,
@@ -633,7 +647,7 @@ open class SheetPresentationControllerTransition: PresentationControllerTransiti
             )
 
             animator.addAnimations {
-                presentedView.frame = frame.applying(transform)
+                presentedView.transform = transform
             }
         }
         animator.addCompletion { animatingPosition in

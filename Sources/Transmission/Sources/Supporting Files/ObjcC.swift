@@ -37,11 +37,11 @@ func NSSelectorFromBase64EncodedString(
 
 extension NSObject {
 
-    var methods: [Selector] {
+    var methods: [(String, [Selector])] {
         var type: AnyClass? = object_getClass(self)
-        var results = [Selector]()
+        var results = [(String, [Selector])]()
         while let aClass = type, aClass != NSObject.self {
-            results.append(contentsOf: methods(for: aClass))
+            results.append((String(cString: class_getName(aClass)), methods(for: aClass)))
             type = class_getSuperclass(aClass)
         }
         return results

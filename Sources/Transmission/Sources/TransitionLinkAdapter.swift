@@ -9,7 +9,7 @@ import Engine
 
 @frozen
 @available(iOS 14.0, *)
-public enum ConditionalLinkTransition: Sendable {
+public enum LinkTransition: Sendable {
     case presentation(PresentationLinkTransition)
     case destination(DestinationLinkTransition)
 }
@@ -27,7 +27,7 @@ public enum ConditionalLinkTransition: Sendable {
 /// ```
 ///
 /// See Also:
-///  - ``ConditionalLinkModifier``
+///  - ``TransitionLinkModifier``
 ///  - ``PresentationLink``
 ///  - ``PresentationLinkTransition``
 ///  - ``PresentationSourceViewLink``
@@ -38,30 +38,29 @@ public enum ConditionalLinkTransition: Sendable {
 ///
 @frozen
 @available(iOS 14.0, *)
-public struct ConditionalLinkAdapter<
-    Value,
+public struct TransitionLinkAdapter<
     Content: View,
     Destination: View
 >: View {
 
-    var transition: (Value) -> ConditionalLinkTransition
-    var useHostingControllerAsSourceView: Bool
+    var transition: LinkTransition
     var cornerRadius: CornerRadiusOptions?
     var backgroundColor: Color?
-    var value: Binding<Value?>
+    var useHostingControllerAsSourceView: Bool
+    var isPresented: Binding<Bool>
     var content: Content
-    var destination: (Value) -> Destination
+    var destination: Destination
 
     public init(
-        value: Binding<Value?>,
+        transition: LinkTransition,
         useHostingControllerAsSourceView: Bool = false,
-        transition: @escaping (Value) -> ConditionalLinkTransition,
-        @ViewBuilder destination: @escaping (Value) -> Destination
+        isPresented: Binding<Bool>,
+        @ViewBuilder destination: () -> Destination
     ) where Content == EmptyView {
         self.init(
-            value: value,
-            useHostingControllerAsSourceView: useHostingControllerAsSourceView,
             transition: transition,
+            useHostingControllerAsSourceView: useHostingControllerAsSourceView,
+            isPresented: isPresented,
             destination: destination,
             content: {
                 EmptyView()
@@ -70,30 +69,30 @@ public struct ConditionalLinkAdapter<
     }
 
     public init(
+        transition: LinkTransition,
         cornerRadius: CornerRadiusOptions? = nil,
         backgroundColor: Color? = nil,
-        value: Binding<Value?>,
         useHostingControllerAsSourceView: Bool = false,
-        transition: @escaping (Value) -> ConditionalLinkTransition,
-        @ViewBuilder destination: @escaping (Value) -> Destination,
+        isPresented: Binding<Bool>,
+        @ViewBuilder destination: () -> Destination,
         @ViewBuilder content: () -> Content
     ) {
         self.transition = transition
-        self.useHostingControllerAsSourceView = useHostingControllerAsSourceView
         self.cornerRadius = cornerRadius
         self.backgroundColor = backgroundColor
-        self.value = value
+        self.useHostingControllerAsSourceView = useHostingControllerAsSourceView
+        self.isPresented = isPresented
         self.content = content()
-        self.destination = destination
+        self.destination = destination()
     }
 
     public var body: some View {
-        ConditionalLinkAdapterBody(
+        TransitionLinkAdapterBody(
             transition: transition,
             useHostingControllerAsSourceView: useHostingControllerAsSourceView,
             cornerRadius: cornerRadius,
             backgroundColor: backgroundColor,
-            value: value,
+            isPresented: isPresented,
             destination: destination,
             sourceView: content
         )
@@ -101,18 +100,17 @@ public struct ConditionalLinkAdapter<
 }
 
 @available(iOS 14.0, *)
-private struct ConditionalLinkAdapterBody<
-    Value,
+private struct TransitionLinkAdapterBody<
     Destination: View,
     SourceView: View
 >: UIViewRepresentable {
 
-    var transition: (Value) -> ConditionalLinkTransition
+    var transition: LinkTransition
     var useHostingControllerAsSourceView: Bool
     var cornerRadius: CornerRadiusOptions?
     var backgroundColor: Color?
-    var value: Binding<Value?>
-    var destination: (Value) -> Destination
+    var isPresented: Binding<Bool>
+    var destination: Destination
     var sourceView: SourceView
 
     @WeakState var presentingViewController: UIViewController?
@@ -137,7 +135,7 @@ private struct ConditionalLinkAdapterBody<
         )
         context.coordinator.onUpdate(
             presentingViewController: presentingViewController,
-            value: value,
+            isPresented: isPresented,
             transition: transition,
             destination: destination,
             context: context,
@@ -169,17 +167,16 @@ private struct ConditionalLinkAdapterBody<
         coordinator.onDismantle()
     }
 
-    typealias Coordinator = ConditionalLinkCoordinator<Value, Destination, Self>
+    typealias Coordinator = TransitionLinkCoordinator<Destination, Self>
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(value: value)
+        Coordinator(isPresented: isPresented)
     }
 }
 
 @MainActor @preconcurrency
 @available(iOS 14.0, *)
-final class ConditionalLinkCoordinator<
-    Value,
+final class TransitionLinkCoordinator<
     Destination: View,
     Representable: UIViewRepresentable
 > {
@@ -187,50 +184,61 @@ final class ConditionalLinkCoordinator<
     typealias PresentationCoordinator = PresentationLinkCoordinator<Destination, Representable>
     typealias DestinationCoordinator = DestinationLinkCoordinator<Destination, Representable>
 
-    var value: Binding<Value?>
+    var isPresented: Binding<Bool>
     var presentationCoordinator: PresentationCoordinator
     var destinationCoordinator: DestinationCoordinator
 
-    init(value: Binding<Value?>) {
-        self.value = value
+    init(isPresented: Binding<Bool>) {
+        self.isPresented = isPresented
         self.presentationCoordinator = PresentationCoordinator(isPresented: .constant(false))
         self.destinationCoordinator = DestinationCoordinator(isPresented: .constant(false))
     }
 
     func onUpdate(
         presentingViewController: UIViewController?,
-        value: Binding<Value?>,
-        transition: (Value) -> ConditionalLinkTransition,
-        destination: (Value) -> Destination,
+        isPresented: Binding<Bool>,
+        transition: LinkTransition,
+        destination: Destination,
         context: Representable.Context,
         sourceView: UIView
     ) {
-        self.value = value
-        if let value = value.wrappedValue {
-            let transition = transition(value)
-            switch transition {
-            case .presentation(let transition):
-                presentationCoordinator.onUpdate(
-                    presentingViewController: presentingViewController,
-                    isPresented: self.value.isNotNil(),
-                    transition: transition,
-                    destination: destination(value),
-                    context: context,
-                    sourceView: sourceView
-                )
-                destinationCoordinator.onPop(1, transaction: context.transaction)
+        self.isPresented = isPresented
+        switch transition {
+        case .presentation(let transition):
+            presentationCoordinator.onUpdate(
+                presentingViewController: presentingViewController,
+                isPresented: isPresented,
+                transition: transition,
+                destination: destination,
+                context: context,
+                sourceView: sourceView
+            )
+            destinationCoordinator.onUpdate(
+                presentingViewController: presentingViewController,
+                isPresented: .constant(false),
+                transition: .default,
+                destination: destination,
+                context: context,
+                sourceView: sourceView
+            )
 
-            case .destination(let transition):
-                presentationCoordinator.onDismiss(1, transaction: context.transaction)
-                destinationCoordinator.onUpdate(
-                    presentingViewController: presentingViewController,
-                    isPresented: self.value.isNotNil(),
-                    transition: transition,
-                    destination: destination(value),
-                    context: context,
-                    sourceView: sourceView
-                )
-            }
+        case .destination(let transition):
+            presentationCoordinator.onUpdate(
+                presentingViewController: presentingViewController,
+                isPresented: .constant(false),
+                transition: .default,
+                destination: destination,
+                context: context,
+                sourceView: sourceView
+            )
+            destinationCoordinator.onUpdate(
+                presentingViewController: presentingViewController,
+                isPresented: isPresented,
+                transition: transition,
+                destination: destination,
+                context: context,
+                sourceView: sourceView
+            )
         }
     }
 
