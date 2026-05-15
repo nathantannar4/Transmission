@@ -601,7 +601,6 @@ open class SheetPresentationControllerTransition: PresentationControllerTransiti
         }
 
         if isPresenting {
-            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -625,7 +624,6 @@ open class SheetPresentationControllerTransition: PresentationControllerTransiti
                 y: dy
             )
             presentedView.transform = transform
-            presentedView.alpha = 1
             animator.addAnimations {
                 if #available(iOS 26.0, *) {
                     presentedView.frame = presentedFrame

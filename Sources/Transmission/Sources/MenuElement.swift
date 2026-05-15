@@ -144,7 +144,7 @@ extension MenuElement {
         var stop = false
         _updateVisibleUIMenu(&menu, context: context, stop: &stop)
         if !stop {
-            os_log(.error, log: .default, "Failed to update visible menu %{public}@. Please file an issue.", String(describing: Self.self))
+            os_log(.debug, log: .default, "Failed to update visible menu %{public}@. Please file an issue.", String(describing: Self.self))
         }
     }
 

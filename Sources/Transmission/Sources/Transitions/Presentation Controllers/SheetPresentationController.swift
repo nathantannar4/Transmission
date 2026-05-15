@@ -369,15 +369,21 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
                 interactionController.cancel()
             }
         case .ended:
+            var shouldDismiss = false
             if selectedDetentIdentifier == .large {
-                var shouldDismiss = gesture.velocity(in: gesture.view).y >= 4000
+                shouldDismiss = gesture.velocity(in: gesture.view).y >= 4000
+            } else {
+                shouldDismiss = gesture.velocity(in: gesture.view).y >= 2400
+            }
+            if shouldDismiss {
                 if shouldDismiss, let scrollView = gesture.view as? UIScrollView {
                     shouldDismiss = scrollView.contentOffset.y <= scrollView.adjustedContentInset.top
                 }
                 if shouldDismiss, delegate?.presentationControllerShouldDismiss?(self) != false {
                     presentedViewController.dismiss(animated: true)
                 }
-            } else if !shouldAdjustDetentsForKeyboard {
+            }
+            if !shouldDismiss, !shouldAdjustDetentsForKeyboard {
                 if presentedViewController.isBeingDismissed,
                    let transitionCoordinator = presentedViewController.transitionCoordinator,
                    !transitionCoordinator.isCancelled
