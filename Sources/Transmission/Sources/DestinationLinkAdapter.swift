@@ -1130,7 +1130,7 @@ final class DestinationLinkDelegateProxy: NSObject,
     ) -> Bool {
         guard
             let navigationController = navigationController,
-            navigationController.viewControllers.count > 1,
+            navigationController.viewControllers.count > 1 || navigationController.transitionCoordinator != nil,
             let fromVC = navigationController.topViewController
         else {
             return false
@@ -1214,6 +1214,12 @@ final class DestinationLinkDelegateProxy: NSObject,
                 return false
             }
             #endif
+            if otherGestureRecognizer.isZoomDismissGesture {
+                return true
+            }
+            if let interactivePresentationPanGestureRecognizer = otherGestureRecognizer as? InteractivePresentationPanGestureRecognizer, interactivePresentationPanGestureRecognizer.edges.contains(.leading) {
+                return false
+            }
             if !isInterruptedInteractiveTransition,
                 let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer,
                 !panGesture.isScrollViewPanGesture,
@@ -1223,7 +1229,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 simultaneousPanGestures.append(panGesture)
                 return true
             }
-            return otherGestureRecognizer.isZoomDismissGesture
+            return false
         } else {
             if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
                 let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(

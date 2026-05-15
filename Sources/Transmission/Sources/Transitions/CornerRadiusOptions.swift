@@ -433,6 +433,16 @@ extension CALayerCornerCurve {
     }
 }
 
+#if canImport(FoundationModels) // Xcode 26
+@available(iOS 26.0, *)
+extension UICornerConfiguration {
+
+    static var identity: UICornerConfiguration {
+        UICornerConfiguration.corners(topLeftRadius: .fixed(0), topRightRadius: .fixed(0), bottomLeftRadius: .fixed(0), bottomRightRadius: .fixed(0))
+    }
+}
+#endif
+
 extension UIView {
 
     func applyCornerRadius(from source: UIView) {

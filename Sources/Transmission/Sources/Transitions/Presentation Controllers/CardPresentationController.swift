@@ -83,7 +83,9 @@ open class CardPresentationController: InteractivePresentationController {
             }
             sizeThatFits.height += (2 * edgeInset)
             if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented, preferredSafeAreaInsets != .zero {
-                sizeThatFits.height += max((containerView?.safeAreaInsets.bottom ?? 0) - edgeInset, 0)
+                if !isKeyboardSessionActive {
+                    sizeThatFits.height += max((containerView?.safeAreaInsets.bottom ?? 0) - edgeInset, 0)
+                }
                 sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.top
                 sizeThatFits.height += presentedViewController.additionalSafeAreaInsets.bottom
             }
@@ -209,8 +211,7 @@ open class CardPresentationController: InteractivePresentationController {
             edgeInsets.bottom = max(edgeInsets.bottom, inset)
         } else {
             let bottomSafeArea = (safeAreaInsets.bottom - additionalSafeAreaInsets.bottom) - edgeInset
-            edgeInsets.bottom = inset - max(0, bottomSafeArea)
-//            edgeInsets.bottom = min(max(safeAreaInsets.bottom - edgeInset, inset), max(additionalSafeAreaInsets.bottom, inset - max(0, bottomSafeArea)))
+            edgeInsets.bottom = min(max(safeAreaInsets.bottom - edgeInset, inset), max(additionalSafeAreaInsets.bottom, inset - max(0, bottomSafeArea)))
         }
         return edgeInsets
     }

@@ -234,21 +234,18 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
                 preferredCornerRadius.apply(to: dropShadowView, masksToBounds: false)
             }
         } else if #available(iOS 26.0, *) {
+            #if canImport(FoundationModels) // Xcode 26
             let presentationController = transitionContext.viewController(forKey: isPresenting ? .from : .to)?.activePresentationController
             var presentedView = presentationController?.presentedView
             if let presentationController = presentationController as? UISheetPresentationController {
                 presentedView = presentationController.presentedView?.subviews.last
             }
-            if let presentedView {
-                #if canImport(FoundationModels) // Xcode 26
+            if let presentedView, presentedView.layer.cornerRadius > 0 || presentedView.cornerConfiguration != .identity {
                 presentedVC.view.cornerConfiguration = presentedView.cornerConfiguration
-                #endif
                 presentedVC.view.layer.cornerCurve = presentedView.layer.cornerCurve
                 presentedVC.view.clipsToBounds = presentedView.clipsToBounds
                 if let dropShadowView {
-                    #if canImport(FoundationModels) // Xcode 26
                     dropShadowView.cornerConfiguration = presentedView.cornerConfiguration
-                    #endif
                     dropShadowView.layer.cornerCurve = presentedView.layer.cornerCurve
                 }
             } else {
@@ -258,6 +255,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
                     cornerRadius.apply(to: dropShadowView, masksToBounds: false)
                 }
             }
+            #endif
         }
         let dimmingView = dimmingView
         animator.addAnimations {

@@ -179,14 +179,15 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
                 presentingView.frame = transitionContext.finalFrame(for: presenting)
                 presentingView.layoutIfNeeded()
             }
+            let frame = transitionContext.initialFrame(for: presented)
             let transform: CGAffineTransform = {
                 switch edge {
                 case .top, .leading:
-                    return CGAffineTransform(translationX: 0, y: -presentedView.frame.maxY)
+                    return CGAffineTransform(translationX: 0, y: -frame.maxY)
                 case .bottom, .trailing:
                     return CGAffineTransform(
                         translationX: 0,
-                        y: transitionContext.containerView.frame.height - presentedView.frame.minY
+                        y: transitionContext.containerView.frame.height - frame.minY
                     )
                 }
             }()

@@ -170,10 +170,11 @@ open class PopoverPresentationControllerTransition: PresentationControllerTransi
             }
             presentedView.layoutIfNeeded()
 
+            let frame = transitionContext.initialFrame(for: presented)
             let transform = transform(
                 arrowDirection: presentationController?.arrowDirection ?? .unknown,
                 sourceFrame: sourceFrame,
-                frame: presentedView.frame
+                frame: frame
             )
             animator.addAnimations {
                 presentedView.alpha = 0

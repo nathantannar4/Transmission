@@ -20,14 +20,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         wantsInteractiveStart || (animation?.delay ?? 0) == 0
     }
 
-    open override var duration: CGFloat {
-        animator?.duration ?? super.duration
-    }
-
-    open override var percentComplete: CGFloat {
-        animator?.fractionComplete ?? super.percentComplete
-    }
-
     public init(
         isPresenting: Bool,
         animation: Animation?
@@ -94,7 +86,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             animator?.pauseAnimation()
         }
         if let fractionComplete {
-            animator?.fractionComplete = fractionComplete
+            update(fractionComplete)
         }
     }
 

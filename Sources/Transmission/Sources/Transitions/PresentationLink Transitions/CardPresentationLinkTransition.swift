@@ -171,7 +171,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         presenting: PresentationHostingController<Content>,
         context: Context
     ) where Content: View {
-        presenting.view.clipsToBounds = options.preferredCornerRadius != .identity
+        presenting.view.clipsToBounds = context.options.preferredPresentationBackgroundColor != .clear
         presenting.tracksContentSize = true
         presenting.disableSafeArea = context.options.preferredPresentationSafeAreaInsets == .zero
     }

@@ -233,9 +233,10 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
                 presentingView.frame = transitionContext.finalFrame(for: presenting)
                 presentingView.layoutIfNeeded()
             }
+            let frame = transitionContext.initialFrame(for: presented)
             let transform = presentationTransform(
                 presented: presented,
-                frame: presentedView.frame
+                frame: frame
             )
             presentedView.layoutIfNeeded()
 

@@ -409,6 +409,9 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             if shouldDismiss {
                 delegate?.presentationControllerWillDismiss?(self)
                 interactionController.pause()
+                if #available(iOS 26.0, *) {
+                    interactionController.completionSpeed = 0.92
+                }
                 interactionController.cancel()
                 self.transition = nil
                 dimmingView.isUserInteractionEnabled = false
