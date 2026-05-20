@@ -620,6 +620,7 @@ final class PresentationLinkCoordinator<
                         if let firstResponder = presentedViewController.firstResponder {
                             withCATransaction {
                                 firstResponder.resignFirstResponder()
+                                CATransaction.flush()
                                 presentedViewController.dismiss(
                                     animated: isAnimated,
                                     completion: present
@@ -671,6 +672,7 @@ final class PresentationLinkCoordinator<
                     if let firstResponder = presentingViewController.firstResponder {
                         withCATransaction {
                             firstResponder.resignFirstResponder()
+                            CATransaction.flush()
                             present()
                         }
                     } else {

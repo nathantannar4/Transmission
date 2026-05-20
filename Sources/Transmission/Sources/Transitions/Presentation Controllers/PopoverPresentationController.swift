@@ -51,12 +51,9 @@ open class PopoverPresentationController: UIPopoverPresentationController, Perce
         get { super.passthroughViews }
         set {
             dimmingView.passthroughViews = newValue
-            if var newValue, !newValue.isEmpty {
-                newValue.insert(dimmingView, at: 0)
-                super.passthroughViews = newValue
-            } else {
-                super.passthroughViews = nil
-            }
+            var newValue = newValue ?? []
+            newValue.insert(dimmingView, at: 0)
+            super.passthroughViews = newValue
         }
     }
 
@@ -71,6 +68,7 @@ open class PopoverPresentationController: UIPopoverPresentationController, Perce
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
+        passthroughViews = []
     }
 
     open func attach(to transition: UIPercentDrivenInteractiveTransition) {
@@ -146,9 +144,22 @@ open class PopoverPresentationController: UIPopoverPresentationController, Perce
 
     @objc
     private func didSelectBackground() {
-        let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
-        if shouldDismiss {
-            presentedViewController.dismiss(animated: true)
+        if presentedViewController.isBeingPresented {
+            if let transition {
+                let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
+                if shouldDismiss {
+                    delegate?.presentationControllerWillDismiss?(self)
+                    transition.pause()
+                    transition.cancel()
+                    self.transition = nil
+                    containerView?.isUserInteractionEnabled = false
+                }
+            }
+        } else {
+            let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
+            if shouldDismiss {
+                presentedViewController.dismiss(animated: true)
+            }
         }
     }
 }

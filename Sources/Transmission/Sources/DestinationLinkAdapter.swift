@@ -326,6 +326,7 @@ final class DestinationLinkCoordinator<
                 } else if let firstResponder = navigationController.topViewController?.firstResponder {
                     withCATransaction {
                         firstResponder.resignFirstResponder()
+                        CATransaction.flush()
                         present()
                     }
                 } else {
