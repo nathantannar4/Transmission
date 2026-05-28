@@ -152,7 +152,7 @@ private class TransitionSourceHostingView<Content: View>: HostingView<Content> {
         if #unavailable(iOS 26.0) {
             cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
         }
-        hasInitialLayout = true
+        hasInitialLayout = bounds.size != .zero
     }
 
     open override func invalidateIntrinsicContentSize() {

@@ -39,6 +39,15 @@ public struct PresentationLinkTransition: Sendable {
     }
 
     @inlinable
+    public func isInteractive(_ isInteractive: Bool, isDismissRequested: Binding<Bool>?) -> PresentationLinkTransition {
+        var copy = self
+        copy.options.isInteractive = isInteractive
+        copy.options.isDismissRequested = isDismissRequested
+        return copy
+    }
+
+
+    @inlinable
     public func preferredColorScheme(_ preferredColorScheme: ColorScheme?) -> PresentationLinkTransition {
         var copy = self
         copy.options.preferredPresentationColorScheme = preferredColorScheme
@@ -114,6 +123,8 @@ extension PresentationLinkTransition {
     public struct Options: Sendable {
         /// Used when the presentation delegate asks if it should dismiss
         public var isInteractive: Bool
+        /// When non-interactive and dismissal is attempted, will be set to `true`
+        public var isDismissRequested: Binding<Bool>?
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
@@ -130,6 +141,7 @@ extension PresentationLinkTransition {
 
         public init(
             isInteractive: Bool = true,
+            isDismissRequested: Binding<Bool>? = nil,
             isDestinationReusable: Bool = false,
             shouldAutomaticallyDismissDestination: Bool = true,
             shouldTransitionIsPresentedAlongsideTransition: Bool = true,
@@ -140,6 +152,7 @@ extension PresentationLinkTransition {
             preferredPresentationBackgroundColor: Color? = nil
         ) {
             self.isInteractive = isInteractive
+            self.isDismissRequested = isDismissRequested
             self.isDestinationReusable = isDestinationReusable
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
             self.shouldTransitionIsPresentedAlongsideTransition = shouldTransitionIsPresentedAlongsideTransition

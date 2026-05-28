@@ -511,9 +511,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 }
 
             case .ended:
+                let dismissalShouldBegin = panGestureDismissalShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity)
                 if wantsInteractiveDismissal,
                     isScrollViewAtTop,
-                    panGestureDismissalShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity),
+                    dismissalShouldBegin,
                     shouldDismiss()
                 {
                     panGestureDidEnd()
@@ -537,6 +538,9 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         self.presentedView?.layoutIfNeeded()
                     } completion: { _ in
                         self.transformPresentedView(transform: .identity)
+                        if dismissalShouldBegin {
+                            self.delegate?.presentationControllerDidAttemptToDismiss?(self)
+                        }
                     }
                 }
 

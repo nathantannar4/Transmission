@@ -913,6 +913,11 @@ final class PresentationLinkCoordinator<
         _ presentationController: UIPresentationController
     ) {
         presentationController.presentedViewController.fixSwiftUIHitTesting()
+        if let isDismissRequested = adapter?.transition.options.isDismissRequested {
+            withAnimation {
+                isDismissRequested.wrappedValue = true
+            }
+        }
     }
 
     override func adaptivePresentationStyle(

@@ -98,12 +98,19 @@ open class ToastPresentationController: InteractivePresentationController {
 
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         let additionalSafeAreaInsets = super.presentedViewAdditionalSafeAreaInsets()
+        let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
         let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius() ?? 0).rounded(scale: presentedViewController.view.traitCollection.displayScale) : 0
         var edgeInsets = additionalSafeAreaInsets
         edgeInsets.top = max(edgeInsets.top, inset)
         edgeInsets.left = max(edgeInsets.left, inset)
         edgeInsets.right = max(edgeInsets.right, inset)
         edgeInsets.bottom = max(edgeInsets.bottom, inset)
+        if !isKeyboardSessionActive, let presentedView, panGesture.isInteracting {
+            let topDelta = min(presentedView.frame.origin.y - safeAreaInsets.top, 0)
+            let bottomDelta = min((containerView?.frame.height ?? 0) - presentedView.frame.maxY - safeAreaInsets.bottom, 0)
+            edgeInsets.top += topDelta
+            edgeInsets.bottom += bottomDelta
+        }
         return edgeInsets
     }
 }
