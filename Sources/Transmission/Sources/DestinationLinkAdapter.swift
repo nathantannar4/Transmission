@@ -1223,9 +1223,8 @@ final class DestinationLinkDelegateProxy: NSObject,
             }
             if !isInterruptedInteractiveTransition,
                 let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer,
-                !panGesture.isScrollViewPanGesture,
-                !panGesture.isZoomDismissGesture,
-                !panGesture.delaysTouchesBegan
+                !panGesture.isSimultaneousWithTransition,
+                !panGesture.isZoomDismissGesture
             {
                 simultaneousPanGestures.append(panGesture)
                 return true
@@ -1233,6 +1232,9 @@ final class DestinationLinkDelegateProxy: NSObject,
             return false
         } else {
             if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                if otherGestureRecognizer.isSimultaneousWithTransition {
+                    return true
+                }
                 let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
                     shouldRecognizeSimultaneouslyWith: otherGestureRecognizer
@@ -1306,6 +1308,9 @@ final class DestinationLinkDelegateProxy: NSObject,
             return false
         } else {
             if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
+                if otherGestureRecognizer.isSimultaneousWithTransition {
+                    return true
+                }
                 let shouldBeRequiredToFailBy = popGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
                     shouldBeRequiredToFailBy: otherGestureRecognizer

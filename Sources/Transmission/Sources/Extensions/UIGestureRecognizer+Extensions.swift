@@ -31,7 +31,7 @@ extension UIGestureRecognizer {
     }
 
     var isSimultaneousWithTransition: Bool {
-        isScrollViewPanGesture || isWebViewPanGesture
+        isScrollViewPanGesture || isWebViewPanGesture || isMapViewGesture
             || delaysTouchesBegan
             || isKind(of: UIPinchGestureRecognizer.self)
     }
@@ -50,6 +50,26 @@ extension UIGestureRecognizer {
             return false
         }
         return view.isKind(of: aClass)
+    }
+
+    var isMapViewGesture: Bool {
+        isMapViewPanGesture || isMapViewTiltGestureRecognizer
+    }
+
+    private static let MKPanGestureRecognizer: AnyClass? = NSClassFromString("MKPanGestureRecognizer")
+    var isMapViewPanGesture: Bool {
+        guard let aClass = Self.MKPanGestureRecognizer else {
+            return false
+        }
+        return isKind(of: aClass)
+    }
+
+    private static let MKTiltGestureRecognizer: AnyClass? = NSClassFromString("MKTiltGestureRecognizer")
+    var isMapViewTiltGestureRecognizer: Bool {
+        guard let aClass = Self.MKTiltGestureRecognizer else {
+            return false
+        }
+        return isKind(of: aClass)
     }
 
     private static let UIKitGestureRecognizer: AnyClass? = NSClassFromString("SwiftUI.UIKitGestureRecognizer")
