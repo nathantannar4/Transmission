@@ -172,6 +172,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
         let isPresenting = isPresenting
         let preferredCornerRadius = preferredCornerRadius
         if isPresenting {
+            toVC.view.alpha = 0
             transitionContext.containerView.addSubview(toVC.view)
         } else {
             transitionContext.containerView.insertSubview(toVC.view, belowSubview: fromVC.view)
@@ -258,6 +259,7 @@ open class PushNavigationControllerTransition: ViewControllerTransition {
             #endif
         }
         let dimmingView = dimmingView
+        toVC.view.alpha = 1
         animator.addAnimations {
             toVC.view.transform = .identity
             dropShadowView?.transform = isPresenting ? .identity : fromVCTransform

@@ -127,12 +127,12 @@ open class SlideNavigationControllerTransition: ViewControllerTransition {
 
         let width = transitionContext.containerView.frame.width
         if isPresenting {
+            toVC.view.alpha = 0
             transitionContext.containerView.addSubview(toVC.view)
         } else {
             transitionContext.containerView.insertSubview(toVC.view, belowSubview: fromVC.view)
         }
         toVC.view.frame = transitionContext.finalFrame(for: toVC)
-        toVC.view.alpha = initialOpacity
         toVC.view.layoutIfNeeded()
 
         toVC.view.transform = CGAffineTransform(
@@ -144,6 +144,7 @@ open class SlideNavigationControllerTransition: ViewControllerTransition {
             y: 0
         )
 
+        toVC.view.alpha = initialOpacity
         animator.addAnimations { [initialOpacity] in
             toVC.view.transform = .identity
             toVC.view.alpha = 1

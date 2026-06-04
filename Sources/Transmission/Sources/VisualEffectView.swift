@@ -213,16 +213,19 @@ public struct GlassEffect: Equatable {
     public var style: Style
     public var isInteractive: Bool
     public var tintColor: Color?
+    public var isShadowHidden: Bool = false
 
     @inlinable
     public init(
         style: Style,
         isInteractive: Bool = false,
-        tintColor: Color? = nil
+        tintColor: Color? = nil,
+        isShadowHidden: Bool = false
     ) {
         self.style = style
         self.isInteractive = isInteractive
         self.tintColor = tintColor
+        self.isShadowHidden = isShadowHidden
     }
 }
 
@@ -234,8 +237,39 @@ extension GlassEffect: VisualEffectRepresentable {
         let uiVisualEffect = UIGlassEffect(
             style: style.toUIKit()
         )
+        let tintColor = tintColor?.toUIColor(in: environment)
         uiVisualEffect.isInteractive = isInteractive
-        uiVisualEffect.tintColor = tintColor?.toUIColor(in: environment)
+        uiVisualEffect.tintColor = tintColor
+
+        // _explicitGlass
+        if isShadowHidden,
+            let aSelector = NSStringFromBase64EncodedString("X2V4cGxpY2l0R2xhc3M="),
+            let iVar = class_getInstanceVariable(UIGlassEffect.self, aSelector)
+        {
+            var glass = object_getIvar(uiVisualEffect, iVar) as? NSObject
+            // glass
+            if glass == nil,
+                let aSelector = NSStringFromBase64EncodedString("Z2xhc3M="),
+                uiVisualEffect.responds(to: NSSelectorFromString(aSelector))
+            {
+                glass = uiVisualEffect.value(forKey: aSelector) as? NSObject
+            }
+            if let glass {
+                // flexible
+                if let aSelector = NSStringFromBase64EncodedString("ZmxleGlibGU="), glass.responds(to: NSSelectorFromString(aSelector)) {
+                    glass.setValue(isInteractive, forKey: aSelector)
+                }
+                // excludingShadow
+                if let aSelector = NSStringFromBase64EncodedString("ZXhjbHVkaW5nU2hhZG93"), glass.responds(to: NSSelectorFromString(aSelector)) {
+                    glass.setValue(isShadowHidden, forKey: aSelector)
+                }
+                // tintColor
+                if let aSelector = NSStringFromBase64EncodedString("dGludENvbG9y"), glass.responds(to: NSSelectorFromString(aSelector)) {
+                    glass.setValue(tintColor, forKey: aSelector)
+                }
+                object_setIvar(uiVisualEffect, iVar, glass)
+            }
+        }
         return uiVisualEffect
     }
 }
@@ -640,6 +674,10 @@ struct VisualEffectView_Previews: PreviewProvider {
 
                             Toggle(isOn: $glassEffect.isInteractive) {
                                 Text(verbatim: "isInteractive")
+                            }
+
+                            Toggle(isOn: $glassEffect.isShadowHidden) {
+                                Text(verbatim: "isShadowHidden")
                             }
 
                             HStack {
