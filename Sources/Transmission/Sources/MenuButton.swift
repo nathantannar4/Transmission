@@ -114,8 +114,11 @@ public struct MenuButton: MenuElementRepresentable {
 
     public func updateUIMenuElement(_ element: inout UIAction, context: Context) {
         element.title = label.title?.resolve(in: context.environment) ?? ""
-        if #available(iOS 15.0, *) {
+        if #available(iOS 16.0, *) {
             element.subtitle = label.subtitle?.resolve(in: context.environment)
+        } else if #available(iOS 15.0, *), element.responds(to: NSSelectorFromString("setSubtitle:")) {
+            let subtitle = label.subtitle?.resolve(in: context.environment)
+            element.setValue(subtitle, forKey: "subtitle")
         }
         element.image = label.image?.toUIImage(in: context.environment)
         element.state = state.toUIKit()

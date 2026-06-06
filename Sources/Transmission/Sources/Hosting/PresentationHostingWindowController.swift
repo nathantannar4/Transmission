@@ -27,12 +27,15 @@ open class PresentationHostingWindowController<Content: View>: UIViewController 
         guard
             let window = presentingWindow,
             let parent = window.parent,
-            window.windowLevel.rawValue == parent.windowLevel.rawValue,
-            let parentViewController = parent.presentedViewController
+            window.windowLevel.rawValue == parent.windowLevel.rawValue || window.windowLevel == .alert,
+            var presentingViewController = parent.presentedViewController
         else {
             return hostingController
         }
-        return parentViewController
+        while !presentingViewController.modalPresentationCapturesStatusBarAppearance, let presenting = presentingViewController.presentingViewController {
+            presentingViewController = presenting
+        }
+        return presentingViewController
     }
 
     public weak var presentingWindow: UIWindow?
@@ -58,13 +61,10 @@ open class PresentationHostingWindowController<Content: View>: UIViewController 
         hostingController.view.backgroundColor = nil
         hostingController.willMove(toParent: self)
         addChild(hostingController)
+        hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(hostingController.view)
+        (view as? PassthroughView)?.rootView = hostingController.view
         hostingController.didMove(toParent: self)
-    }
-
-    open override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        hostingController.view.frame = view.bounds
     }
 
     open func update(content: Content, transaction: Transaction) {

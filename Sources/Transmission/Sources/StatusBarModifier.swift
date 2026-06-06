@@ -69,7 +69,11 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: ViewControllerReader, coordinator: Void) {
-        for window in UIApplication.shared.windows where window.isKeyWindow {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .filter { $0.isKeyWindow }
+        for window in windows {
             UIView.animate(withDuration: 0.15) {
                 window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
             }
@@ -119,7 +123,11 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: ViewControllerReader, coordinator: Void) {
-        for window in UIApplication.shared.windows where window.isKeyWindow {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .filter { $0.isKeyWindow }
+        for window in windows {
             UIView.animate(withDuration: 0.15) {
                 window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
             }
@@ -132,8 +140,16 @@ extension UIViewController {
     func setNeedsStatusBarAppearanceUpdate(animated: Bool, transitionAlongsideCoordinator: Bool = true) {
         let update: () -> Void = {
             self.setNeedsStatusBarAppearanceUpdate()
-            let presentingWindow = self.view.window
-            for window in UIApplication.shared.windows where window.windowLevel == presentingWindow?.windowLevel && window != presentingWindow {
+            let windows: [UIWindow]
+            if let presentingWindow = self.view.window {
+                windows = presentingWindow.windowScene?.windows
+                    .filter { $0 !== presentingWindow && $0.windowLevel == presentingWindow.windowLevel } ?? []
+            } else {
+                windows = UIApplication.shared.connectedScenes
+                    .compactMap { $0 as? UIWindowScene }
+                    .flatMap { $0.windows }
+            }
+            for window in windows {
                 window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
             }
         }

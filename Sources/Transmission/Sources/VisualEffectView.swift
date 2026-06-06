@@ -41,6 +41,8 @@ public struct BlurEffect: Equatable {
         case ultraThick
         // A material matching the style of system toolbars.
         case bar
+        // A non-material blur thats mostly translucent
+        case `default`
 
         func toUIKit() -> UIBlurEffect.Style {
             switch self {
@@ -54,6 +56,8 @@ public struct BlurEffect: Equatable {
                 return .systemThickMaterial
             case .bar:
                 return .systemChromeMaterial
+            case .default:
+                return .regular
             }
         }
 
@@ -72,6 +76,8 @@ public struct BlurEffect: Equatable {
                 return .ultraThick
             case .bar:
                 return .bar
+            case .default:
+                return .regular
             }
         }
     }
@@ -295,7 +301,7 @@ public struct GlassContainerEffect: Equatable {
 
     @inlinable
     public init(
-        spacing: CGFloat
+        spacing: CGFloat = 0
     ) {
         self.spacing = spacing
     }
@@ -383,25 +389,46 @@ public struct VisualEffectView<
 >: View {
 
     public var effect: Effect
+    public var isEnabled: Bool
     public var cornerRadius: CornerRadiusOptions?
     public var content: Content
 
     public init(
         effect: Effect,
+        isEnabled: Bool = true,
         cornerRadius: CornerRadiusOptions? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.effect = effect
+        self.isEnabled = isEnabled
         self.cornerRadius = cornerRadius
         self.content = content()
     }
 
     public var body: some View {
         VisualEffectViewAdapter(
-            effect: effect,
+            effect: isEnabled ? effect : nil,
             cornerRadius: cornerRadius,
             content: content
         )
+    }
+}
+
+extension View {
+
+    @available(iOS 14.0, *)
+    public func visualEffectBackground<Effect: VisualEffectRepresentable>(
+        effect: Effect,
+        isEnabled: Bool = true,
+        cornerRadius: CornerRadiusOptions? = nil
+    ) -> some View {
+        VisualEffectView(
+            effect: effect,
+            isEnabled: isEnabled,
+            cornerRadius: cornerRadius
+        ) {
+            self
+        }
     }
 }
 
@@ -411,7 +438,7 @@ private struct VisualEffectViewAdapter<
     Content: View
 >: UIViewRepresentable {
 
-    var effect: Effect
+    var effect: Effect?
     var cornerRadius: CornerRadiusOptions?
     var content: Content
 
@@ -464,7 +491,7 @@ private class VisualEffectHostingView<
     Content: View
 >: UIVisualEffectView {
 
-    private var visualEffect: Effect
+    private var visualEffect: Effect?
     private var cornerRadius: CornerRadiusOptions? {
         didSet {
             guard cornerRadius != oldValue else { return }
@@ -478,7 +505,7 @@ private class VisualEffectHostingView<
     }
 
     init(
-        effect: Effect,
+        effect: Effect?,
         content: Content,
         context: VisualEffectViewAdapter<Effect, Content>.Context
     ) {
@@ -486,7 +513,7 @@ private class VisualEffectHostingView<
             content: content
         )
         visualEffect = effect
-        let effect = effect.makeUIVisualEffect(in: context.environment)
+        let effect = effect?.makeUIVisualEffect(in: context.environment)
         super.init(effect: effect)
         hostingView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         contentView.addSubview(hostingView)
@@ -497,7 +524,7 @@ private class VisualEffectHostingView<
     }
 
     func update(
-        effect: Effect,
+        effect: Effect?,
         cornerRadius: CornerRadiusOptions?,
         content: Content,
         context: VisualEffectViewAdapter<Effect, Content>.Context
@@ -507,7 +534,7 @@ private class VisualEffectHostingView<
 
         if visualEffect != effect {
             visualEffect = effect
-            let effect = effect.makeUIVisualEffect(in: context.environment)
+            let effect = effect?.makeUIVisualEffect(in: context.environment)
             if context.transaction.isAnimated {
                 UIView.animate(with: context.transaction.animation) {
                     self.effect = effect

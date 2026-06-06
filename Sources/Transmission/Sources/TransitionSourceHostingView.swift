@@ -83,6 +83,16 @@ open class TransitionSourceView<Content: View>: UIView {
         hostStorage?.hostingView.sizeThatFits(size) ?? super.sizeThatFits(size)
     }
 
+    open override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        if let hostingView = hostStorage?.hostingView {
+            let point = convert(point, to: hostingView)
+            if let result = hostingView.hitTest(point, with: event) {
+                return result
+            }
+        }
+        return super.hitTest(point, with: event)
+    }
+
     open override func didMoveToSuperview() {
         super.didMoveToSuperview()
         if hostStorage != nil, let superview {

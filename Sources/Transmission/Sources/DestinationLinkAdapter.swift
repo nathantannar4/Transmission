@@ -317,6 +317,7 @@ final class DestinationLinkCoordinator<
                     }
                 }
                 if let transitionCoordinator = navigationController.transitionCoordinator,
+                   transitionCoordinator.presentationStyle == .none,
                    let toVC = transitionCoordinator.viewController(forKey: .to),
                    toVC != navigationController.topViewController
                 {
@@ -414,10 +415,6 @@ final class DestinationLinkCoordinator<
         if let viewController = adapter?.viewController,
             let navigationController = adapter?.navigationController
         {
-            navigationController.setOverrideTraitCollection(
-                nil,
-                forChild: viewController
-            )
             navigationController.delegates.remove(
                 delegate: self,
                 for: viewController
@@ -428,29 +425,29 @@ final class DestinationLinkCoordinator<
 
     func navigationControllerShouldBeginInteractivePop(
         _ navigationController: UINavigationController,
-        gesture: UIGestureRecognizer,
-        edge: Bool
+        gesture: UIGestureRecognizer
     ) -> Bool {
         guard let transition = adapter?.transition else { return true }
+        guard transition.options.isInteractive else { return false }
+        let isBuiltInGesture = {
+            if gesture == navigationController.interactivePopGestureRecognizer {
+                return true
+            }
+            #if canImport(FoundationModels) // Xcode 26
+            if #available(iOS 26.0, *), gesture == navigationController.interactiveContentPopGestureRecognizer {
+                return true
+            }
+            #endif
+            return false
+        }()
         switch transition.value {
         case .zoom:
-            return false
+            return isBuiltInGesture
         default:
-            guard transition.options.isInteractive else { return false }
-            if !edge, !transition.options.prefersPanGesturePop {
+            let isEdge = gesture is UIScreenEdgePanGestureRecognizer
+            if !isEdge, !transition.options.prefersPanGesturePop {
                 return false
             }
-            let isBuiltInGesture = {
-                if gesture == navigationController.interactivePopGestureRecognizer {
-                    return true
-                }
-                #if canImport(FoundationModels) // Xcode 26
-                if #available(iOS 26.0, *), gesture == navigationController.interactiveContentPopGestureRecognizer {
-                    return true
-                }
-                #endif
-                return false
-            }()
             if case .default = transition.value {
                 return isBuiltInGesture
             } else {
@@ -748,8 +745,7 @@ protocol DestinationLinkDelegate: UINavigationControllerDelegate{
 
     func navigationControllerShouldBeginInteractivePop(
         _ navigationController: UINavigationController,
-        gesture: UIGestureRecognizer,
-        edge: Bool
+        gesture: UIGestureRecognizer
     ) -> Bool
 
     func navigationControllerHapticsForInteractivePop(
@@ -822,7 +818,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             interactivePopEdgeGestureRecognizer.delaysTouchesEnded = builtinGesture.delaysTouchesEnded
             builtinGesture.addTarget(self, action: #selector(interactivePopGestureDidChange(_:)))
         } else {
-            interactivePopEdgeGestureRecognizer.edges = [.left]
+            interactivePopEdgeGestureRecognizer.edges = navigationController.view.effectiveUserInterfaceLayoutDirection == .leftToRight ? [.left] : [.right]
             interactivePopEdgeGestureRecognizer.delaysTouchesBegan = true
         }
         navigationController.view.addGestureRecognizer(interactivePopEdgeGestureRecognizer)
@@ -1145,11 +1141,9 @@ final class DestinationLinkDelegateProxy: NSObject,
             guard let delegate = delegates[ObjectIdentifier(fromVC)]?.value else {
                 return nil
             }
-            let isEdge = gestureRecognizer == interactivePopEdgeGestureRecognizer || gestureRecognizer == navigationController.interactivePopGestureRecognizer
             let shouldBegin = delegate.navigationControllerShouldBeginInteractivePop(
                 navigationController,
-                gesture: gestureRecognizer,
-                edge: isEdge
+                gesture: gestureRecognizer
             )
             return shouldBegin
         }()
@@ -1232,9 +1226,6 @@ final class DestinationLinkDelegateProxy: NSObject,
             return false
         } else {
             if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
-                if otherGestureRecognizer.isSimultaneousWithTransition {
-                    return true
-                }
                 let shouldRecognizeSimultaneouslyWith = popGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
                     shouldRecognizeSimultaneouslyWith: otherGestureRecognizer
@@ -1308,9 +1299,6 @@ final class DestinationLinkDelegateProxy: NSObject,
             return false
         } else {
             if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
-                if otherGestureRecognizer.isSimultaneousWithTransition {
-                    return true
-                }
                 let shouldBeRequiredToFailBy = popGestureDelegate?.gestureRecognizer?(
                     gestureRecognizer,
                     shouldBeRequiredToFailBy: otherGestureRecognizer

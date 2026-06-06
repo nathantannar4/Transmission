@@ -9,6 +9,26 @@ import SwiftUI
 /// A view that passes through touches of self or a `_UIHostingView`
 open class PassthroughView: UIView {
 
+    public var rootView: UIView?
+
+    open override func sizeThatFits(_ size: CGSize) -> CGSize {
+        if let rootView {
+            return rootView.sizeThatFits(size)
+        }
+        return super.sizeThatFits(size)
+    }
+
+    open override func systemLayoutSizeFitting(
+        _ targetSize: CGSize,
+        withHorizontalFittingPriority horizontalFittingPriority: UILayoutPriority,
+        verticalFittingPriority: UILayoutPriority
+    ) -> CGSize {
+        if let rootView {
+            return rootView.systemLayoutSizeFitting(targetSize, withHorizontalFittingPriority: horizontalFittingPriority, verticalFittingPriority: verticalFittingPriority)
+        }
+        return super.systemLayoutSizeFitting(targetSize, withHorizontalFittingPriority: horizontalFittingPriority, verticalFittingPriority: verticalFittingPriority)
+    }
+
     struct HitTestEvent {
         var point: CGPoint
         var timestamp: TimeInterval
