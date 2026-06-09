@@ -16,7 +16,6 @@ public enum ContextMenuAccessoryLayoutLocation: Sendable {
     case menu
 }
 
-
 @frozen
 @available(iOS 14.0, *)
 public struct ContextMenuAccessoryViewLayoutProperties {

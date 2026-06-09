@@ -644,21 +644,21 @@ final class PresentationLinkCoordinator<
                                 dismissThenPresent()
                             }
                         }
-                    } else if presentedViewController.isBeingDismissed {
+                    } else if presentedViewController.isBeingDismissed,
+                        let transitionCoordinator = presentedViewController.transitionCoordinator
+                    {
                         didPresent = true
-                        if let transitionCoordinator = presentedViewController.transitionCoordinator {
-                            if transitionCoordinator.isInteractive {
-                                transitionCoordinator.notifyWhenInteractionChanges { ctx in
-                                    if ctx.isCancelled {
-                                        dismissThenPresent()
-                                    } else {
-                                        present()
-                                    }
-                                }
-                            } else {
-                                presentedViewController.dismiss(animated: true) {
+                        if transitionCoordinator.isInteractive {
+                            transitionCoordinator.notifyWhenInteractionChanges { ctx in
+                                if ctx.isCancelled {
+                                    dismissThenPresent()
+                                } else {
                                     present()
                                 }
+                            }
+                        } else if transitionCoordinator.viewController(forKey: .to) != presentingViewController {
+                            presentedViewController.dismiss(animated: true) {
+                                present()
                             }
                         } else {
                             present()
