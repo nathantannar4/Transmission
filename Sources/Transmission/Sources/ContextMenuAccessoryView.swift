@@ -182,7 +182,6 @@ extension View {
                 presentationCoordinator: presentationCoordinator
             )
         )
-        hostingView.disablesSafeArea = true
 
         let accessoryView = UIContextMenuInteraction.makeUIAccessoryView(
             contentView: hostingView,
@@ -229,28 +228,29 @@ extension UIContextMenuInteraction {
             }
         }()
 
-
         let fittingSize: CGSize = {
             guard let view = interaction.view, let window = view.window else { return UIScreen.main.bounds.size }
+            let fittingRect = window.frame.inset(by: window.safeAreaInsets)
             guard location != .background, alignment.horizontal == .leading || alignment.horizontal == .trailing else {
-                return window.bounds.size
+                return fittingRect.size
             }
             let frameInWindow = view.convert(view.bounds, to: view.window)
             if alignment.horizontal == .leading {
                 return CGSize(
-                    width: window.bounds.width - frameInWindow.minX,
-                    height: window.bounds.height
+                    width: fittingRect.width - frameInWindow.minX,
+                    height: fittingRect.height
                 )
             } else {
                 return CGSize(
-                    width: window.bounds.width - frameInWindow.minX,
-                    height: window.bounds.height
+                    width: fittingRect.width - frameInWindow.minX,
+                    height: fittingRect.height
                 )
             }
         }()
         contentView.frame.size = contentView.sizeThatFits(fittingSize)
 
         let accessoryView = `init`(instance, initSelector, contentView.bounds, configuration).takeRetainedValue()
+        UIView.swizzleUIContextMenuAccessoryView()
 
         // setLocation:
         if let aSelector = NSSelectorFromBase64EncodedString("c2V0TG9jYXRpb246"),
@@ -306,9 +306,26 @@ extension UIContextMenuInteraction {
             accessoryView.responds(to: aSelector)
         {
             var offset = layout?.offset ?? .zero
+            let inset: CGFloat = 16
+            // Mirror spacing between menu and preview
+            if offset.y == 0, location == .preview {
+                if alignment.vertical == .top {
+                    offset.y -= inset
+                } else if alignment.vertical == .bottom {
+                    offset.y += inset
+                }
+            }
             if let anchor = layout?.anchor {
                 offset.x += (anchor.x - 0.5) * contentView.frame.size.width
                 offset.y += (anchor.y - 0.5) * contentView.frame.size.height
+            }
+            if location == .preview, let view = interaction.view, let window = view.window {
+                let frameInWindow = view.convert(view.bounds, to: view.window)
+                if alignment.vertical == .top {
+                    offset.y += max(window.safeAreaInsets.top - (frameInWindow.minY - contentView.frame.size.height), 0)
+                } else if alignment.vertical == .bottom {
+                    offset.y -= max(window.safeAreaInsets.bottom - (window.frame.height - frameInWindow.maxY - contentView.frame.size.height), 0)
+                }
             }
             accessoryView.setValue(offset, forKey: "offset")
         }
@@ -357,6 +374,7 @@ final class AccessoryHostingView<Content: View>: HostingView<AccessoryContentVie
     init(content: AccessoryView<Content>) {
         super.init(content: AccessoryContentView(content: content))
         _rootView.content.sourceView = self
+        disablesSafeArea = true
     }
 
     func update(content newValue: Content, transaction: Transaction) {
@@ -474,6 +492,53 @@ extension UIView {
             let aSel: Selector = #selector(getter:UIView.accessoryHostingView)
             let box = newValue.map { ObjCWeakBox(value: $0) }
             objc_setAssociatedObject(self, unsafeBitCast(aSel, to: UnsafeRawPointer.self), box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+
+    private static var didSwizzleSetVisible: Bool = false
+
+    static func swizzleUIContextMenuAccessoryView() {
+        guard let targetClass = NSClassFromString("_UIContextMenuAccessoryView") else { return }
+        guard !Self.didSwizzleSetVisible else { return }
+        Self.didSwizzleSetVisible = true
+
+        let originalSel = NSSelectorFromString("setVisible:animated:")
+        let swizzledSel = #selector(swizzled_setVisible(_:animated:))
+
+        guard
+            let originalMethod = class_getInstanceMethod(targetClass, originalSel),
+            let swizzledMethod = class_getInstanceMethod(UIView.self, swizzledSel)
+        else {
+            return
+        }
+
+        let added = class_addMethod(
+            targetClass,
+            originalSel,
+            method_getImplementation(swizzledMethod),
+            method_getTypeEncoding(swizzledMethod)
+        )
+
+        if added {
+            class_replaceMethod(
+                targetClass,
+                swizzledSel,
+                method_getImplementation(originalMethod),
+                method_getTypeEncoding(originalMethod)
+            )
+        } else {
+            method_exchangeImplementations(originalMethod, swizzledMethod)
+        }
+    }
+
+    @objc
+    func swizzled_setVisible(_ visible: Bool, animated: Bool) {
+        swizzled_setVisible(visible, animated: animated)
+
+        if let window {
+            let frameInWindow = convert(bounds, to: window)
+            frame.origin.y += max(window.safeAreaInsets.top - frameInWindow.minY, 0)
+            frame.origin.y -= max(window.safeAreaInsets.bottom - (window.frame.height - frameInWindow.maxY), 0)
         }
     }
 }

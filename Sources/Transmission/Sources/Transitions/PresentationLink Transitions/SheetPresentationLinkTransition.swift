@@ -637,7 +637,7 @@ open class SheetPresentationControllerTransition: PresentationControllerTransiti
                 presentingView.frame = transitionContext.finalFrame(for: presenting)
                 presentingView.layoutIfNeeded()
             }
-            let frame = transitionContext.initialFrame(for: presented)
+            let frame = presentedView.frame
             let dy = transitionContext.containerView.frame.height - frame.origin.y
             let transform = CGAffineTransform(
                 translationX: 0,
