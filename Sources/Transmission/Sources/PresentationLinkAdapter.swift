@@ -656,7 +656,7 @@ final class PresentationLinkCoordinator<
                                     present()
                                 }
                             }
-                        } else if transitionCoordinator.viewController(forKey: .to) != presentingViewController {
+                        } else if let toVC = transitionCoordinator.viewController(forKey: .to), !presentingViewController.isDescendent(of: toVC) {
                             presentedViewController.dismiss(animated: true) {
                                 present()
                             }
