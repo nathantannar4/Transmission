@@ -222,14 +222,14 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     public var preferredBackgroundColor: UIColor? {
         didSet {
             guard preferredBackgroundColor != oldValue else { return }
-            updateBackground()
+            updateBackground(didNilColor: preferredBackgroundColor == nil && oldValue != nil)
         }
     }
 
     public var preferredGlassEffect: GlassEffect? {
         didSet {
             guard preferredGlassEffect != oldValue else { return }
-            updateBackground()
+            updateBackground(didNilColor: false)
         }
     }
 
@@ -264,7 +264,6 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-        updateBackground()
     }
 
     deinit {
@@ -276,6 +275,11 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         self.transition = transition
 
         interactionController = transition
+    }
+
+    open override func presentationTransitionWillBegin() {
+        super.presentationTransitionWillBegin()
+        updateBackgroundColors(didNilColor: false)
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -312,10 +316,16 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadius
     }
 
-    private func updateBackground() {
-        if let preferredBackgroundColor {
-            dimmingView?.layer.shadowColor = preferredBackgroundColor.cgColor
+    private func updateBackgroundColors(didNilColor: Bool) {
+        if preferredBackgroundColor?.isTranslucent == true || didNilColor {
+            let shadowColor = preferredBackgroundColor?.cgColor ?? CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1)
+            dimmingView?.layer.shadowColor = shadowColor
+            dropShadowView?.layer.shadowColor = shadowColor
         }
+    }
+
+    private func updateBackground(didNilColor: Bool) {
+        updateBackgroundColors(didNilColor: didNilColor)
         #if canImport(FoundationModels) // Xcode 26
         if #available(iOS 26.0, *) {
             var largeBackground: Any?

@@ -645,7 +645,7 @@ final class PresentationLinkCoordinator<
                             }
                         }
                     } else if presentedViewController.isBeingDismissed,
-                        let transitionCoordinator = presentedViewController.transitionCoordinator
+                              let transitionCoordinator = presentedViewController.transitionCoordinator
                     {
                         didPresent = true
                         if transitionCoordinator.isInteractive {
@@ -656,7 +656,10 @@ final class PresentationLinkCoordinator<
                                     present()
                                 }
                             }
-                        } else if let toVC = transitionCoordinator.viewController(forKey: .to), !presentingViewController.isDescendent(of: toVC) {
+                        } else if let toVC = transitionCoordinator.viewController(forKey: .to),
+                            toVC != presentingViewController,
+                            !presentingViewController.isDescendent(of: toVC)
+                        {
                             presentedViewController.dismiss(animated: true) {
                                 present()
                             }
