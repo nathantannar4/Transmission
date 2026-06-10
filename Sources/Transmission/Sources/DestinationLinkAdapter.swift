@@ -383,23 +383,39 @@ final class DestinationLinkCoordinator<
             isPushing = false
         }
         if let transitionCoordinator = viewController.transitionCoordinator,
-            transitionCoordinator.viewController(forKey: .to) == viewController,
-            let transition = adapter?.navigationController?.delegates.transition(for: viewController)
+            transitionCoordinator.presentationStyle != .none
         {
-            transition.pause()
-            transition.cancel()
-            transitionCoordinator.animate { [weak self] _ in
+            transitionCoordinator.animate(alongsideTransition: nil) { _ in
+                viewController._popViewController(
+                    count: count,
+                    animated: transaction.isAnimated
+                ) { [weak self] success in
+                    guard success, count > 0, self?.adapter?.viewController == viewController else { return }
+                    self?.onPop(transaction)
+                    self?.didPop()
+                }
+            }
+        } else {
+            if let transitionCoordinator = viewController.transitionCoordinator,
+                transitionCoordinator.presentationStyle == .none,
+                transitionCoordinator.viewController(forKey: .to) == viewController,
+                let transition = adapter?.navigationController?.delegates.transition(for: viewController)
+            {
+                transition.pause()
+                transition.cancel()
+                transitionCoordinator.animate { [weak self] _ in
+                    self?.onPop(transaction)
+                    self?.didPop()
+                }
+            }
+            viewController._popViewController(
+                count: count,
+                animated: transaction.isAnimated
+            ) { [weak self] success in
+                guard success, count > 0, self?.adapter?.viewController == viewController else { return }
                 self?.onPop(transaction)
                 self?.didPop()
             }
-        }
-        viewController._popViewController(
-            count: count,
-            animated: transaction.isAnimated
-        ) { [weak self] success in
-            guard success, count > 0, self?.adapter?.viewController == viewController else { return }
-            self?.onPop(transaction)
-            self?.didPop()
         }
     }
 
