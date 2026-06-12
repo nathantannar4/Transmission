@@ -385,7 +385,7 @@ final class DestinationLinkCoordinator<
         if let transitionCoordinator = viewController.transitionCoordinator,
             transitionCoordinator.presentationStyle != .none
         {
-            transitionCoordinator.animate(alongsideTransition: nil) { _ in
+            transitionCoordinator.animate(alongsideTransition: nil) { [weak self] _ in
                 viewController._popViewController(
                     count: count,
                     animated: transaction.isAnimated
@@ -1268,8 +1268,10 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer {
             return false
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
-            if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer || otherGestureRecognizer is UILongPressGestureRecognizer ||
-                otherGestureRecognizer.isSwiftUIGestureRecognizer {
+            if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer || otherGestureRecognizer is UILongPressGestureRecognizer {
+                return true
+            }
+            if otherGestureRecognizer.isSwiftUIGestureRecognizer, otherGestureRecognizer.state != .began {
                 return true
             }
             return false
