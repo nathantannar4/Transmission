@@ -66,17 +66,16 @@ extension UIWindow {
         return viewController
     }
 
+    private static var parentKey: UInt = 0
     @objc
     var parent: UIWindow? {
         get {
-            let aSel: Selector = #selector(getter:UIWindow.parent)
-            let box = objc_getAssociatedObject(self, unsafeBitCast(aSel, to: UnsafeRawPointer.self)) as? ObjCWeakBox<UIWindow>
+            let box = objc_getAssociatedObject(self, &Self.parentKey) as? ObjCWeakBox<UIWindow>
             return box?.value
         }
         set {
-            let aSel: Selector = #selector(getter:UIWindow.parent)
             let box = newValue.map { ObjCWeakBox(value: $0) }
-            objc_setAssociatedObject(self, unsafeBitCast(aSel, to: UnsafeRawPointer.self), box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            objc_setAssociatedObject(self, &Self.parentKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
     }
 }

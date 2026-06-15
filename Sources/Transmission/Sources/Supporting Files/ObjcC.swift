@@ -37,6 +37,10 @@ func NSSelectorFromBase64EncodedString(
 
 extension NSObject {
 
+    public var _methods: [(String, [Selector])] {
+        methods
+    }
+
     var methods: [(String, [Selector])] {
         var type: AnyClass? = object_getClass(self)
         var results = [(String, [Selector])]()

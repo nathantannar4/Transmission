@@ -968,7 +968,9 @@ final class DestinationLinkDelegateProxy: NSObject,
                 targetVelocity = -targetVelocity
             }
             var shouldFinish = false
-            if gestureRecognizer.state == .ended {
+            if isInterruptedInteractiveTransition, abs(velocity.y) > abs(velocity.x) {
+                shouldFinish = true
+            } else if gestureRecognizer.state == .ended {
                 let targetVelocityThreshold: CGFloat = isInterruptedInteractiveTransition ? 100 : 0
                 if interactivePopEdgeGestureRecognizer.edges.contains(.left), !shouldFinish {
                     shouldFinish = (percentage >= threshold && targetVelocity >= -targetVelocityThreshold) || (percentage > 0 && targetVelocity >= 800)

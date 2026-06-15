@@ -8,7 +8,9 @@
 
 ## See Also
 
+- [Engine](https://github.com/nathantannar4/Engine)
 - [Turbocharger](https://github.com/nathantannar4/Turbocharger)
+- [Metallic](https://github.com/nathantannar4/Metallic)
 - [Ignition](https://github.com/nathantannar4/Ignition)
 
 ## Preview
