@@ -31,7 +31,7 @@ extension UIWindow {
                 with: animation
             ) {
                 animations?(true)
-            } completion: {
+            } completion: { _ in
                 completion?()
             }
         }
@@ -51,7 +51,7 @@ extension UIWindow {
             with: animation
         ) {
             animations?()
-        } completion: {
+        } completion: { _ in
             self.isHidden = true
             self.parent = nil
             completion?()

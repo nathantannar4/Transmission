@@ -34,7 +34,6 @@ func NSSelectorFromBase64EncodedString(
     return NSSelectorFromString(aSelectorName)
 }
 
-
 extension NSObject {
 
     public var _methods: [(String, [Selector])] {
