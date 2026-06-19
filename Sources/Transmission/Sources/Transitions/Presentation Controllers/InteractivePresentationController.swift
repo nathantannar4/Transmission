@@ -236,7 +236,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         let scrollView = gestureRecognizer.view as? UIScrollView ?? trackingScrollView
 
         if gestureRecognizer.state == .began,
-            presentedViewController.isBeingPresented,
+            presentedViewController.isBeingPresented || presentedViewController.isBeingDismissed,
             let frame = presentedView.layer.presentation()?.frame
         {
             let frameOfPresentedView = frameOfPresentedViewInContainerView
@@ -257,14 +257,26 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             y: gestureTranslation.y - translationOffset.y
         )
 
-        if let transition, !presentedViewController.isBeingPresented {
-            let shouldCancel = dismissalTransitionShouldCancel(
-                translation: translation,
-                delta: delta
-            )
-            if shouldCancel {
-                transition.cancel()
-                self.transition = nil
+        if let transition {
+            let isFinished = {
+                if presentedViewController.isBeingPresented {
+                    return transition.percentComplete >= 1
+                }
+                if presentedViewController.isBeingDismissed {
+                    return transition.percentComplete == 0
+                }
+                return true
+            }()
+            if isFinished {
+                let shouldCancel = dismissalTransitionShouldCancel(
+                    translation: translation,
+                    delta: delta
+                )
+                if shouldCancel {
+                    transition.cancel()
+                    self.transition = nil
+                    transitionAlongsidePresentation(progress: 1)
+                }
             }
         }
 
@@ -400,11 +412,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 )
                 if shouldFinish {
                     transition.finish()
+                    self.transition = nil
                 } else {
                     transition.cancel()
                     resignedFirstResponder?.becomeFirstResponder()
                 }
-                self.transition = nil
                 panGestureDidEnd()
                 transitionAlongsidePresentation(progress: isPresenting ? (shouldFinish ? 1 : 0) : (shouldFinish ? 0 : 1))
 
@@ -706,7 +718,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         guard gestureRecognizer == panGesture else { return false }
-        if otherGestureRecognizer.isSwiftUIGestureRecognizer {
+        if otherGestureRecognizer.isSwiftUIGestureRecognizer, otherGestureRecognizer.state != .began {
             return !otherGestureRecognizer.isSwiftSimultaneousUIResponderGestureRecognizer
         }
         if !otherGestureRecognizer.isSimultaneousWithTransition, otherGestureRecognizer is UIPanGestureRecognizer {

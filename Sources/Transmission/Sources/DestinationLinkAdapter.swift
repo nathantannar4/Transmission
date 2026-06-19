@@ -286,6 +286,9 @@ final class DestinationLinkCoordinator<
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
                             zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
                         }
+                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPinchGesture }) {
+                            zoomGesture.addTarget(self, action: #selector(zoomPinchGestureDidChange(_:)))
+                        }
                     }
                     self.sourceView = sourceView
 
@@ -698,32 +701,59 @@ final class DestinationLinkCoordinator<
 
     @objc
     func zoomPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
-        zoomGestureDidChange(panGesture: panGesture, isDismiss: true)
+        zoomGestureDidChange(panGesture: panGesture, isVertical: true)
     }
 
     @objc
     func zoomEdgePanGestureDidChange(_ edgePanGesture: UIScreenEdgePanGestureRecognizer) {
-        zoomGestureDidChange(panGesture: edgePanGesture, isDismiss: false)
+        zoomGestureDidChange(panGesture: edgePanGesture, isVertical: false)
+    }
+    @objc
+    func zoomPinchGestureDidChange(_ gesture: UIGestureRecognizer) {
+        guard
+            gesture.responds(to: NSSelectorFromString("scale")),
+            let scale = gesture.value(forKey: "scale") as? CGFloat
+        else {
+            return
+        }
+        gestureDidChange(
+            gesture: gesture,
+            hasReachedTriggerThreshold: scale <= 0.4,
+            hasReachedCancelThreshold: scale > 0.4
+        )
     }
 
     private func zoomGestureDidChange(
         panGesture: UIPanGestureRecognizer,
-        isDismiss: Bool
+        isVertical: Bool
     ) {
-        switch panGesture.state {
+        guard let view = panGesture.view else { return }
+        let velocity = isVertical ? panGesture.velocity(in: view).y : panGesture.velocity(in: view).x
+        let translation = isVertical ? panGesture.translation(in: view).y : panGesture.translation(in: view).x
+        let threshold = isVertical ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
+        gestureDidChange(
+            gesture: panGesture,
+            hasReachedTriggerThreshold: translation >= threshold &&  velocity >= 0,
+            hasReachedCancelThreshold: translation < threshold && velocity < 0
+        )
+    }
+
+    private func gestureDidChange(
+        gesture: UIGestureRecognizer,
+        hasReachedTriggerThreshold: Bool,
+        hasReachedCancelThreshold: Bool
+    ) {
+        switch gesture.state {
         case .ended, .cancelled:
             isZoomTransitionDismissReady = false
             feedbackGenerator = nil
         default:
             guard
                 let hapticsStyle = adapter?.transition.options.hapticsStyle,
-                let view = panGesture.view
+                let view = gesture.view
             else {
                 return
             }
-            let velocity = isDismiss ? panGesture.velocity(in: view).y : panGesture.velocity(in: view).x
-            let translation = isDismiss ? panGesture.translation(in: view).y : panGesture.translation(in: view).x
-            let threshold = isDismiss ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
             func impactOccurred(
                 intensity: CGFloat,
                 location: @autoclosure () -> CGPoint
@@ -734,7 +764,6 @@ final class DestinationLinkCoordinator<
                     feedbackGenerator?.impactOccurred(intensity: intensity)
                 }
             }
-
             if feedbackGenerator == nil {
                 let feedbackGenerator: UIImpactFeedbackGenerator
                 if #available(iOS 17.5, *) {
@@ -744,12 +773,11 @@ final class DestinationLinkCoordinator<
                 }
                 feedbackGenerator.prepare()
                 self.feedbackGenerator = feedbackGenerator
-            } else if !isZoomTransitionDismissReady, translation >= threshold, velocity >= 0 {
+            } else if !isZoomTransitionDismissReady, hasReachedTriggerThreshold {
                 isZoomTransitionDismissReady = true
-                impactOccurred(intensity: 1, location: panGesture.location(in: view))
-            } else if isZoomTransitionDismissReady, translation < threshold, velocity < 0
-            {
-                impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
+                impactOccurred(intensity: 1, location: gesture.location(in: view))
+            } else if isZoomTransitionDismissReady, hasReachedCancelThreshold {
+                impactOccurred(intensity: 0.5, location: gesture.location(in: view))
                 isZoomTransitionDismissReady = false
             }
         }
@@ -804,7 +832,8 @@ final class DestinationLinkDelegateProxy: NSObject,
 
     private var wantsInteractiveTransition = false
     private var queuedTransition: UIPercentDrivenInteractiveTransition?
-    private var isInterruptedInteractiveTransition: Bool = false
+    private var isInterruptedInteractiveTransition = false
+    private var isPendingTransitionCompletion = false
 
     private var feedbackGenerator: UIImpactFeedbackGenerator?
     private var isPopReady = false
@@ -890,12 +919,19 @@ final class DestinationLinkDelegateProxy: NSObject,
     ) {
         guard
             let view = gestureRecognizer.view,
-            let navigationController,
+            let navigationController
+        else {
+            return
+        }
+        guard
             let transition
         else {
-            gestureRecognizer.isEnabled = false
-            gestureRecognizer.isEnabled = true
-            panGestureDidEnd()
+            if isPendingTransitionCompletion, navigationController.transitionCoordinator == nil {
+                gestureRecognizer.setTranslation(.zero, in: view)
+                navigationController.popViewController(animated: true)
+            } else {
+                panGestureDidEnd(cancel: gestureRecognizer)
+            }
             return
         }
 
@@ -931,9 +967,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                     if !canBegin {
-                        gestureRecognizer.isEnabled = false
-                        gestureRecognizer.isEnabled = true
-                        panGestureDidEnd()
+                        panGestureDidEnd(cancel: gestureRecognizer)
                         return
                     } else {
                         for gesture in simultaneousPanGestures {
@@ -942,7 +976,19 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                 }
-                navigationController.popViewController(animated: true)
+                if let transitionCoordinator = navigationController.transitionCoordinator {
+                    if !transitionCoordinator.isCancelled {
+                        isPendingTransitionCompletion = true
+                        transitionCoordinator.animate(alongsideTransition: nil) { [weak self] ctx in
+                            guard let self else { return }
+                            if ctx.isCancelled {
+                                panGestureDidEnd(cancel: gestureRecognizer)
+                            }
+                        }
+                    }
+                } else {
+                    navigationController.popViewController(animated: true)
+                }
             }
 
         case .changed:
@@ -1007,6 +1053,8 @@ final class DestinationLinkDelegateProxy: NSObject,
             )
             if shouldFinish {
                 transition.finish()
+                self.transition = nil
+                transitioningId = nil
             } else {
                 if let transitionCoordinator = navigationController.transitionCoordinator {
                     // Fixes bugs with a cancelled interactive push transition
@@ -1041,11 +1089,16 @@ final class DestinationLinkDelegateProxy: NSObject,
         }
     }
 
-    private func panGestureDidEnd() {
-        transition = nil
-        transitioningId = nil
+    private func panGestureDidEnd(cancel gestureRecognizer: UIPanGestureRecognizer? = nil) {
+        if let gestureRecognizer {
+            transition = nil
+            transitioningId = nil
+            gestureRecognizer.isEnabled = false
+            gestureRecognizer.isEnabled = true
+        }
         queuedTransition = nil
         isInterruptedInteractiveTransition = false
+        isPendingTransitionCompletion = false
         isPopReady = false
         feedbackGenerator = nil
         simultaneousPanGestures = []
@@ -1146,13 +1199,19 @@ final class DestinationLinkDelegateProxy: NSObject,
         guard
             let navigationController = navigationController,
             navigationController.viewControllers.count > 1 || navigationController.transitionCoordinator != nil,
-            let fromVC = navigationController.topViewController
+            var fromVC = navigationController.topViewController
         else {
             return false
         }
 
-        if let transitionCoordinator = navigationController.transitionCoordinator, transitionCoordinator.viewController(forKey: .to) != fromVC {
-            return false
+        var isInturruptingCancel = false
+        if let transitionCoordinator = navigationController.transitionCoordinator {
+            if transitionCoordinator.viewController(forKey: .to) != fromVC {
+                return false
+            } else if transitionCoordinator.isCancelled, let from = transitionCoordinator.viewController(forKey: .from) {
+                fromVC = from
+                isInturruptingCancel = true
+            }
         }
 
         let shouldBegin: Bool? = {
@@ -1171,7 +1230,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 return false
             }
             guard shouldBegin == true else { return false }
-            if let transition, transition != queuedTransition {
+            if let transition, transition != queuedTransition, !isInturruptingCancel {
                 isInterruptedInteractiveTransition = true
                 return true
             }
@@ -1181,7 +1240,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 navigationController,
                 animationControllerFor: .pop,
                 from: fromVC,
-                to: navigationController.viewControllers[navigationController.viewControllers.count - 2]
+                to: navigationController.viewControllers[navigationController.viewControllers.count - (isInturruptingCancel ? 1 : 2)]
             )
             guard
                 let interactiveTransition = animationController as? UIPercentDrivenInteractiveTransition,

@@ -158,7 +158,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             : (presentedView.transform.isIdentity ? presentedView.frame : transitionContext.initialFrame(for: presented))
 
         let fromCornerRadius = preferredFromCornerRadius ?? .identity
-        let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
+        let toCornerRadius = preferredToCornerRadius ?? .containerConcentric(minimum: nil)
 
         if isPresenting {
             if presentedView.superview == nil {
@@ -252,9 +252,9 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             }
 
             if isPresenting {
-                toCornerRadius.apply(to: presentedPortalView ?? presentedView)
+                toCornerRadius.apply(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
                 if let sourceViewPortalView {
-                    toCornerRadius.apply(to: sourceViewPortalView)
+                    toCornerRadius.apply(to: sourceViewPortalView, size: sourceFrame.size)
                 }
             } else {
                 fromCornerRadius.apply(to: presentedPortalView ?? presentedView, size: sourceFrame.size)

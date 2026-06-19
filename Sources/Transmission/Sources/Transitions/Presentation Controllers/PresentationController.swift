@@ -124,6 +124,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
 
+        transition = nil
         if completed {
             transitionAlongsidePresentation(progress: 1)
         } else {
@@ -161,6 +162,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
     open override func dismissalTransitionDidEnd(_ completed: Bool) {
         super.dismissalTransitionDidEnd(completed)
 
+        transition = nil
         if completed {
             transitionAlongsidePresentation(progress: 0)
 

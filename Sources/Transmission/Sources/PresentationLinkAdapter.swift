@@ -540,9 +540,16 @@ final class PresentationLinkCoordinator<
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
                             zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
                         }
+                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPinchGesture }) {
+                            zoomGesture.addTarget(self, action: #selector(zoomPinchGestureDidChange(_:)))
+                        }
                     }
 
                 case .zoom(let options):
+                    self.sourceView = sourceView
+                    self.overrideTraitCollection = traits
+                    adapter.viewController.modalPresentationStyle = .custom
+
                     if #available(iOS 18.0, *) {
                         let zoomOptions = options.toUIKit()
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak self] _ in
@@ -555,10 +562,10 @@ final class PresentationLinkCoordinator<
                         if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
                             zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
                         }
+                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPinchGesture }) {
+                            zoomGesture.addTarget(self, action: #selector(zoomPinchGestureDidChange(_:)))
+                        }
                     }
-                    self.sourceView = sourceView
-                    self.overrideTraitCollection = traits
-                    adapter.viewController.modalPresentationStyle = .custom
 
                 case .representable(let representable):
                     assert(!swift_getIsClassType(representable), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
@@ -915,7 +922,6 @@ final class PresentationLinkCoordinator<
     override func presentationControllerDidAttemptToDismiss(
         _ presentationController: UIPresentationController
     ) {
-        presentationController.presentedViewController.fixSwiftUIHitTesting()
         if let isDismissRequested = adapter?.transition.options.isDismissRequested {
             withAnimation {
                 isDismissRequested.wrappedValue = true
@@ -1372,20 +1378,35 @@ final class PresentationLinkCoordinator<
 
     @objc
     func zoomPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
-        gestureDidChange(panGesture: panGesture, isDismiss: true)
+        gestureDidChange(panGesture: panGesture, isVertical: true)
     }
 
     @objc
     func zoomEdgePanGestureDidChange(_ edgePanGesture: UIScreenEdgePanGestureRecognizer) {
-        gestureDidChange(panGesture: edgePanGesture, isDismiss: false)
+        gestureDidChange(panGesture: edgePanGesture, isVertical: false)
+    }
+
+    @objc
+    func zoomPinchGestureDidChange(_ gesture: UIGestureRecognizer) {
+        guard
+            gesture.responds(to: NSSelectorFromString("scale")),
+            let scale = gesture.value(forKey: "scale") as? CGFloat
+        else {
+            return
+        }
+        gestureDidChange(
+            gesture: gesture,
+            hasReachedTriggerThreshold: scale <= 0.4,
+            hasReachedCancelThreshold: scale > 0.4
+        )
     }
 
     private func gestureDidChange(
         panGesture: UIPanGestureRecognizer,
-        isDismiss: Bool
+        isVertical: Bool
     ) {
-        let threshold = isDismiss ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
-        gestureDidChange(panGesture: panGesture, isDismiss: isDismiss, threshold: threshold)
+        let threshold = isVertical ? UIGestureRecognizer.zoomGestureActivationThreshold.height : UIGestureRecognizer.zoomGestureActivationThreshold.width
+        gestureDidChange(panGesture: panGesture, isVertical: isVertical, threshold: threshold)
     }
 
     // MARK: - Sheet Transition
@@ -1394,15 +1415,30 @@ final class PresentationLinkCoordinator<
     func sheetPanGestureDidChange(_ panGesture: UIPanGestureRecognizer) {
         guard let view = panGesture.view else { return }
         let threshold = view.bounds.height / 2
-        gestureDidChange(panGesture: panGesture, isDismiss: true, threshold: threshold)
+        gestureDidChange(panGesture: panGesture, isVertical: true, threshold: threshold)
     }
 
     private func gestureDidChange(
         panGesture: UIPanGestureRecognizer,
-        isDismiss: Bool,
+        isVertical: Bool,
         threshold: CGFloat
     ) {
-        switch panGesture.state {
+        guard let view = panGesture.view else { return }
+        let velocity = isVertical ? panGesture.velocity(in: view).y : panGesture.velocity(in: view).x
+        let translation = isVertical ? panGesture.translation(in: view).y : panGesture.translation(in: view).x
+        gestureDidChange(
+            gesture: panGesture,
+            hasReachedTriggerThreshold: translation >= threshold &&  velocity >= 0,
+            hasReachedCancelThreshold: translation < threshold && velocity < 0
+        )
+    }
+
+    private func gestureDidChange(
+        gesture: UIGestureRecognizer,
+        hasReachedTriggerThreshold: Bool,
+        hasReachedCancelThreshold: Bool
+    ) {
+        switch gesture.state {
         case .ended, .cancelled:
             isTransitionDismissReady = false
             feedbackGenerator = nil
@@ -1416,9 +1452,12 @@ final class PresentationLinkCoordinator<
             default:
                 break
             }
-            guard let hapticsStyle, let view = panGesture.view else { return }
-            let velocity = isDismiss ? panGesture.velocity(in: view).y : panGesture.velocity(in: view).x
-            let translation = isDismiss ? panGesture.translation(in: view).y : panGesture.translation(in: view).x
+            guard
+                let hapticsStyle,
+                let view = gesture.view
+            else {
+                return
+            }
             func impactOccurred(
                 intensity: CGFloat,
                 location: @autoclosure () -> CGPoint
@@ -1429,7 +1468,6 @@ final class PresentationLinkCoordinator<
                     feedbackGenerator?.impactOccurred(intensity: intensity)
                 }
             }
-
             if feedbackGenerator == nil {
                 let feedbackGenerator: UIImpactFeedbackGenerator
                 if #available(iOS 17.5, *) {
@@ -1439,12 +1477,11 @@ final class PresentationLinkCoordinator<
                 }
                 feedbackGenerator.prepare()
                 self.feedbackGenerator = feedbackGenerator
-            } else if !isTransitionDismissReady, translation >= threshold, velocity >= 0 {
+            } else if !isTransitionDismissReady, hasReachedTriggerThreshold {
                 isTransitionDismissReady = true
-                impactOccurred(intensity: 1, location: panGesture.location(in: view))
-            } else if isTransitionDismissReady, translation < threshold, velocity < 0
-            {
-                impactOccurred(intensity: 0.5, location: panGesture.location(in: view))
+                impactOccurred(intensity: 1, location: gesture.location(in: view))
+            } else if isTransitionDismissReady, hasReachedCancelThreshold {
+                impactOccurred(intensity: 0.5, location: gesture.location(in: view))
                 isTransitionDismissReady = false
             }
         }
