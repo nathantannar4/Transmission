@@ -36,10 +36,6 @@ public struct TransitionReader<Content: View>: View {
 
     @State var proxy = Proxy()
 
-    // Not `@inlinable`: with the iOS 26 SDK `@State` is a macro that synthesizes an
-    // internal init accessor for `proxy`'s default value. An inlinable initializer
-    // cannot reference that internal accessor, producing "Function has wrong linkage
-    // to be called from init(content:)".
     public init(@ViewBuilder content: @escaping (Proxy) -> Content) {
         self.content = content
     }
