@@ -31,12 +31,10 @@ public struct TransitionReader<Content: View>: View {
 
     public typealias Proxy = TransitionReaderProxy
 
-    @usableFromInline
     var content: (Proxy) -> Content
 
     @State var proxy = Proxy()
 
-    @inlinable
     public init(@ViewBuilder content: @escaping (Proxy) -> Content) {
         self.content = content
     }
