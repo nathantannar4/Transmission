@@ -80,39 +80,18 @@ public struct DestinationLink<
 
 @available(iOS 14.0, *)
 extension DestinationLink {
-    @_disfavoredOverload
-    public init<ViewController: UIViewController>(
-        transition: DestinationLinkTransition = .default,
-        destination: @escaping () -> ViewController,
-        @ViewBuilder label: () -> Label
-    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: transition) {
-            ViewControllerRepresentableAdapter(destination)
-        } label: {
-            label()
-        }
-    }
-
-    public init<ViewController: UIViewController>(
-        transition: DestinationLinkTransition = .default,
-        destination: @escaping (Destination.Context) -> ViewController,
-        @ViewBuilder label: () -> Label
-    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: transition) {
-            ViewControllerRepresentableAdapter(destination)
-        } label: {
-            label()
-        }
-    }
 
     @_disfavoredOverload
     public init<ViewController: UIViewController>(
         transition: DestinationLinkTransition = .default,
-        isPresented: Binding<Bool>,
+        animation: Animation? = .default,
         destination: @escaping () -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: transition, isPresented: isPresented) {
+        self.init(
+            transition: transition,
+            animation: animation
+        ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
@@ -121,12 +100,111 @@ extension DestinationLink {
 
     public init<ViewController: UIViewController>(
         transition: DestinationLinkTransition = .default,
-        isPresented: Binding<Bool>,
+        animation: Animation? = .default,
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(transition: transition, isPresented: isPresented) {
+        self.init(
+            transition: transition,
+            animation: animation
+        ) {
             ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
+    public init<T, _Destination: View>(
+        transition: DestinationLinkTransition = .default,
+        animation: Animation? = .default,
+        value: Binding<T?>,
+        destination: (Binding<T>) -> _Destination,
+        @ViewBuilder label: () -> Label
+    ) where Destination == Optional<_Destination> {
+        self.init(
+            transition: transition,
+            animation: animation,
+            isPresented: value.isNotNil()
+        ) {
+            Optional(value, content: destination)
+        } label: {
+            label()
+        }
+    }
+
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        animation: Animation? = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            animation: animation,
+            isPresented: isPresented
+        ) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
+    @_disfavoredOverload
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        animation: Animation? = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            animation: animation,
+            isPresented: isPresented
+        ) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
+    public init<T, ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        animation: Animation? = .default,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            transition: transition,
+            animation: animation,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter { ctx in
+                destination($value, ctx)
+            }
+        } label: {
+            label()
+        }
+    }
+
+    @_disfavoredOverload
+    public init<T, ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        animation: Animation? = .default,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            transition: transition,
+            animation: animation,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter {
+                destination($value)
+            }
         } label: {
             label()
         }

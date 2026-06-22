@@ -64,6 +64,88 @@ public struct WindowLinkModifier<
 }
 
 @available(iOS 14.0, *)
+extension WindowLinkModifier {
+
+    public init<T, _Destination: View>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        value: Binding<T?>,
+        destination: (Binding<T>) -> _Destination
+    ) where Destination == Optional<_Destination> {
+        self.init(
+            level: level,
+            transition: transition,
+            isPresented: value.isNotNil(),
+            destination: Optional(value, content: destination)
+        )
+    }
+
+    public init<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        isPresented: Binding<Bool>,
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            level: level,
+            transition: transition,
+            isPresented: isPresented,
+            destination: ViewControllerRepresentableAdapter(destination)
+        )
+    }
+
+    @_disfavoredOverload
+    public init<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            level: level,
+            transition: transition,
+            isPresented: isPresented,
+            destination: ViewControllerRepresentableAdapter(destination)
+        )
+    }
+
+    public init<T, ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            level: level,
+            transition: transition,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter { ctx in
+                destination($value, ctx)
+            }
+        }
+    }
+
+    @_disfavoredOverload
+    public init<T, ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>) -> ViewController
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            level: level,
+            transition: transition,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter {
+                destination($value)
+            }
+        }
+    }
+}
+
+@available(iOS 14.0, *)
 extension View {
 
     /// A modifier that presents a destination view in a new `UIWindow`
@@ -114,36 +196,16 @@ extension View {
         _ value: Binding<T?>,
         level: WindowLinkLevel = .default,
         transition: WindowLinkTransition = .opacity,
-        @ViewBuilder destination: (T) -> Destination
-    ) -> some View {
-        window(level: level, transition: transition, isPresented: value.isNotNil()) {
-            Optional(value, content: destination)
-        }
-    }
-
-    /// A modifier that presents a destination view in a new `UIWindow`
-    ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
-    /// See Also:
-    ///  - ``WindowLinkModifier``
-    ///
-    public func window<T, Destination: View>(
-        _ value: Binding<T?>,
-        level: WindowLinkLevel = .default,
-        transition: WindowLinkTransition = .opacity,
         @ViewBuilder destination: (Binding<T>) -> Destination
     ) -> some View {
-        window(level: level, transition: transition, isPresented: value.isNotNil()) {
-            Optional(value, content: destination)
-        }
+        modifier(
+            WindowLinkModifier(
+                level: level,
+                transition: transition,
+                value: value,
+                destination: destination
+            )
+        )
     }
 
     /// A modifier that presents a destination `UIViewController` in a new `UIWindow`
@@ -166,9 +228,14 @@ extension View {
         isPresented: Binding<Bool>,
         destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
-        window(level: level, transition: transition, isPresented: isPresented) {
-            ViewControllerRepresentableAdapter(destination)
-        }
+        modifier(
+            WindowLinkModifier(
+                level: level,
+                transition: transition,
+                isPresented: isPresented,
+                destination: destination
+            )
+        )
     }
 
     /// A modifier that presents a destination `UIViewController` in a new `UIWindow`
@@ -191,13 +258,13 @@ extension View {
         isPresented: Binding<Bool>,
         destination: @escaping () -> ViewController
     ) -> some View {
-        window(
-            level: level,
-            transition: transition,
-            isPresented: isPresented,
-            destination: { _ in
-                destination()
-            }
+        modifier(
+            WindowLinkModifier(
+                level: level,
+                transition: transition,
+                isPresented: isPresented,
+                destination: destination
+            )
         )
     }
 
@@ -221,12 +288,14 @@ extension View {
         transition: WindowLinkTransition = .opacity,
         destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
-        window(level: level, transition: transition, isPresented: value.isNotNil()) {
-            ViewControllerRepresentableAdapter<ViewController> { context in
-                guard let value = value.unwrap() else { fatalError() }
-                return destination(value, context)
-            }
-        }
+        modifier(
+            WindowLinkModifier(
+                level: level,
+                transition: transition,
+                value: value,
+                destination: destination
+            )
+        )
     }
 
     /// A modifier that presents a destination view in a new `UIWindow`
@@ -249,13 +318,13 @@ extension View {
         transition: WindowLinkTransition = .opacity,
         destination: @escaping (Binding<T>) -> ViewController
     ) -> some View {
-        window(
-            value,
-            level: level,
-            transition: transition,
-            destination: { value, _ in
-                destination(value)
-            }
+        modifier(
+            WindowLinkModifier(
+                level: level,
+                transition: transition,
+                value: value,
+                destination: destination
+            )
         )
     }
 }

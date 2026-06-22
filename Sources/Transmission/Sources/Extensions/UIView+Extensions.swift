@@ -21,7 +21,7 @@ extension UIView {
 
     func preferredContentSize(for width: CGFloat) -> CGSize {
         var size = intrinsicContentSize
-        if size.height <= 0 {
+        if size.height <= 0 || size.width > width {
             size.width = width
             size.height = idealHeight(for: width)
         }

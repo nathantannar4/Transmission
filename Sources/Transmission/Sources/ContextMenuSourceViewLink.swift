@@ -12,23 +12,28 @@ import Engine
 public struct ContextMenuLinkPreviewTransition: Sendable {
 
     enum Value: Sendable {
+        case transient
         case presentation
         case destination
         case custom(_ action: @Sendable () -> Void)
     }
     var value: Value
 
-    public static var `default`: ContextMenuLinkPreviewTransition { .presentation }
+    /// A transient transition
+    public static let transient = ContextMenuLinkPreviewTransition(value: .transient)
 
-    /// The present transition
+    /// A presention transition
     public static let presentation = ContextMenuLinkPreviewTransition(value: .presentation)
 
-    /// The push transition
+    /// A push transition
     public static let destination = ContextMenuLinkPreviewTransition(value: .destination)
 
+    /// A custom action for your own transition
     public static func custom(_ action: @Sendable @escaping () -> Void) -> ContextMenuLinkPreviewTransition {
         ContextMenuLinkPreviewTransition(value: .custom(action))
     }
+
+    public static var `default`: ContextMenuLinkPreviewTransition { .transient }
 }
 
 /// A view that manages the presentation of a context menu. The presentation is
@@ -65,9 +70,9 @@ public struct ContextMenuSourceViewLink<
         backgroundColor: Color? = nil,
         visibleInset: CGFloat = 0,
         @MenuBuilder menu: () -> Menu,
-        @ViewBuilder preview: () -> Preview,
+        @ViewBuilder preview: () -> Preview = { EmptyView() },
         @ViewBuilder label: () -> Label,
-        @ViewBuilder accessoryViews: () -> AccessoryViews
+        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
     ) {
         self.label = label()
         self.menu = menu()
@@ -81,64 +86,6 @@ public struct ContextMenuSourceViewLink<
     }
 
     public init(
-        cornerRadius: CornerRadiusOptions? = nil,
-        backgroundColor: Color? = nil,
-        visibleInset: CGFloat = 0,
-        @MenuBuilder menu: () -> Menu,
-        @ViewBuilder label: () -> Label,
-        @ViewBuilder accessoryViews: () -> AccessoryViews
-    ) where Preview == EmptyView {
-        self.init(
-            cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
-            visibleInset: visibleInset,
-            menu: menu,
-            preview: { EmptyView() },
-            label: label,
-            accessoryViews: accessoryViews
-        )
-    }
-
-    public init(
-        transition: ContextMenuLinkPreviewTransition = .default,
-        cornerRadius: CornerRadiusOptions? = nil,
-        backgroundColor: Color? = nil,
-        visibleInset: CGFloat = 0,
-        @MenuBuilder menu: () -> Menu,
-        @ViewBuilder preview: () -> Preview,
-        @ViewBuilder label: () -> Label,
-    ) where AccessoryViews == EmptyView {
-        self.init(
-            transition: transition,
-            cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
-            visibleInset: visibleInset,
-            menu: menu,
-            preview: preview,
-            label: label,
-            accessoryViews: { EmptyView() }
-        )
-    }
-
-    public init(
-        cornerRadius: CornerRadiusOptions? = nil,
-        backgroundColor: Color? = nil,
-        visibleInset: CGFloat = 0,
-        @MenuBuilder menu: () -> Menu,
-        @ViewBuilder label: () -> Label,
-    ) where Preview == EmptyView, AccessoryViews == EmptyView {
-        self.init(
-            cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
-            visibleInset: visibleInset,
-            menu: menu,
-            preview: { EmptyView() },
-            label: label,
-            accessoryViews: { EmptyView() }
-        )
-    }
-
-    public init(
         transition: ContextMenuLinkPreviewTransition = .default,
         cornerRadius: CornerRadiusOptions? = nil,
         backgroundColor: Color? = nil,
@@ -147,7 +94,7 @@ public struct ContextMenuSourceViewLink<
         @MenuBuilder menu: () -> Menu,
         @ViewBuilder preview: () -> Preview = { EmptyView() },
         @ViewBuilder label: () -> Label,
-        @ViewBuilder accessoryViews: () -> AccessoryViews
+        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
     ) {
         self.label = label()
         self.menu = menu()
@@ -158,70 +105,6 @@ public struct ContextMenuSourceViewLink<
         self.backgroundColor = backgroundColor
         self.visibleInset = visibleInset
         self._isPresented = .init(isPresented)
-    }
-    
-    public init(
-        cornerRadius: CornerRadiusOptions? = nil,
-        backgroundColor: Color? = nil,
-        visibleInset: CGFloat = 0,
-        isPresented: Binding<Bool>,
-        @MenuBuilder menu: () -> Menu,
-        @ViewBuilder label: () -> Label,
-        @ViewBuilder accessoryViews: () -> AccessoryViews
-    ) where Preview == EmptyView {
-        self.init(
-            cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
-            visibleInset: visibleInset,
-            isPresented: isPresented,
-            menu: menu,
-            preview: { EmptyView() },
-            label: label,
-            accessoryViews: accessoryViews
-        )
-    }
-
-    public init(
-        transition: ContextMenuLinkPreviewTransition = .default,
-        cornerRadius: CornerRadiusOptions? = nil,
-        backgroundColor: Color? = nil,
-        visibleInset: CGFloat = 0,
-        isPresented: Binding<Bool>,
-        @MenuBuilder menu: () -> Menu,
-        @ViewBuilder preview: () -> Preview,
-        @ViewBuilder label: () -> Label,
-    ) where AccessoryViews == EmptyView {
-        self.init(
-            transition: transition,
-            cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
-            visibleInset: visibleInset,
-            isPresented: isPresented,
-            menu: menu,
-            preview: preview,
-            label: label,
-            accessoryViews: { EmptyView() }
-        )
-    }
-
-    public init(
-        cornerRadius: CornerRadiusOptions? = nil,
-        backgroundColor: Color? = nil,
-        visibleInset: CGFloat = 0,
-        isPresented: Binding<Bool>,
-        @MenuBuilder menu: () -> Menu,
-        @ViewBuilder label: () -> Label,
-    ) where Preview == EmptyView, AccessoryViews == EmptyView {
-        self.init(
-            cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
-            visibleInset: visibleInset,
-            isPresented: isPresented,
-            menu: menu,
-            preview: { EmptyView() },
-            label: label,
-            accessoryViews: { EmptyView() }
-        )
     }
 
     public var body: some View {
@@ -239,6 +122,64 @@ public struct ContextMenuSourceViewLink<
             label
         } accessoryViews: {
             accessoryViews
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+extension ContextMenuSourceViewLink {
+
+    public init<PreviewViewController: UIViewController>(
+        transition: ContextMenuLinkPreviewTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        visibleInset: CGFloat = 0,
+        @MenuBuilder menu: () -> Menu,
+        preview: @escaping () -> PreviewViewController,
+        @ViewBuilder label: () -> Label,
+        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
+    ) where Preview == ViewControllerRepresentableAdapter<PreviewViewController> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            visibleInset: visibleInset
+        ) {
+            menu()
+        } preview: {
+            ViewControllerRepresentableAdapter(preview)
+        } label: {
+            label()
+        } accessoryViews: {
+            accessoryViews()
+        }
+    }
+
+    public init<PreviewViewController: UIViewController>(
+        transition: ContextMenuLinkPreviewTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        visibleInset: CGFloat = 0,
+        isPresented: Binding<Bool>,
+        @MenuBuilder menu: () -> Menu,
+        preview: @escaping () -> PreviewViewController,
+        @ViewBuilder label: () -> Label,
+        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
+    ) where Preview == ViewControllerRepresentableAdapter<PreviewViewController> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            visibleInset: visibleInset,
+            isPresented: isPresented
+        ) {
+            menu()
+        } preview: {
+            ViewControllerRepresentableAdapter(preview)
+        } label: {
+            label()
+        } accessoryViews: {
+            accessoryViews()
         }
     }
 }
@@ -306,7 +247,6 @@ struct ContextMenuSourceViewLink_Previews: PreviewProvider {
                 ContextMenuAccessoryView(
                     location: .preview,
                     alignment: .topLeading,
-                    offset: .init(x: 0, y: -12),
                     trackingAxis: [.vertical, .horizontal]
                 ) {
                     if #available(iOS 26.0, *) {

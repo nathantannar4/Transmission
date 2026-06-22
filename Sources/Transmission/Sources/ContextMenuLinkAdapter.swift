@@ -214,6 +214,7 @@ final class ContextMenuLinkCoordinator<
 
     private var environment: EnvironmentValues?
     private var adapter: ContextMenuPreviewViewControllerAdapter<Preview, Representable>?
+    private var makeAdapter: (() -> ContextMenuPreviewViewControllerAdapter<Preview, Representable>)?
     private var sourceViewSize: CGSize?
     private weak var sourceView: UIView?
 
@@ -250,16 +251,17 @@ final class ContextMenuLinkCoordinator<
                     context: context
                 )
             } else {
-                adapter = ContextMenuPreviewViewControllerAdapter(
-                    preview: preview,
-                    sourceView: sourceView,
-                    transition: transition,
-                    context: context,
-                    navigationController: sourceView._viewController?._navigationController,
-                    onFinish: { [weak self] in
-                        self?.onFinish($0)
-                    }
-                )
+                makeAdapter = { [weak self] in
+                    ContextMenuPreviewViewControllerAdapter(
+                        preview: preview,
+                        sourceView: sourceView,
+                        transition: transition,
+                        context: context,
+                        onFinish: { [weak self] in
+                            self?.onFinish($0)
+                        }
+                    )
+                }
             }
         }
 
@@ -302,6 +304,7 @@ final class ContextMenuLinkCoordinator<
         }
         interaction = nil
         adapter = nil
+        makeAdapter = nil
     }
 
     func willShow(animation: Animation? = nil) {
@@ -339,7 +342,7 @@ final class ContextMenuLinkCoordinator<
             adapter.viewController._dismiss(animated: transaction.isAnimated)
         case .destination:
             adapter.viewController._popViewController(animated: transaction.isAnimated)
-        case .custom:
+        case .custom, .transient:
             break
         }
     }
@@ -362,6 +365,10 @@ final class ContextMenuLinkCoordinator<
             return nil
         }
 
+        if let makeAdapter {
+            adapter = makeAdapter()
+            self.makeAdapter = nil
+        }
         let configuration = UIContextMenuConfiguration(
             identifier: nil
         ) { [weak adapter] in
@@ -576,6 +583,8 @@ final class ContextMenuLinkCoordinator<
             animator.addCompletion {
                 action()
             }
+        case .transient:
+            animator.preferredCommitStyle = .dismiss
         }
     }
 }
@@ -636,14 +645,14 @@ class ContextMenuPreviewViewControllerAdapter<
             return adapter.viewController
         case .destination(let adapter):
             return adapter.viewController
-        case .custom(let adapter):
+        case .transient(let adapter):
             return adapter.viewController
         }
     }
 
     var navigationController: UINavigationController? {
         switch storage {
-        case .presentation, .custom:
+        case .presentation, .transient:
             return nil
         case .destination(let adapter):
             return adapter.navigationController
@@ -653,7 +662,7 @@ class ContextMenuPreviewViewControllerAdapter<
     private enum Storage {
         case presentation(ContextMenuPresentationPreviewViewControllerAdapter<Preview, Representable>)
         case destination(ContextMenuDestinationPreviewViewControllerAdapter<Preview, Representable>)
-        case custom(ContextMenuCustomPreviewViewControllerAdapter<Preview, Representable>)
+        case transient(ContextMenuCustomPreviewViewControllerAdapter<Preview, Representable>)
     }
     private let storage: Storage
 
@@ -662,7 +671,6 @@ class ContextMenuPreviewViewControllerAdapter<
         sourceView: UIView,
         transition: ContextMenuLinkPreviewTransition,
         context: Representable.Context,
-        navigationController: UINavigationController?,
         onFinish: @escaping (Transaction) -> Void
     ) {
         self.transition = transition
@@ -683,17 +691,17 @@ class ContextMenuPreviewViewControllerAdapter<
                 sourceView: sourceView,
                 transition: .default,
                 context: context,
-                navigationController: navigationController,
+                navigationController: sourceView._viewController?._navigationController,
                 isPresented: .constant(true),
                 onPop: { onFinish($1) }
             )
             storage = .destination(adapter)
-        case .custom:
+        case .custom, .transient:
             let adapter = ContextMenuCustomPreviewViewControllerAdapter(
                 content: preview,
                 context: context
             )
-            storage = .custom(adapter)
+            storage = .transient(adapter)
         }
     }
 
@@ -714,7 +722,7 @@ class ContextMenuPreviewViewControllerAdapter<
                 context: context,
                 isPresented: .constant(true)
             )
-        case .custom(let adapter):
+        case .transient(let adapter):
             adapter.updateViewController(
                 content: preview,
                 context: context
@@ -735,6 +743,7 @@ class ContextMenuPresentationPreviewViewControllerAdapter<
         context: Representable.Context
     ) -> UIViewController {
         let viewController = super.makeHostingController(content: content, context: context) as! DestinationController
+        viewController.preferredContentSize = viewController.view.intrinsicContentSize
         if #available(iOS 16.0, *) {
             viewController.sizingOptions = .preferredContentSize
         }
@@ -754,6 +763,7 @@ class ContextMenuDestinationPreviewViewControllerAdapter<
         context: Representable.Context
     ) -> UIViewController {
         let viewController = super.makeHostingController(content: content, context: context) as! DestinationController
+        viewController.preferredContentSize = viewController.view.intrinsicContentSize
         if #available(iOS 16.0, *) {
             viewController.sizingOptions = .preferredContentSize
         }
@@ -773,13 +783,13 @@ class ContextMenuCustomPreviewViewControllerAdapter<
         context: Representable.Context
     ) -> UIViewController {
         let viewController = super.makeHostingController(content: content, context: context) as! HostingController<Preview>
+        viewController.preferredContentSize = viewController.view.intrinsicContentSize
         if #available(iOS 16.0, *) {
             viewController.sizingOptions = .preferredContentSize
         }
         return viewController
     }
 }
-
 
 extension UIContextMenuInteraction {
 
@@ -824,6 +834,7 @@ struct ContextMenuLinkAdapter_Previews: PreviewProvider {
         @State var isMenuAPresented = false
         @State var isMenuBPresented = false
         @State var isMenuCPresented = false
+        @State var isMenuDPresented = false
 
         var body: some View {
             VStack {
@@ -844,7 +855,7 @@ struct ContextMenuLinkAdapter_Previews: PreviewProvider {
                 } content: {
                     VStack(alignment: .leading) {
                         Text("Primary Action")
-                        Text("Holde to show menu")
+                        Text("Hold to show menu")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -872,6 +883,62 @@ struct ContextMenuLinkAdapter_Previews: PreviewProvider {
                     } label: {
                         Text("Show Menu")
                     }
+                }
+
+                ContextMenuLinkAdapter(
+                    isPresented: $isMenuCPresented
+                ) {
+                    MenuButton {
+
+                    } label: {
+                        Text("Option A")
+                    }
+
+                    MenuButton {
+
+                    } label: {
+                        Text("Option B")
+                    }
+                } preview: {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.red)
+                        .frame(width: 300, height: 300)
+                } content: {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.blue)
+                        .frame(width: 100, height: 100)
+                }
+
+                ContextMenuLinkAdapter(
+                    isPresented: $isMenuDPresented
+                ) {
+                    MenuButton {
+
+                    } label: {
+                        Text("Option A")
+                    }
+
+                    MenuButton {
+
+                    } label: {
+                        Text("Option B")
+                    }
+                } preview: {
+                    ZStack {
+                        Text("""
+                        Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.
+                        """)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(12)
+                        .background {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.red)
+                        }
+                    }
+                } content: {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.blue)
+                        .frame(width: 100, height: 100)
                 }
             }
         }

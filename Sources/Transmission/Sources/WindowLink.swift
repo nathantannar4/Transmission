@@ -84,6 +84,7 @@ public struct WindowLink<
 
 @available(iOS 14.0, *)
 extension WindowLink {
+
     @_disfavoredOverload
     public init<ViewController: UIViewController>(
         level: WindowLinkLevel = .default,
@@ -92,7 +93,11 @@ extension WindowLink {
         destination: @escaping () -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(level: level, transition: transition, animation: animation) {
+        self.init(
+            level: level,
+            transition: transition,
+            animation: animation
+        ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
@@ -106,7 +111,51 @@ extension WindowLink {
         destination: @escaping (Destination.Context) -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(level: level, transition: transition, animation: animation) {
+        self.init(
+            level: level,
+            transition: transition,
+            animation: animation
+        ) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
+    public init<T, _Destination: View>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
+        value: Binding<T?>,
+        destination: (Binding<T>) -> _Destination,
+        @ViewBuilder label: () -> Label
+    ) where Destination == Optional<_Destination> {
+        self.init(
+            level: level,
+            transition: transition,
+            animation: animation,
+            isPresented: value.isNotNil()
+        ) {
+            Optional(value, content: destination)
+        } label: {
+            label()
+        }
+    }
+
+    public init<ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            level: level,
+            transition: transition,
+            animation: animation,
+            isPresented: isPresented
+        ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
@@ -122,23 +171,58 @@ extension WindowLink {
         destination: @escaping () -> ViewController,
         @ViewBuilder label: () -> Label
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(level: level, transition: transition, animation: animation, isPresented: isPresented) {
+        self.init(
+            level: level,
+            transition: transition,
+            animation: animation,
+            isPresented: isPresented
+        ) {
             ViewControllerRepresentableAdapter(destination)
         } label: {
             label()
         }
     }
 
-    public init<ViewController: UIViewController>(
+    public init<T, ViewController: UIViewController>(
         level: WindowLinkLevel = .default,
         transition: WindowLinkTransition = .opacity,
         animation: Animation? = .default,
-        isPresented: Binding<Bool>,
-        destination: @escaping (Destination.Context) -> ViewController,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController,
         @ViewBuilder label: () -> Label
-    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.init(level: level, transition: transition, animation: animation, isPresented: isPresented) {
-            ViewControllerRepresentableAdapter(destination)
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            level: level,
+            transition: transition,
+            animation: animation,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter { ctx in
+                destination($value, ctx)
+            }
+        } label: {
+            label()
+        }
+    }
+
+    @_disfavoredOverload
+    public init<T, ViewController: UIViewController>(
+        level: WindowLinkLevel = .default,
+        transition: WindowLinkTransition = .opacity,
+        animation: Animation? = .default,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            level: level,
+            transition: transition,
+            animation: animation,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter {
+                destination($value)
+            }
         } label: {
             label()
         }

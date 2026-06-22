@@ -61,7 +61,80 @@ public struct DestinationLinkModifier<
 }
 
 @available(iOS 14.0, *)
+extension DestinationLinkModifier {
+
+    public init<T, _Destination: View>(
+        transition: DestinationLinkTransition = .default,
+        value: Binding<T?>,
+        destination: (Binding<T>) -> _Destination
+    ) where Destination == Optional<_Destination> {
+        self.init(
+            transition: transition,
+            isPresented: value.isNotNil(),
+            destination: Optional(value, content: destination)
+        )
+    }
+
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            isPresented: isPresented,
+            destination: ViewControllerRepresentableAdapter(destination)
+        )
+    }
+
+    @_disfavoredOverload
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            isPresented: isPresented,
+            destination: ViewControllerRepresentableAdapter(destination)
+        )
+    }
+
+    public init<T, ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            transition: transition,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter { ctx in
+                destination($value, ctx)
+            }
+        }
+    }
+
+    @_disfavoredOverload
+    public init<T, ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>) -> ViewController
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            transition: transition,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter {
+                destination($value)
+            }
+        }
+    }
+}
+
+@available(iOS 14.0, *)
 extension View {
+
     /// A modifier that pushes a destination view in a new `UIViewController`.
     ///
     /// To present the destination view with an animation, `isPresented` should
@@ -101,32 +174,15 @@ extension View {
     public func destination<T, Destination: View>(
         _ value: Binding<T?>,
         transition: DestinationLinkTransition = .default,
-        @ViewBuilder destination: (T) -> Destination
-    ) -> some View {
-        self.destination(transition: transition, isPresented: value.isNotNil()) {
-            Optional(value, content: destination)
-        }
-    }
-
-    /// A modifier that pushes a destination view in a new `UIViewController`.
-    ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
-    public func destination<T, Destination: View>(
-        _ value: Binding<T?>,
-        transition: DestinationLinkTransition = .default,
         @ViewBuilder destination: (Binding<T>) -> Destination
     ) -> some View {
-        self.destination(transition: transition, isPresented: value.isNotNil()) {
-            Optional(value, content: destination)
-        }
+        modifier(
+            DestinationLinkModifier(
+                transition: transition,
+                value: value,
+                destination: destination
+            )
+        )
     }
 
     /// A modifier that pushes a destination `UIViewController`.
@@ -145,9 +201,13 @@ extension View {
         isPresented: Binding<Bool>,
         destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
-        self.destination(transition: transition, isPresented: isPresented) {
-            ViewControllerRepresentableAdapter(destination)
-        }
+        modifier(
+            DestinationLinkModifier(
+                transition: transition,
+                isPresented: isPresented,
+                destination: destination
+            )
+        )
     }
 
     /// A modifier that pushes a destination `UIViewController`.
@@ -166,12 +226,12 @@ extension View {
         isPresented: Binding<Bool>,
         destination: @escaping () -> ViewController
     ) -> some View {
-        self.destination(
-            transition: transition,
-            isPresented: isPresented,
-            destination: { _ in
-                destination()
-            }
+        modifier(
+            DestinationLinkModifier(
+                transition: transition,
+                isPresented: isPresented,
+                destination: destination
+            )
         )
     }
 
@@ -191,12 +251,13 @@ extension View {
         transition: DestinationLinkTransition = .default,
         destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
-        self.destination(transition: transition, isPresented: value.isNotNil()) {
-            ViewControllerRepresentableAdapter<ViewController> { context in
-                guard let value = value.unwrap() else { fatalError() }
-                return destination(value, context)
-            }
-        }
+        modifier(
+            DestinationLinkModifier(
+                transition: transition,
+                value: value,
+                destination: destination
+            )
+        )
     }
 
     /// A modifier that pushes a destination `UIViewController`.
@@ -215,12 +276,12 @@ extension View {
         transition: DestinationLinkTransition = .default,
         destination: @escaping (Binding<T>) -> ViewController
     ) -> some View {
-        self.destination(
-            value,
-            transition: transition,
-            destination: { value, _ in
-                destination(value)
-            }
+        modifier(
+            DestinationLinkModifier(
+                transition: transition,
+                value: value,
+                destination: destination
+            )
         )
     }
 }
@@ -293,7 +354,7 @@ struct DestinationLinkModifier_Previews: PreviewProvider {
                     get: { value == 6 ? value : nil },
                     set: { value = $0 ?? 0 }
                 )
-            ) { value in
+            ) { $value in
                 Text(value.description)
             }
             .destination(

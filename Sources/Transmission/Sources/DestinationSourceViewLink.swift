@@ -104,6 +104,7 @@ public struct DestinationSourceViewLink<
 
 @available(iOS 14.0, *)
 extension DestinationSourceViewLink {
+
     @_disfavoredOverload
     public init<ViewController: UIViewController>(
         transition: DestinationLinkTransition = .default,
@@ -145,6 +146,50 @@ extension DestinationSourceViewLink {
         }
     }
 
+    public init<T, _Destination: View>(
+        transition: DestinationLinkTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        animation: Animation? = .default,
+        value: Binding<T?>,
+        destination: (Binding<T>) -> _Destination,
+        @ViewBuilder label: () -> Label
+    ) where Destination == Optional<_Destination> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            animation: animation,
+            isPresented: value.isNotNil()
+        ) {
+            Optional(value, content: destination)
+        } label: {
+            label()
+        }
+    }
+
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        animation: Animation? = .default,
+        isPresented: Binding<Bool>,
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            animation: animation,
+            isPresented: isPresented
+        ) {
+            ViewControllerRepresentableAdapter(destination)
+        } label: {
+            label()
+        }
+    }
+
     @_disfavoredOverload
     public init<ViewController: UIViewController>(
         transition: DestinationLinkTransition = .default,
@@ -168,23 +213,50 @@ extension DestinationSourceViewLink {
         }
     }
 
-    public init<ViewController: UIViewController>(
+    public init<T, ViewController: UIViewController>(
         transition: DestinationLinkTransition = .default,
         cornerRadius: CornerRadiusOptions? = nil,
         backgroundColor: Color? = nil,
         animation: Animation? = .default,
-        isPresented: Binding<Bool>,
-        destination: @escaping (Destination.Context) -> ViewController,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController,
         @ViewBuilder label: () -> Label
-    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
         self.init(
             transition: transition,
             cornerRadius: cornerRadius,
             backgroundColor: backgroundColor,
             animation: animation,
-            isPresented: isPresented
-        ) {
-            ViewControllerRepresentableAdapter(destination)
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter { ctx in
+                destination($value, ctx)
+            }
+        } label: {
+            label()
+        }
+    }
+
+    @_disfavoredOverload
+    public init<T, ViewController: UIViewController>(
+        transition: DestinationLinkTransition = .default,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        animation: Animation? = .default,
+        value: Binding<T?>,
+        destination: @escaping (Binding<T>) -> ViewController,
+        @ViewBuilder label: () -> Label
+    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            animation: animation,
+            value: value
+        ) { $value in
+            ViewControllerRepresentableAdapter {
+                destination($value)
+            }
         } label: {
             label()
         }

@@ -34,14 +34,25 @@ public struct TransitionReader<Content: View>: View {
     @usableFromInline
     var content: (Proxy) -> Content
 
-    @State var proxy = Proxy()
-
     @inlinable
     public init(@ViewBuilder content: @escaping (Proxy) -> Content) {
         self.content = content
     }
     
     public var body: some View {
+        TransitionReaderBody(content: content)
+    }
+}
+
+private struct TransitionReaderBody<Content: View>: View {
+
+    typealias Proxy = TransitionReaderProxy
+
+    var content: (Proxy) -> Content
+
+    @State var proxy = Proxy()
+
+    var body: some View {
         content(proxy)
             .background(
                 TransitionReaderAdapter(proxy: $proxy)

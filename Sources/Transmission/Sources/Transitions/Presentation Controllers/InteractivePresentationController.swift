@@ -375,37 +375,37 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         shouldFinish = (percentage >= 0.5 && targetVelocity.x > -targetVelocityThreshold) || (percentage > 0 && targetVelocity.x >= 800)
                     }
                 }
-                // `completionSpeed` handling seems to differ across iOS version
-                if #available(iOS 18.0, *) {
-                    if shouldFinish {
-                        transition.completionSpeed = 1 - percentage
-                    } else {
-                        transition.completionSpeed = percentage
-                    }
-                } else {
-                    transition.completionSpeed = 1 - percentage
-                }
                 let delta = CGSize(
                     width: percentage * (presentedViewController.view.frame.origin.x - frameOfPresentedView.origin.x),
                     height: percentage * (presentedViewController.view.frame.origin.y - frameOfPresentedView.origin.y)
                 )
                 var dx = delta.width >= 1 ? velocity.x / delta.width : 0
                 if dx < 0 {
-                    dx = max(dx, -25)
+                    dx = max(dx, -30)
                 } else {
-                    dx = min(dx, 25)
+                    dx = min(dx, 30)
                 }
                 var dy = delta.height >= 1 ? velocity.y / delta.height : 0
                 if dy < 0 {
-                    dy = max(dy, -25)
+                    dy = max(dy, -30)
                 } else {
-                    dy = min(dy, 25)
+                    dy = min(dy, 30)
                 }
                 let initialVelocity = CGVector(
                     dx: dx,
                     dy: dy
                 )
-                let dampingRatio = shouldFinish ? 1 : 0.84
+                // `completionSpeed` handling seems to differ across iOS version
+                if #available(iOS 18.0, *) {
+                    if shouldFinish {
+                        transition.completionSpeed = max(0.5, 1 - percentage)
+                    } else {
+                        transition.completionSpeed = max(0.5, percentage)
+                    }
+                } else {
+                    transition.completionSpeed = max(0.5, 1 - percentage)
+                }
+                let dampingRatio = shouldFinish && !isPresenting ? 1 : 0.84
                 transition.timingCurve = UISpringTimingParameters(
                     dampingRatio: dampingRatio,
                     initialVelocity: initialVelocity

@@ -64,6 +64,29 @@ public struct ContextMenuLinkModifier<
 }
 
 @available(iOS 14.0, *)
+extension ContextMenuLinkModifier {
+
+    public init<PreviewViewController: UIViewController>(
+        transition: ContextMenuLinkPreviewTransition = .default,
+        isPresented: Binding<Bool>,
+        @MenuBuilder menu: () -> Menu,
+        preview: @escaping () -> PreviewViewController,
+        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
+    ) where Preview == ViewControllerRepresentableAdapter<PreviewViewController> {
+        self.init(
+            transition: transition,
+            isPresented: isPresented
+        ) {
+            menu()
+        } preview: {
+            ViewControllerRepresentableAdapter(preview)
+        } accessoryViews: {
+            accessoryViews()
+        }
+    }
+}
+
+@available(iOS 14.0, *)
 extension View {
 
     /// A view manages the presentation of a context menu. The presentation is
@@ -80,6 +103,33 @@ extension View {
         isPresented: Binding<Bool>,
         @MenuBuilder menu: () -> Menu,
         @ViewBuilder preview: () -> Preview = { EmptyView() },
+        @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
+    ) -> some View {
+        modifier(
+            ContextMenuLinkModifier(
+                transition: transition,
+                isPresented: isPresented,
+                menu: menu,
+                preview: preview,
+                accessoryViews: accessoryViews
+            )
+        )
+    }
+
+    /// A view manages the presentation of a context menu. The presentation is
+    /// sourced from this view, but does not raise a view with the presented menu.
+    ///
+    /// The context menu is only presented via the `isPresented` binding.
+    ///
+    public func contextMenuLink<
+        Menu: MenuElement,
+        AccessoryViews: View,
+        PreviewViewController: UIViewController
+    >(
+        transition: ContextMenuLinkPreviewTransition = .default,
+        isPresented: Binding<Bool>,
+        @MenuBuilder menu: () -> Menu,
+        preview: @escaping () -> PreviewViewController,
         @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
     ) -> some View {
         modifier(

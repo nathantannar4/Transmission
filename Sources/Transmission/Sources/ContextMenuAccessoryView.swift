@@ -321,10 +321,11 @@ extension UIContextMenuInteraction {
             if location == .preview, let view = interaction.view, let window = view.window {
                 let frameInWindow = view.convert(view.bounds, to: view.window)
                 if alignment.vertical == .top {
-                    offset.y += max(window.safeAreaInsets.top - (frameInWindow.minY - contentView.frame.size.height), 0)
+                    offset.y += min(window.safeAreaInsets.top + offset.y, max(window.safeAreaInsets.top - (frameInWindow.minY - contentView.frame.size.height), 0))
                 } else if alignment.vertical == .bottom {
-                    offset.y -= max(window.safeAreaInsets.bottom - (window.frame.height - frameInWindow.maxY - contentView.frame.size.height), 0)
+                    offset.y -= min(window.safeAreaInsets.bottom + offset.y, max(window.safeAreaInsets.bottom - (window.frame.height - frameInWindow.maxY - contentView.frame.size.height), 0))
                 }
+                print(offset.y)
             }
             accessoryView.setValue(offset, forKey: "offset")
         }

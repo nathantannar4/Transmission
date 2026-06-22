@@ -45,26 +45,11 @@ public struct DestinationLinkAdapter<
 
     public init(
         transition: DestinationLinkTransition,
-        isPresented: Binding<Bool>,
-        @ViewBuilder destination: () -> Destination
-    ) where Content == EmptyView {
-        self.init(
-            transition: transition,
-            isPresented: isPresented,
-            destination: destination,
-            content: {
-                EmptyView()
-            }
-        )
-    }
-
-    public init(
-        transition: DestinationLinkTransition,
         cornerRadius: CornerRadiusOptions? = nil,
         backgroundColor: Color? = nil,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: () -> Content = { EmptyView() }
     ) {
         self.transition = transition
         self.cornerRadius = cornerRadius
@@ -72,22 +57,6 @@ public struct DestinationLinkAdapter<
         self.isPresented = isPresented
         self.content = content()
         self.destination = destination()
-    }
-
-    public init<ViewController: UIViewController>(
-        transition: DestinationLinkTransition,
-        cornerRadius: CornerRadiusOptions? = nil,
-        backgroundColor: Color? = nil,
-        isPresented: Binding<Bool>,
-        destination: @escaping () -> ViewController,
-        @ViewBuilder content: () -> Content
-    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.transition = transition
-        self.cornerRadius = cornerRadius
-        self.backgroundColor = backgroundColor
-        self.isPresented = isPresented
-        self.content = content()
-        self.destination = ViewControllerRepresentableAdapter(destination)
     }
 
     public var body: some View {
@@ -99,6 +68,50 @@ public struct DestinationLinkAdapter<
             destination: destination,
             sourceView: content
         )
+    }
+}
+
+@available(iOS 14.0, *)
+extension DestinationLinkAdapter {
+
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder content: () -> Content = { EmptyView() }
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            isPresented: isPresented
+        ) {
+            ViewControllerRepresentableAdapter(destination)
+        } content: {
+            content()
+        }
+    }
+
+    public init<ViewController: UIViewController>(
+        transition: DestinationLinkTransition,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        isPresented: Binding<Bool>,
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController,
+        @ViewBuilder content: () -> Content = { EmptyView() }
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            isPresented: isPresented
+        ) {
+            ViewControllerRepresentableAdapter(destination)
+        } content: {
+            content()
+        }
     }
 }
 
@@ -197,7 +210,7 @@ private struct DestinationLinkAdapterBody<
 final class DestinationLinkCoordinator<
     Destination: View,
     Representable: UIViewRepresentable
->: NSObject, DestinationLinkDelegate
+>: NSObject, DestinationLinkCoordinatorDelegate, DestinationLinkDelegate
 {
     var viewController: UIViewController? { adapter?.viewController }
 
@@ -442,12 +455,18 @@ final class DestinationLinkCoordinator<
         adapter = nil
     }
 
+    func navigationControllerCanBeginInteractivePop() -> Bool {
+        guard let transition = adapter?.transition else { return true }
+        guard transition.options.isInteractive else { return false }
+        return true
+    }
+
     func navigationControllerShouldBeginInteractivePop(
         _ navigationController: UINavigationController,
         gesture: UIGestureRecognizer
     ) -> Bool {
+        guard navigationControllerCanBeginInteractivePop() else { return false }
         guard let transition = adapter?.transition else { return true }
-        guard transition.options.isInteractive else { return false }
         let isBuiltInGesture = {
             if gesture == navigationController.interactivePopGestureRecognizer {
                 return true
@@ -784,8 +803,15 @@ final class DestinationLinkCoordinator<
     }
 }
 
+/// A public protocol you can cast the `UINavigationController` delegate to
+@MainActor
+public protocol DestinationLinkDelegate {
+
+    func navigationControllerCanBeginInteractivePop() -> Bool
+}
+
 @objc
-protocol DestinationLinkDelegate: UINavigationControllerDelegate{
+protocol DestinationLinkCoordinatorDelegate: UINavigationControllerDelegate  {
 
     func navigationControllerShouldBeginInteractivePop(
         _ navigationController: UINavigationController,
@@ -814,12 +840,13 @@ protocol DestinationLinkDelegate: UINavigationControllerDelegate{
 final class DestinationLinkDelegateProxy: NSObject,
     UINavigationControllerDelegate,
     UIGestureRecognizerDelegate,
-    UINavigationControllerPresentationDelegate
+    UINavigationControllerPresentationDelegate,
+    DestinationLinkDelegate
 {
 
     private weak var navigationController: UINavigationController?
     private weak var delegate: UINavigationControllerDelegate?
-    private var delegates = [ObjectIdentifier: ObjCWeakBox<DestinationLinkDelegate>]()
+    private var delegates = [ObjectIdentifier: ObjCWeakBox<DestinationLinkCoordinatorDelegate>]()
 
     var transitioningId: ObjectIdentifier?
     weak var transition: UIPercentDrivenInteractiveTransition?
@@ -885,14 +912,14 @@ final class DestinationLinkDelegateProxy: NSObject,
     }
 
     func add(
-        delegate: DestinationLinkDelegate,
+        delegate: DestinationLinkCoordinatorDelegate,
         for viewController: UIViewController
     ) {
         delegates[ObjectIdentifier(viewController)] = ObjCWeakBox(value: delegate)
     }
 
     func remove(
-        delegate: DestinationLinkDelegate,
+        delegate: DestinationLinkCoordinatorDelegate,
         for viewController: UIViewController
     ) {
         delegates[ObjectIdentifier(viewController)] = nil
@@ -1025,26 +1052,26 @@ final class DestinationLinkDelegateProxy: NSObject,
                     shouldFinish = (percentage >= threshold && targetVelocity <= targetVelocityThreshold) || (percentage > 0 && targetVelocity <= -800)
                 }
             }
-            let delta = (!shouldFinish || isInterruptedInteractiveTransition ? (1 - percentage) : percentage) * navigationController.view.frame.width
+            let delta = (isInterruptedInteractiveTransition ? (1 - percentage) : percentage) * view.frame.width
             if isInterruptedInteractiveTransition || !shouldFinish {
                 targetVelocity = -targetVelocity
             }
             var dx = delta >= 1 ? targetVelocity / delta : 0
             if dx < 0 {
-                dx = max(dx, -25)
+                dx = max(dx, -30)
             } else {
-                dx = min(dx, 25)
+                dx = min(dx, 30)
             }
             let initialVelocity = CGVector(
                 dx: dx,
-                dy: 0
+                dy: velocity.y / view.frame.height
             )
             // `completionSpeed` handling seems to differ across iOS version
             if #available(iOS 18.0, *) {
                 if shouldFinish {
-                    transition.completionSpeed = 1 - percentage
+                    transition.completionSpeed = max(0.5, 1 - percentage)
                 } else {
-                    transition.completionSpeed = percentage
+                    transition.completionSpeed = max(0.5, percentage)
                 }
             }
             transition.timingCurve = UISpringTimingParameters(
@@ -1158,6 +1185,15 @@ final class DestinationLinkDelegateProxy: NSObject,
                 isPopReady = false
             }
         }
+    }
+
+    // MARK: - DestinationLinkDelegate
+
+    func navigationControllerCanBeginInteractivePop() -> Bool {
+        guard let topViewController = navigationController?.topViewController else { return false }
+        let delegate = delegates[ObjectIdentifier(topViewController)]?.value
+        guard let delegate = delegate as? DestinationLinkDelegate else { return true }
+        return delegate.navigationControllerCanBeginInteractivePop()
     }
 
     // MARK: - UINavigationControllerPresentationDelegate
@@ -1633,7 +1669,7 @@ class DestinationLinkDestinationViewControllerAdapter<
         content: Destination,
         context: Representable.Context
     ) -> UIViewController {
-        let modifier =  DestinationBridgeAdapter(
+        let modifier = DestinationBridgeAdapter(
             destinationCoordinator: DestinationCoordinator(
                 isPresented: isPresented.wrappedValue,
                 sourceView: sourceView,

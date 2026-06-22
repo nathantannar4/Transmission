@@ -46,26 +46,11 @@ public struct PresentationLinkAdapter<
 
     public init(
         transition: PresentationLinkTransition,
-        isPresented: Binding<Bool>,
-        @ViewBuilder destination: () -> Destination
-    ) where Content == EmptyView {
-        self.init(
-            transition: transition,
-            isPresented: isPresented,
-            destination: destination,
-            content: {
-                EmptyView()
-            }
-        )
-    }
-
-    public init(
-        transition: PresentationLinkTransition,
         cornerRadius: CornerRadiusOptions? = nil,
         backgroundColor: Color? = nil,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: () -> Content = { EmptyView() }
     ) {
         self.transition = transition
         self.cornerRadius = cornerRadius
@@ -73,22 +58,6 @@ public struct PresentationLinkAdapter<
         self.isPresented = isPresented
         self.content = content()
         self.destination = destination()
-    }
-
-    public init<ViewController: UIViewController>(
-        transition: PresentationLinkTransition,
-        cornerRadius: CornerRadiusOptions? = nil,
-        backgroundColor: Color? = nil,
-        isPresented: Binding<Bool>,
-        destination: @escaping () -> ViewController,
-        @ViewBuilder content: () -> Content
-    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
-        self.transition = transition
-        self.cornerRadius = cornerRadius
-        self.backgroundColor = backgroundColor
-        self.isPresented = isPresented
-        self.content = content()
-        self.destination = ViewControllerRepresentableAdapter(destination)
     }
 
     public var body: some View {
@@ -100,6 +69,50 @@ public struct PresentationLinkAdapter<
             destination: destination,
             sourceView: content
         )
+    }
+}
+
+@available(iOS 14.0, *)
+extension PresentationLinkAdapter {
+
+    public init<ViewController: UIViewController>(
+        transition: PresentationLinkTransition,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        isPresented: Binding<Bool>,
+        destination: @escaping () -> ViewController,
+        @ViewBuilder content: () -> Content = { EmptyView() }
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            isPresented: isPresented
+        ) {
+            ViewControllerRepresentableAdapter(destination)
+        } content: {
+            content()
+        }
+    }
+
+    public init<ViewController: UIViewController>(
+        transition: PresentationLinkTransition,
+        cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
+        isPresented: Binding<Bool>,
+        destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController,
+        @ViewBuilder content: () -> Content = { EmptyView() }
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
+        self.init(
+            transition: transition,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            isPresented: isPresented
+        ) {
+            ViewControllerRepresentableAdapter(destination)
+        } content: {
+            content()
+        }
     }
 }
 
