@@ -373,7 +373,9 @@ struct PresentationLinkModifier_Previews: PreviewProvider {
     }
 
     static var previews: some View {
-        Preview()
+        ZStack {
+            Preview()
+        }
     }
 }
 

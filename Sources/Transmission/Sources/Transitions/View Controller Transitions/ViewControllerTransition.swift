@@ -15,7 +15,8 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     public let isPresenting: Bool
     public var animation: Animation?
     private var animator: UIViewPropertyAnimator?
-    
+    private weak var context: UIViewControllerContextTransitioning?
+
     open var isInterruptible: Bool {
         wantsInteractiveStart || (animation?.delay ?? 0) == 0
     }
@@ -64,12 +65,14 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     open func animatedStarted(
         transitionContext: UIViewControllerContextTransitioning
     ) {
+        context = transitionContext
     }
 
     open func animationEnded(
         _ transitionCompleted: Bool
     ) {
         animator = nil
+        context = nil
     }
 
     public func interruptibleAnimator(
@@ -120,6 +123,14 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
                 animator?.continueAnimation(withTimingParameters: timingCurve, durationFactor: completionSpeed)
             }
         }
+    }
+
+    open func complete(_ didComplete: Bool) {
+        if animator?.isRunning == true {
+            animator?.stopAnimation(true)
+            animator?.finishAnimation(at: didComplete ? .end : .start)
+        }
+        context?.completeTransition(didComplete)
     }
 
     open override func responds(to aSelector: Selector!) -> Bool {

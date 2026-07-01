@@ -26,6 +26,8 @@ public protocol MenuElement {
     @MainActor @preconcurrency func _updateUIMenu(_ menu: inout UIMenu, context: Context)
     @MainActor @preconcurrency func _updateVisibleUIMenu(_ menu: inout UIMenu, context: Context, stop: inout Bool)
 
+    @MainActor @preconcurrency func _updateUIAlertController(_ alert: UIAlertController, context: Context)
+
     typealias Context = MenuRepresentableContext
 
     @MainActor @preconcurrency var layoutProperties: MenuElementLayoutProperties { get }
@@ -46,7 +48,7 @@ public enum MenuElementsOrder {
     case fixed
 }
 
-public struct MenuElementAttributes: OptionSet {
+public struct MenuElementAttributes: OptionSet, Sendable {
 
     public var rawValue: UInt8
 
@@ -148,6 +150,10 @@ extension MenuElement {
         }
     }
 
+    public func _updateUIAlertController(_ alert: UIAlertController, context: Context) {
+        body._updateUIAlertController(alert, context: context)
+    }
+
     public var layoutProperties: MenuElementLayoutProperties {
         MenuElementLayoutProperties(order: .automatic)
     }
@@ -209,6 +215,8 @@ extension PrimitiveMenuElement {
             stop = true
         }
     }
+
+    public func _updateUIAlertController(_ alert: UIAlertController, context: MenuRepresentableContext) { }
 }
 
 @available(iOS 14.0, *)
@@ -245,6 +253,8 @@ public struct EmptyMenuElement: PrimitiveMenuElement {
             ]
         }
     }
+
+    public func _updateUIAlertController(_ alert: UIAlertController, context: Context) { }
 }
 
 @available(iOS 14.0, *)
@@ -324,6 +334,12 @@ public struct MenuElementsCollection<
             }
         }
     }
+
+    public func _updateUIAlertController(_ alert: UIAlertController, context: Context) {
+        for value in values {
+            value._updateUIAlertController(alert, context: context)
+        }
+    }
 }
 
 @available(iOS 14.0, *)
@@ -368,6 +384,11 @@ public struct MenuElementsTuple<
         var visitor = ElementsVisitor(elements: elements, context: context)
         children.visit(visitor: &visitor)
         elements = visitor.elements
+    }
+
+    public func _updateUIAlertController(_ alert: UIAlertController, context: Context) {
+        var visitor = AlertVisitor(alert: alert, context: context)
+        children.visit(visitor: &visitor)
     }
 
     public func _updateVisibleUIMenu(_ menu: inout UIMenu, context: Context, stop: inout Bool) {
@@ -431,6 +452,17 @@ public struct MenuElementsTuple<
             guard let element = element as? any MenuElement else { return }
             element._updateVisibleUIMenu(&menu, context: context, stop: &didUpdate)
             stop = didUpdate
+        }
+    }
+
+    @MainActor
+    private struct AlertVisitor: @preconcurrency TupleVisitor {
+        var alert: UIAlertController
+        var context: MenuRepresentableContext
+
+        func visit<Element>(element: Element, offset: Offset, stop: inout Bool) {
+            guard let element = element as? any MenuElement else { return }
+            element._updateUIAlertController(alert, context: context)
         }
     }
 }
@@ -515,6 +547,15 @@ extension ConditionalContent: MenuElement, PrimitiveMenuElement where TrueConten
             content._updateVisibleUIMenu(&menu, context: context, stop: &stop)
         case .falseContent(let content):
             content._updateVisibleUIMenu(&menu, context: context, stop: &stop)
+        }
+    }
+
+    public func _updateUIAlertController(_ alert: UIAlertController, context: Context) {
+        switch storage {
+        case .trueContent(let content):
+            content._updateUIAlertController(alert, context: context)
+        case .falseContent(let content):
+            content._updateUIAlertController(alert, context: context)
         }
     }
 }
@@ -607,6 +648,15 @@ extension Optional: MenuElement, PrimitiveMenuElement where Wrapped: MenuElement
             content._updateVisibleUIMenu(&menu, context: context, stop: &stop)
         }
     }
+
+    public func _updateUIAlertController(_ alert: UIAlertController, context: Context) {
+        switch self {
+        case .none:
+            break
+        case .some(let content):
+            content._updateUIAlertController(alert, context: context)
+        }
+    }
 }
 
 @available(iOS 14.0, *)
@@ -637,6 +687,9 @@ public struct AnyMenuElement: PrimitiveMenuElement {
     @usableFromInline
     var updateVisibleMenu: @MainActor (inout UIMenu, Context, inout Bool) -> Void
 
+    @usableFromInline
+    var updateAlertController: @MainActor (UIAlertController, Context) -> Void
+
     @inlinable
     public init<Element: MenuElement>(_ element: Element) {
         let box = Box(element)
@@ -647,7 +700,8 @@ public struct AnyMenuElement: PrimitiveMenuElement {
         updateMenuElements = { box.value._updateUIMenuElements(&$0, context: $1) }
         makeMenu = { box.value._makeUIMenu(context: $0, ) }
         updateMenu = { box.value._updateUIMenu(&$0, context: $1) }
-        updateVisibleMenu = { box.value._updateVisibleUIMenu(&$0, context: $1, stop: &$2)}
+        updateVisibleMenu = { box.value._updateVisibleUIMenu(&$0, context: $1, stop: &$2) }
+        updateAlertController = { box.value._updateUIAlertController($0, context: $1) }
     }
 
     public func _makeUIMenuElement(context: Context) -> UIMenuElement {
@@ -680,6 +734,10 @@ public struct AnyMenuElement: PrimitiveMenuElement {
 
     public func _updateVisibleUIMenu(_ menu: inout UIMenu, context: Context, stop: inout Bool) {
         updateVisibleMenu(&menu, context, &stop)
+    }
+
+    public func _updateUIAlertController(_ alert: UIAlertController, context: Context) {
+        updateAlertController(alert, context)
     }
 
     @usableFromInline

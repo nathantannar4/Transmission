@@ -12,8 +12,8 @@ import EngineCore
 @frozen
 public struct PresentationLinkTransition: Sendable {
 
-    @frozen
-    public enum Value: Sendable {
+    @usableFromInline
+    enum Value: Sendable {
         case `default`
         case sheet(SheetPresentationLinkTransition.Options)
         case currentContext
@@ -22,11 +22,15 @@ public struct PresentationLinkTransition: Sendable {
         case zoom(ZoomPresentationLinkTransition.Options)
         case representable(any PresentationLinkTransitionRepresentable)
     }
-    public var value: Value
+    @usableFromInline
+    var value: Value
     public var options: Options
 
     @inlinable
-    public init(value: Value, options: Options = .init()) {
+    init(
+        value: Value,
+        options: Options = .init()
+    ) {
         self.value = value
         self.options = options
     }

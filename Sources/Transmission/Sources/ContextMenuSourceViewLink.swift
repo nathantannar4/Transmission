@@ -7,35 +7,6 @@
 import SwiftUI
 import Engine
 
-/// The transition when committing the context menu preview
-@available(iOS 14.0, *)
-public struct ContextMenuLinkPreviewTransition: Sendable {
-
-    enum Value: Sendable {
-        case transient
-        case presentation
-        case destination
-        case custom(_ action: @Sendable () -> Void)
-    }
-    var value: Value
-
-    /// A transient transition
-    public static let transient = ContextMenuLinkPreviewTransition(value: .transient)
-
-    /// A presention transition
-    public static let presentation = ContextMenuLinkPreviewTransition(value: .presentation)
-
-    /// A push transition
-    public static let destination = ContextMenuLinkPreviewTransition(value: .destination)
-
-    /// A custom action for your own transition
-    public static func custom(_ action: @Sendable @escaping () -> Void) -> ContextMenuLinkPreviewTransition {
-        ContextMenuLinkPreviewTransition(value: .custom(action))
-    }
-
-    public static var `default`: ContextMenuLinkPreviewTransition { .transient }
-}
-
 /// A view that manages the presentation of a context menu. The presentation is
 /// sourced from this view.
 ///

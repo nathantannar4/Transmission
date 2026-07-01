@@ -12,7 +12,7 @@ import Engine
 public struct MenuButton: MenuElementRepresentable {
 
     @frozen
-    public struct ID: Hashable, ExpressibleByStringLiteral {
+    public struct ID: Hashable, Sendable, ExpressibleByStringLiteral {
         var id: UIAction.Identifier
 
         public init(stringLiteral value: StringLiteralType) {
@@ -32,7 +32,14 @@ public struct MenuButton: MenuElementRepresentable {
         }
     }
 
-    public enum State {
+    @frozen
+    public enum Role: Equatable, Sendable {
+        case confirm
+        case cancel
+    }
+
+    @frozen
+    public enum State: Sendable {
         case off
         case on
         case mixed
@@ -51,9 +58,25 @@ public struct MenuButton: MenuElementRepresentable {
 
     public var label: LabelElement
     public var id: ID?
+    public var role: Role?
     public var state: State
     public var attributes: MenuElementAttributes
-    public var action: @MainActor () -> Void
+    public var action: (@MainActor () -> Void)?
+
+    @_disfavoredOverload
+    @inlinable
+    public init(
+        role: Role,
+        attributes: MenuElementAttributes = [],
+        action: (@MainActor () -> Void)? = nil,
+        @LabelElementBuilder label: () -> LabelElement
+    ) {
+        self.label = label()
+        self.role = role
+        self.state = .off
+        self.attributes = attributes
+        self.action = action
+    }
 
     @inlinable
     public init(
@@ -87,7 +110,9 @@ public struct MenuButton: MenuElementRepresentable {
         )
     }
 
-    public func makeUIMenuElement(context: Context) -> UIAction {
+    public func makeUIMenuElement(
+        context: Context
+    ) -> UIAction {
         if #available(iOS 15.0, *) {
             return UIAction(
                 title: label.title?.resolve(in: context.environment) ?? "",
@@ -97,7 +122,7 @@ public struct MenuButton: MenuElementRepresentable {
                 attributes: attributes.toUIKit(),
                 state: state.toUIKit()
             ) { _ in
-                action()
+                action?()
             }
         } else {
             return UIAction(
@@ -107,12 +132,15 @@ public struct MenuButton: MenuElementRepresentable {
                 attributes: attributes.toUIKit(),
                 state: state.toUIKit()
             ) { _ in
-                action()
+                action?()
             }
         }
     }
 
-    public func updateUIMenuElement(_ element: inout UIAction, context: Context) {
+    public func updateUIMenuElement(
+        _ element: inout UIAction,
+        context: Context
+    ) {
         element.title = label.title?.resolve(in: context.environment) ?? ""
         if #available(iOS 16.0, *) {
             element.subtitle = label.subtitle?.resolve(in: context.environment)
@@ -123,7 +151,52 @@ public struct MenuButton: MenuElementRepresentable {
         element.image = label.image?.toUIImage(in: context.environment)
         element.state = state.toUIKit()
         element.attributes = attributes.toUIKit()
-        element.handler = { _ in action() }
+        element.handler = { _ in action?() }
+    }
+
+    public func _updateUIAlertController(
+        _ alert: UIAlertController,
+        context: Context
+    ) {
+        guard !attributes.contains(.hidden) else { return }
+        let element = UIAlertAction(
+            title: label.title?.resolve(in: context.environment),
+            style: {
+                if role == nil, attributes.contains(.destructive) {
+                    return .destructive
+                } else if role == .cancel, alert.preferredStyle != .actionSheet {
+                    return .cancel
+                }
+                return .default
+            }(),
+            handler: action.map({ action in return { _ in action() } })
+        )
+        if let image = label.image?.toUIImage(in: context.environment),
+            // setImage:
+            let aSelector = NSSelectorFromBase64EncodedString("c2V0SW1hZ2U6"),
+            element.responds(to: aSelector)
+        {
+            element.perform(aSelector, with: image)
+        }
+        element.isEnabled = !attributes.contains(.disabled)
+        alert.addAction(element)
+        if alert.preferredAction == nil, role == .confirm {
+            alert.preferredAction = element
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+extension MenuButton {
+
+    public func disabled(_ disabled: Bool) -> MenuButton {
+        var copy = self
+        if disabled {
+            copy.attributes.formUnion(.disabled)
+        } else {
+            copy.attributes.subtract(.disabled)
+        }
+        return copy
     }
 }
 

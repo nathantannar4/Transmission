@@ -12,34 +12,27 @@ import Engine
 public struct MenuElementView<Content: View>: MenuElementRepresentable {
 
     public var content: Content
-    public var safeAreaInsets: EdgeInsets
     public var attributes: MenuElementAttributes
     public var action: (@MainActor () -> Void)?
 
     @inlinable
     public init(
-        safeAreaInsets: EdgeInsets = {
-            if #available(iOS 26.0, *) {
-                return EdgeInsets(top: 10, leading: 28, bottom: 10, trailing: 28)
-            }
-            return EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
-        }(),
         attributes: MenuElementAttributes = [],
-        @ViewBuilder content: () -> Content,
-        action: (@MainActor () -> Void)? = nil
+        action: (@MainActor () -> Void)? = nil,
+        @ViewBuilder content: () -> Content
     ) {
         self.content = content()
-        self.safeAreaInsets = safeAreaInsets
         self.attributes = attributes
         self.action = action
     }
 
     public typealias UIMenuElementType = UIMenuElement & UIMenuLeaf
 
-    public func makeUIMenuElement(context: Context) -> UIMenuElementType {
+    public func makeUIMenuElement(
+        context: Context
+    ) -> UIMenuElementType {
         let element = UIMenuElement.customView(
-            content: content,
-            safeAreaInsets: safeAreaInsets
+            content: content
         )
         if let element {
             element.attributes = attributes.toUIKit()
@@ -49,17 +42,39 @@ public struct MenuElementView<Content: View>: MenuElementRepresentable {
         return UIAction(attributes: .hidden) { _ in }
     }
 
-    public func updateUIMenuElement(_ element: inout UIMenuElementType, context: Context) {
+    public func updateUIMenuElement(
+        _ element: inout UIMenuElementType,
+        context: Context
+    ) {
         // Can't reuse the element or there is a noticible flicker as the menu reloads
         element = makeUIMenuElement(context: context)
     }
 
-    public func _updateUIMenuElement(_ element: inout UIMenuElement, context: MenuRepresentableContext) {
+    public func _updateUIMenuElement(
+        _ element: inout UIMenuElement,
+        context: MenuRepresentableContext
+    ) {
         if let aClass = UICustomViewMenuElement, element.isKind(of: aClass), var updated = element as? UIMenuElementType {
             updateUIMenuElement(&updated, context: context)
             element = updated
         } else {
             element = makeUIMenuElement(context: context)
+        }
+    }
+
+    public func _updateUIAlertController(
+        _ alert: UIAlertController,
+        context: Context
+    ) {
+        guard !attributes.contains(.hidden) else { return }
+        let element = UIAlertAction.customView(
+            content: content,
+            style: attributes.contains(.destructive) ? .destructive : .default,
+            handler: action.map({ action in return { _ in action() } })
+        )
+        if let element {
+            element.isEnabled = !attributes.contains(.disabled)
+            alert.addAction(element)
         }
     }
 }
@@ -99,7 +114,8 @@ struct MenuElementViewBody<Content: View>: View {
                     trailing: safeAreaInsets.trailing
                 )
             )
-            .tint(element?.attributes.contains(.destructive) == true ? .red : .black)
+            .tint(element?.attributes.contains(.destructive) == true ? .red : nil)
+            .foregroundStyle(Color.red, isEnabled: element?.attributes.contains(.destructive) == true)
             .disabled(element?.attributes.contains(.disabled) ?? false)
     }
 }
@@ -189,6 +205,107 @@ extension UIMenuElement {
     }
 }
 
+class AlertActionHostingController<Content: View>: HostingController<Content> {
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = nil
+        #if canImport(FoundationModels) // Xcode 26
+        if #available(iOS 26.0, *)  {
+            view.clipsToBounds = true
+            view.cornerConfiguration = .capsule()
+        }
+        #endif
+    }
+}
+
+struct AlertActionViewBody<Content: View>: VersionedView {
+    var content: Content
+    var safeAreaInsets: EdgeInsets
+    weak var action: UIAlertAction?
+
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+    var v4Body: some View {
+        content
+            .safeAreaInsets(safeAreaInsets)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .tint(action?.style == .destructive ? .red : nil)
+            .foregroundStyle(Color.red, isEnabled: action?.style == .destructive)
+            .disabled(action?.isEnabled == false)
+    }
+
+    @available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *)
+    var v3Body: some View {
+        content
+            .safeAreaInsets(safeAreaInsets)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .foregroundStyle(Color.red, isEnabled: action?.style == .destructive)
+            .disabled(action?.isEnabled == false)
+    }
+
+    var v1Body: some View {
+        content
+            .padding(safeAreaInsets)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .foregroundColor(Color.red, isEnabled: action?.style == .destructive)
+            .disabled(action?.isEnabled == false)
+    }
+}
+
+
+extension UIAlertAction {
+
+    private typealias Handler = @convention(block) (UIAlertAction) -> Void
+    private typealias ActionWithContentViewControllerStyleHandler = @convention(c) (NSObject.Type, Selector, UIViewController, Style, Handler?) -> UIAlertAction
+    public static func customView<Content: View>(
+        content: Content,
+        safeAreaInsets: EdgeInsets = {
+            return EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16)
+        }(),
+        style: Style,
+        handler: ((UIAlertAction) -> Void)? = nil
+    ) -> UIAlertAction? {
+        let hostingController = AlertActionHostingController(
+            content: AlertActionViewBody(
+                content: content,
+                safeAreaInsets: safeAreaInsets
+            )
+        )
+        let action = customView(
+            contentViewController: hostingController,
+            style: style,
+            handler: handler
+        )
+        hostingController.content.action = action
+        return action
+    }
+
+    public static func customView(
+        contentViewController: UIViewController,
+        style: Style,
+        handler: ((UIAlertAction) -> Void)? = nil
+    ) -> UIAlertAction? {
+        guard
+            // _actionWithContentViewController:style:handler:
+            let aSelector = NSSelectorFromBase64EncodedString("X2FjdGlvbldpdGhDb250ZW50Vmlld0NvbnRyb2xsZXI6c3R5bGU6aGFuZGxlcjo="),
+            responds(to: aSelector),
+            let imp = method(for: aSelector)
+        else {
+            return nil
+        }
+        let method = unsafeBitCast(imp, to: ActionWithContentViewControllerStyleHandler.self)
+        let action = method(
+            UIAlertAction.self,
+            aSelector,
+            contentViewController,
+            style,
+            handler
+        )
+        return action
+    }
+}
+
+
 // MARK: - Previews
 
 @available(iOS 16.0, *)
@@ -202,23 +319,50 @@ struct MenuElementView_Previews: PreviewProvider {
     struct Preview: View {
         @State var isSelected = false
 
-        var body: some View {
-            MenuSourceViewLink {
-                MenuButton(isSelected: isSelected) {
-                    withAnimation {
-                        isSelected.toggle()
-                    }
-                } label: {
-                    Text("isSelected")
-                }
-
-                MenuElementView {
-                    Text("Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+        @MenuBuilder
+        var menu: some MenuElement {
+            MenuButton(isSelected: isSelected) {
+                withAnimation {
+                    isSelected.toggle()
                 }
             } label: {
-                Text("Menu")
+                Text("isSelected")
+            }
+
+            MenuElementView {
+
+            } content: {
+                Toggle(isOn: $isSelected) {
+                    Text("isSelected")
+                }
+            }
+
+            MenuElementView {
+                Text("Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+
+        var body: some View {
+            VStack {
+                MenuSourceViewLink {
+                    menu
+                } label: {
+                    Text("Menu")
+                }
+
+                MenuDialogLink(transition: .alert) {
+                    menu
+                } label: {
+                    Text("Alert")
+                }
+
+                MenuDialogLink(transition: .actionSheet) {
+                    menu
+                } label: {
+                    Text("Alert")
+                }
             }
         }
     }

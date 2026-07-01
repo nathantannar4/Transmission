@@ -500,7 +500,15 @@ final class PresentationLinkCoordinator<
                 switch adapter.transition.value {
                 case .`default`:
                     if let presentationController = adapter.viewController.presentationController {
-                        presentationController.delegate = self
+                        if adapter.viewController is UIAlertController {
+                            if let popoverPresentationController = presentationController as? UIPopoverPresentationController
+                            {
+                                adapter.viewController.transitioningDelegate = self
+                                popoverPresentationController.permittedArrowDirections = .any
+                            }
+                        } else {
+                            presentationController.delegate = self
+                        }
                         presentationController.overrideTraitCollection = traits
                         self.presentationController = presentationController
 
@@ -1098,6 +1106,21 @@ final class PresentationLinkCoordinator<
             return animationController
 
         default:
+            if #available(iOS 15.0, *), presentationController is UISheetPresentationController {
+                let animationController = SheetPresentationControllerTransition(
+                    isPresenting: true,
+                    animation: animation
+                )
+                animationController.wantsInteractiveStart = false
+                return animationController
+            } else if presentationController is UIPopoverPresentationController {
+                let animationController = PopoverPresentationControllerTransition(
+                    isPresenting: true,
+                    animation: animation
+                )
+                animationController.wantsInteractiveStart = false
+                return animationController
+            }
             return nil
         }
     }
@@ -1157,6 +1180,21 @@ final class PresentationLinkCoordinator<
             return animationController
 
         default:
+            if #available(iOS 15.0, *), presentationController is UISheetPresentationController {
+                let animationController = SheetPresentationControllerTransition(
+                    isPresenting: false,
+                    animation: animation
+                )
+                animationController.wantsInteractiveStart = false
+                return animationController
+            } else if presentationController is UIPopoverPresentationController {
+                let animationController = PopoverPresentationControllerTransition(
+                    isPresenting: false,
+                    animation: animation
+                )
+                animationController.wantsInteractiveStart = false
+                return animationController
+            }
             return nil
         }
     }

@@ -11,18 +11,18 @@ import Engine
 @available(iOS 14.0, *)
 public struct DestinationLinkTransition: Sendable {
 
-    @frozen
-    public enum Value: Sendable {
+    @usableFromInline
+    enum Value: Sendable {
         case `default`
         case zoom(ZoomDestinationLinkTransition.Options)
         case representable(any DestinationLinkTransitionRepresentable)
     }
 
-    public var value: Value
+    @usableFromInline
+    var value: Value
     public var options: Options
 
-    @inlinable
-    public init(
+    init(
         value: Value,
         options: Options = .init()
     ) {

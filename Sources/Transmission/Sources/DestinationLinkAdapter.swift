@@ -333,9 +333,7 @@ final class DestinationLinkCoordinator<
                     }
                 }
                 if let transitionCoordinator = navigationController.transitionCoordinator,
-                   transitionCoordinator.presentationStyle == .none,
-                   let toVC = transitionCoordinator.viewController(forKey: .to),
-                   toVC != navigationController.topViewController
+                    transitionCoordinator.presentationStyle == .none
                 {
                     transitionCoordinator.animate(alongsideTransition: nil) { _ in
                         present()
@@ -398,22 +396,8 @@ final class DestinationLinkCoordinator<
             didPresentAnimated = false
             isPushing = false
         }
-        if let transitionCoordinator = viewController.transitionCoordinator,
-            transitionCoordinator.presentationStyle != .none
-        {
-            transitionCoordinator.animate(alongsideTransition: nil) { [weak self] _ in
-                viewController._popViewController(
-                    count: count,
-                    animated: transaction.isAnimated
-                ) { [weak self] success in
-                    guard success, count > 0, self?.adapter?.viewController == viewController else { return }
-                    self?.onPop(transaction)
-                    self?.didPop()
-                }
-            }
-        } else {
-            if let transitionCoordinator = viewController.transitionCoordinator,
-                transitionCoordinator.presentationStyle == .none,
+        if let transitionCoordinator = viewController.transitionCoordinator {
+            if transitionCoordinator.presentationStyle == .none,
                 transitionCoordinator.viewController(forKey: .to) == viewController,
                 let transition = adapter?.navigationController?.delegates.transition(for: viewController)
             {
@@ -423,7 +407,19 @@ final class DestinationLinkCoordinator<
                     self?.onPop(transaction)
                     self?.didPop()
                 }
+            } else {
+                transitionCoordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                    viewController._popViewController(
+                        count: count,
+                        animated: transaction.isAnimated
+                    ) { [weak self] success in
+                        guard success, count > 0, self?.adapter?.viewController == viewController else { return }
+                        self?.onPop(transaction)
+                        self?.didPop()
+                    }
+                }
             }
+        } else {
             viewController._popViewController(
                 count: count,
                 animated: transaction.isAnimated
@@ -536,8 +532,13 @@ final class DestinationLinkCoordinator<
         isPushing = false
 
         let transaction = Transaction(animation: animated ? animation ?? .default : nil)
-        if let transitionCoordinator = navigationController.transitionCoordinator {
-            if #unavailable(iOS 18.0, ), isCancel {
+        if let transitionCoordinator = navigationController.transitionCoordinator,
+            transitionCoordinator.presentationStyle == .none
+        {
+            if isCancel {
+                onPop(transaction)
+                didPop()
+            } else if #unavailable(iOS 18.0, ) {
                 //  transitionCoordinator.animate not fired
                 onPop(transaction)
             } else {
@@ -553,15 +554,13 @@ final class DestinationLinkCoordinator<
                 let isInterruptible = transitionCoordinator.isInterruptible
                 transitionCoordinator.animate { [weak self] ctx in
                     if !ctx.isInteractive {
-                        withCATransaction {
-                            self?.onPop(transaction)
-                            if !isInterruptible {
-                                self?.didPop()
-                            }
+                        self?.onPop(transaction)
+                        if !isInterruptible {
+                            self?.didPop()
                         }
                     }
                 } completion: { [weak self] ctx in
-                    if ctx.isCancelled, !isCancel {
+                    if ctx.isCancelled {
                         self?.isPresented.wrappedValue = true
                     } else if !isInteractive, isInterruptible {
                         self?.didPop()
@@ -848,8 +847,10 @@ final class DestinationLinkDelegateProxy: NSObject,
     private weak var delegate: UINavigationControllerDelegate?
     private var delegates = [ObjectIdentifier: ObjCWeakBox<DestinationLinkCoordinatorDelegate>]()
 
-    var transitioningId: ObjectIdentifier?
-    weak var transition: UIPercentDrivenInteractiveTransition?
+    private var transitioningId: ObjectIdentifier?
+    private weak var transition: UIPercentDrivenInteractiveTransition?
+    private weak var cancelledTransition: UIPercentDrivenInteractiveTransition?
+    private weak var finishedTransition: UIPercentDrivenInteractiveTransition?
 
     private weak var popGestureDelegate: UIGestureRecognizerDelegate?
     private weak var panGestureDelegate: UIGestureRecognizerDelegate?
@@ -857,10 +858,7 @@ final class DestinationLinkDelegateProxy: NSObject,
     private var interactivePopPanGestureRecognizer: UIPanGestureRecognizer!
     private var simultaneousPanGestures: [UIPanGestureRecognizer] = []
 
-    private var wantsInteractiveTransition = false
-    private var queuedTransition: UIPercentDrivenInteractiveTransition?
     private var isInterruptedInteractiveTransition = false
-    private var isPendingTransitionCompletion = false
 
     private var feedbackGenerator: UIImpactFeedbackGenerator?
     private var isPopReady = false
@@ -922,7 +920,12 @@ final class DestinationLinkDelegateProxy: NSObject,
         delegate: DestinationLinkCoordinatorDelegate,
         for viewController: UIViewController
     ) {
-        delegates[ObjectIdentifier(viewController)] = nil
+        let id = ObjectIdentifier(viewController)
+        if transitioningId == id {
+            cancelledTransition = transition
+            transition = nil
+        }
+        delegates[id] = nil
     }
 
     func transition(for viewController: UIViewController) -> UIPercentDrivenInteractiveTransition? {
@@ -948,31 +951,12 @@ final class DestinationLinkDelegateProxy: NSObject,
             let view = gestureRecognizer.view,
             let navigationController
         else {
-            return
-        }
-        guard
-            let transition
-        else {
-            if isPendingTransitionCompletion, navigationController.transitionCoordinator == nil {
-                gestureRecognizer.setTranslation(.zero, in: view)
-                navigationController.popViewController(animated: true)
-            } else {
-                panGestureDidEnd(cancel: gestureRecognizer)
-            }
+            panGestureDidEnd(gestureRecognizer, didCancel: true)
             return
         }
 
-        let translation = gestureRecognizer.translation(in: view)
         let velocity = gestureRecognizer.velocity(in: view)
-        var percentage: CGFloat
-        if isInterruptedInteractiveTransition {
-            percentage = 1 - min(max(0, translation.x / view.bounds.width), 1)
-        } else {
-            percentage = min(max(0, translation.x / view.bounds.width), 1)
-        }
-
-        switch gestureRecognizer.state {
-        case .began:
+        if gestureRecognizer.state == .began {
             if isInterruptedInteractiveTransition {
                 if let topViewController = navigationController.topViewController,
                    let frame = topViewController.view.layer.presentation()?.frame
@@ -994,7 +978,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                     if !canBegin {
-                        panGestureDidEnd(cancel: gestureRecognizer)
+                        panGestureDidEnd(gestureRecognizer, didCancel: true)
                         return
                     } else {
                         for gesture in simultaneousPanGestures {
@@ -1003,13 +987,27 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                 }
-                if let transitionCoordinator = navigationController.transitionCoordinator {
+                if let transitionCoordinator = navigationController.transitionCoordinator,
+                    transitionCoordinator.presentationStyle == .none
+                {
                     if !transitionCoordinator.isCancelled {
-                        isPendingTransitionCompletion = true
-                        transitionCoordinator.animate(alongsideTransition: nil) { [weak self] ctx in
-                            guard let self else { return }
-                            if ctx.isCancelled {
-                                panGestureDidEnd(cancel: gestureRecognizer)
+                        if let transition = (finishedTransition ?? cancelledTransition) as? ViewControllerTransition {
+                            transition.complete(transition === finishedTransition)
+                            navigationController.popViewController(animated: true)
+                        } else if let transition = finishedTransition ?? cancelledTransition {
+                            transition.pause()
+                            transition.completionSpeed = 1
+                            transition.timingCurve = nil
+                            transition.completionCurve = .linear
+                            if transition === finishedTransition {
+                                transition.finish()
+                            } else {
+                                transition.cancel()
+                            }
+                            transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                                if gestureRecognizer.isInteracting {
+                                    navigationController.popViewController(animated: true)
+                                }
                             }
                         }
                     }
@@ -1017,8 +1015,19 @@ final class DestinationLinkDelegateProxy: NSObject,
                     navigationController.popViewController(animated: true)
                 }
             }
+        }
 
-        case .changed:
+        let translation = gestureRecognizer.translation(in: view)
+        var percentage: CGFloat
+        if isInterruptedInteractiveTransition {
+            percentage = 1 - min(max(0, translation.x / view.bounds.width), 1)
+        } else {
+            percentage = min(max(0, translation.x / view.bounds.width), 1)
+        }
+
+        switch gestureRecognizer.state {
+        case .began, .changed:
+            guard let transition else { return }
             if isInterruptedInteractiveTransition, abs(velocity.y) > abs(velocity.x) {
                 return
             }
@@ -1030,6 +1039,10 @@ final class DestinationLinkDelegateProxy: NSObject,
             triggerHapticsIfNeeded(panGesture: gestureRecognizer, isActivationThresholdSatisfied: isActivationThresholdSatisfied)
 
         case .cancelled, .ended, .failed:
+            guard let transition else {
+                panGestureDidEnd(gestureRecognizer, didCancel: true)
+                return
+            }
             // Dismiss if:
             // - Drag over 50% and not moving up
             // - Large enough down vector
@@ -1052,8 +1065,8 @@ final class DestinationLinkDelegateProxy: NSObject,
                     shouldFinish = (percentage >= threshold && targetVelocity <= targetVelocityThreshold) || (percentage > 0 && targetVelocity <= -800)
                 }
             }
-            let delta = (isInterruptedInteractiveTransition ? (1 - percentage) : percentage) * view.frame.width
-            if isInterruptedInteractiveTransition || !shouldFinish {
+            let delta = (isInterruptedInteractiveTransition ? (1 - percentage) : max(threshold, percentage)) * view.frame.width
+            if !shouldFinish {
                 targetVelocity = -targetVelocity
             }
             var dx = delta >= 1 ? targetVelocity / delta : 0
@@ -1068,11 +1081,11 @@ final class DestinationLinkDelegateProxy: NSObject,
             )
             // `completionSpeed` handling seems to differ across iOS version
             if #available(iOS 18.0, *) {
-                if shouldFinish {
-                    transition.completionSpeed = max(0.5, 1 - percentage)
-                } else {
-                    transition.completionSpeed = max(0.5, percentage)
+                var completionSpeed = shouldFinish ? 1 - percentage : percentage
+                if isInterruptedInteractiveTransition, shouldFinish {
+                    completionSpeed = 1 - completionSpeed
                 }
+                transition.completionSpeed = completionSpeed
             }
             transition.timingCurve = UISpringTimingParameters(
                 dampingRatio: 0.84,
@@ -1080,8 +1093,8 @@ final class DestinationLinkDelegateProxy: NSObject,
             )
             if shouldFinish {
                 transition.finish()
+                finishedTransition = transition
                 self.transition = nil
-                transitioningId = nil
             } else {
                 if let transitionCoordinator = navigationController.transitionCoordinator {
                     // Fixes bugs with a cancelled interactive push transition
@@ -1109,23 +1122,26 @@ final class DestinationLinkDelegateProxy: NSObject,
                     )
                 }
             }
-            panGestureDidEnd()
+            panGestureDidEnd(gestureRecognizer, didCancel: gestureRecognizer.state != .ended)
 
         default:
-            break
+            panGestureDidEnd(gestureRecognizer, didCancel: true)
         }
     }
 
-    private func panGestureDidEnd(cancel gestureRecognizer: UIPanGestureRecognizer? = nil) {
-        if let gestureRecognizer {
+    private func panGestureDidEnd(
+        _ gestureRecognizer: UIPanGestureRecognizer,
+        didCancel: Bool
+    ) {
+        if didCancel {
+            transition?.cancel()
             transition = nil
+            finishedTransition = nil
             transitioningId = nil
             gestureRecognizer.isEnabled = false
             gestureRecognizer.isEnabled = true
         }
-        queuedTransition = nil
         isInterruptedInteractiveTransition = false
-        isPendingTransitionCompletion = false
         isPopReady = false
         feedbackGenerator = nil
         simultaneousPanGestures = []
@@ -1241,12 +1257,23 @@ final class DestinationLinkDelegateProxy: NSObject,
         }
 
         var isInturruptingCancel = false
-        if let transitionCoordinator = navigationController.transitionCoordinator {
+        var isTransitionCancelled = false
+        if let transitionCoordinator = navigationController.transitionCoordinator,
+            transitionCoordinator.presentationStyle == .none
+        {
             if transitionCoordinator.viewController(forKey: .to) != fromVC {
                 return false
-            } else if transitionCoordinator.isCancelled, let from = transitionCoordinator.viewController(forKey: .from) {
-                fromVC = from
-                isInturruptingCancel = true
+            } else if let from = transitionCoordinator.viewController(forKey: .from) {
+                if transitionCoordinator.isCancelled {
+                    fromVC = from
+                    isInturruptingCancel = true
+                } else if delegates[ObjectIdentifier(fromVC)]?.value == nil,
+                    transitioningId == ObjectIdentifier(fromVC)
+                {
+                    // `isCancelled` reports false but it was cancelled
+                    fromVC = from
+                    isTransitionCancelled = true
+                }
             }
         }
 
@@ -1266,30 +1293,17 @@ final class DestinationLinkDelegateProxy: NSObject,
                 return false
             }
             guard shouldBegin == true else { return false }
-            if let transition, transition != queuedTransition, !isInturruptingCancel {
+            if transition != nil, !isInturruptingCancel, !isTransitionCancelled {
                 isInterruptedInteractiveTransition = true
                 return true
             }
-            isInterruptedInteractiveTransition = false
-            wantsInteractiveTransition = true; defer { wantsInteractiveTransition = false }
-            let animationController = self.navigationController(
-                navigationController,
-                animationControllerFor: .pop,
-                from: fromVC,
-                to: navigationController.viewControllers[navigationController.viewControllers.count - (isInturruptingCancel ? 1 : 2)]
-            )
-            guard
-                let interactiveTransition = animationController as? UIPercentDrivenInteractiveTransition,
-                interactiveTransition.wantsInteractiveStart
-            else {
-                transitioningId = nil
-                queuedTransition = nil
-                return false
+            if transition != nil, isInturruptingCancel {
+                return true
             }
-            queuedTransition = interactiveTransition
+            isInterruptedInteractiveTransition = false
             return true
         } else {
-            if shouldBegin == false {
+            if shouldBegin == false || transition != nil {
                 return false
             }
             if gestureRecognizer == navigationController.interactivePopGestureRecognizer {
@@ -1540,8 +1554,8 @@ final class DestinationLinkDelegateProxy: NSObject,
         didShow viewController: UIViewController,
         animated: Bool
     ) {
+
         transitioningId = nil
-        transition = nil
         delegate?.navigationController?(
             navigationController,
             didShow: viewController,
@@ -1561,13 +1575,15 @@ final class DestinationLinkDelegateProxy: NSObject,
         interactionControllerFor animationController: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning? {
 
-        guard let transitioningId else { return nil }
-        let delegate = delegates[transitioningId]?.value
-        let interactionController = delegate?.navigationController?(
-            navigationController,
-            interactionControllerFor: animationController
-        )
-        return interactionController
+        if let id = transitioningId {
+            let delegate = delegates[id]?.value
+            let interactionController = delegate?.navigationController?(
+                navigationController,
+                interactionControllerFor: animationController
+            )
+            return interactionController
+        }
+        return nil
     }
 
     func navigationController(
@@ -1577,14 +1593,8 @@ final class DestinationLinkDelegateProxy: NSObject,
         to toVC: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
 
-        if queuedTransition != nil, !interactivePopEdgeGestureRecognizer.isInteracting && !interactivePopPanGestureRecognizer.isInteracting {
-            queuedTransition = nil
-        }
         let id = ObjectIdentifier(operation == .push ? toVC : fromVC)
-        if let transition, transitioningId == id {
-            return transition as? UIViewControllerAnimatedTransitioning
-        }
-
+        transitioningId = id
         let delegate = delegates[id]?.value
         let animationController = delegate?.navigationController?(
             navigationController,
@@ -1592,11 +1602,11 @@ final class DestinationLinkDelegateProxy: NSObject,
             from: fromVC,
             to: toVC
         )
-        if let transition = animationController as? UIPercentDrivenInteractiveTransition {
-            transition.wantsInteractiveStart = wantsInteractiveTransition || interactivePopEdgeGestureRecognizer.isInteracting || interactivePopPanGestureRecognizer.isInteracting
+        if let interactiveTransition = animationController as? UIPercentDrivenInteractiveTransition {
+            let isInteracting = interactivePopEdgeGestureRecognizer.isInteracting || interactivePopPanGestureRecognizer.isInteracting
+            interactiveTransition.wantsInteractiveStart = interactiveTransition.wantsInteractiveStart && isInteracting
+            transition = interactiveTransition
         }
-        transitioningId = animationController != nil ? id : nil
-        transition = animationController as? UIPercentDrivenInteractiveTransition
         return animationController
     }
 }
