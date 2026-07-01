@@ -64,7 +64,7 @@ extension PresentationLinkTransition {
 
     /// The matched geometry zoom presentation style.
     public static func matchedGeometryZoom(
-        dimmingColor: Color? = .black,
+        dimmingColor: Color? = nil,
         preferredFromCornerRadius: CornerRadiusOptions? = nil,
         minimumScaleFactor: CGFloat = 0.5,
         sourceViewFrameTransform: SourceViewFrameTransform? = nil,

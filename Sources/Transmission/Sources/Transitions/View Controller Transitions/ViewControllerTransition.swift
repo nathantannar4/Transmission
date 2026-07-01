@@ -85,7 +85,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         if isInterruptible, animator?.isRunning == true {
             animator?.pauseAnimation()
         }
-        if let fractionComplete {
+        if let fractionComplete, fractionComplete != percentComplete {
             update(fractionComplete)
         }
     }

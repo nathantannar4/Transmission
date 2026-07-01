@@ -791,6 +791,42 @@ final class PresentationLinkCoordinator<
 
     // MARK: - UIViewControllerPresentationDelegate
 
+    @objc
+    func viewControllerOnAnimatedDismiss(
+        _ viewController: UIViewController
+    ) {
+        guard
+            let adapter,
+            adapter.transition.options.shouldTransitionIsPresentedAlongsideTransition,
+            adapter.viewController == viewController
+        else {
+            return
+        }
+        onDismiss(Transaction(animation: .default))
+        didDismiss()
+    }
+
+
+    func viewControllerWillDismiss(
+        _ viewController: UIViewController,
+        animated: Bool
+    ) {
+        guard
+            adapter?.viewController == viewController,
+            presentationController?.delegate !== self
+        else {
+            if animated {
+                perform(
+                    #selector(viewControllerOnAnimatedDismiss(_:)),
+                    with: viewController,
+                    afterDelay: 0
+                )
+            }
+            return
+        }
+        onDismiss(Transaction(animation: animated ? .default : nil))
+    }
+
     func viewControllerDidDismiss(
         _ viewController: UIViewController,
         presentingViewController: UIViewController?,
@@ -816,6 +852,12 @@ final class PresentationLinkCoordinator<
     override func presentationControllerWillDismiss(
         _ presentationController: UIPresentationController
     ) {
+        NSObject.cancelPreviousPerformRequests(
+            withTarget: self,
+            selector: #selector(viewControllerOnAnimatedDismiss(_:)),
+            object: presentationController.presentedViewController
+        )
+
         guard
             presentationController == self.presentationController,
             let adapter,

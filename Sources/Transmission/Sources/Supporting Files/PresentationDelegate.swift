@@ -8,6 +8,7 @@ import SwiftUI
 
 @MainActor
 protocol UIViewControllerPresentationDelegate: NSObject {
+    func viewControllerWillDismiss(_ viewController: UIViewController, animated: Bool)
     func viewControllerDidDismiss(_ viewController: UIViewController, presentingViewController: UIViewController?, animated: Bool)
 }
 
@@ -45,8 +46,15 @@ extension UIViewController {
     }
 
     @objc
-    func swizzled_dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
+    func swizzled_dismiss(animated: Bool, completion: (() -> Void)? = nil) {
         var delegates = [(UIViewController, UIViewControllerPresentationDelegate)]()
+        var ancestor = parent
+        while let current = ancestor {
+            if let presentationDelegate = current.presentationDelegate {
+                delegates.append((current, presentationDelegate))
+            }
+            ancestor = current.parent
+        }
         let presentingViewController: UIViewController?
         if let presentedViewController {
             presentingViewController = self
@@ -60,14 +68,20 @@ extension UIViewController {
         } else {
             presentingViewController = self.presentingViewController
         }
-        swizzled_dismiss(animated: flag) {
+        for (viewController, delegate) in delegates {
+            delegate.viewControllerWillDismiss(viewController, animated: animated)
+        }
+        if presentedViewController == nil, let delegate = presentationDelegate {
+            delegate.viewControllerWillDismiss(self, animated: animated)
+        }
+        swizzled_dismiss(animated: animated) {
             if self.transitionCoordinator?.isCancelled != true {
                 for (viewController, delegate) in delegates.reversed() {
-                    delegate.viewControllerDidDismiss(viewController, presentingViewController: presentingViewController, animated: flag)
+                    delegate.viewControllerDidDismiss(viewController, presentingViewController: presentingViewController, animated: animated)
                 }
 
                 if presentingViewController != self, let delegate = self.presentationDelegate {
-                    delegate.viewControllerDidDismiss(self, presentingViewController: presentingViewController, animated: flag)
+                    delegate.viewControllerDidDismiss(self, presentingViewController: presentingViewController, animated: animated)
                 }
             }
             completion?()
@@ -80,7 +94,6 @@ protocol UINavigationControllerPresentationDelegate: NSObject {
     func navigationController(_ navigationController: UINavigationController, willPop viewControllers: [UIViewController], animated: Bool)
     func navigationController(_ navigationController: UINavigationController, didPop viewController: UIViewController, animated: Bool)
 }
-
 
 extension UINavigationController {
 

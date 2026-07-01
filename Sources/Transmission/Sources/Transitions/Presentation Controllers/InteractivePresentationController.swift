@@ -398,14 +398,14 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 // `completionSpeed` handling seems to differ across iOS version
                 if #available(iOS 18.0, *) {
                     if shouldFinish {
-                        transition.completionSpeed = max(0.5, 1 - percentage)
+                        transition.completionSpeed = 1 - percentage
                     } else {
-                        transition.completionSpeed = max(0.5, percentage)
+                        transition.completionSpeed = percentage
                     }
                 } else {
-                    transition.completionSpeed = max(0.5, 1 - percentage)
+                    transition.completionSpeed = 1 - percentage
                 }
-                let dampingRatio = shouldFinish && !isPresenting ? 1 : 0.84
+                let dampingRatio = shouldFinish ? 1 : 0.84
                 transition.timingCurve = UISpringTimingParameters(
                     dampingRatio: dampingRatio,
                     initialVelocity: initialVelocity

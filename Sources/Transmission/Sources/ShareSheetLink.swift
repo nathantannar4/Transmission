@@ -302,7 +302,12 @@ extension URL: ShareSheetItemProvider {
             super.init(placeholderItem: url)
         }
 
-        override var item: Any { url }
+        override var item: Any {
+            if activityType == .copyToPasteboard {
+                return url.absoluteString
+            }
+            return url
+        }
     }
 
     public func makeUIActivity(

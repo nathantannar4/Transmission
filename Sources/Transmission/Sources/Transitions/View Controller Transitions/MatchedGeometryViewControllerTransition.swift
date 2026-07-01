@@ -166,7 +166,6 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             }
             fromCornerRadius.apply(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
 
-
             if prefersZoomEffect {
                 presentedView.frame = presentedFrame
                 presentedView.layoutIfNeeded()
@@ -188,7 +187,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
                 presentedFrame: &presentedFrame
             )
             presented.transitionReaderCoordinator?.update(isPresented: true)
-
+            CATransaction.flush()
         } else {
             if presentedView.layer.cornerRadius == 0 {
                 toCornerRadius.apply(to: presentedPortalView ?? presentedView)

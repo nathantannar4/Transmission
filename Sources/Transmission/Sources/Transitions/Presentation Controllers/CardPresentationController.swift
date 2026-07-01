@@ -102,7 +102,7 @@ open class CardPresentationController: InteractivePresentationController {
             keyboardHeight: keyboardHeight
         )
         frame.origin.y -= max(keyboardOverlap, keyboardOffset)
-        let minY = containerView?.safeAreaInsets.top ?? 0
+        let minY = insetSafeAreaByCornerRadius ? (containerView?.safeAreaInsets.top ?? 0) : 0
         if frame.origin.y < minY {
             frame.size.height += (frame.origin.y - minY)
             frame.origin.y = minY
