@@ -26,6 +26,12 @@ private class _UISheetPresentationControllerDetentResolver: NSObject {
 }
 
 @available(iOS 15.0, *)
+extension UISheetPresentationController.Detent.Identifier {
+
+    public static let fullScreen = UISheetPresentationController.Detent.Identifier("com.apple.UIKit.full")
+}
+
+@available(iOS 15.0, *)
 extension UISheetPresentationController.Detent {
 
     var id: String? {

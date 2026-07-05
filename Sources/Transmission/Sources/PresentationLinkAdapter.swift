@@ -501,8 +501,7 @@ final class PresentationLinkCoordinator<
                 case .`default`:
                     if let presentationController = adapter.viewController.presentationController {
                         if adapter.viewController is UIAlertController {
-                            if let popoverPresentationController = presentationController as? UIPopoverPresentationController
-                            {
+                            if let popoverPresentationController = presentationController as? UIPopoverPresentationController {
                                 adapter.viewController.transitioningDelegate = self
                                 popoverPresentationController.permittedArrowDirections = .any
                             }
@@ -806,33 +805,37 @@ final class PresentationLinkCoordinator<
         guard
             let adapter,
             adapter.transition.options.shouldTransitionIsPresentedAlongsideTransition,
-            adapter.viewController == viewController
+            adapter.viewController == viewController,
+            let transitionCoordinator = viewController.transitionCoordinator,
+            !transitionCoordinator.isInteractive
         else {
             return
         }
         onDismiss(Transaction(animation: .default))
-        didDismiss()
+        transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+            if ctx.isCancelled {
+                self.isPresented.wrappedValue = true
+            }
+        }
     }
-
 
     func viewControllerWillDismiss(
         _ viewController: UIViewController,
         animated: Bool
     ) {
         guard
-            adapter?.viewController == viewController,
-            presentationController?.delegate !== self
+            animated,
+            let adapter,
+            adapter.transition.options.shouldTransitionIsPresentedAlongsideTransition,
+            adapter.viewController == viewController
         else {
-            if animated {
-                perform(
-                    #selector(viewControllerOnAnimatedDismiss(_:)),
-                    with: viewController,
-                    afterDelay: 0
-                )
-            }
             return
         }
-        onDismiss(Transaction(animation: animated ? .default : nil))
+        perform(
+            #selector(viewControllerOnAnimatedDismiss(_:)),
+            with: viewController,
+            afterDelay: 0
+        )
     }
 
     func viewControllerDidDismiss(
@@ -860,12 +863,6 @@ final class PresentationLinkCoordinator<
     override func presentationControllerWillDismiss(
         _ presentationController: UIPresentationController
     ) {
-        NSObject.cancelPreviousPerformRequests(
-            withTarget: self,
-            selector: #selector(viewControllerOnAnimatedDismiss(_:)),
-            object: presentationController.presentedViewController
-        )
-
         guard
             presentationController == self.presentationController,
             let adapter,
@@ -875,6 +872,12 @@ final class PresentationLinkCoordinator<
         else {
             return
         }
+
+        NSObject.cancelPreviousPerformRequests(
+            withTarget: self,
+            selector: #selector(viewControllerOnAnimatedDismiss(_:)),
+            object: viewController
+        )
 
         let transaction = Transaction(animation: animation ?? .default)
         if let transitionCoordinator = viewController.transitionCoordinator,

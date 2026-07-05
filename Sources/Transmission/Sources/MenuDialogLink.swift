@@ -24,6 +24,27 @@ public struct MenuDialogLink<
 
     @StateOrBinding var isPresented: Bool
 
+    @_disfavoredOverload
+    public init(
+        transition: MenuDialogTransition = .default,
+        animation: Animation? = .default,
+        title: LocalizedStringKey? = nil,
+        message: LocalizedStringKey? = nil,
+        @ViewBuilder header: () -> Header = { EmptyView() },
+        @MenuBuilder menu: () -> Menu,
+        @ViewBuilder label: () -> Label
+    ) {
+        self.init(
+            transition: transition,
+            animation: animation,
+            title: Text(title),
+            message: Text(message),
+            header: header,
+            menu: menu,
+            label: label
+        )
+    }
+
     public init(
         transition: MenuDialogTransition = .default,
         animation: Animation? = .default,
@@ -41,6 +62,29 @@ public struct MenuDialogLink<
         self.transition = transition
         self.animation = animation
         self._isPresented = .init(false)
+    }
+
+    @_disfavoredOverload
+    public init(
+        transition: MenuDialogTransition = .default,
+        animation: Animation? = .default,
+        isPresented: Binding<Bool>,
+        title: LocalizedStringKey? = nil,
+        message: LocalizedStringKey? = nil,
+        @ViewBuilder header: () -> Header = { EmptyView() },
+        @MenuBuilder menu: () -> Menu,
+        @ViewBuilder label: () -> Label
+    ) {
+        self.init(
+            transition: transition,
+            animation: animation,
+            isPresented: isPresented,
+            title: Text(title),
+            message: Text(message),
+            header: header,
+            menu: menu,
+            label: label
+        )
     }
 
     public init(
@@ -92,18 +136,27 @@ struct MenuDialogLink_Previews: PreviewProvider {
         VStack {
             MenuDialogLink(
                 transition: .alert,
+                title: "Title",
+                message: "Message"
             ) {
                 MenuButton {
 
                 } label: {
                     Text("Action")
                 }
+
+                MenuTextField(
+                    "Placeholder",
+                    text: .constant("")
+                )
             } label: {
                 Text("Alert")
             }
 
             MenuDialogLink(
-                transition: .actionSheet
+                transition: .actionSheet,
+                title: "Title",
+                message: "Message"
             ) {
                 MenuButton {
 

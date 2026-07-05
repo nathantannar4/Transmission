@@ -498,12 +498,21 @@ final class ContextMenuLinkCoordinator<
                     .insetBy(dx: visibleInset, dy: visibleInset)
                 parameters.visiblePath = UIBezierPath(rect: rect)
             }
-            if sourceView.layer.cornerRadius == 0 {
+            let isScaled = sourceView.window.map { window in
+                let availableSize = window.bounds.inset(by: window.safeAreaInsets)
+                return sourceView.bounds.width > availableSize.width || sourceView.bounds.height > availableSize.height
+            }
+            if isScaled != true, sourceView.layer.cornerRadius == 0 {
+                var shadowPath: UIBezierPath?
                 if let path = sourceView.layer.sublayers?.lazy.compactMap({ ($0 as? CAShapeLayer)?.path }).first {
-                    parameters.shadowPath = UIBezierPath(cgPath: path)
+                    shadowPath = UIBezierPath(cgPath: path)
                 } else if let cornerRadiusLayer = sourceView.layer.sublayers?.first(where: { $0.cornerRadius > 0 }) {
-                    parameters.shadowPath = UIBezierPath(roundedRect: cornerRadiusLayer.bounds, cornerRadius: cornerRadiusLayer.cornerRadius)
+                    shadowPath = UIBezierPath(
+                        roundedRect: cornerRadiusLayer.bounds,
+                        cornerRadius: cornerRadiusLayer.cornerRadius
+                    )
                 }
+                parameters.shadowPath = shadowPath
             }
             if sourceView.layer.cornerRadius < 1, parameters.shadowPath == nil {
                 parameters.shadowPath = UIBezierPath()
@@ -616,7 +625,8 @@ class ContextMenuAccessoryViewsInteraction<
         }
     }
 
-    @objc func _delegate_getAccessoryViewsForConfiguration(
+    @objc
+    func _delegate_getAccessoryViewsForConfiguration(
         _ configuration: UIContextMenuConfiguration
     ) -> [UIView] {
         adapter = nil

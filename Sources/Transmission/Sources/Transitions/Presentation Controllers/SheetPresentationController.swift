@@ -241,20 +241,23 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
 
     public var shouldAdjustDetentsForKeyboard: Bool {
         get { shouldAdjustDetentsToAvoidKeyboard }
-        set {
-            let oldValue = shouldAdjustDetentsToAvoidKeyboard
-            guard newValue != oldValue else { return }
-            shouldAdjustDetentsToAvoidKeyboard = newValue
-            if newValue {
-                unregisterKeyboardNotifications()
-            } else {
-                registerKeyboardNotifications()
+        set { shouldAdjustDetentsToAvoidKeyboard = newValue }
+    }
+
+    open override var selectedDetentIdentifier: UISheetPresentationController.Detent.Identifier? {
+        get {
+            if isKeyboardAdjustedLargeDetent {
+                return .large
             }
+            return super.selectedDetentIdentifier
         }
+        set { super.selectedDetentIdentifier = newValue }
     }
 
     /// The interactive transition driving the presentation or dismissal animation
     public weak var transition: UIPercentDrivenInteractiveTransition?
+
+    private var isKeyboardAdjustedLargeDetent = false
 
     public override init(
         presentedViewController: UIViewController,
@@ -280,6 +283,25 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
         updateBackgroundColors(didNilColor: false)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(onKeyboardChange(_:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(onKeyboardChange(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(onKeyboardChange(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
     }
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
@@ -306,6 +328,22 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
 
         if completed {
             delegate?.presentationControllerDidDismiss?(self)
+
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UIResponder.keyboardWillShowNotification,
+                object: nil
+            )
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UIResponder.keyboardWillChangeFrameNotification,
+                object: nil
+            )
+            NotificationCenter.default.removeObserver(
+                self,
+                name: UIResponder.keyboardWillHideNotification,
+                object: nil
+            )
         } else {
             delegate?.presentationControllerDidAttemptToDismiss?(self)
             presentedViewController.fixSwiftUIHitTesting()
@@ -370,6 +408,8 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     @objc
     private func didPan(_ gesture: UIPanGestureRecognizer) {
         switch gesture.state {
+        case .began:
+            break
         case .changed:
             let translation = gesture.translation(in: gesture.view)
             if #available(iOS 26.0, *), presentedViewController.isBeingDismissed, translation.y < 0, let interactionController, interactionController.completionSpeed < 1 {
@@ -407,8 +447,9 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
                     }
                 }
             }
+            fallthrough
         default:
-            break
+            isKeyboardAdjustedLargeDetent = false
         }
     }
 
@@ -443,34 +484,6 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
 
     // MARK: - Keyboard Handling
 
-    private func unregisterKeyboardNotifications() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillChangeFrameNotification,
-            object: nil
-        )
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
-    }
-
-    private func registerKeyboardNotifications() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(layoutContainerViewForKeyboardNotification(_:)),
-            name: UIResponder.keyboardWillChangeFrameNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(layoutContainerViewForKeyboardNotification(_:)),
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
-    }
-
     @objc
     func _shouldDismissByDragging() -> Bool {
         if !shouldAdjustDetentsForKeyboard {
@@ -491,6 +504,31 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     }
 
     @objc
+    private func onKeyboardChange(_ notification: Notification) {
+        switch notification.name {
+        case UIResponder.keyboardWillShowNotification:
+            if shouldAdjustDetentsForKeyboard, selectedDetentIdentifier != .large {
+                isKeyboardAdjustedLargeDetent = true
+                delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(self)
+            }
+
+        case UIResponder.keyboardWillHideNotification:
+            if isKeyboardAdjustedLargeDetent {
+                isKeyboardAdjustedLargeDetent = false
+                delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(self)
+            }
+            fallthrough
+
+        case UIResponder.keyboardWillChangeFrameNotification, UIResponder.keyboardWillHideNotification:
+            if !shouldAdjustDetentsForKeyboard {
+                layoutContainerViewForKeyboardNotification(notification)
+            }
+
+        default:
+            break
+        }
+    }
+
     private func layoutContainerViewForKeyboardNotification(_ notification: Notification) {
         guard
             !presentedViewController.isBeingDismissed,
@@ -503,10 +541,16 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             return
         }
         if #available(iOS 26.0, *) {
-            layoutContainerView(duration: duration, options: UIView.AnimationOptions(curve: curve))
+            layoutContainerView(
+                duration: duration,
+                options: UIView.AnimationOptions(curve: curve)
+            )
         } else {
             withCATransaction {
-                self.layoutContainerView(duration: duration, options: UIView.AnimationOptions(curve: curve))
+                self.layoutContainerView(
+                    duration: duration,
+                    options: UIView.AnimationOptions(curve: curve)
+                )
             }
         }
     }

@@ -149,7 +149,7 @@ public struct SheetPresentationLinkTransition: Sendable {
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            public static let fullScreen = Identifier("com.apple.UIKit.full")
+            public static let fullScreen = Identifier(UISheetPresentationController.Detent.Identifier.fullScreen.rawValue)
 
             @available(iOS 15.0, *)
             @available(macOS, unavailable)

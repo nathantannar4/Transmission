@@ -86,6 +86,25 @@ public struct MenuDialogLinkModifier<
     var header: Header
     var menu: Menu
 
+    @_disfavoredOverload
+    public init(
+        transition: MenuDialogTransition = .default,
+        isPresented: Binding<Bool>,
+        title: LocalizedStringKey? = nil,
+        message: LocalizedStringKey? = nil,
+        header: Header = EmptyView(),
+        menu: Menu
+    ) {
+        self.init(
+            transition: transition,
+            isPresented: isPresented,
+            title: Text(title),
+            message: Text(message),
+            header: header,
+            menu: menu
+        )
+    }
+
     public init(
         transition: MenuDialogTransition = .default,
         isPresented: Binding<Bool>,
@@ -127,6 +146,30 @@ public struct MenuDialogLinkModifier<
 
 @available(iOS 14.0, *)
 extension View {
+
+    @_disfavoredOverload
+    public func menuDialog<
+        Header: View,
+        Menu: MenuElement
+    >(
+        transition: MenuDialogTransition = .default,
+        isPresented: Binding<Bool>,
+        title: LocalizedStringKey? = nil,
+        message: LocalizedStringKey? = nil,
+        @ViewBuilder header: () -> Header = { EmptyView() },
+        @MenuBuilder menu: () -> Menu
+    ) -> some View {
+        modifier(
+            MenuDialogLinkModifier(
+                transition: transition,
+                isPresented: isPresented,
+                title: title,
+                message: message,
+                header: header(),
+                menu: menu()
+            )
+        )
+    }
 
     public func menuDialog<
         Header: View,
@@ -173,12 +216,7 @@ private struct MenuDialog<
             preferredStyle: {
                 switch transition.value {
                 case .default:
-                    if #available(iOS 26.0, *) {
-                        return .alert
-                    } else if header.isEmptyView {
-                        return .alert
-                    }
-                    return .actionSheet
+                    return .alert
                 case .alert:
                     return .alert
                 case .actionSheet:
@@ -198,6 +236,9 @@ private struct MenuDialog<
         _ uiViewController: MenuDialogViewController,
         context: Context
     ) {
+        if #available(iOS 15.0, *) {
+            uiViewController.view.tintColor = context.environment.tintColor?.toUIColor(in: context.environment)
+        }
         uiViewController.title = title?.resolve(in: context.environment)
         uiViewController.message = message?.resolve(in: context.environment)
         uiViewController.isInteractive = transition.options.isInteractive

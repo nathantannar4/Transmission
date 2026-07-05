@@ -67,7 +67,7 @@ extension UIWindow {
     }
 
     private static var parentKey: UInt = 0
-    @objc
+
     var parent: UIWindow? {
         get {
             let box = objc_getAssociatedObject(self, &Self.parentKey) as? ObjCWeakBox<UIWindow>

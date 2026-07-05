@@ -325,7 +325,6 @@ extension UIContextMenuInteraction {
                 } else if alignment.vertical == .bottom {
                     offset.y -= min(window.safeAreaInsets.bottom + offset.y, max(window.safeAreaInsets.bottom - (window.frame.height - frameInWindow.maxY - contentView.frame.size.height), 0))
                 }
-                print(offset.y)
             }
             accessoryView.setValue(offset, forKey: "offset")
         }
