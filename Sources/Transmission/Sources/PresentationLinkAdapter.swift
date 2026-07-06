@@ -1217,6 +1217,9 @@ final class PresentationLinkCoordinator<
                 context: makeContext(options: transition.options)
             )
 
+        case .default:
+            return animator as? UIViewControllerInteractiveTransitioning
+
         default:
             return nil
         }
@@ -1236,6 +1239,9 @@ final class PresentationLinkCoordinator<
                 using: animator,
                 context: makeContext(options: transition.options)
             )
+
+        case .default:
+            return animator as? UIViewControllerInteractiveTransitioning
 
         default:
             return nil

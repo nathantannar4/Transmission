@@ -15,7 +15,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     public let isPresenting: Bool
     public var animation: Animation?
     private var animator: UIViewPropertyAnimator?
-    private weak var context: UIViewControllerContextTransitioning?
 
     open var isInterruptible: Bool {
         wantsInteractiveStart || (animation?.delay ?? 0) == 0
@@ -65,14 +64,12 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     open func animatedStarted(
         transitionContext: UIViewControllerContextTransitioning
     ) {
-        context = transitionContext
     }
 
     open func animationEnded(
         _ transitionCompleted: Bool
     ) {
         animator = nil
-        context = nil
     }
 
     public func interruptibleAnimator(
@@ -125,12 +122,17 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         }
     }
 
+    open func complete(speed: CGFloat = 1) {
+        guard let animator else { return }
+        animator.pauseAnimation()
+        animator.continueAnimation(withTimingParameters: timingCurve, durationFactor: (1 - animator.fractionComplete) / speed)
+    }
+
     open func complete(_ didComplete: Bool) {
-        if animator?.isRunning == true {
-            animator?.stopAnimation(true)
-            animator?.finishAnimation(at: didComplete ? .end : .start)
+        if animator?.state != .stopped {
+            animator?.stopAnimation(false)
         }
-        context?.completeTransition(didComplete)
+        animator?.finishAnimation(at: didComplete ? .end : .start)
     }
 
     open override func responds(to aSelector: Selector!) -> Bool {
@@ -149,9 +151,9 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         }
         let animator = UIViewPropertyAnimator(
             animation: animation,
-            defaultDuration: duration,
             defaultCompletionCurve: completionCurve
         )
+        animator.isManualHitTestingEnabled = true
         // This must be set before configuring, as view layout can sometimes trigger re-entry
         self.animator = animator
         configureTransitionAnimator(using: transitionContext, animator: animator)
@@ -239,6 +241,15 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
                 transitionContext.completeTransition(false)
             }
         }
+    }
+}
+
+extension UIPercentDrivenInteractiveTransition {
+
+    public func endInteractiveTransition() {
+        completionSpeed = 1
+        timingCurve = nil
+        completionCurve = .linear
     }
 }
 

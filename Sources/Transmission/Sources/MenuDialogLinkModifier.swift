@@ -280,9 +280,25 @@ class MenuDialogViewController: UIAlertController {
 
     private func cancel() {
         let action = actions.first(where: { $0.style == .cancel })
-        dismiss(animated: true) {
-            guard let action else { return }
-            action.handler?(action)
+        if isBeingPresented {
+            if let presentationController,
+                // _currentInteractionController
+                let aSelector = NSStringFromBase64EncodedString("X2N1cnJlbnRJbnRlcmFjdGlvbkNvbnRyb2xsZXI="),
+                presentationController.responds(to: NSSelectorFromString(aSelector)),
+                let interactionController = presentationController.value(forKey: aSelector) as? UIPercentDrivenInteractiveTransition
+            {
+                interactionController.pause()
+                interactionController.cancel()
+                presentationController.delegate?.presentationControllerDidDismiss?(presentationController)
+                if let action {
+                    action.handler?(action)
+                }
+            }
+        } else {
+            dismiss(animated: true) {
+                guard let action else { return }
+                action.handler?(action)
+            }
         }
     }
 }

@@ -244,25 +244,25 @@ final class ContextMenuLinkCoordinator<
         self.sourceView = sourceView
         self.interaction = interaction
 
-        if Preview.self != EmptyView.self {
-            if let adapter {
-                adapter.update(
+        if let adapter {
+            adapter.update(
+                preview: preview,
+                context: context
+            )
+        } else if !preview.isEmptyView {
+            makeAdapter = { [weak self] in
+                ContextMenuPreviewViewControllerAdapter(
                     preview: preview,
-                    context: context
+                    sourceView: sourceView,
+                    transition: transition,
+                    context: context,
+                    onFinish: { [weak self] in
+                        self?.onFinish($0)
+                    }
                 )
-            } else {
-                makeAdapter = { [weak self] in
-                    ContextMenuPreviewViewControllerAdapter(
-                        preview: preview,
-                        sourceView: sourceView,
-                        transition: transition,
-                        context: context,
-                        onFinish: { [weak self] in
-                            self?.onFinish($0)
-                        }
-                    )
-                }
             }
+        } else {
+            makeAdapter = nil
         }
 
         guard let interaction else { return }

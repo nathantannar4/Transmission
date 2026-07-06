@@ -237,7 +237,7 @@ final class DestinationLinkCoordinator<
         destination: Destination,
         context: Representable.Context,
         sourceView: UIView,
-        push: ((UIViewController, @escaping () -> Void) -> Void)? = nil
+        push: ((UIViewController) -> Void)? = nil
     ) {
         self.isPresented = isPresented
 
@@ -318,34 +318,44 @@ final class DestinationLinkCoordinator<
                 navigationController.delegates.add(delegate: self, for: adapter.viewController)
                 self.isPushing = true
                 let present: () -> Void = {
-                    let completion: () -> Void = {
-                        self.animation = nil
-                        self.didPresentAnimated = isAnimated
-                    }
+                    self.didPresentAnimated = isAnimated
                     if let push {
-                        push(adapter.viewController, completion)
+                        push(adapter.viewController)
                     } else {
                         navigationController.pushViewController(
                             adapter.viewController,
-                            animated: isAnimated,
-                            completion: completion
+                            animated: isAnimated
                         )
                     }
                 }
+                var didPresent = false
                 if let transitionCoordinator = navigationController.transitionCoordinator,
                     transitionCoordinator.presentationStyle == .none
                 {
-                    transitionCoordinator.animate(alongsideTransition: nil) { _ in
+                    if let fromVC = navigationController.transitionCoordinator?.viewController(forKey: .from),
+                        let transition = navigationController.delegates.transition(for: fromVC) as? ViewControllerTransition
+                    {
+                        transition.complete()
+                        present()
+                        didPresent = true
+                    } else if let toVC = transitionCoordinator.viewController(forKey: .to),
+                        let transition = navigationController.delegates.transition(for: toVC) as? ViewControllerTransition
+                    {
+                        transition.complete()
+                        present()
+                        didPresent = true
+                    }
+                }
+                if !didPresent {
+                    if let firstResponder = navigationController.topViewController?.firstResponder {
+                        withCATransaction {
+                            firstResponder.resignFirstResponder()
+                            CATransaction.flush()
+                            present()
+                        }
+                    } else {
                         present()
                     }
-                } else if let firstResponder = navigationController.topViewController?.firstResponder {
-                    withCATransaction {
-                        firstResponder.resignFirstResponder()
-                        CATransaction.flush()
-                        present()
-                    }
-                } else {
-                    present()
                 }
             } else {
                 withCATransaction {
@@ -396,18 +406,49 @@ final class DestinationLinkCoordinator<
             didPresentAnimated = false
             isPushing = false
         }
-        if let transitionCoordinator = viewController.transitionCoordinator {
-            if transitionCoordinator.presentationStyle == .none,
-                transitionCoordinator.viewController(forKey: .to) == viewController,
+
+        var didPop = false
+        if let transitionCoordinator = viewController.transitionCoordinator,
+            transitionCoordinator.presentationStyle == .none
+        {
+            if let toVC = transitionCoordinator.viewController(forKey: .to),
                 let transition = adapter?.navigationController?.delegates.transition(for: viewController)
             {
-                transition.pause()
-                transition.cancel()
-                transitionCoordinator.animate { [weak self] _ in
-                    self?.onPop(transaction)
-                    self?.didPop()
+                if toVC == viewController {
+                    didPop = true
+                    transition.pause()
+                    transition.endInteractiveTransition()
+                    transition.cancel()
+                    transitionCoordinator.animate { [weak self] _ in
+                        self?.onPop(transaction)
+                        self?.didPop()
+                    }
+                } else {
+                    if let transition = transition as? ViewControllerTransition {
+                        transition.complete()
+                    } else {
+                        transition.pause()
+                        transition.endInteractiveTransition()
+                        transition.finish()
+                    }
                 }
-            } else {
+            } else if let fromVC = transitionCoordinator.viewController(forKey: .from),
+                let transition = adapter?.navigationController?.delegates.transition(for: fromVC)
+            {
+                if let transition = transition as? ViewControllerTransition {
+                    transition.complete()
+                } else {
+                    transition.pause()
+                    transition.endInteractiveTransition()
+                    transition.finish()
+                }
+            }
+        }
+
+        if !didPop {
+            if let transitionCoordinator = viewController.transitionCoordinator,
+                adapter?.navigationController?.zoomInteractionController == nil
+            {
                 transitionCoordinator.animate(alongsideTransition: nil) { [weak self] _ in
                     viewController._popViewController(
                         count: count,
@@ -418,15 +459,15 @@ final class DestinationLinkCoordinator<
                         self?.didPop()
                     }
                 }
-            }
-        } else {
-            viewController._popViewController(
-                count: count,
-                animated: transaction.isAnimated
-            ) { [weak self] success in
-                guard success, count > 0, self?.adapter?.viewController == viewController else { return }
-                self?.onPop(transaction)
-                self?.didPop()
+            } else {
+                viewController._popViewController(
+                    count: count,
+                    animated: transaction.isAnimated
+                ) { [weak self] success in
+                    guard success, count > 0, self?.adapter?.viewController == viewController else { return }
+                    self?.onPop(transaction)
+                    self?.didPop()
+                }
             }
         }
     }
@@ -463,25 +504,26 @@ final class DestinationLinkCoordinator<
     ) -> Bool {
         guard navigationControllerCanBeginInteractivePop() else { return false }
         guard let transition = adapter?.transition else { return true }
-        let isBuiltInGesture = {
-            if gesture == navigationController.interactivePopGestureRecognizer {
-                return true
-            }
-            #if canImport(FoundationModels) // Xcode 26
-            if #available(iOS 26.0, *), gesture == navigationController.interactiveContentPopGestureRecognizer {
-                return true
-            }
-            #endif
-            return false
-        }()
         switch transition.value {
         case .zoom:
-            return isBuiltInGesture
+            // Allowing the built in gestures to start breaks the interruptibility of the zoom transition interaction
+            return false
         default:
             let isEdge = gesture is UIScreenEdgePanGestureRecognizer
             if !isEdge, !transition.options.prefersPanGesturePop {
                 return false
             }
+            let isBuiltInGesture = {
+                if gesture == navigationController.interactivePopGestureRecognizer {
+                    return true
+                }
+                #if canImport(FoundationModels) // Xcode 26
+                if #available(iOS 26.0, *), gesture == navigationController.interactiveContentPopGestureRecognizer {
+                    return true
+                }
+                #endif
+                return false
+            }()
             if case .default = transition.value {
                 return isBuiltInGesture
             } else {
@@ -844,7 +886,7 @@ final class DestinationLinkDelegateProxy: NSObject,
 {
 
     private weak var navigationController: UINavigationController?
-    private weak var delegate: UINavigationControllerDelegate?
+    private nonisolated(unsafe) weak var delegate: UINavigationControllerDelegate?
     private var delegates = [ObjectIdentifier: ObjCWeakBox<DestinationLinkCoordinatorDelegate>]()
 
     private var transitioningId: ObjectIdentifier?
@@ -899,9 +941,10 @@ final class DestinationLinkDelegateProxy: NSObject,
         )
         interactivePopPanGestureRecognizer.delegate = self
         #if canImport(FoundationModels) // Xcode 26
-        if #available(iOS 26.0, *), let interactiveContentPopGestureRecognizer = navigationController.interactiveContentPopGestureRecognizer {
-            interactivePopPanGestureRecognizer.delaysTouchesBegan = interactiveContentPopGestureRecognizer.delaysTouchesBegan
-            interactivePopPanGestureRecognizer.delaysTouchesEnded = interactiveContentPopGestureRecognizer.delaysTouchesEnded
+        if #available(iOS 26.0, *), let builtinGesture = navigationController.interactiveContentPopGestureRecognizer {
+            interactivePopPanGestureRecognizer.delaysTouchesBegan = builtinGesture.delaysTouchesBegan
+            interactivePopPanGestureRecognizer.delaysTouchesEnded = builtinGesture.delaysTouchesEnded
+            builtinGesture.addTarget(self, action: #selector(interactivePopGestureDidChange(_:)))
         }
         #endif
         navigationController.view.addGestureRecognizer(interactivePopPanGestureRecognizer)
@@ -922,7 +965,11 @@ final class DestinationLinkDelegateProxy: NSObject,
     ) {
         let id = ObjectIdentifier(viewController)
         if transitioningId == id {
-            cancelledTransition = transition
+            if isInterruptedInteractiveTransition {
+                cancelledTransition = transition
+            } else {
+                finishedTransition = transition
+            }
             transition = nil
         }
         delegates[id] = nil
@@ -930,12 +977,12 @@ final class DestinationLinkDelegateProxy: NSObject,
 
     func transition(for viewController: UIViewController) -> UIPercentDrivenInteractiveTransition? {
         guard transitioningId == ObjectIdentifier(viewController) else { return nil }
-        return transition
+        return transition ?? finishedTransition ?? cancelledTransition
     }
 
     @objc
     private func interactivePopGestureDidChange(
-        _ gestureRecognizer: UIScreenEdgePanGestureRecognizer
+        _ gestureRecognizer: UIPanGestureRecognizer
     ) {
         guard let view = gestureRecognizer.view else { return }
         let translation = gestureRecognizer.translation(in: view)
@@ -996,9 +1043,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                             navigationController.popViewController(animated: true)
                         } else if let transition = finishedTransition ?? cancelledTransition {
                             transition.pause()
-                            transition.completionSpeed = 1
-                            transition.timingCurve = nil
-                            transition.completionCurve = .linear
+                            transition.endInteractiveTransition()
                             if transition === finishedTransition {
                                 transition.finish()
                             } else {
@@ -1009,6 +1054,8 @@ final class DestinationLinkDelegateProxy: NSObject,
                                     navigationController.popViewController(animated: true)
                                 }
                             }
+                        } else if navigationController.zoomInteractionController != nil {
+                            navigationController.popViewController(animated: true)
                         }
                     }
                 } else {
@@ -1065,7 +1112,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                     shouldFinish = (percentage >= threshold && targetVelocity <= targetVelocityThreshold) || (percentage > 0 && targetVelocity <= -800)
                 }
             }
-            let delta = (isInterruptedInteractiveTransition ? (1 - percentage) : max(threshold, percentage)) * view.frame.width
+            let delta = max(threshold, (isInterruptedInteractiveTransition ? 1 - percentage : percentage) * view.frame.width)
             if !shouldFinish {
                 targetVelocity = -targetVelocity
             }
@@ -1084,6 +1131,9 @@ final class DestinationLinkDelegateProxy: NSObject,
                 var completionSpeed = shouldFinish ? 1 - percentage : percentage
                 if isInterruptedInteractiveTransition, shouldFinish {
                     completionSpeed = 1 - completionSpeed
+                }
+                if abs(velocity.x) >= 4000 {
+                    completionSpeed = 1
                 }
                 transition.completionSpeed = completionSpeed
             }
@@ -1526,6 +1576,26 @@ final class DestinationLinkDelegateProxy: NSObject,
             #endif
             return true
         }
+    }
+
+    override func responds(to aSelector: Selector!) -> Bool {
+        if super.responds(to: aSelector) {
+            return true
+        }
+        if let delegate, delegate.responds(to: aSelector) {
+            return true
+        }
+        return false
+    }
+
+    override func forwardingTarget(for aSelector: Selector!) -> Any? {
+        if responds(to: aSelector) {
+            return nil
+        }
+        if let delegate, delegate.responds(to: aSelector) {
+            return delegate
+        }
+        return nil
     }
 
     // MARK: - UINavigationControllerDelegate

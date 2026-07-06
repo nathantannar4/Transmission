@@ -132,6 +132,7 @@ open class SlideNavigationControllerTransition: ViewControllerTransition {
         } else {
             transitionContext.containerView.insertSubview(toVC.view, belowSubview: fromVC.view)
         }
+
         toVC.view.frame = transitionContext.finalFrame(for: toVC)
         toVC.view.layoutIfNeeded()
 

@@ -136,6 +136,19 @@ open class PopoverPresentationControllerTransition: PresentationControllerTransi
         let sourceView = presentationController?.sourceView
         let sourceFrame = sourceView?.convert(sourceView?.bounds ?? .zero, to: transitionContext.containerView)
 
+        let dimmingView: UIView? = {
+            guard
+                let presentationController,
+                // _dimmingView
+                let aSelector = NSStringFromBase64EncodedString("X2RpbW1pbmdWaWV3"),
+                presentationController.responds(to: NSSelectorFromString(aSelector)),
+                let dimmingView = presentationController.value(forKey: aSelector) as? UIView
+            else {
+                return nil
+            }
+            return dimmingView
+        }()
+
         if isPresenting {
             presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
@@ -152,6 +165,9 @@ open class PopoverPresentationControllerTransition: PresentationControllerTransi
                 presentedFrame: &presentedFrame
             )
 
+            dimmingView?.backgroundColor = DimmingView.backgroundColor
+            dimmingView?.alpha = 0
+
             let transform = transform(
                 arrowDirection: presentationController?.arrowDirection ?? .unknown,
                 sourceFrame: sourceFrame,
@@ -159,6 +175,7 @@ open class PopoverPresentationControllerTransition: PresentationControllerTransi
             )
             presentedView.transform = transform
             animator.addAnimations {
+                dimmingView?.alpha = 1
                 presentedView.alpha = 1
                 presentedView.transform = .identity
             }
@@ -177,6 +194,7 @@ open class PopoverPresentationControllerTransition: PresentationControllerTransi
                 frame: frame
             )
             animator.addAnimations {
+                dimmingView?.alpha = 0
                 presentedView.alpha = 0
                 presentedView.transform = transform
             }

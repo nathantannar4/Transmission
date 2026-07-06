@@ -351,6 +351,11 @@ private class MenuLinkSourceView<
         fatalError("init(coder:) has not been implemented")
     }
 
+    @objc
+    func _wantsAccessibilityUnderline() -> Bool {
+        false
+    }
+
     @available(iOS 17.4, *)
     override func performPrimaryAction() {
         if showsMenuAsPrimaryAction {

@@ -137,7 +137,6 @@ final class DestinationLinkPathCoordinator<
         self.path = path
 
         var viewControllers = navigationController.viewControllers
-        var completions: [() -> Void] = []
 
         for (index, value) in path.wrappedValue.enumerated() {
             let id = path.wrappedValue.id(for: index)
@@ -162,9 +161,8 @@ final class DestinationLinkPathCoordinator<
                 destination: destination(value),
                 context: context,
                 sourceView: sourceView
-            ) { viewController, completion in
+            ) { viewController in
                 viewControllers.append(viewController)
-                completions.append(completion)
             }
         }
 
@@ -178,11 +176,7 @@ final class DestinationLinkPathCoordinator<
                 navigationController.setViewControllers(
                     viewControllers,
                     animated: context.transaction.isAnimated
-                ) {
-                    for completion in completions {
-                        completion()
-                    }
-                }
+                )
             }
             if let firstResponder = navigationController.topViewController?.firstResponder {
                 withCATransaction {

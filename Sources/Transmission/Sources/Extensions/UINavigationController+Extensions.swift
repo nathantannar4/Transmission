@@ -58,6 +58,30 @@ extension UINavigationController {
         CATransaction.commit()
     }
 
+    var interactionController: NSObject? {
+        guard
+            // _interactionController
+            let aSelector = NSStringFromBase64EncodedString("X2ludGVyYWN0aW9uQ29udHJvbGxlcg=="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let value = value(forKey: aSelector) as? NSObject
+        else {
+            return nil
+        }
+        return value
+    }
+
+    var zoomInteractionController: NSObject? {
+        guard
+            let interactionController = interactionController,
+            // _UIZoomTransitionController
+            let aClass = NSClassFromBase64EncodedString("X1VJWm9vbVRyYW5zaXRpb25Db250cm9sbGVy"),
+            interactionController.isKind(of: aClass)
+        else {
+            return nil
+        }
+        return interactionController
+    }
+
     func interactiveTransitionWillEnd() {
         // UIKit disables interaction for custom transitions while interacting, but
         // does not re-enable until the animation is complete. This re-enables them
