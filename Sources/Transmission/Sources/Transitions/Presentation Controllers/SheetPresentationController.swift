@@ -210,7 +210,7 @@ open class SheetPresentationController: InteractivePresentationController {
 #else
 
 @available(iOS 15.0, *)
-open class SheetPresentationController: UISheetPresentationController, PercentDrivenInteractivePresentationController {
+open class SheetPresentationController: UISheetPresentationController, PercentDrivenInteractivePresentationController, UIGestureRecognizerDelegate {
 
     public var preferredCornerRadiusOptions: CornerRadiusOptions.RoundedRectangle? {
         didSet {
@@ -230,6 +230,13 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         didSet {
             guard preferredGlassEffect != oldValue else { return }
             updateBackground(didNilColor: false)
+        }
+    }
+
+    public var isPanToDismissGestureEnabled: Bool = true {
+        didSet {
+            guard isPanToDismissGestureEnabled != oldValue else { return }
+            updatePanGesture()
         }
     }
 
@@ -258,6 +265,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     public weak var transition: UIPercentDrivenInteractiveTransition?
 
     private var isKeyboardAdjustedLargeDetent = false
+    private weak var panGestureDelegate: UIGestureRecognizerDelegate?
 
     public override init(
         presentedViewController: UIViewController,
@@ -282,6 +290,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
+        updatePanGesture()
         updateBackgroundColors(didNilColor: false)
 
         NotificationCenter.default.addObserver(
@@ -308,6 +317,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         super.presentationTransitionDidEnd(completed)
 
         if completed {
+            updatePanGesture()
             presentedViewController.fixSwiftUIHitTesting()
             panGesture?.addTarget(self, action: #selector(didPan(_:)))
             if let scrollView = presentedViewController.contentScrollView(for: .bottom) {
@@ -405,8 +415,29 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         #endif
     }
 
+    private func updatePanGesture() {
+        panGesture?.isEnabled = isPanToDismissGestureEnabled
+        if isPanToDismissGestureEnabled, panGestureDelegate != nil {
+            panGesture?.delegate = panGestureDelegate
+        } else if !isPanToDismissGestureEnabled, panGesture?.delegate !== self {
+            panGestureDelegate = panGesture?.delegate
+            panGesture?.delegate = self
+        }
+    }
+
+    open func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer == panGesture {
+            return isPanToDismissGestureEnabled
+        }
+        return true
+    }
+
     @objc
     private func didPan(_ gesture: UIPanGestureRecognizer) {
+        if gesture.isEnabled, !isPanToDismissGestureEnabled {
+            gesture.isEnabled = false
+        }
+
         switch gesture.state {
         case .began:
             break
@@ -482,8 +513,6 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         }
     }
 
-    // MARK: - Keyboard Handling
-
     @objc
     func _shouldDismissByDragging() -> Bool {
         if !shouldAdjustDetentsForKeyboard {
@@ -502,6 +531,8 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         let shouldDismiss = fn(self, aSelector)
         return shouldDismiss
     }
+
+    // MARK: - Keyboard Handling
 
     @objc
     private func onKeyboardChange(_ notification: Notification) {
@@ -611,6 +642,7 @@ extension SheetPresentationLinkTransition.Options {
         presentationController.prefersEdgeAttachedInCompactHeight = newValue.prefersEdgeAttachedInCompactHeight
         presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = newValue.widthFollowsPreferredContentSizeWhenEdgeAttached
         presentationController.shouldAdjustDetentsForKeyboard = newValue.shouldAdjustDetentsForKeyboard
+        presentationController.isPanToDismissGestureEnabled = newValue.isPanToDismissGestureEnabled
         if #available(iOS 26.0, *) {
             presentationController.prefersSheetInset = newValue.prefersSheetInset
         }

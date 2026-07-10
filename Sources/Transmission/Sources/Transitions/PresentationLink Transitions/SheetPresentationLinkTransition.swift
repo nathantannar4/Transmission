@@ -494,6 +494,7 @@ public struct SheetPresentationLinkTransition: Sendable {
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
         public var prefersPageSizing: Bool
         public var shouldAdjustDetentsForKeyboard: Bool
+        public var isPanToDismissGestureEnabled: Bool
         public var prefersSheetInset: Bool
         public var prefersZoomTransition: Bool
         public var zoomTransitionOptions: ZoomTransitionOptions?
@@ -512,6 +513,7 @@ public struct SheetPresentationLinkTransition: Sendable {
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
             prefersPageSizing: Bool = true,
             shouldAdjustDetentsForKeyboard: Bool = true,
+            isPanToDismissGestureEnabled: Bool = true,
             prefersSheetInset: Bool = true,
             prefersZoomTransition: Bool = false,
             zoomTransitionOptions: ZoomTransitionOptions? = nil,
@@ -538,6 +540,7 @@ public struct SheetPresentationLinkTransition: Sendable {
             self.widthFollowsPreferredContentSizeWhenEdgeAttached = widthFollowsPreferredContentSizeWhenEdgeAttached
             self.prefersPageSizing = prefersPageSizing
             self.shouldAdjustDetentsForKeyboard = shouldAdjustDetentsForKeyboard
+            self.isPanToDismissGestureEnabled = isPanToDismissGestureEnabled
             self.prefersSheetInset = prefersSheetInset
             self.prefersZoomTransition = prefersZoomTransition
             self.zoomTransitionOptions = zoomTransitionOptions

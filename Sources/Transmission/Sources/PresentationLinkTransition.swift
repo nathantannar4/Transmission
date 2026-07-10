@@ -50,7 +50,6 @@ public struct PresentationLinkTransition: Sendable {
         return copy
     }
 
-
     @inlinable
     public func preferredColorScheme(_ preferredColorScheme: ColorScheme?) -> PresentationLinkTransition {
         var copy = self

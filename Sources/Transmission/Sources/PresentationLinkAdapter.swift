@@ -1306,6 +1306,7 @@ final class PresentationLinkCoordinator<
                     presentationController.prefersPageSizing = options.prefersPageSizing
                 }
                 presentationController.shouldAdjustDetentsForKeyboard = options.shouldAdjustDetentsForKeyboard
+                presentationController.isPanToDismissGestureEnabled = options.isPanToDismissGestureEnabled
                 presentationController.preferredBackgroundColor = transition.options.preferredPresentationBackgroundUIColor
                 presentationController.preferredGlassEffect = options.preferredGlassEffect
                 if #available(iOS 26.0, *) {
@@ -1731,6 +1732,7 @@ class PresentationLinkDestinationViewControllerAdapter<
     ) {
 
         viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
+        viewController.isModalInPresentation = !transition.options.isInteractive
 
         let shouldUpdateBackgroundColor = {
             if case .popover = transition.value {
