@@ -19,6 +19,22 @@ extension UIView {
         return responder as? UIViewController
     }
 
+    var containingScrollView: UIScrollView? {
+        guard
+            // _containingScrollView
+            let aSelector = NSStringFromBase64EncodedString("X2NvbnRhaW5pbmdTY3JvbGxWaWV3"),
+            responds(to: NSSelectorFromString(aSelector)),
+            let value = value(forKey: aSelector) as? UIScrollView
+        else {
+            var view = superview
+            while view != nil, !(view is UIScrollView) {
+                view = view?.superview
+            }
+            return view as? UIScrollView
+        }
+        return value
+    }
+
     func preferredContentSize(for width: CGFloat) -> CGSize {
         var size = intrinsicContentSize
         if size.height <= 0 || size.width > width {
