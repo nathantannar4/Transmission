@@ -10,49 +10,132 @@ import SwiftUI
 @frozen
 public enum CornerRadiusOptions: Equatable, Sendable, Shape {
 
+    /// The corner radius of each corner of a rectangle.
+    @frozen
+    public struct CornerRadii: Equatable, Sendable {
+        public var topLeft: CGFloat
+        public var topRight: CGFloat
+        public var bottomLeft: CGFloat
+        public var bottomRight: CGFloat
+
+        public init(
+            topLeft: CGFloat,
+            topRight: CGFloat,
+            bottomLeft: CGFloat,
+            bottomRight: CGFloat
+        ) {
+            self.topLeft = topLeft
+            self.topRight = topRight
+            self.bottomLeft = bottomLeft
+            self.bottomRight = bottomRight
+        }
+
+        public init(_ cornerRadius: CGFloat) {
+            self.init(
+                topLeft: cornerRadius,
+                topRight: cornerRadius,
+                bottomLeft: cornerRadius,
+                bottomRight: cornerRadius
+            )
+        }
+
+        public static let zero = CornerRadii(0)
+
+        public var isUniform: Bool {
+            topLeft == topRight && topRight == bottomLeft && bottomLeft == bottomRight
+        }
+
+        /// The largest of the four radii, for use where only a single radius can be expressed.
+        public var maximum: CGFloat {
+            max(max(topLeft, topRight), max(bottomLeft, bottomRight))
+        }
+
+        /// Zeroes the radius of every corner not in `mask`.
+        ///
+        /// `CACornerMask` has no effect once per-corner radii are in use, so a mask is
+        /// instead applied by zeroing the radii it excludes.
+        public func masked(_ mask: CACornerMask) -> CornerRadii {
+            CornerRadii(
+                topLeft: mask.contains(.layerMinXMinYCorner) ? topLeft : 0,
+                topRight: mask.contains(.layerMaxXMinYCorner) ? topRight : 0,
+                bottomLeft: mask.contains(.layerMinXMaxYCorner) ? bottomLeft : 0,
+                bottomRight: mask.contains(.layerMaxXMaxYCorner) ? bottomRight : 0
+            )
+        }
+
+        public func clamped(to size: CGSize) -> CornerRadii {
+            let limit = min(size.width / 2, size.height / 2)
+            return CornerRadii(
+                topLeft: min(topLeft, limit),
+                topRight: min(topRight, limit),
+                bottomLeft: min(bottomLeft, limit),
+                bottomRight: min(bottomRight, limit)
+            )
+        }
+    }
+
     @frozen
     public struct RoundedRectangle: Equatable, Sendable, Shape {
-        public var cornerRadius: CGFloat?
+        public var cornerRadii: CornerRadii?
         public var mask: CACornerMask
         public var style: CALayerCornerCurve
         public var isContainerConcentric: Bool
 
+        /// The uniform corner radius.
+        ///
+        /// Reading returns the largest of the four radii, for the callers—such as
+        /// `UISheetPresentationController.preferredCornerRadius`—that can only express one.
+        public var cornerRadius: CGFloat? {
+            get { cornerRadii?.maximum }
+            set { cornerRadii = newValue.map { CornerRadii($0) } }
+        }
+
         private init(
-            cornerRadius: CGFloat?,
+            cornerRadii: CornerRadii?,
             mask: CACornerMask,
             style: CALayerCornerCurve,
             isContainerConcentric: Bool = false
         ) {
-            self.cornerRadius = cornerRadius
+            self.cornerRadii = cornerRadii
             self.mask = mask
             self.style = style
             self.isContainerConcentric = isContainerConcentric
+        }
+
+        /// The radii as rendered: masked, and clamped to `size` when one is known.
+        public func resolvedCornerRadii(for size: CGSize? = nil) -> CornerRadii {
+            let cornerRadii = (cornerRadii ?? .zero).masked(mask)
+            guard let size else { return cornerRadii }
+            return cornerRadii.clamped(to: size)
         }
 
         public nonisolated func path(in rect: CGRect) -> Path {
             if isContainerConcentric, #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
                 return SwiftUI.ContainerRelativeShape().path(in: rect)
             }
-            let cornerRadius = cornerRadius ?? 0
-            if mask != .all {
-                if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
-                    return UnevenRoundedRectangle(
-                        topLeadingRadius: mask.contains(.layerMinXMinYCorner) ? cornerRadius : 0,
-                        bottomLeadingRadius: mask.contains(.layerMinXMaxYCorner) ? cornerRadius : 0,
-                        bottomTrailingRadius: mask.contains(.layerMaxXMaxYCorner) ? cornerRadius : 0,
-                        topTrailingRadius: mask.contains(.layerMaxXMinYCorner) ? cornerRadius : 0,
-                        style: style.toSwiftUI()
-                    ).path(in: rect)
-                }
-                return RoundedCornersRectangle(
-                    topLeadingRadius: mask.contains(.layerMinXMinYCorner) ? cornerRadius : 0,
-                    bottomLeadingRadius: mask.contains(.layerMinXMaxYCorner) ? cornerRadius : 0,
-                    bottomTrailingRadius: mask.contains(.layerMaxXMaxYCorner) ? cornerRadius : 0,
-                    topTrailingRadius: mask.contains(.layerMaxXMinYCorner) ? cornerRadius : 0,
+            let cornerRadii = resolvedCornerRadii()
+            if cornerRadii.isUniform {
+                return SwiftUI.RoundedRectangle(
+                    cornerRadius: cornerRadii.topLeft,
                     style: style.toSwiftUI()
                 ).path(in: rect)
             }
-            return SwiftUI.RoundedRectangle(cornerRadius: cornerRadius, style: style.toSwiftUI()).path(in: rect)
+            if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
+                return UnevenRoundedRectangle(
+                    topLeadingRadius: cornerRadii.topLeft,
+                    bottomLeadingRadius: cornerRadii.bottomLeft,
+                    bottomTrailingRadius: cornerRadii.bottomRight,
+                    topTrailingRadius: cornerRadii.topRight,
+                    style: style.toSwiftUI()
+                ).path(in: rect)
+            }
+            return RoundedCornersRectangle(
+                topLeadingRadius: cornerRadii.topLeft,
+                bottomLeadingRadius: cornerRadii.bottomLeft,
+                bottomTrailingRadius: cornerRadii.bottomRight,
+                topTrailingRadius: cornerRadii.topRight,
+                style: style.toSwiftUI()
+            ).path(in: rect)
         }
 
         public static let identity: RoundedRectangle = .rounded(cornerRadius: 0)
@@ -63,7 +146,7 @@ public enum CornerRadiusOptions: Equatable, Sendable, Shape {
             style: CALayerCornerCurve
         ) -> RoundedRectangle {
             RoundedRectangle(
-                cornerRadius: cornerRadius,
+                cornerRadii: CornerRadii(cornerRadius),
                 mask: mask,
                 style: style
             )
@@ -80,13 +163,43 @@ public enum CornerRadiusOptions: Equatable, Sendable, Shape {
             )
         }
 
+        public static func rounded(
+            cornerRadii: CornerRadii,
+            mask: CACornerMask = .all,
+            style: CALayerCornerCurve = .continuous
+        ) -> RoundedRectangle {
+            RoundedRectangle(
+                cornerRadii: cornerRadii,
+                mask: mask,
+                style: style
+            )
+        }
+
+        public static func rounded(
+            topLeft: CGFloat,
+            topRight: CGFloat,
+            bottomLeft: CGFloat,
+            bottomRight: CGFloat,
+            style: CALayerCornerCurve = .continuous
+        ) -> RoundedRectangle {
+            .rounded(
+                cornerRadii: CornerRadii(
+                    topLeft: topLeft,
+                    topRight: topRight,
+                    bottomLeft: bottomLeft,
+                    bottomRight: bottomRight
+                ),
+                style: style
+            )
+        }
+
         @MainActor @preconcurrency
         public static func screen(
             min: CGFloat = 12
         ) -> RoundedRectangle {
             let cornerRadius = UIScreen.main.displayCornerRadius
             return RoundedRectangle(
-                cornerRadius: max(min, cornerRadius),
+                cornerRadii: CornerRadii(max(min, cornerRadius)),
                 mask: .all,
                 style: min > cornerRadius ? .continuous : .circular,
                 isContainerConcentric: false
@@ -110,7 +223,7 @@ public enum CornerRadiusOptions: Equatable, Sendable, Shape {
             style: CALayerCornerCurve = .continuous
         ) -> RoundedRectangle {
             RoundedRectangle(
-                cornerRadius: cornerRadius,
+                cornerRadii: cornerRadius.map { CornerRadii($0) },
                 mask: mask,
                 style: style,
                 isContainerConcentric: true
@@ -208,6 +321,38 @@ public enum CornerRadiusOptions: Equatable, Sendable, Shape {
         )
     }
 
+    public static func rounded(
+        cornerRadii: CornerRadii,
+        mask: CACornerMask = .all,
+        style: CALayerCornerCurve = .continuous
+    ) -> CornerRadiusOptions {
+        .rounded(
+            .rounded(
+                cornerRadii: cornerRadii,
+                mask: mask,
+                style: style
+            )
+        )
+    }
+
+    public static func rounded(
+        topLeft: CGFloat,
+        topRight: CGFloat,
+        bottomLeft: CGFloat,
+        bottomRight: CGFloat,
+        style: CALayerCornerCurve = .continuous
+    ) -> CornerRadiusOptions {
+        .rounded(
+            .rounded(
+                topLeft: topLeft,
+                topRight: topRight,
+                bottomLeft: bottomLeft,
+                bottomRight: bottomRight,
+                style: style
+            )
+        )
+    }
+
     public static func containerConcentric(
         minimum cornerRadius: CGFloat? = nil,
         style: CALayerCornerCurve = .continuous
@@ -286,10 +431,14 @@ public enum CornerRadiusOptions: Equatable, Sendable, Shape {
         case .capsule(let options):
             options.apply(to: layer, size: size, masksToBounds: masksToBounds)
         case .circle:
-            layer.cornerRadius = cornerRadius(for: size ?? layer.bounds.size)
+            let cornerRadius = cornerRadius(for: size ?? layer.bounds.size)
+            layer.cornerRadius = cornerRadius
             layer.maskedCorners = mask
             layer.cornerCurve = style
             layer.masksToBounds = masksToBounds
+            if layer.usesCornerRadii {
+                layer.setCornerRadii(CornerRadii(cornerRadius))
+            }
         }
     }
 
@@ -318,7 +467,15 @@ extension CornerRadiusOptions.RoundedRectangle {
     ) {
         #if canImport(FoundationModels) // Xcode 26
         if #available(iOS 26.0, *) {
+            // A radius per corner has a public API on a `UIView`, so the private
+            // property on its layer is left alone.
             view.cornerConfiguration = makeCornerConfiguration()
+            let cornerRadii = resolvedCornerRadii(for: size)
+            view.layer.cornerRadius = cornerRadii.maximum
+            view.layer.maskedCorners = mask
+            view.layer.cornerCurve = style
+            view.layer.masksToBounds = masksToBounds
+            return
         }
         #endif
         apply(to: view.layer, size: size, masksToBounds: masksToBounds)
@@ -330,28 +487,49 @@ extension CornerRadiusOptions.RoundedRectangle {
         size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
-        if let size {
-            let maxCornerRadius = min(size.width / 2, size.height / 2)
-            layer.cornerRadius = min(cornerRadius ?? 0, maxCornerRadius)
-        } else {
-            layer.cornerRadius = cornerRadius ?? 0
-        }
-        layer.maskedCorners = mask
+        let cornerRadii = resolvedCornerRadii(for: size)
         layer.cornerCurve = style
         layer.masksToBounds = masksToBounds
+
+        // A uniform radius on a layer that has never been given a radius per corner.
+        if cornerRadii.isUniform, !layer.usesCornerRadii {
+            layer.cornerRadius = cornerRadii.topLeft
+            layer.maskedCorners = mask
+            return
+        }
+
+        // `cornerRadius` no longer governs rendering, but is kept in sync so that the
+        // drop shadow path, the dimming view and the transitions, all of which read a
+        // single radius back off the layer, continue to see a usable value.
+        layer.cornerRadius = cornerRadii.maximum
+
+        guard CALayer.supportsCornerRadii else {
+            // iOS 15 and earlier. Degrade to the largest of the four radii.
+            layer.maskedCorners = mask
+            return
+        }
+        layer.setCornerRadii(cornerRadii)
     }
 
     #if canImport(FoundationModels) // Xcode 26
     @available(iOS 26.0, *)
     func makeCornerConfiguration() -> UICornerConfiguration {
-        let corner = isContainerConcentric
-            ? UICornerRadius.containerConcentric(minimum: cornerRadius)
-            : cornerRadius.map { .fixed($0) }
+        let cornerRadii = resolvedCornerRadii()
+        func corner(
+            _ cornerRadius: CGFloat,
+            _ isMasked: Bool
+        ) -> UICornerRadius? {
+            guard isMasked else { return nil }
+            if isContainerConcentric {
+                return .containerConcentric(minimum: self.cornerRadii == nil ? nil : cornerRadius)
+            }
+            return self.cornerRadii == nil ? nil : .fixed(cornerRadius)
+        }
         return UICornerConfiguration.corners(
-            topLeftRadius: mask.contains(.layerMinXMinYCorner) ? corner : nil,
-            topRightRadius: mask.contains(.layerMaxXMinYCorner) ? corner : nil,
-            bottomLeftRadius: mask.contains(.layerMinXMaxYCorner) ? corner : nil,
-            bottomRightRadius: mask.contains(.layerMaxXMaxYCorner) ? corner : nil
+            topLeftRadius: corner(cornerRadii.topLeft, mask.contains(.layerMinXMinYCorner)),
+            topRightRadius: corner(cornerRadii.topRight, mask.contains(.layerMaxXMinYCorner)),
+            bottomLeftRadius: corner(cornerRadii.bottomLeft, mask.contains(.layerMinXMaxYCorner)),
+            bottomRightRadius: corner(cornerRadii.bottomRight, mask.contains(.layerMaxXMaxYCorner))
         )
     }
     #endif
@@ -379,9 +557,13 @@ extension CornerRadiusOptions.Capsule {
         size: CGSize? = nil,
         masksToBounds: Bool = true
     ) {
-        layer.cornerRadius = cornerRadius(for: size ?? layer.bounds.size)
+        let cornerRadius = cornerRadius(for: size ?? layer.bounds.size)
+        layer.cornerRadius = cornerRadius
         layer.cornerCurve = style
         layer.masksToBounds = masksToBounds
+        if layer.usesCornerRadii {
+            layer.setCornerRadii(CornerRadiusOptions.CornerRadii(cornerRadius))
+        }
     }
 
     public func cornerRadius(
@@ -403,7 +585,7 @@ extension CornerRadiusOptions.Capsule {
 }
 
 extension CACornerMask {
-    static let all: CACornerMask = [
+    public static let all: CACornerMask = [
         .layerMaxXMaxYCorner,
         .layerMaxXMinYCorner,
         .layerMinXMaxYCorner,
@@ -455,6 +637,9 @@ extension UIView {
         layer.maskedCorners = source.layer.maskedCorners
         layer.cornerCurve = source.layer.cornerCurve
         layer.masksToBounds = source.layer.masksToBounds
+        if source.layer.usesCornerRadii, let cornerRadii = source.layer.cornerRadii() {
+            layer.setCornerRadii(cornerRadii)
+        }
     }
 }
 
@@ -534,6 +719,18 @@ struct CornerRadiusOptions_Previews: PreviewProvider {
                             cornerRadius: 12,
                             mask: [.topLeft, .bottomRight],
                             style: .circular
+                        )
+                    )
+                    .frame(width: 100, height: 50)
+                }
+
+                VStack {
+                    Preview(
+                        options: .rounded(
+                            topLeft: 24,
+                            topRight: 24,
+                            bottomLeft: 4,
+                            bottomRight: 4
                         )
                     )
                     .frame(width: 100, height: 50)
