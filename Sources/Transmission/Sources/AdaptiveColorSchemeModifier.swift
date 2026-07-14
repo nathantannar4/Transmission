@@ -13,10 +13,11 @@ import Engine
 /// Only adapts if the `preferredColorScheme` is not the current color scheme
 ///
 @frozen
+@available(iOS 14.0, *)
 public struct AdaptiveColorSchemeModifier: ViewModifier {
 
     var preferredColorScheme: ColorScheme?
-    var boundaries: LuminanceColorSchemeBoundaries
+    var options: LuminanceTrackingOptions
     var isEnabled: Bool
 
     @State var adaptiveColorScheme: ColorScheme?
@@ -24,10 +25,10 @@ public struct AdaptiveColorSchemeModifier: ViewModifier {
 
     public init(
         preferredColorScheme: ColorScheme? = nil,
-        boundaries: LuminanceColorSchemeBoundaries = .default,
+        options: LuminanceTrackingOptions = .default,
         isEnabled: Bool = true
     ) {
-        self.boundaries = boundaries
+        self.options = options
         self.preferredColorScheme = preferredColorScheme
         self.isEnabled = isEnabled
     }
@@ -39,13 +40,14 @@ public struct AdaptiveColorSchemeModifier: ViewModifier {
             .modifier(
                 LuminanceTrackingReaderModifier(
                     colorScheme: $adaptiveColorScheme,
-                    boundaries: boundaries,
+                    options: options,
                     isEnabled: isEnabled && preferredColorScheme != colorScheme
                 )
             )
     }
 }
 
+@available(iOS 14.0, *)
 extension View {
 
     /// A modifier that samples the rendered containing view and modifies the color scheme
@@ -55,13 +57,13 @@ extension View {
     ///
     public func adaptiveColorScheme(
         preferredColorScheme: ColorScheme? = nil,
-        boundaries: LuminanceColorSchemeBoundaries = .default,
+        options: LuminanceTrackingOptions = .default,
         isEnabled: Bool = true
     ) -> some View {
         modifier(
             AdaptiveColorSchemeModifier(
                 preferredColorScheme: preferredColorScheme,
-                boundaries: boundaries,
+                options: options,
                 isEnabled: isEnabled
             )
         )
@@ -69,36 +71,54 @@ extension View {
 }
 
 @frozen
-public struct LuminanceColorSchemeBoundaries: Equatable, Sendable {
-    public var dark: Double
-    public var light: Double
+@available(iOS 14.0, *)
+public struct LuminanceTrackingOptions: Equatable, Sendable {
 
-    public init(dark: Double, light: Double) {
-        self.dark = dark
-        self.light = light
+    public struct ColorSchemeThresholds: Equatable, Sendable {
+        public var dark: Double
+        public var light: Double
+
+        public init(dark: Double = 0.45, light: Double = 0.55) {
+            self.dark = dark
+            self.light = light
+        }
+
+        public static let `default` = ColorSchemeThresholds()
     }
 
-    public static let `default` = LuminanceColorSchemeBoundaries(dark: 0.45, light: 0.55)
+    public var colorSchemeThresholds: ColorSchemeThresholds
+    public var trackingRegionInsets: EdgeInsets
+
+    public init(
+        colorSchemeThresholds: ColorSchemeThresholds = .default,
+        trackingRegionInsets: EdgeInsets = EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
+    ) {
+        self.colorSchemeThresholds = colorSchemeThresholds
+        self.trackingRegionInsets = trackingRegionInsets
+    }
+
+    public static let `default` = LuminanceTrackingOptions()
 }
 
 /// A modifier that samples the rendered containing view depending on the average color
 @frozen
+@available(iOS 14.0, *)
 public struct LuminanceTrackingReaderModifier: ViewModifier {
 
     var luminance: Binding<Double?>?
     var colorScheme: Binding<ColorScheme?>?
-    var boundaries: LuminanceColorSchemeBoundaries
+    var options: LuminanceTrackingOptions
     var isEnabled: Bool
 
     public init(
         luminance: Binding<Double?>? = nil,
         colorScheme: Binding<ColorScheme?>? = nil,
-        boundaries: LuminanceColorSchemeBoundaries = .default,
+        options: LuminanceTrackingOptions = .default,
         isEnabled: Bool = true
     ) {
         self.luminance = luminance
         self.colorScheme = colorScheme
-        self.boundaries = boundaries
+        self.options = options
         self.isEnabled = isEnabled
     }
 
@@ -110,7 +130,7 @@ public struct LuminanceTrackingReaderModifier: ViewModifier {
                         LuminanceTrackingReaderAdapter(
                             luminance: luminance,
                             colorScheme: colorScheme,
-                            boundaries: boundaries
+                            options: options
                         )
                     }
                 }
@@ -118,10 +138,11 @@ public struct LuminanceTrackingReaderModifier: ViewModifier {
     }
 }
 
+@available(iOS 14.0, *)
 private struct LuminanceTrackingReaderAdapter: UIViewRepresentable {
     var luminance: Binding<Double?>?
     var colorScheme: Binding<ColorScheme?>?
-    var boundaries: LuminanceColorSchemeBoundaries
+    var options: LuminanceTrackingOptions
 
     func makeUIView(context: Context) -> LuminanceTrackingReader {
         let uiView = LuminanceTrackingReader()
@@ -131,33 +152,26 @@ private struct LuminanceTrackingReaderAdapter: UIViewRepresentable {
     func updateUIView(_ uiView: LuminanceTrackingReader, context: Context) {
         uiView.luminance = luminance
         uiView.colorScheme = colorScheme
-        uiView.boundaries = boundaries
+        uiView.colorSchemeThresholds = options.colorSchemeThresholds
+        uiView.trackingRegionInsets = options.trackingRegionInsets.toUIEdgeInsets(layoutDirection: context.environment.layoutDirection)
     }
 }
 
+@available(iOS 14.0, *)
 open class LuminanceTrackingReader: UIView {
 
     public var luminance: Binding<Double?>?
     public var colorScheme: Binding<ColorScheme?>?
-    public var boundaries: LuminanceColorSchemeBoundaries = .default {
+    public var colorSchemeThresholds: LuminanceTrackingOptions.ColorSchemeThresholds = .default {
         didSet {
-            guard oldValue != boundaries else { return }
-            guard
-                let backdropView,
-                // setTransitionBoundaries:
-                let aSelector = NSSelectorFromBase64EncodedString("c2V0VHJhbnNpdGlvbkJvdW5kYXJpZXM6"),
-                backdropView.responds(to: aSelector),
-                let method = class_getInstanceMethod(object_getClass(backdropView), aSelector)
-            else {
-                return
-            }
-            let imp = method_getImplementation(method)
-            typealias Fn = @convention(c) (
-                AnyObject, Selector, CGPoint
-            ) -> Void
-
-            let fn = unsafeBitCast(imp, to: Fn.self)
-            fn(backdropView, aSelector, CGPoint(x: boundaries.dark, y: boundaries.light))
+            guard oldValue != colorSchemeThresholds else { return }
+            didUpdateLevelBoundaries()
+        }
+    }
+    public var trackingRegionInsets: UIEdgeInsets = .zero {
+        didSet {
+            guard oldValue != trackingRegionInsets else { return }
+            setNeedsLayout()
         }
     }
 
@@ -189,7 +203,7 @@ open class LuminanceTrackingReader: UIView {
             ) -> Unmanaged<UIView>?
 
             let fn = unsafeBitCast(imp, to: Fn.self)
-            let view = fn(instance, initSelector, CGPoint(x: boundaries.dark, y: boundaries.light), self, .zero)
+            let view = fn(instance, initSelector, CGPoint(x: colorSchemeThresholds.dark, y: colorSchemeThresholds.light), self, .zero)
             return view?.takeRetainedValue()
         }()
         if let backdropView {
@@ -256,13 +270,14 @@ open class LuminanceTrackingReader: UIView {
         super.layoutSubviews()
         guard let backdropView else { return }
 
+        let trackingRegion = bounds.inset(by: trackingRegionInsets)
         // setBackdropRect:
         if let aSelector = NSStringFromBase64EncodedString("c2V0QmFja2Ryb3BSZWN0Og=="),
             backdropView.layer.responds(to: NSSelectorFromString(aSelector)),
             // backdropRect
             let keyPath = NSStringFromBase64EncodedString("YmFja2Ryb3BSZWN0")
         {
-            backdropView.layer.setValue(bounds, forKey: keyPath)
+            backdropView.layer.setValue(trackingRegion, forKey: keyPath)
         }
         // setLumaSubrect:
         if let aSelector = NSStringFromBase64EncodedString("c2V0THVtYVN1YnJlY3Q6"),
@@ -270,8 +285,12 @@ open class LuminanceTrackingReader: UIView {
             // lumaSubrect
             let keyPath = NSStringFromBase64EncodedString("bHVtYVN1YnJlY3Q=")
         {
-            backdropView.layer.setValue(bounds, forKey: keyPath)
+            backdropView.layer.setValue(trackingRegion, forKey: keyPath)
         }
+    }
+
+    open override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        return nil
     }
 
     @objc
@@ -308,11 +327,11 @@ open class LuminanceTrackingReader: UIView {
         if let newValue {
             switch level {
             case 1:
-                if newValue > boundaries.light {
+                if newValue > colorSchemeThresholds.light {
                     didUpdateColorScheme(.light)
                 }
             case 2:
-                if newValue < boundaries.dark {
+                if newValue < colorSchemeThresholds.dark {
                     didUpdateColorScheme(.dark)
                 }
             default:
@@ -326,6 +345,122 @@ open class LuminanceTrackingReader: UIView {
     private func didUpdateColorScheme(_ newValue: ColorScheme?) {
         guard colorScheme?.wrappedValue != newValue else { return }
         colorScheme?.wrappedValue = newValue
+    }
+
+    private func didUpdateLevelBoundaries() {
+        guard
+            let backdropView,
+            // setTransitionBoundaries:
+            let aSelector = NSSelectorFromBase64EncodedString("c2V0VHJhbnNpdGlvbkJvdW5kYXJpZXM6"),
+            backdropView.responds(to: aSelector),
+            let method = class_getInstanceMethod(object_getClass(backdropView), aSelector)
+        else {
+            return
+        }
+        let imp = method_getImplementation(method)
+        typealias Fn = @convention(c) (
+            AnyObject, Selector, CGPoint
+        ) -> Void
+
+        let fn = unsafeBitCast(imp, to: Fn.self)
+        fn(backdropView, aSelector, CGPoint(x: colorSchemeThresholds.dark, y: colorSchemeThresholds.light))
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 15.0, *)
+struct LuminanceTrackingReaderModifier_Previews: PreviewProvider {
+    static var previews: some View {
+        ZStack {
+            Preview()
+        }
+    }
+
+    struct Preview: View {
+
+        var body: some View {
+            ScrollView {
+                VStack(spacing: 0) {
+                    ForEach(3) {
+                        Color.black
+                            .frame(height: 100)
+                        Color.yellow
+                            .frame(height: 100)
+                        Color.red
+                            .frame(height: 100)
+                        Color.white
+                            .frame(height: 100)
+                        Color.green
+                            .frame(height: 100)
+                        Color.purple
+                            .frame(height: 100)
+                        Color.orange
+                            .frame(height: 100)
+                        Color.cyan
+                            .frame(height: 100)
+                    }
+                }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                NavigationBar()
+            }
+        }
+
+        struct NavigationBar: View {
+
+            @State var luminance: Double?
+            @State var adaptiveColorScheme: ColorScheme?
+            @State var isInset = false
+
+            var body: some View {
+                Button {
+                    isInset.toggle()
+                } label: {
+                    Text(luminance ?? 1, format: .number.precision(.fractionLength(3)))
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background {
+                    LinearGradient(
+                        colors: [
+                            Color.primary,
+                            Color.primary.opacity(0),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+                    .transformEnvironment(\.colorScheme) { colorScheme in
+                        switch colorScheme {
+                        case .light:
+                            colorScheme = .dark
+                        case .dark:
+                            colorScheme = .light
+                        default:
+                            break
+                        }
+                    }
+                }
+                .environment(\.colorScheme, adaptiveColorScheme)
+                .animation(.default, value: adaptiveColorScheme)
+                .modifier(
+                    LuminanceTrackingReaderModifier(
+                        luminance: $luminance,
+                        colorScheme: $adaptiveColorScheme,
+                        options: LuminanceTrackingOptions(
+                            colorSchemeThresholds: .default,
+                            trackingRegionInsets: EdgeInsets(
+                                top: 0,
+                                leading: 0,
+                                bottom: isInset ? -100 : 0,
+                                trailing: 0
+                            )
+                        )
+                    )
+                )
+            }
+        }
     }
 }
 
