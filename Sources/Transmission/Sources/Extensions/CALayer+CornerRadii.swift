@@ -8,111 +8,131 @@ import UIKit
 import QuartzCore
 import ObjectiveC
 
-/// The layout of CoreAnimation's `CACornerRadii`.
-///
-/// Four `CGSize`, since a corner may be elliptical, ordered bottom left, bottom right,
-/// top right, top left. The order is not top left first; transposing it silently rotates
-/// the corners.
-private struct CACornerRadii {
-    var minXMaxY: CGSize // Bottom left
-    var maxXMaxY: CGSize // Bottom right
-    var maxXMinY: CGSize // Top right
-    var minXMinY: CGSize // Top left
+extension CACornerMask {
+
+    static let all: CACornerMask = [
+        .layerMaxXMaxYCorner,
+        .layerMaxXMinYCorner,
+        .layerMinXMaxYCorner,
+        .layerMinXMinYCorner
+    ]
+
+    static let topLeft: CACornerMask = .layerMinXMinYCorner
+
+    static let topRight: CACornerMask = .layerMaxXMinYCorner
+
+    static let bottomLeft: CACornerMask = .layerMinXMaxYCorner
+
+    static let bottomRight: CACornerMask = .layerMaxXMaxYCorner
 }
 
 extension CALayer {
 
-    /// Whether CoreAnimation supports a radius per corner. `true` on iOS 16 and later.
-    ///
-    /// Detected from the ObjC property rather than a key value round trip, since on iOS 15
-    /// and earlier `CALayer`'s key value store accepts and returns the value with no effect
-    /// on rendering, making a round trip report a false positive.
-    static let supportsCornerRadii: Bool = {
-        guard let key = cornerRadiiKey else { return false }
-        return class_getProperty(CALayer.self, key) != nil
-    }()
+    struct CACornerRadiiLayout {
+        var bottomLeft: CGSize
+        var bottomRight: CGSize
+        var topRight: CGSize
+        var topLeft: CGSize
+    }
 
     /// Whether a radius per corner has been set on this layer.
     ///
     /// Once one has, CoreAnimation ignores `cornerRadius` on the layer permanently, so every
     /// subsequent update, including a uniform radius or `identity`, needs to keep driving all
     /// four corners. A layer cannot be returned to `cornerRadius`.
-    var usesCornerRadii: Bool {
-        get {
-            objc_getAssociatedObject(self, CALayer.usesCornerRadiiKey) as? Bool ?? false
+    ///
+    /// UIKit will set the `cornerRadii` automatically when a `UICornerConfiguration` is applied to the view
+    ///
+    var hasCornerRadii: Bool {
+        guard
+            // _usesCornerRadii
+            let aSelector = NSStringFromBase64EncodedString("X3VzZXNDb3JuZXJSYWRpaQ=="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let value = value(forKey: aSelector) as? Bool
+        else {
+            return false
         }
-        set {
-            objc_setAssociatedObject(
-                self,
-                CALayer.usesCornerRadiiKey,
-                newValue,
-                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+        return value
+    }
+
+    @MainActor
+    @available(iOS 16.0, *)
+    func fixCornerRadiiAnimation() {
+        if UIView.inheritedAnimationDuration > 0, !hasCornerRadii {
+            // Fix animation when transitioning to using a `cornerRadii`
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            cornerRadii = CornerRadiusOptions.CornerRadii(cornerRadius: cornerRadius)
+            CATransaction.commit()
+        }
+    }
+
+    @available(iOS 16.0, *)
+    var cornerRadii: CornerRadiusOptions.CornerRadii? {
+        get {
+            guard
+                hasCornerRadii,
+                let key = CALayer.cornerRadiiKey,
+                class_getProperty(CALayer.self, key) != nil,
+                let box = value(forKey: key) as? NSValue
+            else {
+                return nil
+            }
+            var value = CACornerRadiiLayout(
+                bottomLeft: .zero,
+                bottomRight: .zero,
+                topRight: .zero,
+                topLeft: .zero
+            )
+            withUnsafeMutableBytes(of: &value) { bytes in
+                box.getValue(bytes.baseAddress!, size: MemoryLayout<CACornerRadiiLayout>.size)
+            }
+            return CornerRadiusOptions.CornerRadii(
+                topLeading: value.topLeft.width,
+                bottomLeading: value.bottomLeft.width,
+                bottomTrailing: value.bottomRight.width,
+                topTrailing: value.topRight.width,
             )
         }
-    }
-
-    func setCornerRadii(_ cornerRadii: CornerRadiusOptions.CornerRadii) {
-        guard
-            CALayer.supportsCornerRadii,
-            let key = CALayer.cornerRadiiKey,
-            let objCType = CALayer.cornerRadiiObjCType
-        else {
-            return
-        }
-        let value = CACornerRadii(
-            minXMaxY: CGSize(width: cornerRadii.bottomLeft, height: cornerRadii.bottomLeft),
-            maxXMaxY: CGSize(width: cornerRadii.bottomRight, height: cornerRadii.bottomRight),
-            maxXMinY: CGSize(width: cornerRadii.topRight, height: cornerRadii.topRight),
-            minXMinY: CGSize(width: cornerRadii.topLeft, height: cornerRadii.topLeft)
-        )
-        let box = withUnsafeBytes(of: value) { bytes in
-            objCType.withCString { objCType in
-                NSValue(bytes: bytes.baseAddress!, objCType: objCType)
+        set {
+            guard
+                let key = CALayer.cornerRadiiKey,
+                class_getProperty(CALayer.self, key) != nil,
+                let CACornerRadiiType = CALayer.cornerRadiiObjCType,
+                newValue != nil || hasCornerRadii
+            else {
+                return
+            }
+            if let newValue {
+                let value = CACornerRadiiLayout(
+                    bottomLeft: CGSize(width: newValue.bottomLeading, height: newValue.bottomLeading),
+                    bottomRight: CGSize(width: newValue.bottomTrailing, height: newValue.bottomTrailing),
+                    topRight: CGSize(width: newValue.topTrailing, height: newValue.topTrailing),
+                    topLeft: CGSize(width: newValue.topLeading, height: newValue.topLeading)
+                )
+                let box = withUnsafeBytes(of: value) { bytes in
+                    CACornerRadiiType.withCString { objCType in
+                        NSValue(bytes: bytes.baseAddress!, objCType: objCType)
+                    }
+                }
+                setValue(box, forKey: key)
+            } else {
+                setValue(nil, forKey: key)
             }
         }
-        setValue(box, forKey: key)
-        if cornerRadii != .zero {
-            usesCornerRadii = true
-        }
     }
 
-    func cornerRadii() -> CornerRadiusOptions.CornerRadii? {
-        guard
-            CALayer.supportsCornerRadii,
-            let key = CALayer.cornerRadiiKey,
-            let box = value(forKey: key) as? NSValue
-        else {
-            return nil
-        }
-        var value = CACornerRadii(
-            minXMaxY: .zero,
-            maxXMaxY: .zero,
-            maxXMinY: .zero,
-            minXMinY: .zero
-        )
-        withUnsafeMutableBytes(of: &value) { bytes in
-            box.getValue(bytes.baseAddress!, size: MemoryLayout<CACornerRadii>.size)
-        }
-        return CornerRadiusOptions.CornerRadii(
-            topLeft: value.minXMinY.width,
-            topRight: value.maxXMinY.width,
-            bottomLeft: value.minXMaxY.width,
-            bottomRight: value.maxXMaxY.width
-        )
-    }
-
+    // cornerRadii
     private static let cornerRadiiKey: String? = NSStringFromBase64EncodedString(
         "Y29ybmVyUmFkaWk="
     )
 
+    // {CACornerRadii={CGSize=dd}{CGSize=dd}{CGSize=dd}{CGSize=dd}}
     private static let cornerRadiiObjCType: String? = NSStringFromBase64EncodedString(
         "e0NBQ29ybmVyUmFkaWk9e0NHU2l6ZT1kZH17Q0dTaXplPWRkfXtDR1NpemU9ZGR9e0NHU2l6ZT1kZH19"
     )
 
-    // A unique address, used only as an associated object key.
-    private nonisolated(unsafe) static let usesCornerRadiiKey = UnsafeRawPointer(
-        UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
-    )
+    nonisolated(unsafe) private static var hasCornerRadiiKey: UInt = 0
 }
 
 #endif

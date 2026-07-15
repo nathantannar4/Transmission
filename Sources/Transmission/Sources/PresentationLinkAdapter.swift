@@ -647,7 +647,6 @@ final class PresentationLinkCoordinator<
                         if let firstResponder = presentedViewController.firstResponder {
                             withCATransaction {
                                 firstResponder.resignFirstResponder()
-                                CATransaction.flush()
                                 presentedViewController.dismiss(
                                     animated: isAnimated,
                                     completion: present
@@ -702,7 +701,6 @@ final class PresentationLinkCoordinator<
                     if let firstResponder = presentingViewController.firstResponder {
                         withCATransaction {
                             firstResponder.resignFirstResponder()
-                            CATransaction.flush()
                             present()
                         }
                     } else {
@@ -807,7 +805,7 @@ final class PresentationLinkCoordinator<
             adapter.transition.options.shouldTransitionIsPresentedAlongsideTransition,
             adapter.viewController == viewController,
             let transitionCoordinator = viewController.transitionCoordinator,
-            !transitionCoordinator.isInteractive
+            !transitionCoordinator.isInteractive || transitionCoordinator.presentationStyle == .none
         else {
             return
         }
@@ -881,6 +879,7 @@ final class PresentationLinkCoordinator<
 
         let transaction = Transaction(animation: animation ?? .default)
         if let transitionCoordinator = viewController.transitionCoordinator,
+            transitionCoordinator.presentationStyle != .none,
             transitionCoordinator.viewController(forKey: .from) == viewController
         {
             let isInteractive = transitionCoordinator.isInteractive

@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-16:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
     - uses: actions/checkout@v5
     - name: Set up Xcode version
@@ -31,7 +31,7 @@ jobs:
     - name: Build for visionOS
       run: xcodebuild -scheme Transmission -destination 'generic/platform=visionOS Simulator' build
   build-26:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
     - uses: actions/checkout@v5
     - name: Set up Xcode version

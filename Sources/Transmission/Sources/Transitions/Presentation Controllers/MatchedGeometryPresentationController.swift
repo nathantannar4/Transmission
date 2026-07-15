@@ -85,8 +85,8 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
             }()
             let progress = max(0, min(transformProgress, 1))
             var cornerRadius = CornerRadiusOptions.RoundedRectangle.screen(min: 0)
-            if let radius = cornerRadius.cornerRadius {
-                cornerRadius.cornerRadius = radius * progress
+            if let radius = cornerRadius.cornerRadii?.uniformCornerRadius {
+                cornerRadius.cornerRadii = CornerRadiusOptions.CornerRadii(cornerRadius: radius * progress)
             }
             cornerRadius.apply(to: presentedView)
             dimmingView.alpha = progress

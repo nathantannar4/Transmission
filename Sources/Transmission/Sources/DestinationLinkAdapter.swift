@@ -350,7 +350,6 @@ final class DestinationLinkCoordinator<
                     if let firstResponder = navigationController.topViewController?.firstResponder {
                         withCATransaction {
                             firstResponder.resignFirstResponder()
-                            CATransaction.flush()
                             present()
                         }
                     } else {
@@ -1034,9 +1033,11 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                 }
-                if let transitionCoordinator = navigationController.transitionCoordinator,
-                    transitionCoordinator.presentationStyle == .none
-                {
+                if let transitionCoordinator = navigationController.transitionCoordinator {
+                    guard transitionCoordinator.presentationStyle == .none else {
+                        panGestureDidEnd(gestureRecognizer, didCancel: true)
+                        return
+                    }
                     if !transitionCoordinator.isCancelled {
                         if let transition = (finishedTransition ?? cancelledTransition) as? ViewControllerTransition {
                             transition.complete(transition === finishedTransition)
@@ -1308,9 +1309,8 @@ final class DestinationLinkDelegateProxy: NSObject,
 
         var isInturruptingCancel = false
         var isTransitionCancelled = false
-        if let transitionCoordinator = navigationController.transitionCoordinator,
-            transitionCoordinator.presentationStyle == .none
-        {
+        if let transitionCoordinator = navigationController.transitionCoordinator {
+            guard transitionCoordinator.presentationStyle == .none else { return false }
             if transitionCoordinator.viewController(forKey: .to) != fromVC {
                 return false
             } else if let from = transitionCoordinator.viewController(forKey: .from) {

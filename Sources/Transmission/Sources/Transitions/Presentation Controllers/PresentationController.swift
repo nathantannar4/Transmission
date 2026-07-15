@@ -263,8 +263,8 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
                 dimmingView.layer.cornerRadius = presentedView.layer.cornerRadius
                 dimmingView.layer.cornerCurve = presentedView.layer.cornerCurve
                 dimmingView.layer.maskedCorners = presentedView.layer.maskedCorners
-                if presentedView.layer.usesCornerRadii, let cornerRadii = presentedView.layer.cornerRadii() {
-                    dimmingView.layer.setCornerRadii(cornerRadii)
+                if #available(iOS 16.0, *), let cornerRadii = presentedView.layer.cornerRadii {
+                    dimmingView.layer.cornerRadii = cornerRadii
                 }
             }
         } else {
@@ -277,8 +277,8 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
             dimmingView.layer.cornerRadius = 0
             dimmingView.layer.cornerCurve = .circular
             dimmingView.layer.maskedCorners = .all
-            if dimmingView.layer.usesCornerRadii {
-                dimmingView.layer.setCornerRadii(.zero)
+            if #available(iOS 16.0, *) {
+                dimmingView.layer.cornerRadii = nil
             }
         }
     }

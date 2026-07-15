@@ -189,7 +189,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             presented.transitionReaderCoordinator?.update(isPresented: true)
             CATransaction.flush()
         } else {
-            if presentedView.layer.cornerRadius == 0, !presentedView.layer.usesCornerRadii {
+            if presentedView.layer.cornerRadius == 0 {
                 toCornerRadius.apply(to: presentedPortalView ?? presentedView)
             }
             presentedView.layoutIfNeeded()

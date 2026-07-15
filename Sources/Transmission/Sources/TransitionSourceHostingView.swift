@@ -70,8 +70,10 @@ open class TransitionSourceView<Content: View>: UIView {
         backgroundColor: UIColor? = nil
     ) {
         guard let hostingView = hostStorage?.hostingView else { return }
-        hostingView.cornerRadius = cornerRadius
-        hostingView.backgroundColor = backgroundColor
+        UIView.animate(with: transaction.animation) {
+            hostingView.cornerRadius = cornerRadius
+            hostingView.backgroundColor = backgroundColor
+        }
         hostingView.update(content: content, transaction: transaction)
     }
 

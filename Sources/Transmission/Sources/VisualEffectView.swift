@@ -398,17 +398,20 @@ public struct VisualEffectView<
     public var effect: Effect
     public var isEnabled: Bool
     public var cornerRadius: CornerRadiusOptions?
+    public var backgroundColor: Color?
     public var content: Content
 
     public init(
         effect: Effect,
         isEnabled: Bool = true,
         cornerRadius: CornerRadiusOptions? = nil,
+        backgroundColor: Color? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.effect = effect
         self.isEnabled = isEnabled
         self.cornerRadius = cornerRadius
+        self.backgroundColor = backgroundColor
         self.content = content()
     }
 
@@ -416,6 +419,7 @@ public struct VisualEffectView<
         VisualEffectViewAdapter(
             effect: isEnabled ? effect : nil,
             cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
             content: content
         )
     }
@@ -447,6 +451,7 @@ private struct VisualEffectViewAdapter<
 
     var effect: Effect?
     var cornerRadius: CornerRadiusOptions?
+    var backgroundColor: Color?
     var content: Content
 
     typealias UIViewType = VisualEffectHostingView<Effect, Content>
@@ -469,6 +474,7 @@ private struct VisualEffectViewAdapter<
         uiView.update(
             effect: effect,
             cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor?.toUIColor(in: context.environment),
             content: content,
             context: context
         )
@@ -499,12 +505,21 @@ private class VisualEffectHostingView<
 >: UIVisualEffectView {
 
     private var visualEffect: Effect?
+
     private var cornerRadius: CornerRadiusOptions? {
         didSet {
             guard cornerRadius != oldValue else { return }
-            cornerRadius?.apply(to: self, masksToBounds: true)
+            cornerRadius?.apply(to: self, masksToBounds: visualEffect != nil || backgroundColor != nil)
         }
     }
+
+    override var backgroundColor: UIColor? {
+        didSet {
+            guard backgroundColor != oldValue else { return }
+            cornerRadius?.apply(to: self, masksToBounds: visualEffect != nil || backgroundColor != nil)
+        }
+    }
+
     private let hostingView: TransitionSourceView<Content>
 
     override var intrinsicContentSize: CGSize {
@@ -533,11 +548,16 @@ private class VisualEffectHostingView<
     func update(
         effect: Effect?,
         cornerRadius: CornerRadiusOptions?,
+        backgroundColor: UIColor?,
         content: Content,
         context: VisualEffectViewAdapter<Effect, Content>.Context
     ) {
-        hostingView.update(content: content, transaction: context.transaction)
-        self.cornerRadius = cornerRadius
+        hostingView.update(
+            content: content,
+            transaction: context.transaction,
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor
+        )
 
         if visualEffect != effect {
             visualEffect = effect
@@ -545,15 +565,21 @@ private class VisualEffectHostingView<
             if context.transaction.isAnimated {
                 UIView.animate(with: context.transaction.animation) {
                     self.effect = effect
+                    self.cornerRadius = cornerRadius
                 }
             } else {
                 self.effect = nil
                 self.effect = effect
+                self.cornerRadius = cornerRadius
             }
 
             let frame = frame
             self.frame = .zero
             self.frame = frame
+        } else {
+            UIView.animate(with: context.transaction.animation) {
+                self.cornerRadius = cornerRadius
+            }
         }
 
         layoutIfNeeded()
@@ -570,7 +596,7 @@ private class VisualEffectHostingView<
     override func layoutSubviews() {
         super.layoutSubviews()
         if #unavailable(iOS 26.0) {
-            cornerRadius?.apply(to: self, masksToBounds: true)
+            cornerRadius?.apply(to: self, masksToBounds: visualEffect != nil || backgroundColor != nil)
         }
     }
 }
@@ -587,6 +613,7 @@ struct VisualEffectView_Previews: PreviewProvider {
 
     struct Preview: View {
         @State var cornerRadius: CGFloat = 20
+        @State var backgroundColor: Color?
         @State var isSubtitleHidden = false
 
         @State var glassEffect = GlassEffect(style: .regular, isInteractive: true)
@@ -620,6 +647,27 @@ struct VisualEffectView_Previews: PreviewProvider {
                             value: $cornerRadius.animation(),
                             in: 0...30
                         )
+
+                        Button {
+                            withAnimation {
+                                cornerRadius = 30
+                            }
+                        } label: {
+                            Text("Max")
+                        }
+                    }
+
+                    HStack {
+                        ColorPicker(
+                            selection: $backgroundColor[default: .accentColor],
+                            supportsOpacity: true
+                        ) {
+                            Text("backgroundColor")
+                        }
+
+                        Button("Reset") {
+                            backgroundColor = nil
+                        }
                     }
 
                     #if canImport(FoundationModels) // Xcode 26
@@ -632,7 +680,8 @@ struct VisualEffectView_Previews: PreviewProvider {
                                 HStack {
                                     VisualEffectView(
                                         effect: glassEffect,
-                                        cornerRadius: .capsule(maxCornerRadius: cornerRadius)
+                                        cornerRadius: .capsule(maxCornerRadius: cornerRadius),
+                                        backgroundColor: backgroundColor
                                     ) {
                                         label
                                     }
@@ -641,6 +690,32 @@ struct VisualEffectView_Previews: PreviewProvider {
                                         .glassEffect(
                                             glassEffect.style.toSwiftUI().tint(glassEffect.tintColor).interactive(glassEffect.isInteractive),
                                             in: RoundedRectangle(cornerRadius: cornerRadius)
+                                        )
+                                }
+
+                                HStack {
+                                    VisualEffectView(
+                                        effect: glassEffect,
+                                        cornerRadius: .unevenRounded(
+                                            topLeading: cornerRadius,
+                                            bottomLeading: 0,
+                                            bottomTrailing: cornerRadius,
+                                            topTrailing: 0,
+                                        ),
+                                        backgroundColor: backgroundColor
+                                    ) {
+                                        label
+                                    }
+
+                                    label
+                                        .glassEffect(
+                                            glassEffect.style.toSwiftUI().tint(glassEffect.tintColor).interactive(glassEffect.isInteractive),
+                                            in: UnevenRoundedRectangle(
+                                                topLeadingRadius: cornerRadius,
+                                                bottomLeadingRadius: 0,
+                                                bottomTrailingRadius: cornerRadius,
+                                                topTrailingRadius: 0
+                                            )
                                         )
                                 }
                             }
@@ -659,14 +734,16 @@ struct VisualEffectView_Previews: PreviewProvider {
                                     HStack(spacing: 8) {
                                         VisualEffectView(
                                             effect: glassEffect,
-                                            cornerRadius: .capsule(maxCornerRadius: cornerRadius)
+                                            cornerRadius: .capsule(maxCornerRadius: cornerRadius),
+                                            backgroundColor: backgroundColor
                                         ) {
                                             label
                                         }
 
                                         VisualEffectView(
                                             effect: glassEffect,
-                                            cornerRadius: .capsule(maxCornerRadius: cornerRadius)
+                                            cornerRadius: .capsule(maxCornerRadius: cornerRadius),
+                                            backgroundColor: backgroundColor
                                         ) {
                                             label
                                         }
@@ -734,23 +811,43 @@ struct VisualEffectView_Previews: PreviewProvider {
                         Text("Blur")
                             .font(.headline)
 
-                        HStack {
-                            VisualEffectView(
-                                effect: blurEffect,
-                                cornerRadius: .capsule(maxCornerRadius: cornerRadius)
-                            ) {
-                                label
-                            }
-
-                            label
-                                .background {
-                                    RoundedRectangle(cornerRadius: cornerRadius)
-                                        .fill(blurEffect.style.toSwiftUI())
+                        VStack {
+                            HStack {
+                                VisualEffectView(
+                                    effect: blurEffect,
+                                    cornerRadius: .capsule(maxCornerRadius: cornerRadius),
+                                    backgroundColor: backgroundColor
+                                ) {
+                                    label
                                 }
+
+                                label
+                                    .background {
+                                        RoundedRectangle(cornerRadius: cornerRadius)
+                                            .fill(blurEffect.style.toSwiftUI())
+                                    }
+                            }
+                            .padding(.vertical)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.blue)
+
+                            HStack {
+                                VisualEffectView(
+                                    effect: blurEffect,
+                                    cornerRadius: .capsule(maxCornerRadius: cornerRadius)
+                                ) {
+                                    label
+                                }
+
+                                VisualEffectView(
+                                    effect: blurEffect,
+                                    cornerRadius: .capsule(maxCornerRadius: cornerRadius),
+                                    backgroundColor: backgroundColor
+                                ) {
+                                    label
+                                }
+                            }
                         }
-                        .padding(.vertical)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
                         .animation(.default, value: blurEffect)
 
                         Picker(
@@ -771,7 +868,8 @@ struct VisualEffectView_Previews: PreviewProvider {
                         HStack {
                             VisualEffectView(
                                 effect: blurEffect,
-                                cornerRadius: .capsule(maxCornerRadius: cornerRadius)
+                                cornerRadius: .capsule(maxCornerRadius: cornerRadius),
+                                backgroundColor: backgroundColor
                             ) {
                                 VisualEffectView(
                                     effect: .vibrancy(
@@ -808,7 +906,8 @@ struct VisualEffectView_Previews: PreviewProvider {
 
                             VisualEffectView(
                                 effect: prefersGlassEffect ? AnyVisualEffect(glassEffect) : AnyVisualEffect(blurEffect),
-                                cornerRadius: .capsule(maxCornerRadius: cornerRadius)
+                                cornerRadius: .capsule(maxCornerRadius: cornerRadius),
+                                backgroundColor: backgroundColor
                             ) {
                                 label
                             }

@@ -181,7 +181,6 @@ final class DestinationLinkPathCoordinator<
             if let firstResponder = navigationController.topViewController?.firstResponder {
                 withCATransaction {
                     firstResponder.resignFirstResponder()
-                    CATransaction.flush()
                     update()
                 }
             } else {

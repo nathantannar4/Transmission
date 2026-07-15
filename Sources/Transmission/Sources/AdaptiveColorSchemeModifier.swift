@@ -146,28 +146,70 @@ private struct LuminanceTrackingReaderAdapter: UIViewRepresentable {
 
     func makeUIView(context: Context) -> LuminanceTrackingReader {
         let uiView = LuminanceTrackingReader()
+        uiView.delegate = context.coordinator
         return uiView
     }
 
     func updateUIView(_ uiView: LuminanceTrackingReader, context: Context) {
-        uiView.luminance = luminance
-        uiView.colorScheme = colorScheme
+        context.coordinator.luminance = luminance
+        context.coordinator.colorScheme = colorScheme
         uiView.colorSchemeThresholds = options.colorSchemeThresholds
-        uiView.trackingRegionInsets = options.trackingRegionInsets.toUIEdgeInsets(layoutDirection: context.environment.layoutDirection)
+        uiView.trackingRegionInsets = options.trackingRegionInsets.toUIEdgeInsets(
+            layoutDirection: context.environment.layoutDirection
+        )
     }
+
+    class Coordinator: LuminanceTrackingReaderDelegate {
+
+        var luminance: Binding<Double?>?
+        var colorScheme: Binding<ColorScheme?>?
+
+        init(luminance: Binding<Double?>? = nil, colorScheme: Binding<ColorScheme?>? = nil) {
+            self.luminance = luminance
+            self.colorScheme = colorScheme
+        }
+
+        func luminanceTrackingReader(
+            _ view: LuminanceTrackingReader,
+            luminanceDidChange newValue: Double?
+        ) {
+            luminance?.wrappedValue = newValue
+        }
+
+        func luminanceTrackingReader(
+            _ view: LuminanceTrackingReader,
+            userInterfaceStyleDidChange newValue: UIUserInterfaceStyle
+        ) {
+            let newValue = ColorScheme(newValue)
+            guard colorScheme?.wrappedValue != newValue else { return }
+            colorScheme?.wrappedValue = newValue
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(luminance: luminance, colorScheme: colorScheme)
+    }
+}
+
+@available(iOS 14.0, *)
+public protocol LuminanceTrackingReaderDelegate: AnyObject {
+
+    func luminanceTrackingReader(_ view: LuminanceTrackingReader, luminanceDidChange luminance: Double?)
+    func luminanceTrackingReader(_ view: LuminanceTrackingReader, userInterfaceStyleDidChange style: UIUserInterfaceStyle)
 }
 
 @available(iOS 14.0, *)
 open class LuminanceTrackingReader: UIView {
 
-    public var luminance: Binding<Double?>?
-    public var colorScheme: Binding<ColorScheme?>?
+    public weak var delegate: LuminanceTrackingReaderDelegate?
+
     public var colorSchemeThresholds: LuminanceTrackingOptions.ColorSchemeThresholds = .default {
         didSet {
             guard oldValue != colorSchemeThresholds else { return }
             didUpdateLevelBoundaries()
         }
     }
+
     public var trackingRegionInsets: UIEdgeInsets = .zero {
         didSet {
             guard oldValue != trackingRegionInsets else { return }
@@ -297,11 +339,11 @@ open class LuminanceTrackingReader: UIView {
     func backgroundLumaView(_ view: UIView, didTransitionToLevel level: UInt64) {
         switch level {
         case 1:
-            didUpdateColorScheme(.light)
+            didUpdateUserInterfaceStyle(.light)
         case 2:
-            didUpdateColorScheme(.dark)
+            didUpdateUserInterfaceStyle(.dark)
         default:
-            didUpdateColorScheme(nil)
+            didUpdateUserInterfaceStyle(.unspecified)
         }
     }
 
@@ -321,30 +363,27 @@ open class LuminanceTrackingReader: UIView {
     }
 
     private func didUpdateLuminosity(_ newValue: Double?, level: UInt64) {
-        if luminance?.wrappedValue != newValue {
-            luminance?.wrappedValue = newValue
-        }
+        delegate?.luminanceTrackingReader(self, luminanceDidChange: newValue)
         if let newValue {
             switch level {
             case 1:
                 if newValue > colorSchemeThresholds.light {
-                    didUpdateColorScheme(.light)
+                    didUpdateUserInterfaceStyle(.light)
                 }
             case 2:
                 if newValue < colorSchemeThresholds.dark {
-                    didUpdateColorScheme(.dark)
+                    didUpdateUserInterfaceStyle(.dark)
                 }
             default:
-                didUpdateColorScheme(nil)
+                didUpdateUserInterfaceStyle(.unspecified)
             }
         } else {
-            didUpdateColorScheme(nil)
+            didUpdateUserInterfaceStyle(.unspecified)
         }
     }
 
-    private func didUpdateColorScheme(_ newValue: ColorScheme?) {
-        guard colorScheme?.wrappedValue != newValue else { return }
-        colorScheme?.wrappedValue = newValue
+    private func didUpdateUserInterfaceStyle(_ newValue: UIUserInterfaceStyle) {
+        delegate?.luminanceTrackingReader(self, userInterfaceStyleDidChange: newValue)
     }
 
     private func didUpdateLevelBoundaries() {

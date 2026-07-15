@@ -361,7 +361,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     }
 
     private func updateCornerRadius() {
-        preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadius
+        preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadii?.uniformCornerRadius
     }
 
     private func updateBackgroundColors(didNilColor: Bool) {
