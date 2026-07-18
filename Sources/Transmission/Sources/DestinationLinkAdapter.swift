@@ -219,6 +219,7 @@ final class DestinationLinkCoordinator<
     private var animation: Animation?
     private var didPresentAnimated = false
     private var isPushing: Bool?
+    private var didPush = false
     private weak var sourceView: UIView?
 
     private var isZoomTransitionDismissReady = false
@@ -327,6 +328,7 @@ final class DestinationLinkCoordinator<
                             animated: isAnimated
                         )
                     }
+                    self.didPush = true
                 }
                 var didPresent = false
                 if let transitionCoordinator = navigationController.transitionCoordinator,
@@ -489,6 +491,7 @@ final class DestinationLinkCoordinator<
             )
         }
         adapter = nil
+        didPush = false
     }
 
     func navigationControllerCanBeginInteractivePop() -> Bool {
@@ -583,10 +586,16 @@ final class DestinationLinkCoordinator<
                 //  transitionCoordinator.animate not fired
                 onPop(transaction)
             } else {
+                // When the active transition is the push of this view controller (a pop is
+                // interrupting the presentation), the semantics are inverted: a cancelled
+                // push means the destination was popped, and a finished push means it
+                // stayed presented.
+                let isPushTransition = transitionCoordinator.viewController(forKey: .to) == viewController
                 let isInteractive = transitionCoordinator.isInteractive
                 if isInteractive {
                     transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
-                        if !ctx.isCancelled {
+                        let didPopScreen = isPushTransition ? ctx.isCancelled : !ctx.isCancelled
+                        if didPopScreen {
                             self?.onPop(transaction)
                             self?.didPop()
                         }
@@ -594,7 +603,7 @@ final class DestinationLinkCoordinator<
                 }
                 let isInterruptible = transitionCoordinator.isInterruptible
                 transitionCoordinator.animate { [weak self] ctx in
-                    if !ctx.isInteractive {
+                    if !isPushTransition, !ctx.isInteractive {
                         self?.onPop(transaction)
                         if !isInterruptible {
                             self?.didPop()
@@ -602,8 +611,13 @@ final class DestinationLinkCoordinator<
                     }
                 } completion: { [weak self] ctx in
                     if ctx.isCancelled {
-                        self?.isPresented.wrappedValue = true
-                    } else if !isInteractive, isInterruptible {
+                        if isPushTransition {
+                            self?.onPop(transaction)
+                            self?.didPop()
+                        } else {
+                            self?.isPresented.wrappedValue = true
+                        }
+                    } else if !isPushTransition, !isInteractive, isInterruptible {
                         self?.didPop()
                     }
                 }
@@ -625,7 +639,12 @@ final class DestinationLinkCoordinator<
         if isPushing == true, hasViewController {
             isPushing = nil
             animation = nil
-        } else if !hasViewController, isPushing != true {
+        } else if !hasViewController, isPushing != true || didPush {
+            // `isPushing` can still be true here when a pop cancelled the in-flight push,
+            // so also clean up if the push had actually been executed (`didPush`). The
+            // `isPushing != true` check remains for a `didShow` of a prior transition that
+            // fires before a deferred push has run.
+
             // Break the retain cycle
             adapter?.coordinator = nil
 
