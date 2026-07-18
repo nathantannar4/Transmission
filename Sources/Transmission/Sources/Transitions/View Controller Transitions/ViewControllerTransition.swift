@@ -122,10 +122,10 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         }
     }
 
-    open func complete(speed: CGFloat = 1) {
+    open func complete() {
         guard let animator else { return }
         animator.pauseAnimation()
-        animator.continueAnimation(withTimingParameters: timingCurve, durationFactor: (1 - animator.fractionComplete) / speed)
+        animator.continueAnimation(withTimingParameters: timingCurve, durationFactor: 1 - animator.fractionComplete)
     }
 
     open func complete(_ didComplete: Bool) {
