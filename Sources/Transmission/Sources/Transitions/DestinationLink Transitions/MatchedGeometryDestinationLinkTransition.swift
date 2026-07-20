@@ -146,30 +146,53 @@ public struct MatchedGeometryDestinationLinkTransition: DestinationLinkTransitio
 }
 
 @available(iOS 14.0, *)
-open class MatchedGeometryNavigationControllerTransition: MatchedGeometryViewControllerTransition {
+open class MatchedGeometryNavigationControllerTransition: NavigationControllerTransition {
 
-    var interactiveTransition: PushNavigationControllerTransition?
+    public weak var sourceView: UIView?
+    public let prefersScaleEffect: Bool
+    public let prefersZoomEffect: Bool
+    public let preferredFromCornerRadius: CornerRadiusOptions?
+    public let preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
+    public let initialOpacity: CGFloat
+    public let sourceViewFrameTransform: SourceViewFrameTransform?
 
-    open override func configureTransitionAnimator(
-        using transitionContext: any UIViewControllerContextTransitioning,
-        animator: UIViewPropertyAnimator
+    public init(
+        sourceView: UIView?,
+        prefersScaleEffect: Bool,
+        prefersZoomEffect: Bool,
+        preferredFromCornerRadius: CornerRadiusOptions?,
+        preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?,
+        initialOpacity: CGFloat,
+        sourceViewFrameTransform: SourceViewFrameTransform? = nil,
+        isPresenting: Bool,
+        animation: Animation?
     ) {
-        if transitionContext.isInteractive {
-            interactiveTransition = PushNavigationControllerTransition(
-                isPresenting: isPresenting,
-                animation: animation
-            )
-            interactiveTransition?.configureTransitionAnimator(
-                using: transitionContext,
-                animator: animator
-            )
-        } else {
-            super.configureTransitionAnimator(using: transitionContext, animator: animator)
-        }
+        self.prefersScaleEffect = prefersScaleEffect
+        self.prefersZoomEffect = prefersZoomEffect
+        self.preferredFromCornerRadius = preferredFromCornerRadius
+        self.preferredToCornerRadius = preferredToCornerRadius
+        self.initialOpacity = initialOpacity
+        self.sourceViewFrameTransform = sourceViewFrameTransform
+        self.sourceView = sourceView
+        super.init(
+            isPresenting: isPresenting,
+            animation: animation
+        )
     }
 
-    open override func animationEnded(_ transitionCompleted: Bool) {
-        interactiveTransition = nil
+    open override func configureTransitionAnimator(
+        using transitionContext: UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
+        let transition = MatchedGeometryViewControllerTransitionAnimator(
+            sourceView: sourceView,
+            prefersScaleEffect: prefersScaleEffect,
+            prefersZoomEffect: prefersZoomEffect,
+            preferredFromCornerRadius: preferredFromCornerRadius,
+            preferredToCornerRadius: preferredToCornerRadius,
+            initialOpacity: initialOpacity
+        )
+        transition.animateTransition(with: animator, using: transitionContext, isPresenting: isPresenting)
     }
 }
 

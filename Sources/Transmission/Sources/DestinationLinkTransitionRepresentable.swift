@@ -73,7 +73,7 @@ extension DestinationLinkPushTransitionRepresentable {
         interactionControllerForPush animationController: UIViewControllerAnimatedTransitioning,
         context: Context
     ) -> UIViewControllerInteractiveTransitioning? {
-        return nil
+        return animationController as? UIViewControllerInteractiveTransitioning
     }
 }
 
@@ -87,6 +87,14 @@ public struct DestinationLinkDefaultPushTransition: DestinationLinkPushTransitio
         from fromVC: UIViewController,
         context: Context
     ) -> UIViewControllerAnimatedTransitioning? {
+        return nil
+    }
+
+    public func navigationController(
+        _ navigationController: UINavigationController,
+        interactionControllerForPush animationController: UIViewControllerAnimatedTransitioning,
+        context: Context
+    ) -> UIViewControllerInteractiveTransitioning? {
         return nil
     }
 }
@@ -145,6 +153,14 @@ public struct DestinationLinkDefaultPopTransition: DestinationLinkPopTransitionR
         to toVC: UIViewController,
         context: Context
     ) -> UIViewControllerAnimatedTransitioning? {
+        return nil
+    }
+
+    public func navigationController(
+        _ navigationController: UINavigationController,
+        interactionControllerForPop animationController: any UIViewControllerAnimatedTransitioning,
+        context: Context
+    ) -> UIViewControllerInteractiveTransitioning? {
         return nil
     }
 }

@@ -115,7 +115,7 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
 }
 
 @available(iOS 14.0, *)
-open class PushNavigationControllerTransition: ViewControllerTransition {
+open class PushNavigationControllerTransition: NavigationControllerTransition {
 
     public var dimmingColor: UIColor?
     public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?

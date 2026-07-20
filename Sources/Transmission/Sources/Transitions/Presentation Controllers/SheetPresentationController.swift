@@ -319,6 +319,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         if completed {
             updatePanGesture()
             presentedViewController.fixSwiftUIHitTesting()
+            fixTransitionHitTesting()
             panGesture?.addTarget(self, action: #selector(didPan(_:)))
             if let scrollView = presentedViewController.contentScrollView(for: .bottom) {
                 scrollView.panGestureRecognizer.addTarget(self, action: #selector(didPan(_:)))
@@ -357,6 +358,19 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         } else {
             delegate?.presentationControllerDidAttemptToDismiss?(self)
             presentedViewController.fixSwiftUIHitTesting()
+        }
+    }
+
+    private func fixTransitionHitTesting() {
+        // Fix hit testing when stray CAAnimations are left over
+        guard let containerView else { return }
+        var view = presentedViewController.view
+        while let v = view, v != containerView {
+            v.layer.removeAllAnimations()
+            view = v.superview
+        }
+        while let v = containerView.hitTest(CGPoint(x: containerView.frame.minX, y: containerView.frame.midY), with: nil), v.layer.animationKeys()?.isEmpty == false {
+            v.layer.removeAllAnimations()
         }
     }
 

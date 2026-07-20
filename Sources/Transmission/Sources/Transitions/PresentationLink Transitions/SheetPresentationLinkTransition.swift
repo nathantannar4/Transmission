@@ -578,16 +578,6 @@ open class SheetPresentationControllerTransition: SlidePresentationControllerTra
 @available(iOS 15.0, *)
 open class SheetPresentationControllerTransition: PresentationControllerTransition {
 
-    public override init(
-        isPresenting: Bool,
-        animation: Animation?
-    ) {
-        super.init(
-            isPresenting: isPresenting,
-            animation: animation
-        )
-    }
-
     open override func configureTransitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator

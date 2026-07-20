@@ -1077,7 +1077,7 @@ final class PresentationLinkCoordinator<
                 return nil
             }
             #if !targetEnvironment(macCatalyst)
-            guard sheetPresentationController.supportsInteractiveTransition else { return nil }
+            guard sheetPresentationController.supportsCustomInteractiveTransition else { return nil }
             #endif
             let animationController = SheetPresentationControllerTransition(
                 isPresenting: true,
@@ -1138,7 +1138,7 @@ final class PresentationLinkCoordinator<
                 return nil
             }
             #if !targetEnvironment(macCatalyst)
-            guard sheetPresentationController.supportsInteractiveTransition else { return nil }
+            guard sheetPresentationController.supportsCustomInteractiveTransition else { return nil }
             #endif
             let animationController = SheetPresentationControllerTransition(
                 isPresenting: false,

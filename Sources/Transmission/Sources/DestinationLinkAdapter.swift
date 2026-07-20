@@ -219,7 +219,6 @@ final class DestinationLinkCoordinator<
     private var animation: Animation?
     private var didPresentAnimated = false
     private var isPushing: Bool?
-    private var didPush = false
     private weak var sourceView: UIView?
 
     private var isZoomTransitionDismissReady = false
@@ -328,7 +327,6 @@ final class DestinationLinkCoordinator<
                             animated: isAnimated
                         )
                     }
-                    self.didPush = true
                 }
                 var didPresent = false
                 if let transitionCoordinator = navigationController.transitionCoordinator,
@@ -491,7 +489,6 @@ final class DestinationLinkCoordinator<
             )
         }
         adapter = nil
-        didPush = false
     }
 
     func navigationControllerCanBeginInteractivePop() -> Bool {
@@ -639,12 +636,7 @@ final class DestinationLinkCoordinator<
         if isPushing == true, hasViewController {
             isPushing = nil
             animation = nil
-        } else if !hasViewController, isPushing != true || didPush {
-            // `isPushing` can still be true here when a pop cancelled the in-flight push,
-            // so also clean up if the push had actually been executed (`didPush`). The
-            // `isPushing != true` check remains for a `didShow` of a prior transition that
-            // fires before a deferred push has run.
-
+        } else if !hasViewController, isPushing != true {
             // Break the retain cycle
             adapter?.coordinator = nil
 
@@ -1670,6 +1662,9 @@ final class DestinationLinkDelegateProxy: NSObject,
                 navigationController,
                 interactionControllerFor: animationController
             )
+            if let interactiveTransition = interactionController as? UIPercentDrivenInteractiveTransition {
+                transition = interactiveTransition
+            }
             return interactionController
         }
         return nil
@@ -1694,7 +1689,6 @@ final class DestinationLinkDelegateProxy: NSObject,
         if let interactiveTransition = animationController as? UIPercentDrivenInteractiveTransition {
             let isInteracting = interactivePopEdgeGestureRecognizer.isInteracting || interactivePopPanGestureRecognizer.isInteracting
             interactiveTransition.wantsInteractiveStart = interactiveTransition.wantsInteractiveStart && isInteracting
-            transition = interactiveTransition
         }
         return animationController
     }

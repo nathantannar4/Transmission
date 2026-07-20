@@ -275,12 +275,6 @@ open class CardPresentationController: InteractivePresentationController {
 @available(iOS 14.0, *)
 open class CardPresentationControllerTransition: PresentationControllerTransition {
 
-    public override init(
-        isPresenting: Bool,
-        animation: Animation?
-    ) {
-        super.init(isPresenting: isPresenting, animation: animation)
-    }
 }
 
 #endif

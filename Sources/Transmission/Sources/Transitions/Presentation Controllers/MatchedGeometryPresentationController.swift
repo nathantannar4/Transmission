@@ -106,47 +106,4 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
     }
 }
 
-/// An interactive transition built for the ``MatchedGeometryPresentationController``.
-@available(iOS 14.0, *)
-open class MatchedGeometryPresentationControllerTransition: MatchedGeometryViewControllerTransition {
-
-    open override var isInterruptible: Bool {
-        return false
-    }
-
-    public override init(
-        sourceView: UIView?,
-        prefersScaleEffect: Bool,
-        prefersZoomEffect: Bool,
-        preferredFromCornerRadius: CornerRadiusOptions?,
-        preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?,
-        initialOpacity: CGFloat,
-        sourceViewFrameTransform: SourceViewFrameTransform? = nil,
-        isPresenting: Bool,
-        animation: Animation?
-    ) {
-        super.init(
-            sourceView: sourceView,
-            prefersScaleEffect: prefersScaleEffect,
-            prefersZoomEffect: prefersZoomEffect,
-            preferredFromCornerRadius: preferredFromCornerRadius,
-            preferredToCornerRadius: preferredToCornerRadius,
-            initialOpacity: initialOpacity,
-            sourceViewFrameTransform: sourceViewFrameTransform,
-            isPresenting: isPresenting,
-            animation: animation
-        )
-    }
-
-    open override func animatedStarted(
-        transitionContext: UIViewControllerContextTransitioning
-    ) {
-        super.animatedStarted(transitionContext: transitionContext)
-
-        if let presentationController = transitionContext.presentationController(isPresenting: isPresenting) as? PresentationController {
-            presentationController.layoutBackgroundViews()
-        }
-    }
-}
-
 #endif

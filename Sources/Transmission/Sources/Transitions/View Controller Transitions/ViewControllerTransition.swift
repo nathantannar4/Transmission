@@ -154,6 +154,7 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             defaultCompletionCurve: completionCurve
         )
         animator.isManualHitTestingEnabled = true
+        animator.isInterruptible = isInterruptible
         // This must be set before configuring, as view layout can sometimes trigger re-entry
         self.animator = animator
         configureTransitionAnimator(using: transitionContext, animator: animator)

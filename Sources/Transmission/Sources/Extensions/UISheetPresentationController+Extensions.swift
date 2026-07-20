@@ -151,9 +151,10 @@ extension UISheetPresentationController {
         return gesture
     }
 
-    var supportsInteractiveTransition: Bool {
+    var supportsCustomInteractiveTransition: Bool {
         guard
             !isDragging,
+            parentSheetPresentationController?.isRootPresentation ?? true,
             // _setInteractiveTransition:
             let aSelector = NSSelectorFromBase64EncodedString("X3NldEludGVyYWN0aXZlVHJhbnNpdGlvbjo="),
             responds(to: aSelector)
@@ -185,6 +186,30 @@ extension UISheetPresentationController {
             }
             perform(NSSelectorFromString("_setInteractiveTransition:"), with: newValue)
         }
+    }
+
+    var parentSheetPresentationController: UISheetPresentationController? {
+        guard
+            // _parentSheetPresentationController
+            let aSelector = NSStringFromBase64EncodedString("X3BhcmVudFNoZWV0UHJlc2VudGF0aW9uQ29udHJvbGxlcg=="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let parentSheetPresentationController = value(forKey: aSelector) as? UISheetPresentationController
+        else {
+            return nil
+        }
+        return parentSheetPresentationController
+    }
+
+    var isRootPresentation: Bool {
+        guard
+            // _isRootPresentation
+            let aSelector = NSStringFromBase64EncodedString("X2lzUm9vdFByZXNlbnRhdGlvbg=="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let value = value(forKey: aSelector) as? Bool
+        else {
+            return false
+        }
+        return value
     }
 
     var isDragging: Bool {

@@ -8,7 +8,7 @@ import UIKit
 import SwiftUI
 
 @available(iOS 14.0, *)
-open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
+public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTransitionAnimator {
 
     public weak var sourceView: UIView?
     public let prefersScaleEffect: Bool
@@ -25,9 +25,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         preferredFromCornerRadius: CornerRadiusOptions?,
         preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         initialOpacity: CGFloat,
-        sourceViewFrameTransform: SourceViewFrameTransform? = nil,
-        isPresenting: Bool,
-        animation: Animation?
+        sourceViewFrameTransform: SourceViewFrameTransform? = nil
     ) {
         self.prefersScaleEffect = prefersScaleEffect
         self.prefersZoomEffect = prefersZoomEffect
@@ -35,15 +33,14 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         self.preferredToCornerRadius = preferredToCornerRadius
         self.initialOpacity = initialOpacity
         self.sourceViewFrameTransform = sourceViewFrameTransform
-        super.init(isPresenting: isPresenting, animation: animation)
         self.sourceView = sourceView
     }
 
-    open override func configureTransitionAnimator(
-        using transitionContext: any UIViewControllerContextTransitioning,
-        animator: UIViewPropertyAnimator
+    public func animateTransition(
+        with animator: UIViewPropertyAnimator,
+        using transitionContext: UIViewControllerContextTransitioning,
+        isPresenting: Bool
     ) {
-
         guard
             let sourceView = sourceView,
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
@@ -51,7 +48,7 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
             let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
             let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
         else {
-            super.configureTransitionAnimator(using: transitionContext, animator: animator)
+            transitionContext.completeTransition(false)
             return
         }
 
@@ -181,9 +178,9 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
                 presentedView.layoutIfNeeded()
             }
 
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView,
+            animateAlongsideTransitionReader(
+                using: transitionContext,
+                isPresenting: isPresenting,
                 presentedFrame: &presentedFrame
             )
             presented.transitionReaderCoordinator?.update(isPresented: true)
@@ -273,15 +270,8 @@ open class MatchedGeometryViewControllerTransition: ViewControllerTransition {
         // Just for navigation transitions
         let shouldDelayAnimations = isPresenting && !prefersZoomEffect && presented.parent is UINavigationController
         let opacityAnimationDelay: TimeInterval = prefersZoomEffect ? (isPresenting ? 0.25 : 0.75) : 0
-        if shouldDelayAnimations {
-            withCATransaction {
-                animator.addAnimations(animations)
-                animator.addAnimations(opacityAnimations, delayFactor: opacityAnimationDelay)
-            }
-        } else {
-            animator.addAnimations(animations)
-            animator.addAnimations(opacityAnimations, delayFactor: opacityAnimationDelay)
-        }
+        animator.addAnimations(animations)
+        animator.addAnimations(opacityAnimations, delayFactor: opacityAnimationDelay)
         animator.addCompletion { animatingPosition in
             hostingController?.disableSafeArea = disableSafeArea
             presentedPortalView?.removeFromSuperview()

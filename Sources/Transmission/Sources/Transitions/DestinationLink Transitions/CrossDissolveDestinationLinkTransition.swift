@@ -55,8 +55,21 @@ public struct CrossDissolveDestinationLinkTransition: DestinationLinkTransitionR
     @frozen
     public struct Options: Sendable {
 
-        public init() { }
+        public var transform: CGAffineTransform
+        public var fromCornerRadius: CornerRadiusOptions?
+        public var toCornerRadius: CornerRadiusOptions?
+
+        public init(
+            transform: CGAffineTransform = .identity,
+            fromCornerRadius: CornerRadiusOptions? = nil,
+            toCornerRadius: CornerRadiusOptions? = nil
+        ) {
+            self.transform = transform
+            self.fromCornerRadius = fromCornerRadius
+            self.toCornerRadius = toCornerRadius
+        }
     }
+
     public var options: Options
 
     public init(options: Options = .init()) {
@@ -70,6 +83,9 @@ public struct CrossDissolveDestinationLinkTransition: DestinationLinkTransitionR
         context: Context
     ) -> CrossDissolveNavigationControllerTransition? {
         let transition = CrossDissolveNavigationControllerTransition(
+            transform: options.transform,
+            fromCornerRadius: options.fromCornerRadius,
+            toCornerRadius: options.toCornerRadius,
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -84,6 +100,9 @@ public struct CrossDissolveDestinationLinkTransition: DestinationLinkTransitionR
         context: Context
     ) -> CrossDissolveNavigationControllerTransition? {
         let transition = CrossDissolveNavigationControllerTransition(
+            transform: options.transform,
+            fromCornerRadius: options.fromCornerRadius,
+            toCornerRadius: options.toCornerRadius,
             isPresenting: false,
             animation: context.transaction.animation
         )
@@ -92,16 +111,47 @@ public struct CrossDissolveDestinationLinkTransition: DestinationLinkTransitionR
 }
 
 @available(iOS 14.0, *)
-open class CrossDissolveNavigationControllerTransition: ViewControllerTransition {
+open class CrossDissolveNavigationControllerTransition: NavigationControllerTransition {
 
-    public override init(
+    public let transform: CGAffineTransform
+    public let fromCornerRadius: CornerRadiusOptions?
+    public let toCornerRadius: CornerRadiusOptions?
+
+    private weak var presentedView: UIView?
+
+    public init(
+        transform: CGAffineTransform = .identity,
+        fromCornerRadius: CornerRadiusOptions? = nil,
+        toCornerRadius: CornerRadiusOptions? = nil,
         isPresenting: Bool,
         animation: Animation?
     ) {
+        self.transform = transform
+        self.fromCornerRadius = fromCornerRadius
+        self.toCornerRadius = toCornerRadius
         super.init(
             isPresenting: isPresenting,
             animation: animation
         )
+    }
+
+    open override func cancel() {
+        super.cancel()
+        presentedView?.isUserInteractionEnabled = false
+    }
+
+    open override func configureTransitionAnimator(
+        using transitionContext: UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
+        presentedView = transitionContext.view(forKey: isPresenting ? .to : .from)
+
+        let transition = CrossDissolveTransitionAnimator(
+            transform: transform,
+            fromCornerRadius: fromCornerRadius,
+            toCornerRadius: toCornerRadius
+        )
+        transition.animateTransition(with: animator, using: transitionContext, isPresenting: isPresenting)
     }
 }
 

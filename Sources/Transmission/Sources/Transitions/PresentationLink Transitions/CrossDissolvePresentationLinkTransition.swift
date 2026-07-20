@@ -29,12 +29,16 @@ extension PresentationLinkTransition {
     /// The cross dissolve transition style.
     public static func crossDissolve(
         transform: CGAffineTransform = .identity,
+        fromCornerRadius: CornerRadiusOptions? = nil,
+        toCornerRadius: CornerRadiusOptions? = nil,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .crossDissolve(
             .init(
-                transform: transform
+                transform: transform,
+                fromCornerRadius: fromCornerRadius,
+                toCornerRadius: toCornerRadius,
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -53,11 +57,17 @@ public struct CrossDissolvePresentationLinkTransition: PresentationLinkTransitio
     public struct Options: Sendable {
 
         public var transform: CGAffineTransform
+        public var fromCornerRadius: CornerRadiusOptions?
+        public var toCornerRadius: CornerRadiusOptions?
 
         public init(
-            transform: CGAffineTransform = .identity
+            transform: CGAffineTransform = .identity,
+            fromCornerRadius: CornerRadiusOptions? = nil,
+            toCornerRadius: CornerRadiusOptions? = nil
         ) {
             self.transform = transform
+            self.fromCornerRadius = fromCornerRadius
+            self.toCornerRadius = toCornerRadius
         }
     }
 
@@ -109,6 +119,8 @@ public struct CrossDissolvePresentationLinkTransition: PresentationLinkTransitio
     ) -> CrossDissolveControllerTransition? {
         let transition = CrossDissolveControllerTransition(
             transform: options.transform,
+            fromCornerRadius: options.fromCornerRadius,
+            toCornerRadius: options.toCornerRadius,
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -127,6 +139,8 @@ public struct CrossDissolvePresentationLinkTransition: PresentationLinkTransitio
     ) -> CrossDissolveControllerTransition? {
         let transition = CrossDissolveControllerTransition(
             transform: options.transform,
+            fromCornerRadius: options.fromCornerRadius,
+            toCornerRadius: options.toCornerRadius,
             isPresenting: false,
             animation: context.transaction.animation
         )
@@ -143,76 +157,44 @@ public struct CrossDissolvePresentationLinkTransition: PresentationLinkTransitio
 open class CrossDissolveControllerTransition: PresentationControllerTransition {
 
     public let transform: CGAffineTransform
+    public let fromCornerRadius: CornerRadiusOptions?
+    public let toCornerRadius: CornerRadiusOptions?
+
+    private weak var presentedView: UIView?
 
     public init(
-        transform: CGAffineTransform,
+        transform: CGAffineTransform = .identity,
+        fromCornerRadius: CornerRadiusOptions? = nil,
+        toCornerRadius: CornerRadiusOptions? = nil,
         isPresenting: Bool,
         animation: Animation?
     ) {
         self.transform = transform
+        self.fromCornerRadius = fromCornerRadius
+        self.toCornerRadius = toCornerRadius
         super.init(
             isPresenting: isPresenting,
             animation: animation
         )
     }
 
+    open override func cancel() {
+        super.cancel()
+        presentedView?.isUserInteractionEnabled = false
+    }
+
     open override func configureTransitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
     ) {
+        presentedView = transitionContext.view(forKey: isPresenting ? .to : .from)
 
-        guard
-            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
-            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
-            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
-            let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
-        else {
-            transitionContext.completeTransition(false)
-            return
-        }
-
-        if isPresenting {
-            presentedView.alpha = 0
-            var presentedFrame = transitionContext.finalFrame(for: presented)
-            if presentedView.superview == nil {
-                transitionContext.containerView.addSubview(presentedView)
-            }
-            presentedView.frame = presentedFrame
-            presentedView.layoutIfNeeded()
-
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView,
-                presentedFrame: &presentedFrame
-            )
-
-            presentedView.transform = transform
-            animator.addAnimations {
-                presentedView.alpha = 1
-                presentedView.transform = .identity
-            }
-        } else {
-            if presentingView.superview == nil {
-                transitionContext.containerView.insertSubview(presentingView, at: 0)
-                presentingView.frame = transitionContext.finalFrame(for: presenting)
-                presentingView.layoutIfNeeded()
-            }
-            presentedView.layoutIfNeeded()
-
-            let transform = transform
-            animator.addAnimations {
-                presentedView.alpha = 0
-                presentedView.transform = transform
-            }
-        }
-        animator.addCompletion { animatingPosition in
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
-            }
-        }
+        let transition = CrossDissolveTransitionAnimator(
+            transform: transform,
+            fromCornerRadius: fromCornerRadius,
+            toCornerRadius: toCornerRadius
+        )
+        transition.animateTransition(with: animator, using: transitionContext, isPresenting: isPresenting)
     }
 }
 

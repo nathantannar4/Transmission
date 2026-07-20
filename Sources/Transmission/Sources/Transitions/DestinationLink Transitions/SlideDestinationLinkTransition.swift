@@ -100,7 +100,7 @@ public struct SlideDestinationLinkTransition: DestinationLinkTransitionRepresent
 }
 
 @available(iOS 14.0, *)
-open class SlideNavigationControllerTransition: ViewControllerTransition {
+open class SlideNavigationControllerTransition: NavigationControllerTransition {
 
     public let initialOpacity: CGFloat
 

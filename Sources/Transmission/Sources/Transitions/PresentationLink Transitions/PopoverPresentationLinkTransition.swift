@@ -107,16 +107,6 @@ public struct PopoverPresentationLinkTransition: Sendable {
 @available(iOS 14.0, *)
 open class PopoverPresentationControllerTransition: PresentationControllerTransition {
 
-    public override init(
-        isPresenting: Bool,
-        animation: Animation?
-    ) {
-        super.init(
-            isPresenting: isPresenting,
-            animation: animation
-        )
-    }
-
     open override func configureTransitionAnimator(
         using transitionContext: UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
