@@ -1108,14 +1108,7 @@ final class PresentationLinkCoordinator<
             return animationController
 
         default:
-            if #available(iOS 15.0, *), presentationController is UISheetPresentationController {
-                let animationController = SheetPresentationControllerTransition(
-                    isPresenting: true,
-                    animation: animation
-                )
-                animationController.wantsInteractiveStart = false
-                return animationController
-            } else if presentationController is UIPopoverPresentationController {
+            if presented is UIAlertController, presentationController is UIPopoverPresentationController {
                 let animationController = PopoverPresentationControllerTransition(
                     isPresenting: true,
                     animation: animation
@@ -1182,14 +1175,7 @@ final class PresentationLinkCoordinator<
             return animationController
 
         default:
-            if #available(iOS 15.0, *), presentationController is UISheetPresentationController {
-                let animationController = SheetPresentationControllerTransition(
-                    isPresenting: false,
-                    animation: animation
-                )
-                animationController.wantsInteractiveStart = false
-                return animationController
-            } else if presentationController is UIPopoverPresentationController {
+            if dismissed is UIAlertController, presentationController is UIPopoverPresentationController {
                 let animationController = PopoverPresentationControllerTransition(
                     isPresenting: false,
                     animation: animation

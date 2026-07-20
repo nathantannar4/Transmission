@@ -179,23 +179,12 @@ public struct CornerRadiusOptions: Equatable, Sendable {
 
         public static func rounded(
             cornerRadius: CGFloat,
-            mask: CornerMask,
+            mask: CornerMask = .all,
             style: CornerCurve = .continuous
         ) -> RoundedRectangle {
             RoundedRectangle(
                 cornerRadii: CornerRadii(cornerRadius: cornerRadius),
                 mask: mask,
-                style: style
-            )
-        }
-
-        public static func rounded(
-            cornerRadius: CGFloat,
-            style: CornerCurve = .continuous
-        ) -> RoundedRectangle {
-            .rounded(
-                cornerRadius: cornerRadius,
-                mask: .all,
                 style: style
             )
         }
@@ -246,18 +235,7 @@ public struct CornerRadiusOptions: Equatable, Sendable {
 
         public static func containerConcentric(
             minimum cornerRadius: CGFloat?,
-            style: CornerCurve = .continuous
-        ) -> RoundedRectangle {
-            containerConcentric(
-                minimum: cornerRadius,
-                mask: .all,
-                style: style
-            )
-        }
-
-        public static func containerConcentric(
-            minimum cornerRadius: CGFloat?,
-            mask: CornerMask,
+            mask: CornerMask = .all,
             style: CornerCurve = .continuous
         ) -> RoundedRectangle {
             RoundedRectangle(
@@ -367,6 +345,19 @@ public struct CornerRadiusOptions: Equatable, Sendable {
                 topTrailing: topTrailing
             ),
             style: style
+        )
+    }
+
+    @MainActor @preconcurrency
+    public static func screen(
+        min: CGFloat = 12
+    ) -> CornerRadiusOptions {
+        return CornerRadiusOptions(
+            storage: .rounded(
+                .screen(
+                    min: min
+                )
+            )
         )
     }
 

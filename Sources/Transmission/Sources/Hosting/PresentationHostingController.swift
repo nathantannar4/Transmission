@@ -154,7 +154,7 @@ open class PresentationHostingController<
                             duration: 0.35,
                             options: [
                                 .beginFromCurrentState,
-                                .curveEaseInOut
+                                .curveEaseInOut,
                             ]
                         ) { [weak self] in
                             self?.preferredContentSize = contentSize

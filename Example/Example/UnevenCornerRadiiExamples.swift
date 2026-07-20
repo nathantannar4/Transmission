@@ -24,7 +24,7 @@ struct UnevenCornerRadiiExamples: View {
     var body: some View {
         LazyVGrid(columns: columns, spacing: Self.spacing) {
             ForEach(0..<6) { index in
-                let cornerRadius = CornerRadiusOptions.rounded(
+                let cornerRadius = CornerRadiusOptions.unevenRounded(
                     cornerRadii: cornerRadii(for: index),
                     style: .continuous
                 )
@@ -49,10 +49,10 @@ struct UnevenCornerRadiiExamples: View {
     /// Only the two cells of the top row are rounded, and only on their outer corner.
     private func cornerRadii(for index: Int) -> CornerRadiusOptions.CornerRadii {
         CornerRadiusOptions.CornerRadii(
-            topLeft: index == 0 ? Self.outerCornerRadius : Self.innerCornerRadius,
-            topRight: index == Self.columnCount - 1 ? Self.outerCornerRadius : Self.innerCornerRadius,
-            bottomLeft: Self.innerCornerRadius,
-            bottomRight: Self.innerCornerRadius
+            topLeading: index == 0 ? Self.outerCornerRadius : Self.innerCornerRadius,
+            bottomLeading: Self.innerCornerRadius,
+            bottomTrailing: Self.innerCornerRadius,
+            topTrailing: index == Self.columnCount - 1 ? Self.outerCornerRadius : Self.innerCornerRadius
         )
     }
 }

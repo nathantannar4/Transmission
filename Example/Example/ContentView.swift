@@ -26,12 +26,6 @@ struct ContentView: View {
                 }
 
                 ExampleGroup {
-                    UnevenCornerRadiiExamples()
-                } label: {
-                    HeaderView("Uneven Corner Radii")
-                }
-
-                ExampleGroup {
                     DestinationLinkExamples()
                 } label: {
                     HeaderView("Destination Link")
@@ -59,6 +53,12 @@ struct ContentView: View {
                     StatusBarAppearanceExamples()
                 } label: {
                     HeaderView("Status Bar Appearance")
+                }
+
+                ExampleGroup {
+                    UnevenCornerRadiiExamples()
+                } label: {
+                    HeaderView("Uneven Corner Radii")
                 }
 
                 DismissPresentationLink {
