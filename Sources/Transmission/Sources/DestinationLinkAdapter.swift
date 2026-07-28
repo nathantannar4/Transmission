@@ -420,9 +420,27 @@ final class DestinationLinkCoordinator<
                     transition.pause()
                     transition.endInteractiveTransition()
                     transition.cancel()
-                    transitionCoordinator.animate { [weak self] _ in
+                    // Only release the adapter once the cancelled push has finished. The
+                    // destination stays on the stack while the cancel animates, so tearing
+                    // down here would let an `isPresented == true` update push a second
+                    // destination — stranding the on screen one with a coordinator that has
+                    // already been torn down, so it can no longer be popped.
+                    let didAnimate = transitionCoordinator.animate { [weak self] _ in
                         self?.onPop(transaction)
-                        self?.didPop()
+                    } completion: { [weak self, weak viewController] _ in
+                        guard
+                            let self,
+                            let viewController,
+                            self.adapter?.viewController === viewController
+                        else {
+                            return
+                        }
+                        self.onPop(transaction)
+                        self.didPop()
+                    }
+                    if !didAnimate {
+                        onPop(transaction)
+                        self.didPop()
                     }
                 } else {
                     if let transition = transition as? ViewControllerTransition {
