@@ -32,12 +32,18 @@ extension DestinationLinkTransition {
 
     /// The cross dissolve transition style.
     public static func crossDissolve(
+        transform: CGAffineTransform = .identity,
+        fromCornerRadius: CornerRadiusOptions? = nil,
+        toCornerRadius: CornerRadiusOptions? = nil,
         prefersPanGesturePop: Bool = true,
         isInteractive: Bool = true,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> DestinationLinkTransition {
         .crossDissolve(
             .init(
+                transform: transform,
+                fromCornerRadius: fromCornerRadius,
+                toCornerRadius: toCornerRadius
             ),
             options: .init(
                 isInteractive: isInteractive,
