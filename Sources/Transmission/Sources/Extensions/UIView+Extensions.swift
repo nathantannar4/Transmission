@@ -128,7 +128,6 @@ extension UIView {
                 method_getTypeEncoding(swizzledMethod)
             )
         }
-
         if didAdd {
             class_replaceMethod(
                 aClass,
@@ -137,7 +136,18 @@ extension UIView {
                 method_getTypeEncoding(originalMethod)
             )
         } else {
-            method_exchangeImplementations(originalMethod, swizzledMethod)
+            class_replaceMethod(
+                aClass,
+                swizzledSelector,
+                method_getImplementation(originalMethod),
+                method_getTypeEncoding(originalMethod)
+            )
+            class_replaceMethod(
+                aClass,
+                originalSelector,
+                method_getImplementation(swizzledMethod),
+                method_getTypeEncoding(swizzledMethod)
+            )
         }
     }
 

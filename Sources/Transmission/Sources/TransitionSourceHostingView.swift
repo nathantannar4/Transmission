@@ -97,7 +97,7 @@ open class TransitionSourceView<Content: View>: UIView {
 
     open override func didMoveToSuperview() {
         super.didMoveToSuperview()
-        if hostStorage != nil, let superview {
+        if hostStorage != nil, let superview, superview.isSwiftUIPlatformViewHost {
             superview.disableInitialImplicitFrameAnimations()
         }
     }

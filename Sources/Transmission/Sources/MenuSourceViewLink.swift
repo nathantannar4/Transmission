@@ -372,6 +372,13 @@ private class MenuLinkSourceView<
         }
     }
 
+    open override func didMoveToSuperview() {
+        super.didMoveToSuperview()
+        if let superview, superview.isSwiftUIPlatformViewHost {
+            superview.disableInitialImplicitFrameAnimations()
+        }
+    }
+
     func onUpdate(
         content: Content,
         context: MenuSourceViewBody<Menu, Content>.Context,
