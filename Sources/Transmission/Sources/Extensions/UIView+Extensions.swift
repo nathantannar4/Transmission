@@ -101,12 +101,32 @@ extension UIView {
     }
 
     private static var didSwizzleCAActionKey: UInt8 = 0
+    private static var disablesInitialImplicitFrameAnimationsKey: UInt8 = 0
+
+    private var disablesInitialImplicitFrameAnimations: Bool {
+        get {
+            objc_getAssociatedObject(self, &Self.disablesInitialImplicitFrameAnimationsKey) as? Bool == true
+        }
+        set {
+            objc_setAssociatedObject(
+                self,
+                &Self.disablesInitialImplicitFrameAnimationsKey,
+                newValue,
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+            )
+        }
+    }
 
     public func disableInitialImplicitFrameAnimations() {
+        // Opt in per instance: the swizzle has to go on the class, and that class isn't always
+        // ours — a `UIButton.Configuration` nests its content in a plain `UIView`, so this can
+        // land on `UIView` and suppress the initial animation for every view in the process.
+        disablesInitialImplicitFrameAnimations = true
         let aClass: AnyClass = type(of: self)
         Self.disableInitialImplicitFrameAnimations(aClass: aClass)
     }
 
+    /// Installs the hook on `aClass`; instances opt in via `disableInitialImplicitFrameAnimations()`.
     public static func disableInitialImplicitFrameAnimations(aClass: AnyClass) {
         guard objc_getAssociatedObject(aClass, &Self.didSwizzleCAActionKey) as? Bool != true else { return }
         objc_setAssociatedObject(aClass, &Self.didSwizzleCAActionKey, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
@@ -143,6 +163,9 @@ extension UIView {
 
     @objc
     private func swizzled_action(for layer: CALayer, forKey event: String) -> CAAction? {
+        guard disablesInitialImplicitFrameAnimations else {
+            return swizzled_action(for: layer, forKey: event)
+        }
         if isSwiftUIPlatformViewHost,
             responds(to: NSSelectorFromString("hostedView")),
             let hostedView = value(forKey: "hostedView") as? UIView
