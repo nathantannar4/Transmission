@@ -598,8 +598,28 @@ final class DestinationLinkCoordinator<
             transitionCoordinator.presentationStyle == .none
         {
             if isCancel {
-                onPop(transaction)
-                didPop()
+                // Same race as the cancelled push in `onPop(_:transaction:)`: the
+                // destination stays on the stack while the cancel animates, so tearing
+                // down immediately would let an `isPresented == true` update push a
+                // second destination. Defer the teardown to the completion, and only
+                // release the adapter if it is still the one that was cancelled.
+                let didAnimate = transitionCoordinator.animate { [weak self] _ in
+                    self?.onPop(transaction)
+                } completion: { [weak self, weak viewController] _ in
+                    guard
+                        let self,
+                        let viewController,
+                        self.adapter?.viewController === viewController
+                    else {
+                        return
+                    }
+                    self.onPop(transaction)
+                    self.didPop()
+                }
+                if !didAnimate {
+                    onPop(transaction)
+                    didPop()
+                }
             } else if #unavailable(iOS 18.0, ) {
                 //  transitionCoordinator.animate not fired
                 onPop(transaction)
@@ -1061,7 +1081,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                     if !canBegin {
-                        panGestureDidEnd(gestureRecognizer, didCancel: true)
+                        panGestureDidEnd(gestureRecognizer, didCancel: true, cancelTransition: false)
                         return
                     } else {
                         for gesture in simultaneousPanGestures {
@@ -1072,7 +1092,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 }
                 if let transitionCoordinator = navigationController.transitionCoordinator {
                     guard transitionCoordinator.presentationStyle == .none else {
-                        panGestureDidEnd(gestureRecognizer, didCancel: true)
+                        panGestureDidEnd(gestureRecognizer, didCancel: true, cancelTransition: false)
                         return
                     }
                     if !transitionCoordinator.isCancelled {
@@ -1219,13 +1239,20 @@ final class DestinationLinkDelegateProxy: NSObject,
 
     private func panGestureDidEnd(
         _ gestureRecognizer: UIPanGestureRecognizer,
-        didCancel: Bool
+        didCancel: Bool,
+        cancelTransition: Bool = true
     ) {
         if didCancel {
-            transition?.cancel()
-            transition = nil
-            finishedTransition = nil
-            transitioningId = nil
+            // Only unwind the transition when this gesture was actually driving it.
+            // A gesture that rejects itself in `.began` (e.g. a horizontal pan that
+            // belongs to a page view controller) must not cancel an unrelated
+            // in-flight transition it never touched.
+            if cancelTransition {
+                transition?.cancel()
+                transition = nil
+                finishedTransition = nil
+                transitioningId = nil
+            }
             gestureRecognizer.isEnabled = false
             gestureRecognizer.isEnabled = true
         }
@@ -1663,6 +1690,11 @@ final class DestinationLinkDelegateProxy: NSObject,
     ) {
 
         transitioningId = nil
+        // `gestureRecognizerShouldBegin` can set this and then never begin (another
+        // recognizer wins the touch), leaking the flag into the next interaction.
+        if !interactivePopEdgeGestureRecognizer.isInteracting, !interactivePopPanGestureRecognizer.isInteracting {
+            isInterruptedInteractiveTransition = false
+        }
         delegate?.navigationController?(
             navigationController,
             didShow: viewController,
