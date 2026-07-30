@@ -43,6 +43,7 @@ public enum SnapshotRendererColorSpace {
 ///
 /// See Also:
 ///  - ``SnapshotItemProvider``
+///
 @MainActor
 @available(iOS 14.0, *)
 public final class SnapshotRenderer<Content: View>: ObservableObject {
@@ -56,17 +57,20 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
     }
 
     public var scale: CGFloat {
-        get { host.contentScaleFactor }
+        get { host.content.modifier.scale }
         set {
+            guard scale != newValue else { return }
+            host.content.modifier.scale = newValue
             host.contentScaleFactor = newValue
             host.layer.contentsScale = newValue
-            host.content.modifier.scale = newValue
+            objectWillChange.send()
         }
     }
 
     public var isOpaque: Bool {
         get { host.layer.isOpaque }
         set {
+            guard isOpaque != newValue else { return }
             host.layer.isOpaque = newValue
             objectWillChange.send()
         }
@@ -77,20 +81,18 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
     public var proposedSize: ProposedSize = .unspecified
 
     private let host: HostingView<ModifiedContent<Content, SnapshotRendererModifier>>
+    private var window: UIWindow?
 
     public init(content: Content) {
-        let host = HostingView(
-            content: content.modifier(SnapshotRendererModifier(scale: 1))
-        )
+        let host = HostingView(content: content.modifier(SnapshotRendererModifier(scale: 1)))
         host.disablesSafeArea = true
-        host.layer.shouldRasterize = true
+        host.contentScaleFactor = 1
+        host.layer.contentsScale = 1
+        host.layer.isOpaque = false
         self.host = host
-        isOpaque = false
-        scale = 1
     }
 
     public func render<Result>(
-        rasterizationScale: CGFloat = 1,
         renderer: (CGSize, (CGContext) -> Void) -> Result
     ) -> Result {
         let size: CGSize = {
@@ -101,19 +103,23 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
             )
         }()
         host.frame = CGRect(origin: .zero, size: size)
-        host.layer.rasterizationScale = rasterizationScale
+        if window == nil {
+            window = UIWindow()
+            window?.isHidden = true
+            window?.addSubview(host)
+        }
         host.render()
-        return renderer(host.frame.size, { context in
+        return renderer(host.frame.size) { context in
             host.layer.render(in: context)
-        })
+        }
     }
 
     public var cgImage: CGImage? {
         render { size, callback in
             let context = CGContext(
                 data: nil,
-                width: Int(size.width),
-                height: Int(size.height),
+                width: Int((size.width * scale).rounded()),
+                height: Int((size.height * scale).rounded()),
                 bitsPerComponent: 8,
                 bytesPerRow: 0, // Calculated automatically
                 space: colorSpace.toCoreGraphics(),
@@ -123,7 +129,7 @@ public final class SnapshotRenderer<Content: View>: ObservableObject {
                 return nil
             }
             context.concatenate(
-                CGAffineTransformMake(1, 0, 0, -1, 0, CGFloat(context.height))
+                CGAffineTransform(a: scale, b: 0, c: 0, d: -scale, tx: 0, ty: CGFloat(context.height))
             )
             callback(context)
             let image = context.makeImage()
@@ -161,22 +167,35 @@ private struct SnapshotRendererModifier: ViewModifier {
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 struct SnapshotRenderer_Previews: PreviewProvider {
     struct Preview: View {
-        @StateObject var rendererA = SnapshotRenderer(content: Snapshot())
-        @StateObject var rendererC = ImageRenderer(content: Snapshot())
+        @StateObject var snapshotRenderer = {
+            let renderer = SnapshotRenderer(content: Snapshot())
+            renderer.scale = 3
+            return renderer
+        }()
+        @StateObject var imageRenderer = {
+            let renderer = ImageRenderer(content: Snapshot())
+            renderer.scale = 3
+            return renderer
+        }()
 
         var body: some View {
             VStack {
-                VStack {
-                    Snapshot()
+                Snapshot()
 
-                    if let contentA = rendererA.uiImage {
-                        Image(uiImage: contentA)
-                    }
+                if let image = snapshotRenderer.uiImage {
+                    Image(uiImage: image)
+                }
 
+                if let image = snapshotRenderer.cgImage {
+                    Image(decorative: image, scale: snapshotRenderer.scale)
+                }
 
-                    if let contentC = rendererC.uiImage {
-                        Image(uiImage: contentC)
-                    }
+                if let image = imageRenderer.uiImage {
+                    Image(uiImage: image)
+                }
+
+                if let image = imageRenderer.cgImage {
+                    Image(decorative: image, scale: imageRenderer.scale)
                 }
             }
         }
@@ -184,7 +203,7 @@ struct SnapshotRenderer_Previews: PreviewProvider {
         struct Snapshot: View {
             @Environment(\.displayScale) var displayScale
             var body: some View {
-                Text("Hello, World")
+                Text("Hello, World \(displayScale)")
             }
         }
     }

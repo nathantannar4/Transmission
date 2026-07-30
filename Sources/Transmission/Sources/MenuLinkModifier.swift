@@ -69,7 +69,9 @@ extension View {
 @available(iOS 14.0, *)
 struct MenuLinkModifier_Previews: PreviewProvider {
     static var previews: some View {
-        Preview()
+        ZStack {
+            Preview()
+        }
     }
 
     struct Preview: View {

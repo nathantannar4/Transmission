@@ -572,7 +572,17 @@ struct ShareSheetLinkModifier_Previews: PreviewProvider {
                 Text("Share URL")
             }
 
-            ShareSheetLink(items: [SnapshotItemProvider(label: "View", content: Text("Hello, World!"))]) {
+            ShareSheetLink(
+                items: [
+                    SnapshotItemProvider(
+                        label: "View"
+                    ) {
+                        EnvironmentValueReader(\.displayScale) { v in
+                            Text(v.description)
+                        }
+                    }
+                ]
+            ) {
                 Text("Share View Snapshot")
             }
         }

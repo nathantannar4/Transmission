@@ -137,7 +137,7 @@ open class PresentationHostingController<
                 {
                     let contentSize = CGRect(
                         origin: .zero,
-                        size: view.preferredContentSize(for: containerView.bounds.width + (popoverPresentationController.popoverLayoutMargins.left + popoverPresentationController.popoverLayoutMargins.right))
+                        size: view.preferredContentSize(for: containerView.bounds.width)
                     ).inset(by: view.safeAreaInsets).size
                     guard !preferredContentSize.isApproximatelyEqual(to: contentSize) else { return }
                     didRelayoutDuringPresentation = true

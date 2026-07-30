@@ -12,11 +12,22 @@ extension UIView {
     }
 
     public var _viewController: UIViewController? {
-        var responder: UIResponder? = next
-        while responder != nil, !(responder is UIViewController) {
-            responder = responder?.next
+        guard
+            // _viewControllerForAncestor
+            let aSelector = NSStringFromBase64EncodedString("X3ZpZXdDb250cm9sbGVyRm9yQW5jZXN0b3I="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let value = value(forKey: aSelector) as? UIViewController
+        else {
+            var responder: UIResponder? = next
+            while responder != nil {
+                if let vc = responder as? UIViewController {
+                    return vc
+                }
+                responder = responder?.next
+            }
+            return nil
         }
-        return responder as? UIViewController
+        return value
     }
 
     var containingScrollView: UIScrollView? {
@@ -111,44 +122,12 @@ extension UIView {
         guard objc_getAssociatedObject(aClass, &Self.didSwizzleCAActionKey) as? Bool != true else { return }
         objc_setAssociatedObject(aClass, &Self.didSwizzleCAActionKey, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
 
-        let originalSelector = #selector(action(for:forKey:))
-        let swizzledSelector = #selector(swizzled_action(for:forKey:))
-
-        guard
-            let originalMethod = class_getInstanceMethod(aClass, originalSelector),
-            let swizzledMethod = class_getInstanceMethod(UIView.self, swizzledSelector)
-        else { return }
-
-        var didAdd = false
-        if originalMethod == class_getInstanceMethod(UIView.self, originalSelector) {
-            didAdd = class_addMethod(
-                aClass,
-                originalSelector,
-                method_getImplementation(swizzledMethod),
-                method_getTypeEncoding(swizzledMethod)
-            )
-        }
-        if didAdd {
-            class_replaceMethod(
-                aClass,
-                swizzledSelector,
-                method_getImplementation(originalMethod),
-                method_getTypeEncoding(originalMethod)
-            )
-        } else {
-            class_replaceMethod(
-                aClass,
-                swizzledSelector,
-                method_getImplementation(originalMethod),
-                method_getTypeEncoding(originalMethod)
-            )
-            class_replaceMethod(
-                aClass,
-                originalSelector,
-                method_getImplementation(swizzledMethod),
-                method_getTypeEncoding(swizzledMethod)
-            )
-        }
+        swizzle(
+            target: aClass,
+            source: UIView.self,
+            aSelector: #selector(action(for:forKey:)),
+            aSwizzledSelector: #selector(swizzled_action(for:forKey:))
+        )
     }
 
     @objc

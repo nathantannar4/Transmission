@@ -9,6 +9,8 @@ import UIKit
 @available(iOS 26.0, *)
 extension UIView {
 
+    private static var didSwizzleMagicMorphSetCenterKey: UInt8 = 0
+
     public static func disableMagicMorphViewBounce() {
         let aClass: NSObject.Type? = {
             if #available(iOS 27.0, *) {
@@ -19,9 +21,11 @@ extension UIView {
             return NSClassFromBase64EncodedString("X1VJTWFnaWNNb3JwaFZpZXc=")
         }()
         guard let aClass else { return }
+        guard objc_getAssociatedObject(aClass, &Self.didSwizzleMagicMorphSetCenterKey) as? Bool != true else { return }
+        objc_setAssociatedObject(aClass, &Self.didSwizzleMagicMorphSetCenterKey, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         swizzle(
             target: aClass,
-            source: UIView.self,
+            source: aClass,
             aSelector: #selector(setter: UIView.center),
             aSwizzledSelector: #selector(UIView.swizzled_magicMorph_setCenter(_:))
         )

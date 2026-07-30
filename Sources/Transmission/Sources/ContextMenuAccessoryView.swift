@@ -229,19 +229,28 @@ extension UIContextMenuInteraction {
 
         let fittingSize: CGSize = {
             guard let view = interaction.view, let window = view.window else { return UIScreen.main.bounds.size }
-            let fittingRect = window.frame.inset(by: window.safeAreaInsets)
-            guard location != .background, alignment.horizontal == .leading || alignment.horizontal == .trailing else {
-                return fittingRect.size
-            }
+            let insets = window.layoutMargins
+            let fittingRect = window.frame.inset(by: insets)
+            guard location != .background else { return fittingRect.size }
             let frameInWindow = view.convert(view.bounds, to: view.window)
-            if alignment.horizontal == .leading {
+            let leadingInset = min(frameInWindow.minX, insets.left)
+            let trailingInset = min(window.bounds.width - frameInWindow.maxX, insets.right)
+            switch alignment.horizontal {
+            case .leading:
                 return CGSize(
-                    width: fittingRect.width - frameInWindow.minX,
+                    width: fittingRect.width - leadingInset,
                     height: fittingRect.height
                 )
-            } else {
+
+            case .trailing:
                 return CGSize(
-                    width: fittingRect.width - frameInWindow.minX,
+                    width: fittingRect.width - trailingInset,
+                    height: fittingRect.height
+                )
+
+            default:
+                return CGSize(
+                    width: frameInWindow.width + (leadingInset + trailingInset),
                     height: fittingRect.height
                 )
             }
@@ -249,7 +258,6 @@ extension UIContextMenuInteraction {
         contentView.frame.size = contentView.sizeThatFits(fittingSize)
 
         let accessoryView = `init`(instance, initSelector, contentView.bounds, configuration).takeRetainedValue()
-        UIView.swizzleUIContextMenuAccessoryView()
 
         // setLocation:
         if let aSelector = NSSelectorFromBase64EncodedString("c2V0TG9jYXRpb246"),
@@ -320,10 +328,11 @@ extension UIContextMenuInteraction {
             }
             if location == .preview, let view = interaction.view, let window = view.window {
                 let frameInWindow = view.convert(view.bounds, to: view.window)
+                let insets = window.layoutMargins
                 if alignment.vertical == .top {
-                    offset.y += min(window.safeAreaInsets.top + offset.y, max(window.safeAreaInsets.top - (frameInWindow.minY - contentView.frame.size.height), 0))
+                    offset.y += min(insets.top + offset.y + 2, max(insets.top - offset.y - (frameInWindow.minY - contentView.frame.size.height), 0))
                 } else if alignment.vertical == .bottom {
-                    offset.y -= min(window.safeAreaInsets.bottom + offset.y, max(window.safeAreaInsets.bottom - (window.frame.height - frameInWindow.maxY - contentView.frame.size.height), 0))
+                    offset.y -= min(insets.bottom + offset.y - 2, max(insets.bottom + offset.y - (window.frame.height - frameInWindow.maxY - contentView.frame.size.height), 0))
                 }
             }
             accessoryView.setValue(offset, forKey: "offset")
@@ -491,53 +500,6 @@ extension UIView {
             let aSel: Selector = #selector(getter:UIView.accessoryHostingView)
             let box = newValue.map { ObjCWeakBox(value: $0) }
             objc_setAssociatedObject(self, unsafeBitCast(aSel, to: UnsafeRawPointer.self), box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
-    }
-
-    private static var didSwizzleSetVisible: Bool = false
-
-    static func swizzleUIContextMenuAccessoryView() {
-        guard let targetClass = NSClassFromString("_UIContextMenuAccessoryView") else { return }
-        guard !Self.didSwizzleSetVisible else { return }
-        Self.didSwizzleSetVisible = true
-
-        let originalSel = NSSelectorFromString("setVisible:animated:")
-        let swizzledSel = #selector(swizzled_setVisible(_:animated:))
-
-        guard
-            let originalMethod = class_getInstanceMethod(targetClass, originalSel),
-            let swizzledMethod = class_getInstanceMethod(UIView.self, swizzledSel)
-        else {
-            return
-        }
-
-        let added = class_addMethod(
-            targetClass,
-            originalSel,
-            method_getImplementation(swizzledMethod),
-            method_getTypeEncoding(swizzledMethod)
-        )
-
-        if added {
-            class_replaceMethod(
-                targetClass,
-                swizzledSel,
-                method_getImplementation(originalMethod),
-                method_getTypeEncoding(originalMethod)
-            )
-        } else {
-            method_exchangeImplementations(originalMethod, swizzledMethod)
-        }
-    }
-
-    @objc
-    func swizzled_setVisible(_ visible: Bool, animated: Bool) {
-        swizzled_setVisible(visible, animated: animated)
-
-        if let window {
-            let frameInWindow = convert(bounds, to: window)
-            frame.origin.y += max(window.safeAreaInsets.top - frameInWindow.minY, 0)
-            frame.origin.y -= max(window.safeAreaInsets.bottom - (window.frame.height - frameInWindow.maxY), 0)
         }
     }
 }

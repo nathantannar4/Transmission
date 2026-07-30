@@ -138,7 +138,7 @@ open class PopoverPresentationController: UIPopoverPresentationController, Perce
         super.containerViewDidLayoutSubviews()
         dimmingView.frame = containerView?.bounds ?? .zero
         let hasTranslucentBackground = backgroundColor?.isTranslucent == true
-        presentedView?.subviews.first?.isHidden = hasTranslucentBackground
+        shadowView?.isHidden = hasTranslucentBackground
         presentedView?.subviews.last?.subviews.first?.isHidden = hasTranslucentBackground
     }
 
