@@ -174,7 +174,7 @@ extension EnvironmentValues {
 
 @available(iOS 14.0, *)
 struct DestinationBridgeAdapter: ViewModifier {
-    var destinationCoordinator: DestinationCoordinator
+    var destinationCoordinator: DestinationCoordinator?
     @State var didAppear = false
 
     func body(content: Content) -> some View {

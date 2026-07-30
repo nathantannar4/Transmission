@@ -121,6 +121,17 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         }
     }
 
+    open override func dismissalTransitionWillBegin() {
+        super.dismissalTransitionWillBegin()
+
+        updatePresentedViewAdditionalSafeAreaInsets()
+    }
+
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+        dismissalDidEnd()
+    }
+
     open func dismissalTransitionShouldBegin(
         translation: CGPoint,
         delta: CGPoint,
@@ -217,7 +228,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     open override func keyboardHeightDidChange() {
         super.keyboardHeightDidChange()
-        if keyboardHeight == 0 {
+        if keyboardHeight == 0, transition == nil {
             keyboardOffset = 0
         }
     }
@@ -244,6 +255,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             origin.y -= frameOfPresentedView.minY
             origin.x -= frameOfPresentedView.minX
             gestureRecognizer.setTranslation(origin, in: containerView)
+
+            if let resignedFirstResponder {
+                resignedFirstResponder.resignFirstResponder()
+            }
         }
 
         let gestureTranslation = gestureRecognizer.translation(in: presentedView)
@@ -413,7 +428,9 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     self.transition = nil
                 } else {
                     transition.cancel()
-                    resignedFirstResponder?.becomeFirstResponder()
+                    if let resignedFirstResponder {
+                        resignedFirstResponder.becomeFirstResponder()
+                    }
                 }
                 panGestureDidEnd()
                 transitionAlongsidePresentation(progress: isPresenting ? (shouldFinish ? 1 : 0) : (shouldFinish ? 0 : 1))
@@ -580,8 +597,14 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         translationOffset = .zero
         lastTranslation = .zero
         trackingScrollView = nil
-        keyboardOffset = 0
         isDismissReady = false
+        if transition == nil {
+            dismissalDidEnd()
+        }
+    }
+
+    private func dismissalDidEnd() {
+        keyboardOffset = 0
         resignedFirstResponder = nil
         feedbackGenerator = nil
     }

@@ -12,7 +12,7 @@ extension UIWindow {
         _ window: UIWindow,
         animation: Animation?,
         animations: ((Bool) -> Void)? = nil,
-        completion: (() -> Void)? = nil
+        completion: (@MainActor @Sendable () -> Void)? = nil
     ) {
         window.parent = self
         window.isHidden = false
@@ -40,7 +40,7 @@ extension UIWindow {
     func dismiss(
         animation: Animation?,
         animations: (() -> Void)? = nil,
-        completion: (() -> Void)? = nil
+        completion: (@MainActor @Sendable () -> Void)? = nil
     ) {
         resignKey()
         if let parent {

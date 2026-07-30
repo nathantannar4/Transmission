@@ -7,7 +7,14 @@
 import SwiftUI
 import UIKit
 
+public protocol TransitionSourceViewDelegate: AnyObject {
+
+    @MainActor @preconcurrency func transitionSourceViewDidMoveToWindow(_ view: UIView)
+}
+
 open class TransitionSourceView<Content: View>: UIView {
+
+    public weak var delegate: TransitionSourceViewDelegate?
 
     public var sourceView: UIView? {
         hostStorage?.hostingView
@@ -32,14 +39,10 @@ open class TransitionSourceView<Content: View>: UIView {
     }
     private var hostStorage: Storage?
 
-    private let presentingViewController: Binding<UIViewController?>?
-
     public init(
-        presentingViewController: Binding<UIViewController?>? = nil,
         content: Content,
         useHostingController: Bool = false
     ) {
-        self.presentingViewController = presentingViewController
         super.init(frame: .zero)
         if Content.self != EmptyView.self {
             if useHostingController {
@@ -70,11 +73,11 @@ open class TransitionSourceView<Content: View>: UIView {
         backgroundColor: UIColor? = nil
     ) {
         guard let hostingView = hostStorage?.hostingView else { return }
+        hostingView.update(content: content, transaction: transaction)
         UIView.animate(with: transaction.animation) {
             hostingView.cornerRadius = cornerRadius
             hostingView.backgroundColor = backgroundColor
         }
-        hostingView.update(content: content, transaction: transaction)
     }
 
     open func sizeThatFits(_ proposal: ProposedSize) -> CGSize? {
@@ -104,16 +107,7 @@ open class TransitionSourceView<Content: View>: UIView {
 
     open override func didMoveToWindow() {
         super.didMoveToWindow()
-        guard
-            let presentingViewController,
-            presentingViewController.wrappedValue == nil
-        else {
-            return
-        }
-        let viewController = viewController
-        withCATransaction { [presentingViewController] in
-            presentingViewController.wrappedValue = viewController
-        }
+        delegate?.transitionSourceViewDidMoveToWindow(self)
     }
 
     open override func action(for layer: CALayer, forKey event: String) -> CAAction? {
@@ -303,7 +297,6 @@ struct TransitionSourceView_Previews: PreviewProvider {
 
         func makeUIView(context: Context) -> TransitionSourceView<Content> {
             TransitionSourceView(
-                presentingViewController: .constant(nil),
                 content: content,
                 useHostingController: false
             )

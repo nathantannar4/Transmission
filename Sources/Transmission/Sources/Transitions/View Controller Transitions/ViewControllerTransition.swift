@@ -9,7 +9,6 @@ import SwiftUI
 import Engine
 
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIViewControllerAnimatedTransitioning {
 
     public let isPresenting: Bool
@@ -257,7 +256,7 @@ extension UIPercentDrivenInteractiveTransition {
 extension UIViewControllerContextTransitioning {
 
     func presentationController(isPresenting: Bool) -> UIPresentationController? {
-        viewController(forKey: isPresenting ? .to : .from)?._activePresentationController
+        viewController(forKey: isPresenting ? .to : .from)?._presentationController
     }
 }
 

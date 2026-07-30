@@ -7,11 +7,16 @@
 import SwiftUI
 import Engine
 
-final class WindowReader: UIView {
-    let presentingWindow: Binding<UIWindow?>
+protocol WindowReaderDelegate: AnyObject {
 
-    init(presentingWindow: Binding<UIWindow?>) {
-        self.presentingWindow = presentingWindow
+    @MainActor @preconcurrency func windowReaderDidMoveToWindow(_ view: UIView)
+}
+
+final class WindowReader: UIView {
+
+    weak var delegate: WindowReaderDelegate?
+
+    init() {
         super.init(frame: .zero)
         isHidden = true
     }
@@ -22,12 +27,7 @@ final class WindowReader: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        withCATransaction { [weak self] in
-            guard let self = self else {
-                return
-            }
-            self.presentingWindow.wrappedValue = self.window
-        }
+        delegate?.windowReaderDidMoveToWindow(self)
     }
 }
 

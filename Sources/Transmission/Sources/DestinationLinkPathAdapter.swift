@@ -68,20 +68,16 @@ private struct DestinationLinkPathAdapter<
     var transition: (Value) -> DestinationLinkTransition
     var destination: (Value) -> Destination
 
-    @WeakState var presentingViewController: UIViewController?
-
     typealias UIViewType = ViewControllerReader
 
     func makeUIView(context: Context) -> UIViewType {
-        let uiView = UIViewType(
-            presentingViewController: $presentingViewController,
-        )
+        let uiView = UIViewType()
+        uiView.delegate = context.coordinator
         return uiView
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
         context.coordinator.onUpdate(
-            presentingViewController: presentingViewController,
             path: path,
             transition: transition,
             destination: destination,
@@ -110,33 +106,45 @@ final class DestinationLinkPathCoordinator<
     Value: Sendable,
     Destination: View,
     Representable: UIViewRepresentable
-> {
+>: ViewControllerReaderDelegate {
 
     var path: Binding<DestinationLinkPath<Value>>
 
     typealias ChildCoordinator = DestinationLinkCoordinator<Destination, Representable>
     var coordinators: [DestinationLinkPath<Value>.ID: ChildCoordinator] = [:]
 
+    weak var presentingViewController: UIViewController?
+
     init(path: Binding<DestinationLinkPath<Value>>) {
         self.path = path
     }
 
+    func viewControllerReaderDidMoveToWindow(_ view: UIView) {
+        guard presentingViewController == nil else { return }
+        if let viewController = view.viewController {
+            presentingViewController = viewController
+            if !coordinators.isEmpty {
+                pushPop(
+                    presentingViewController: viewController,
+                    added: Set(coordinators.keys),
+                    removed: [],
+                    isAnimated: false
+                )
+            }
+        }
+    }
+
     func onUpdate(
-        presentingViewController: UIViewController?,
         path: Binding<DestinationLinkPath<Value>>,
         transition: (Value) -> DestinationLinkTransition,
         destination: (Value) -> Destination,
         context: Representable.Context,
         sourceView: UIView
     ) {
-        guard let navigationController = presentingViewController?._navigationController else { return }
-
         var added = Set<DestinationLinkPath<Value>.ID>()
         var removed = self.path.wrappedValue.ids
             .subtracting(path.wrappedValue.ids)
         self.path = path
-
-        var viewControllers = navigationController.viewControllers
 
         for (index, value) in path.wrappedValue.enumerated() {
             let id = path.wrappedValue.id(for: index)
@@ -149,19 +157,50 @@ final class DestinationLinkPathCoordinator<
                 if let coordinator = coordinators[id] {
                     return coordinator
                 }
-                let coordinator = ChildCoordinator(isPresented: isPresented)
+                let coordinator = ChildCoordinator(isPresented: isPresented, isChildCoordinator: true)
                 coordinators[id] = coordinator
                 added.insert(id)
                 return coordinator
             }()
             coordinator.onUpdate(
-                presentingViewController: presentingViewController,
                 isPresented: isPresented,
                 transition: transition(value),
                 destination: destination(value),
                 context: context,
                 sourceView: sourceView
-            ) { viewController in
+            )
+        }
+
+        if let presentingViewController {
+            pushPop(
+                presentingViewController: presentingViewController,
+                added: added,
+                removed: removed,
+                isAnimated: context.transaction.isAnimated
+            )
+        }
+    }
+
+    func onDismantle() {
+        for coordinator in coordinators.values {
+            coordinator.onDismantle()
+        }
+    }
+
+    private func pushPop(
+        presentingViewController: UIViewController?,
+        added: Set<DestinationLinkPath<Value>.ID>,
+        removed: Set<DestinationLinkPath<Value>.ID>,
+        isAnimated: Bool
+    ) {
+        guard let navigationController = presentingViewController?._navigationController else { return }
+
+        var viewControllers = navigationController.viewControllers
+
+        for added in added {
+            guard let coordinator = coordinators[added] else { continue }
+            coordinator.bind(to: navigationController)
+            if let viewController = coordinator.viewController {
                 viewControllers.append(viewController)
             }
         }
@@ -175,7 +214,7 @@ final class DestinationLinkPathCoordinator<
             let update: () -> Void = {
                 navigationController.setViewControllers(
                     viewControllers,
-                    animated: context.transaction.isAnimated
+                    animated: isAnimated
                 )
             }
             if let firstResponder = navigationController.topViewController?.firstResponder {
@@ -186,12 +225,6 @@ final class DestinationLinkPathCoordinator<
             } else {
                 update()
             }
-        }
-    }
-
-    func onDismantle() {
-        for coordinator in coordinators.values {
-            coordinator.onDismantle()
         }
     }
 }

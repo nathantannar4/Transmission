@@ -57,10 +57,6 @@ open class SlidePresentationController: InteractivePresentationController {
 
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
-        if let presentedView {
-            let fromCornerRadius = preferredFromCornerRadius ?? .screen(min: 0)
-            fromCornerRadius.apply(to: presentedView)
-        }
         updatePortalView()
     }
 
@@ -68,14 +64,6 @@ open class SlidePresentationController: InteractivePresentationController {
         super.presentationTransitionDidEnd(completed)
         if completed, let presentedView {
             CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView)
-        }
-    }
-
-    open override func dismissalTransitionWillBegin() {
-        super.dismissalTransitionWillBegin()
-        if let presentedView {
-            let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
-            toCornerRadius.apply(to: presentedView)
         }
     }
 
@@ -89,10 +77,10 @@ open class SlidePresentationController: InteractivePresentationController {
     open override func transitionAlongsidePresentation(progress: CGFloat) {
         super.transitionAlongsidePresentation(progress: progress)
         if let presentedView {
-            if presentedViewController.isBeingPresented {
+            if (presentedViewController.isBeingPresented && progress == 1) || (presentedViewController.isBeingDismissed && progress == 0) {
                 let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
                 toCornerRadius.apply(to: presentedView)
-            } else if presentedViewController.isBeingDismissed {
+            } else if (presentedViewController.isBeingDismissed && progress == 1) || (presentedViewController.isBeingPresented && progress == 0) {
                 let fromCornerRadius = preferredFromCornerRadius ?? .screen(min: 0)
                 fromCornerRadius.apply(to: presentedView)
             }
@@ -131,7 +119,7 @@ open class SlidePresentationController: InteractivePresentationController {
 
     private func updatePortalView() {
         if prefersScaleEffect, portalView == nil {
-            let fromPresentationController = presentingViewController._activePresentationController
+            let fromPresentationController = presentingViewController._presentationController
             if fromPresentationController is SlidePresentationController || fromPresentationController == nil {
                 if let portalView = PortalView(sourceView: presentingViewController.view) {
                     portalView.hidesSourceView = true

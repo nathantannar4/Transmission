@@ -180,7 +180,7 @@ extension EnvironmentValues {
 
 @available(iOS 14.0, *)
 struct PresentationBridgeAdapter: ViewModifier {
-    var presentationCoordinator: PresentationCoordinator
+    var presentationCoordinator: PresentationCoordinator?
 
     func body(content: Content) -> some View {
         content

@@ -49,18 +49,14 @@ private struct WindowLinkAdapterBody<
     var isPresented: Binding<Bool>
     var destination: Destination
 
-    @WeakState var presentingWindow: UIWindow?
-
     func makeUIView(context: Context) -> WindowReader {
-        let uiView = WindowReader(
-            presentingWindow: $presentingWindow
-        )
+        let uiView = WindowReader()
+        uiView.delegate = context.coordinator
         return uiView
     }
 
     func updateUIView(_ uiView: WindowReader, context: Context) {
         context.coordinator.onUpdate(
-            presentingWindow: presentingWindow,
             isPresented: isPresented,
             level: level,
             transition: transition,
@@ -79,19 +75,24 @@ private struct WindowLinkAdapterBody<
     }
 
     @MainActor
-    final class Coordinator: NSObject {
+    final class Coordinator: NSObject, WindowReaderDelegate {
         var isPresented: Binding<Bool>
         var adapter: WindowLinkDestinationWindowAdapter<Destination>?
         var animation: Animation?
         var didPresentAnimated = false
         var isBeingReused = false
 
+        weak var presentingWindow: UIWindow?
+
         init(isPresented: Binding<Bool>) {
             self.isPresented = isPresented
         }
 
+        func windowReaderDidMoveToWindow(_ view: UIView) {
+            presentingWindow = view.window
+        }
+
         func onUpdate(
-            presentingWindow: UIWindow?,
             isPresented: Binding<Bool>,
             level: WindowLinkLevel,
             transition: WindowLinkTransition,

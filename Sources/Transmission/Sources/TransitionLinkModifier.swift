@@ -8,15 +8,6 @@ import SwiftUI
 
 /// A modifier that manages the presentation of a destination view in a new `UIViewController`.
 ///
-/// To present the destination view with an animation, `isPresented` should
-/// be updated with a transaction that has an animation. For example:
-///
-/// ```
-/// withAnimation {
-///     isPresented = true
-/// }
-/// ```
-///
 /// See Also:
 ///  - ``TransitionLinkModifier``
 ///  - ``PresentationLink``
@@ -36,10 +27,12 @@ public struct TransitionLinkModifier<
     var isPresented: Binding<Bool>
     var destination: Destination
     var transition: LinkTransition
+    var animation: Animation?
     var useHostingControllerAsSourceView: Bool
 
     public init(
         transition: LinkTransition,
+        animation: Animation? = .default,
         useHostingControllerAsSourceView: Bool = false,
         isPresented: Binding<Bool>,
         destination: Destination
@@ -47,6 +40,7 @@ public struct TransitionLinkModifier<
         self.isPresented = isPresented
         self.destination = destination
         self.transition = transition
+        self.animation = animation
         self.useHostingControllerAsSourceView = useHostingControllerAsSourceView
     }
 
@@ -59,6 +53,12 @@ public struct TransitionLinkModifier<
             ) {
                 destination
             }
+            .modifier(
+                OptionalAnimationModifier(
+                    animation: animation,
+                    value: isPresented.wrappedValue
+                )
+            )
         )
     }
 }
@@ -68,21 +68,13 @@ extension View {
 
     /// A modifier that manages the presentation of a destination view in a new `UIViewController`.
     ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///  - ``DestinationLinkModifier``
     ///
     public func transition<Destination: View>(
         transition: LinkTransition,
+        animation: Animation? = .default,
         useHostingControllerAsSourceView: Bool = false,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination
@@ -90,6 +82,7 @@ extension View {
         modifier(
             TransitionLinkModifier(
                 transition: transition,
+                animation: animation,
                 useHostingControllerAsSourceView: useHostingControllerAsSourceView,
                 isPresented: isPresented,
                 destination: destination()
@@ -99,26 +92,22 @@ extension View {
 
     /// A modifier that manages the presentation of a destination view in a new `UIViewController`.
     ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///  - ``DestinationLinkModifier``
     ///
     public func transition<T, Destination: View>(
-        _ value: Binding<T?>,
         transition: LinkTransition,
+        animation: Animation? = .default,
+        value: Binding<T?>,
         useHostingControllerAsSourceView: Bool = false,
         @ViewBuilder destination: (T) -> Destination
     ) -> some View {
-        self.transition(transition: transition, isPresented: value.isNotNil()) {
+        self.transition(
+            transition: transition,
+            animation: animation,
+            isPresented: value.isNotNil()
+        ) {
             Optional(value, content: destination)
         }
     }

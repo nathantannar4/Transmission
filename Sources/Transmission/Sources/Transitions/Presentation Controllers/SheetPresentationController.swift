@@ -395,7 +395,8 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             if hasTranslucentBackground {
                 largeBackground = UIColor.clear
             }
-            if let preferredGlassEffect {
+            let supportsGlassEffect = UIGlassEffect.responds(to: #selector(UIGlassEffect.init(style:)))
+            if supportsGlassEffect, let preferredGlassEffect {
                 let effect = UIGlassEffect(style: preferredGlassEffect.style.toUIKit())
                 effect.isInteractive = preferredGlassEffect.isInteractive
                 effect.tintColor = preferredGlassEffect.tintColor?.toUIColor()
@@ -406,7 +407,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
                 }
             }
             var background = largeBackground
-            if !hasTranslucentBackground, preferredGlassEffect == nil {
+            if supportsGlassEffect, !hasTranslucentBackground, preferredGlassEffect == nil {
                 let effect = UIGlassEffect(style: .regular)
                 effect.isInteractive = true
 

@@ -24,11 +24,11 @@ public struct ContextMenuLinkModifier<
     Preview: View
 >: ViewModifier {
 
-    var transition: ContextMenuLinkPreviewTransition
     var isPresented: Binding<Bool>
     var menu: Menu
     var preview: Preview
     var accessoryViews: AccessoryViews
+    var transition: ContextMenuLinkPreviewTransition
 
     public init(
         transition: ContextMenuLinkPreviewTransition = .default,
@@ -37,11 +37,11 @@ public struct ContextMenuLinkModifier<
         @ViewBuilder preview: () -> Preview = { EmptyView() },
         @ViewBuilder accessoryViews: () -> AccessoryViews = { EmptyView() }
     ) {
-        self.transition = transition
         self.isPresented = isPresented
         self.menu = menu()
         self.preview = preview()
         self.accessoryViews = accessoryViews()
+        self.transition = transition
     }
 
     public func body(content: Content) -> some View {

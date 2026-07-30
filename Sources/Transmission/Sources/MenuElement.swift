@@ -88,11 +88,17 @@ public struct MenuElementAttributes: OptionSet, Sendable {
 @frozen
 @available(iOS 14.0, *)
 public struct MenuElementLayoutProperties {
+
     public var order: MenuElementsOrder
+    public var preferredAlignment: Alignment?
 
     @inlinable
-    public init(order: MenuElementsOrder) {
+    public init(
+        order: MenuElementsOrder,
+        preferredAlignment: Alignment? = nil
+    ) {
         self.order = order
+        self.preferredAlignment = preferredAlignment
     }
 }
 

@@ -5,17 +5,9 @@
 #if os(iOS)
 
 import SwiftUI
+import Engine
 
 /// A modifier that presents a destination view in a new `UIViewController`.
-///
-/// To present the destination view with an animation, `isPresented` should
-/// be updated with a transaction that has an animation. For example:
-///
-/// ```
-/// withAnimation {
-///     isPresented = true
-/// }
-/// ```
 ///
 /// The destination view is presented with the provided `transition`.
 /// By default, the ``PresentationLinkTransition/default`` transition is used.
@@ -39,15 +31,18 @@ public struct PresentationLinkModifier<
     var isPresented: Binding<Bool>
     var destination: Destination
     var transition: PresentationLinkTransition
+    var animation: Animation?
 
     public init(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         destination: Destination
     ) {
         self.isPresented = isPresented
         self.destination = destination
         self.transition = transition
+        self.animation = animation
     }
 
     public func body(content: Content) -> some View {
@@ -58,6 +53,12 @@ public struct PresentationLinkModifier<
             ) {
                 destination
             }
+            .modifier(
+                OptionalAnimationModifier(
+                    animation: animation,
+                    value: isPresented.wrappedValue
+                )
+            )
         )
     }
 }
@@ -67,11 +68,13 @@ extension PresentationLinkModifier {
 
     public init<T, _Destination: View>(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         value: Binding<T?>,
         destination: (Binding<T>) -> _Destination
     ) where Destination == Optional<_Destination> {
         self.init(
             transition: transition,
+            animation: animation,
             isPresented: value.isNotNil(),
             destination: Optional(value, content: destination)
         )
@@ -79,11 +82,13 @@ extension PresentationLinkModifier {
 
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
         self.init(
             transition: transition,
+            animation: animation,
             isPresented: isPresented,
             destination: ViewControllerRepresentableAdapter(destination)
         )
@@ -92,11 +97,13 @@ extension PresentationLinkModifier {
     @_disfavoredOverload
     public init<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         destination: @escaping () -> ViewController
     ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
         self.init(
             transition: transition,
+            animation: animation,
             isPresented: isPresented,
             destination: ViewControllerRepresentableAdapter(destination)
         )
@@ -104,11 +111,13 @@ extension PresentationLinkModifier {
 
     public init<T, ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         value: Binding<T?>,
         destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
         self.init(
             transition: transition,
+            animation: animation,
             value: value
         ) { $value in
             ViewControllerRepresentableAdapter { ctx in
@@ -120,11 +129,13 @@ extension PresentationLinkModifier {
     @_disfavoredOverload
     public init<T, ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         value: Binding<T?>,
         destination: @escaping (Binding<T>) -> ViewController
     ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
         self.init(
             transition: transition,
+            animation: animation,
             value: value
         ) { $value in
             ViewControllerRepresentableAdapter {
@@ -139,26 +150,19 @@ extension View {
 
     /// A modifier that presents a destination view in a new `UIViewController`.
     ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///
     public func presentation<Destination: View>(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         @ViewBuilder destination: () -> Destination
     ) -> some View {
         modifier(
             PresentationLinkModifier(
                 transition: transition,
+                animation: animation,
                 isPresented: isPresented,
                 destination: destination()
             )
@@ -167,26 +171,19 @@ extension View {
 
     /// A modifier that presents a destination view in a new `UIViewController`.
     ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///
     public func presentation<T, Destination: View>(
         _ value: Binding<T?>,
+        animation: Animation? = .default,
         transition: PresentationLinkTransition = .default,
         @ViewBuilder destination: (Binding<T>) -> Destination
     ) -> some View {
         modifier(
             PresentationLinkModifier(
                 transition: transition,
+                animation: animation,
                 value: value,
                 destination: destination
             )
@@ -195,26 +192,19 @@ extension View {
 
     /// A modifier that presents a destination `UIViewController`.
     ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///
     public func presentation<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         destination: @escaping (ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
         modifier(
             PresentationLinkModifier(
                 transition: transition,
+                animation: animation,
                 isPresented: isPresented,
                 destination: destination
             )
@@ -223,26 +213,19 @@ extension View {
 
     /// A modifier that presents a destination `UIViewController`.
     ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///
     public func presentation<ViewController: UIViewController>(
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         destination: @escaping () -> ViewController
     ) -> some View {
         modifier(
             PresentationLinkModifier(
                 transition: transition,
+                animation: animation,
                 isPresented: isPresented,
                 destination: destination
             )
@@ -251,26 +234,19 @@ extension View {
 
     /// A modifier that presents a destination view in a new `UIViewController`.
     ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///
     public func presentation<T, ViewController: UIViewController>(
-        _ value: Binding<T?>,
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
+        value: Binding<T?>,
         destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
     ) -> some View {
         modifier(
             PresentationLinkModifier(
                 transition: transition,
+                animation: animation,
                 value: value,
                 destination: destination
             )
@@ -279,21 +255,13 @@ extension View {
 
     /// A modifier that presents a destination view in a new `UIViewController`.
     ///
-    /// To present the destination view with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``PresentationLinkModifier``
     ///
     public func presentation<T, ViewController: UIViewController>(
-        _ value: Binding<T?>,
         transition: PresentationLinkTransition = .default,
+        animation: Animation? = .default,
+        value: Binding<T?>,
         destination: @escaping (Binding<T>) -> ViewController
     ) -> some View {
         modifier(
@@ -350,7 +318,7 @@ struct PresentationLinkModifier_Previews: PreviewProvider {
                 return uiViewController
             }
             .presentation(
-                Binding<Int?>(
+                value: Binding<Int?>(
                     get: { value == 4 ? value : nil },
                     set: { value = $0 ?? 0 }
                 )
@@ -360,7 +328,7 @@ struct PresentationLinkModifier_Previews: PreviewProvider {
                 return uiViewController
             }
             .presentation(
-                Binding<Int?>(
+                value: Binding<Int?>(
                     get: { value == 5 ? value : nil },
                     set: { value = $0 ?? 0 }
                 )

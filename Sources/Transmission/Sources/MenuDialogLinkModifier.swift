@@ -79,16 +79,18 @@ public struct MenuDialogLinkModifier<
     Menu: MenuElement
 >: ViewModifier {
 
-    var transition: MenuDialogTransition
     var isPresented: Binding<Bool>
     var title: Text?
     var message: Text?
     var header: Header
     var menu: Menu
+    var transition: MenuDialogTransition
+    var animation: Animation?
 
     @_disfavoredOverload
     public init(
         transition: MenuDialogTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         title: LocalizedStringKey? = nil,
         message: LocalizedStringKey? = nil,
@@ -97,6 +99,7 @@ public struct MenuDialogLinkModifier<
     ) {
         self.init(
             transition: transition,
+            animation: animation,
             isPresented: isPresented,
             title: Text(title),
             message: Text(message),
@@ -107,18 +110,20 @@ public struct MenuDialogLinkModifier<
 
     public init(
         transition: MenuDialogTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         title: Text? = nil,
         message: Text? = nil,
         header: Header = EmptyView(),
         menu: Menu
     ) {
-        self.transition = transition
         self.isPresented = isPresented
         self.title = title
         self.message = message
         self.header = header
         self.menu = menu
+        self.transition = transition
+        self.animation = animation
     }
 
     public func body(content: Content) -> some View {
@@ -131,6 +136,7 @@ public struct MenuDialogLinkModifier<
                         preferredPresentationColorScheme: transition.options.preferredPresentationColorScheme,
                     )
                 ),
+                animation: animation,
                 isPresented: isPresented
             ) {
                 MenuDialog(
@@ -153,6 +159,7 @@ extension View {
         Menu: MenuElement
     >(
         transition: MenuDialogTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         title: LocalizedStringKey? = nil,
         message: LocalizedStringKey? = nil,
@@ -162,6 +169,7 @@ extension View {
         modifier(
             MenuDialogLinkModifier(
                 transition: transition,
+                animation: animation,
                 isPresented: isPresented,
                 title: title,
                 message: message,
@@ -176,6 +184,7 @@ extension View {
         Menu: MenuElement
     >(
         transition: MenuDialogTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         title: Text? = nil,
         message: Text? = nil,
@@ -185,6 +194,7 @@ extension View {
         modifier(
             MenuDialogLinkModifier(
                 transition: transition,
+                animation: animation,
                 isPresented: isPresented,
                 title: title,
                 message: message,

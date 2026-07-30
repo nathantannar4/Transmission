@@ -60,7 +60,12 @@ extension View {
         isPresented: Binding<Bool>,
         @MenuBuilder menu: () -> Menu
     ) -> some View {
-        modifier(MenuLinkModifier(isPresented: isPresented, menu: menu))
+        modifier(
+            MenuLinkModifier(
+                isPresented: isPresented,
+                menu: menu
+            )
+        )
     }
 }
 
