@@ -13,16 +13,16 @@ extension View {
     ///
     /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
     ///
-    public func preferredStatusBarStyle(_ style: UIStatusBarStyle) -> some View {
-        modifier(PreferredStatusBarStyleModifier(style: style))
+    public func preferredStatusBarStyle(_ style: UIStatusBarStyle, isEnabled: Bool = true) -> some View {
+        modifier(PreferredStatusBarStyleModifier(style: style, isEnabled: isEnabled))
     }
 
     /// Sets the preferred status bar visibility of the hosting views `UIViewController`
     ///
     /// > Required: Your apps `Info.plist` key for `UIViewControllerBasedStatusBarAppearance` should be set to `YES`
     ///
-    public func prefersStatusBarHidden(_ isHidden: Bool = true) -> some View {
-        modifier(PrefersStatusBarHiddenModifier(isHidden: isHidden))
+    public func prefersStatusBarHidden(_ isHidden: Bool = true, isEnabled: Bool = true) -> some View {
+        modifier(PrefersStatusBarHiddenModifier(isHidden: isHidden, isEnabled: isEnabled))
     }
 }
 
@@ -33,16 +33,25 @@ extension View {
 @available(iOS 14.0, *)
 @frozen
 public struct PreferredStatusBarStyleModifier: ViewModifier {
-    var style: UIStatusBarStyle
 
-    public init(style: UIStatusBarStyle) {
+    var style: UIStatusBarStyle
+    var isEnabled: Bool
+
+    public init(
+        style: UIStatusBarStyle,
+        isEnabled: Bool = true
+    ) {
         self.style = style
+        self.isEnabled = isEnabled
     }
 
     public func body(content: Content) -> some View {
         content
             .background(
-                PreferredStatusBarStyleAdapter(style: style)
+                PreferredStatusBarStyleAdapter(
+                    style: style,
+                    isEnabled: isEnabled
+                )
             )
     }
 }
@@ -51,6 +60,7 @@ public struct PreferredStatusBarStyleModifier: ViewModifier {
 private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
 
     var style: UIStatusBarStyle
+    var isEnabled: Bool
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader()
@@ -59,7 +69,11 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: ViewControllerReader, context: Context) {
-        context.coordinator.onUpdate(style: style, context: context)
+        context.coordinator.onUpdate(
+            style: style,
+            isEnabled: isEnabled,
+            context: context
+        )
     }
 
     static func dismantleUIView(_ uiView: ViewControllerReader, coordinator: Coordinator) {
@@ -86,6 +100,7 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
     class Coordinator: ViewControllerReaderDelegate {
 
         var style: UIStatusBarStyle = .default
+        var isEnabled: Bool = false
         var isAnimated: Bool = false
 
         weak var presentingViewController: UIViewController?
@@ -98,17 +113,26 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
 
         func onUpdate(
             style: UIStatusBarStyle,
+            isEnabled: Bool,
             context: PreferredStatusBarStyleAdapter.Context
         ) {
             self.style = style
+            self.isEnabled = isEnabled
             self.isAnimated = context.transaction.isAnimated
             onUpdate()
         }
 
         private func onUpdate() {
             guard let presentingViewController else { return }
-            presentingViewController.swizzled_preferredStatusBarStyle = style
-            presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+            let newValue = isEnabled ? style : nil
+            if presentingViewController.preferredStatusBarStyleOverride != newValue {
+                if isEnabled {
+                    presentingViewController.swizzled_preferredStatusBarStyle = style
+                } else {
+                    presentingViewController.preferredStatusBarStyleOverride = newValue
+                }
+                presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+            }
         }
     }
 }
@@ -119,23 +143,34 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
 ///
 @available(iOS 14.0, *)
 public struct PrefersStatusBarHiddenModifier: ViewModifier {
-    var isHidden: Bool
 
-    public init(isHidden: Bool) {
+    var isHidden: Bool
+    var isEnabled: Bool
+
+    public init(
+        isHidden: Bool,
+        isEnabled: Bool = true
+    ) {
         self.isHidden = isHidden
+        self.isEnabled = isEnabled
     }
 
     public func body(content: Content) -> some View {
         content
             .background(
-                PrefersStatusBarHiddenAdapter(isHidden: isHidden)
+                PrefersStatusBarHiddenAdapter(
+                    isHidden: isHidden,
+                    isEnabled: isEnabled
+                )
             )
     }
 }
 
 @available(iOS 14.0, *)
 private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
+
     var isHidden: Bool
+    var isEnabled: Bool
 
     func makeUIView(context: Context) -> ViewControllerReader {
         let uiView = ViewControllerReader()
@@ -144,7 +179,11 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: ViewControllerReader, context: Context) {
-        context.coordinator.onUpdate(isHidden: isHidden, context: context)
+        context.coordinator.onUpdate(
+            isHidden: isHidden,
+            isEnabled: isEnabled,
+            context: context
+        )
     }
 
     static func dismantleUIView(_ uiView: ViewControllerReader, coordinator: Coordinator) {
@@ -171,6 +210,7 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
     class Coordinator: ViewControllerReaderDelegate {
 
         var isHidden = false
+        var isEnabled: Bool = false
         var isAnimated: Bool = false
 
         weak var presentingViewController: UIViewController?
@@ -183,17 +223,26 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
 
         func onUpdate(
             isHidden: Bool,
+            isEnabled: Bool,
             context: PrefersStatusBarHiddenAdapter.Context
         ) {
             self.isHidden = isHidden
+            self.isEnabled = isEnabled
             self.isAnimated = context.transaction.isAnimated
             onUpdate()
         }
 
         private func onUpdate() {
             guard let presentingViewController else { return }
-            presentingViewController.swizzled_prefersStatusBarHidden = isHidden
-            presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+            let newValue = isEnabled ? isHidden : nil
+            if presentingViewController.prefersStatusBarHiddenOverride != newValue {
+                if isEnabled {
+                    presentingViewController.swizzled_prefersStatusBarHidden = isHidden
+                } else {
+                    presentingViewController.prefersStatusBarHiddenOverride = newValue
+                }
+                presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+            }
         }
     }
 }
@@ -289,9 +338,30 @@ extension UIViewController {
 
     private static var preferredStatusBarStyleKey: Bool = false
 
+    var preferredStatusBarStyleOverride: UIStatusBarStyle? {
+        get {
+            if let box = objc_getAssociatedObject(self, &Self.preferredStatusBarStyleKey) as? ObjCBox<UIStatusBarStyle> {
+                return box.value
+            }
+            return nil
+        }
+        set {
+            if let newValue {
+                if let box = objc_getAssociatedObject(self, &Self.preferredStatusBarStyleKey) as? ObjCBox<UIStatusBarStyle> {
+                    box.value = newValue
+                } else {
+                    let box = ObjCBox(value: newValue)
+                    objc_setAssociatedObject(self, &Self.preferredStatusBarStyleKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                }
+            } else {
+                objc_setAssociatedObject(self, &Self.preferredStatusBarStyleKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            }
+        }
+    }
+
     private func getPreferredStatusBarStyle() -> UIStatusBarStyle? {
-        if let box = objc_getAssociatedObject(self, &Self.preferredStatusBarStyleKey) as? ObjCBox<UIStatusBarStyle> {
-            return box.value
+        if let style = preferredStatusBarStyleOverride {
+            return style
         } else if let child = getChildForStatusBarAppearance() {
             return child.getPreferredStatusBarStyle()
         }
@@ -323,13 +393,7 @@ extension UIViewController {
                     replacement: #selector(getter: UIViewController.swizzled_childForStatusBarStyle)
                 )
             }
-
-            if let box = objc_getAssociatedObject(self, &Self.preferredStatusBarStyleKey) as? ObjCBox<UIStatusBarStyle> {
-                box.value = newValue
-            } else {
-                let box = ObjCBox(value: newValue)
-                objc_setAssociatedObject(self, &Self.preferredStatusBarStyleKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            }
+            preferredStatusBarStyleOverride = newValue
         }
     }
 
@@ -337,9 +401,30 @@ extension UIViewController {
 
     private static var prefersStatusBarHiddenKey: Bool = false
 
+    var prefersStatusBarHiddenOverride: Bool? {
+        get {
+            if let box = objc_getAssociatedObject(self, &Self.prefersStatusBarHiddenKey) as? ObjCBox<Bool> {
+                return box.value
+            }
+            return nil
+        }
+        set {
+            if let newValue {
+                if let box = objc_getAssociatedObject(self, &Self.prefersStatusBarHiddenKey) as? ObjCBox<Bool> {
+                    box.value = newValue
+                } else {
+                    let box = ObjCBox(value: newValue)
+                    objc_setAssociatedObject(self, &Self.prefersStatusBarHiddenKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                }
+            } else {
+                objc_setAssociatedObject(self, &Self.prefersStatusBarHiddenKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            }
+        }
+    }
+
     private func getPrefersStatusBarHidden() -> Bool? {
-        if let box = objc_getAssociatedObject(self, &Self.prefersStatusBarHiddenKey) as? ObjCBox<Bool> {
-            return box.value
+        if let isHidden = prefersStatusBarHiddenOverride {
+            return isHidden
         } else if let child = getChildForStatusBarAppearance() {
             return child.getPrefersStatusBarHidden()
         }
@@ -371,13 +456,7 @@ extension UIViewController {
                     replacement: #selector(getter: UIViewController.swizzled_childForStatusBarHidden)
                 )
             }
-
-            if let box = objc_getAssociatedObject(self, &Self.prefersStatusBarHiddenKey) as? ObjCBox<Bool> {
-                box.value = newValue
-            } else {
-                let box = ObjCBox(value: newValue)
-                objc_setAssociatedObject(self, &Self.prefersStatusBarHiddenKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-            }
+            prefersStatusBarHiddenOverride = newValue
         }
     }
 }
