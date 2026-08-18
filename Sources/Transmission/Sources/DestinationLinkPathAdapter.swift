@@ -12,18 +12,24 @@ import Engine
 /// > Tip: You can support deep linking to multiple views with this modifier
 ///
 @available(iOS 14.0, *)
-public struct DestinationLinkPathAdapterModifier<Value: Sendable, Destination: View>: ViewModifier {
+public struct DestinationLinkPathAdapterModifier<
+    Value,
+    Destination: View
+>: ViewModifier {
 
-    @Binding var path: DestinationLinkPath<Value>
+    var path: Binding<DestinationLinkPath<Value>>
+    var animation: Animation?
     var transition: (Value) -> DestinationLinkTransition
     var destination: (Value) -> Destination
 
     public init(
         path: Binding<DestinationLinkPath<Value>>,
+        animation: Animation? = .default,
         transition: @escaping (Value) -> DestinationLinkTransition,
         destination: @escaping (Value) -> Destination
     ) {
-        self._path = path
+        self.path = path
+        self.animation = animation
         self.transition = transition
         self.destination = destination
     }
@@ -32,9 +38,15 @@ public struct DestinationLinkPathAdapterModifier<Value: Sendable, Destination: V
         content
             .background(
                 DestinationLinkPathAdapter(
-                    path: $path,
+                    path: path,
                     transition: transition,
                     destination: destination
+                )
+                .modifier(
+                    OptionalAnimationModifier(
+                        animation: animation,
+                        value: path.wrappedValue.ids
+                    )
                 )
             )
     }
@@ -45,12 +57,14 @@ extension View {
 
     public func destination<Value, Destination: View>(
         path: Binding<DestinationLinkPath<Value>>,
+        animation: Animation? = .default,
         transition: @escaping (Value) -> DestinationLinkTransition = { _ in .default },
         destination: @escaping (Value) -> Destination
     ) -> some View {
         modifier(
             DestinationLinkPathAdapterModifier(
                 path: path,
+                animation: animation,
                 transition: transition,
                 destination: destination
             )
@@ -60,7 +74,7 @@ extension View {
 
 @available(iOS 14.0, *)
 private struct DestinationLinkPathAdapter<
-    Value: Sendable,
+    Value,
     Destination: View
 >: UIViewRepresentable {
 
@@ -68,20 +82,16 @@ private struct DestinationLinkPathAdapter<
     var transition: (Value) -> DestinationLinkTransition
     var destination: (Value) -> Destination
 
-    @WeakState var presentingViewController: UIViewController?
-
     typealias UIViewType = ViewControllerReader
 
     func makeUIView(context: Context) -> UIViewType {
-        let uiView = UIViewType(
-            presentingViewController: $presentingViewController,
-        )
+        let uiView = UIViewType()
+        uiView.delegate = context.coordinator
         return uiView
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
         context.coordinator.onUpdate(
-            presentingViewController: presentingViewController,
             path: path,
             transition: transition,
             destination: destination,
@@ -107,67 +117,158 @@ private struct DestinationLinkPathAdapter<
 @MainActor @preconcurrency
 @available(iOS 14.0, *)
 final class DestinationLinkPathCoordinator<
-    Value: Sendable,
+    Value,
     Destination: View,
     Representable: UIViewRepresentable
-> {
+>: ViewControllerReaderDelegate {
 
-    var path: Binding<DestinationLinkPath<Value>>
+    private var path: Binding<DestinationLinkPath<Value>>
 
-    typealias ChildCoordinator = DestinationLinkCoordinator<Destination, Representable>
-    var coordinators: [DestinationLinkPath<Value>.ID: ChildCoordinator] = [:]
+    private typealias ChildCoordinator = DestinationLinkCoordinatorAdapter<Destination, Representable>
+    private var ids: [DestinationLinkPath<Value>.ID] = []
+    private var coordinators: [DestinationLinkPath<Value>.ID: ChildCoordinator] = [:]
+
+    private var animation: Animation?
+
+    private weak var presentingViewController: UIViewController?
 
     init(path: Binding<DestinationLinkPath<Value>>) {
         self.path = path
     }
 
+    func viewControllerReaderDidMoveToWindow(_ view: UIView) {
+        guard presentingViewController == nil else { return }
+        if let viewController = view.viewController {
+            presentingViewController = viewController
+            if !coordinators.isEmpty {
+                let isAnimated = animation != nil
+                withCATransaction { [ids] in
+                    self.update(
+                        presentingViewController: viewController,
+                        added: ids,
+                        removed: [],
+                        isAnimated: isAnimated
+                    )
+                }
+            }
+        }
+    }
+
     func onUpdate(
-        presentingViewController: UIViewController?,
         path: Binding<DestinationLinkPath<Value>>,
         transition: (Value) -> DestinationLinkTransition,
         destination: (Value) -> Destination,
         context: Representable.Context,
         sourceView: UIView
     ) {
-        guard let navigationController = presentingViewController?._navigationController else { return }
-
-        var added = Set<DestinationLinkPath<Value>.ID>()
-        var removed = self.path.wrappedValue.ids
-            .subtracting(path.wrappedValue.ids)
+        let oldValue = Set(ids)
+        let newValue = Set(path.wrappedValue.ids)
+        let removed: [DestinationLinkPath<Value>.ID] = {
+            let difference = oldValue.subtracting(newValue)
+            return ids.filter { difference.contains($0) }
+        }()
+        ids = path.wrappedValue.ids
+        let added: [DestinationLinkPath<Value>.ID] = {
+            let difference = newValue.subtracting(oldValue)
+            return ids.filter { difference.contains($0) }
+        }()
         self.path = path
+        animation = context.transaction.animation
 
-        var viewControllers = navigationController.viewControllers
-
-        for (index, value) in path.wrappedValue.enumerated() {
-            let id = path.wrappedValue.id(for: index)
-            guard let value else {
-                removed.insert(id)
-                continue
-            }
-            let isPresented = path[index].isNotNil()
+        for id in ids {
             let coordinator = {
                 if let coordinator = coordinators[id] {
                     return coordinator
                 }
-                let coordinator = ChildCoordinator(isPresented: isPresented)
+                let coordinator = ChildCoordinator(isPresented: .constant(false), isChildCoordinator: true)
                 coordinators[id] = coordinator
-                added.insert(id)
                 return coordinator
             }()
-            coordinator.onUpdate(
+            if let value = path.wrappedValue[id] {
+                var transition = transition(value)
+                transition.options.shouldAutomaticallyDismissDestination = true
+                coordinator.presentingViewController = presentingViewController
+                coordinator.onUpdate(
+                    isPresented: path[id].isNotNil(),
+                    transition: transition,
+                    destination: destination(value),
+                    context: context,
+                    sourceView: sourceView
+                )
+            }
+        }
+
+        if let presentingViewController {
+            update(
                 presentingViewController: presentingViewController,
-                isPresented: isPresented,
-                transition: transition(value),
-                destination: destination(value),
-                context: context,
-                sourceView: sourceView
-            ) { viewController in
+                added: added,
+                removed: removed,
+                isAnimated: context.transaction.isAnimated
+            )
+        }
+    }
+
+    func onDismantle() {
+        guard let presentingViewController else { return }
+        update(
+            presentingViewController: presentingViewController,
+            added: [],
+            removed: ids,
+            isAnimated: true
+        )
+        withCATransaction { [path] in
+            withAnimation(.default) {
+                path.wrappedValue.pop(count: .max)
+            }
+        }
+    }
+
+    private func update(
+        presentingViewController: UIViewController,
+        added: [DestinationLinkPath<Value>.ID],
+        removed: [DestinationLinkPath<Value>.ID],
+        isAnimated: Bool
+    ) {
+        guard let navigationController = presentingViewController._navigationController else { return }
+        if let transitionCoordinator = navigationController.transitionCoordinator, transitionCoordinator.presentationStyle == .none {
+            transitionCoordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                self?.update(
+                    navigationController: navigationController,
+                    added: added,
+                    removed: removed,
+                    isAnimated: isAnimated
+                )
+            }
+        } else {
+            update(
+                navigationController: navigationController,
+                added: added,
+                removed: removed,
+                isAnimated: isAnimated
+            )
+        }
+    }
+
+    private func update(
+        navigationController: UINavigationController,
+        added: [DestinationLinkPath<Value>.ID],
+        removed: [DestinationLinkPath<Value>.ID],
+        isAnimated: Bool
+    ) {
+        guard let navigationController = presentingViewController?._navigationController else { return }
+
+        var viewControllers = navigationController.viewControllers
+
+        for id in added {
+            guard let coordinator = coordinators[id] else { continue }
+            coordinator.bind(to: navigationController)
+            if let viewController = coordinator.viewController {
                 viewControllers.append(viewController)
             }
         }
 
-        for remove in removed {
-            guard let coordinator = coordinators.removeValue(forKey: remove) else { continue }
+        for id in removed {
+            guard let coordinator = coordinators.removeValue(forKey: id) else { continue }
             viewControllers.removeAll(where: { $0 === coordinator.viewController })
         }
 
@@ -175,7 +276,7 @@ final class DestinationLinkPathCoordinator<
             let update: () -> Void = {
                 navigationController.setViewControllers(
                     viewControllers,
-                    animated: context.transaction.isAnimated
+                    animated: isAnimated
                 )
             }
             if let firstResponder = navigationController.topViewController?.firstResponder {
@@ -186,12 +287,6 @@ final class DestinationLinkPathCoordinator<
             } else {
                 update()
             }
-        }
-    }
-
-    func onDismantle() {
-        for coordinator in coordinators.values {
-            coordinator.onDismantle()
         }
     }
 }

@@ -4,9 +4,28 @@
 
 #if os(iOS)
 
+import os.log
 import SwiftUI
 import Engine
 import EngineCore
+
+/// A ``ViewInputFlag`` to force a ``DestinationLinkAdapter``
+/// to lazy load its `UIViewRepresentable` to make it more performant.
+///
+/// By default, ``DestinationLinkAdapter`` detects when its in a built in
+/// lazy view, such as `LazyVStack`, and will always lazy load.
+///
+/// Disable lazy loading via ``.defaultInput(DestinationLinkAdapterIsLazy.self)``
+///
+@available(iOS 14.0, *)
+public struct DestinationLinkAdapterIsLazy: ViewInputFlag, ViewInputsCondition {
+    public static func evaluate(_ inputs: ViewInputs) -> Bool {
+        if let isLazy = inputs[Self.self, default: nil] {
+            return isLazy
+        }
+        return IsInLazyContainer.evaluate(inputs) || IsInHostingConfiguration.evaluate(inputs)
+    }
+}
 
 /// A view that manages the push of a destination view in a new `UIViewController`.  The presentation is
 /// sourced from this view.
@@ -60,14 +79,27 @@ public struct DestinationLinkAdapter<
     }
 
     public var body: some View {
-        DestinationLinkAdapterBody(
-            transition: transition,
-            cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
-            isPresented: isPresented,
-            destination: destination,
-            sourceView: content
-        )
+        UnaryViewAdaptor {
+            ViewInputConditionalContent(DestinationLinkAdapterIsLazy.self) {
+                LazyDestinationLinkAdapter(
+                    transition: transition,
+                    cornerRadius: cornerRadius,
+                    backgroundColor: backgroundColor,
+                    isPresented: isPresented,
+                    content: content,
+                    destination: destination
+                )
+            } otherwise: {
+                DestinationLinkAdapterBody(
+                    transition: transition,
+                    cornerRadius: cornerRadius,
+                    backgroundColor: backgroundColor,
+                    isPresented: isPresented,
+                    destination: destination,
+                    sourceView: content
+                )
+            }
+        }
     }
 }
 
@@ -116,6 +148,42 @@ extension DestinationLinkAdapter {
 }
 
 @available(iOS 14.0, *)
+private struct LazyDestinationLinkAdapter<
+    Content: View,
+    Destination: View
+>: View {
+
+    var transition: DestinationLinkTransition
+    var cornerRadius: CornerRadiusOptions?
+    var backgroundColor: Color?
+    var isPresented: Binding<Bool>
+    var content: Content
+    var destination: Destination
+
+    @State var isLazyLoaded = false
+
+    var body: some View {
+        if isPresented.wrappedValue || isLazyLoaded {
+            DestinationLinkAdapterBody(
+                transition: transition,
+                cornerRadius: cornerRadius,
+                backgroundColor: backgroundColor,
+                isPresented: isPresented,
+                destination: destination,
+                sourceView: content
+            )
+            .transition(.identity)
+            .onAppear {
+                isLazyLoaded = true
+            }
+        } else {
+            content
+                .transition(.identity)
+        }
+    }
+}
+
+@available(iOS 14.0, *)
 private struct DestinationLinkAdapterBody<
     Destination: View,
     SourceView: View
@@ -128,8 +196,6 @@ private struct DestinationLinkAdapterBody<
     var destination: Destination
     var sourceView: SourceView
 
-    @WeakState var presentingViewController: UIViewController?
-
     typealias UIViewType = TransitionSourceView<SourceView>
     typealias DestinationViewController = DestinationHostingController<ModifiedContent<Destination, DestinationBridgeAdapter>>
 
@@ -137,7 +203,6 @@ private struct DestinationLinkAdapterBody<
         context: Context
     ) -> UIViewType {
         let uiView = UIViewType(
-            presentingViewController: $presentingViewController,
             content: sourceView,
             useHostingController: {
                 switch transition.value {
@@ -151,6 +216,7 @@ private struct DestinationLinkAdapterBody<
                 }
             }()
         )
+        uiView.delegate = context.coordinator
         return uiView
     }
 
@@ -165,7 +231,6 @@ private struct DestinationLinkAdapterBody<
             backgroundColor: backgroundColor?.toUIColor(in: context.environment)
         )
         context.coordinator.onUpdate(
-            presentingViewController: presentingViewController,
             isPresented: isPresented,
             transition: transition,
             destination: destination,
@@ -191,6 +256,12 @@ private struct DestinationLinkAdapterBody<
         size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
+    static func _modifyBridgedViewInputs(_ inputs: inout _ViewInputs) {
+        if SourceView.self != EmptyView.self {
+            inputs.bridgeHostingView()
+        }
+    }
+
     static func dismantleUIView(
         _ uiView: UIViewType,
         coordinator: Coordinator
@@ -198,7 +269,7 @@ private struct DestinationLinkAdapterBody<
         coordinator.onDismantle()
     }
 
-    typealias Coordinator = DestinationLinkCoordinator<Destination, Self>
+    typealias Coordinator = DestinationLinkCoordinatorAdapter<Destination, Self>
 
     func makeCoordinator() -> Coordinator {
         Coordinator(isPresented: isPresented)
@@ -207,45 +278,77 @@ private struct DestinationLinkAdapterBody<
 
 @MainActor @preconcurrency
 @available(iOS 14.0, *)
-final class DestinationLinkCoordinator<
+final class DestinationLinkCoordinatorAdapter<
     Destination: View,
     Representable: UIViewRepresentable
->: NSObject, DestinationLinkCoordinatorDelegate, DestinationLinkDelegate
+>: NSObject, DestinationLinkCoordinatorAdapterDelegate, DestinationLinkDelegate, TransitionSourceViewDelegate
 {
-    var viewController: UIViewController? { adapter?.viewController }
+    var viewController: UIViewController! { adapter?.viewController }
 
     private var isPresented: Binding<Bool>
     private var adapter: DestinationLinkDestinationViewControllerAdapter<Destination, Representable>?
     private var animation: Animation?
-    private var didPresentAnimated = false
     private var isPushing: Bool?
     private weak var sourceView: UIView?
+    private var overrideTraitCollection: UITraitCollection? {
+        didSet {
+            if #available(iOS 17.0, *) {
+                guard oldValue?.changedTraits(from: overrideTraitCollection).isEmpty != true else { return }
+            }
+            guard let adapter else { return }
+            adapter.navigationController?.setOverrideTraitCollection(
+                overrideTraitCollection,
+                forChild: adapter.viewController
+            )
+        }
+    }
 
     private var isZoomTransitionDismissReady = false
     private var feedbackGenerator: UIImpactFeedbackGenerator?
 
     private var wasNavigationBarHidden: Bool?
 
-    init(isPresented: Binding<Bool>) {
+    private let isChildCoordinator: Bool
+
+    weak var presentingViewController: UIViewController?
+
+    init(isPresented: Binding<Bool>, isChildCoordinator: Bool = false) {
         self.isPresented = isPresented
+        self.isChildCoordinator = isChildCoordinator
+    }
+
+    func transitionSourceViewDidMoveToWindow(_ view: UIView) {
+        guard presentingViewController == nil else { return }
+        if let viewController = view.viewController {
+            presentingViewController = viewController
+            if let adapter {
+                let isAnimated = animation != nil
+                withCATransaction {
+                    self.push(
+                        adapter: adapter,
+                        presentingViewController: viewController,
+                        isAnimated: isAnimated
+                    )
+                }
+            }
+        }
     }
 
     func onUpdate(
-        presentingViewController: UIViewController?,
         isPresented: Binding<Bool>,
         transition: DestinationLinkTransition,
         destination: Destination,
         context: Representable.Context,
-        sourceView: UIView,
-        push: ((UIViewController) -> Void)? = nil
+        sourceView: UIView? = nil
     ) {
         self.isPresented = isPresented
 
-        if let presentingViewController, isPresented.wrappedValue {
+        if isPresented.wrappedValue {
 
             let isAnimated = context.transaction.isAnimated
-                || (presentingViewController.transitionCoordinator?.isAnimated ?? false)
+                || (presentingViewController?.transitionCoordinator?.isAnimated ?? false)
             let animation = context.transaction.animation
+                ?? (presentingViewController == nil ? self.animation : nil)
                 ?? (isAnimated ? .default : nil)
             self.animation = animation
 
@@ -256,29 +359,26 @@ final class DestinationLinkCoordinator<
             )
 
             if let adapter {
-                adapter.navigationController?.setOverrideTraitCollection(
-                    traits,
-                    forChild: adapter.viewController
-                )
                 adapter.transition = transition
+                self.overrideTraitCollection = traits
                 adapter.update(
                     destination: destination,
                     context: context,
                     isPresented: isPresented
                 )
-            } else if let navigationController = presentingViewController._navigationController {
+            } else {
                 let adapter = DestinationLinkDestinationViewControllerAdapter(
                     destination: destination,
                     sourceView: sourceView,
                     transition: transition,
                     context: context,
-                    navigationController: navigationController,
                     isPresented: isPresented,
                     onPop: { [weak self] in
                         self?.onPop($0, transaction: $1)
                     }
                 )
                 self.adapter = adapter
+                self.overrideTraitCollection = traits
                 switch adapter.transition.value {
                 case .`default`:
                     break
@@ -310,58 +410,15 @@ final class DestinationLinkCoordinator<
                     self.sourceView = sourceView
                 }
 
-                navigationController.setOverrideTraitCollection(
-                    traits,
-                    forChild: adapter.viewController
-                )
-
-                navigationController.delegates.add(delegate: self, for: adapter.viewController)
-                self.isPushing = true
-                let present: () -> Void = {
-                    self.didPresentAnimated = isAnimated
-                    if let push {
-                        push(adapter.viewController)
-                    } else {
-                        navigationController.pushViewController(
-                            adapter.viewController,
-                            animated: isAnimated
-                        )
-                    }
-                }
-                var didPresent = false
-                if let transitionCoordinator = navigationController.transitionCoordinator,
-                    transitionCoordinator.presentationStyle == .none
-                {
-                    if let fromVC = navigationController.transitionCoordinator?.viewController(forKey: .from),
-                        let transition = navigationController.delegates.transition(for: fromVC) as? ViewControllerTransition
-                    {
-                        transition.complete()
-                        present()
-                        didPresent = true
-                    } else if let toVC = transitionCoordinator.viewController(forKey: .to),
-                        let transition = navigationController.delegates.transition(for: toVC) as? ViewControllerTransition
-                    {
-                        transition.complete()
-                        present()
-                        didPresent = true
-                    }
-                }
-                if !didPresent {
-                    if let firstResponder = navigationController.topViewController?.firstResponder {
-                        withCATransaction {
-                            firstResponder.resignFirstResponder()
-                            present()
-                        }
-                    } else {
-                        present()
-                    }
-                }
-            } else {
-                withCATransaction {
-                    isPresented.wrappedValue = false
+                if let presentingViewController, !isChildCoordinator {
+                    self.push(
+                        adapter: adapter,
+                        presentingViewController: presentingViewController,
+                        isAnimated: isAnimated
+                    )
                 }
             }
-        } else if !isPresented.wrappedValue, adapter != nil {
+        } else if !isPresented.wrappedValue, adapter != nil, !isChildCoordinator {
             onPop(1, transaction: context.transaction)
         }
     }
@@ -371,13 +428,75 @@ final class DestinationLinkCoordinator<
         if let adapter {
             if adapter.transition.options.shouldAutomaticallyDismissDestination {
                 if isPushing != false {
-                    let transaction = Transaction(animation: didPresentAnimated ? .default : nil)
+                    let transaction = Transaction(animation: .default)
                     withCATransaction {
                         self.onPop(1, transaction: transaction)
                     }
                 }
+            } else if let navigationController = adapter.navigationController {
+                navigationController.delegates.add(delegate: self, for: adapter.viewController, isStrongReference: true)
+            }
+        }
+    }
+
+    func bind(
+        to navigationController: UINavigationController,
+        isStrongReference: Bool = false
+    ) {
+        guard let adapter else { return }
+        navigationController.setOverrideTraitCollection(
+            overrideTraitCollection,
+            forChild: adapter.viewController
+        )
+        adapter.navigationController = navigationController
+        navigationController.delegates.add(
+            delegate: self,
+            for: adapter.viewController,
+            isStrongReference: isStrongReference
+        )
+    }
+
+    private func push(
+        adapter: DestinationLinkDestinationViewControllerAdapter<Destination, Representable>,
+        presentingViewController: UIViewController?,
+        isAnimated: Bool
+    ) {
+        guard let navigationController = presentingViewController?._navigationController else { return }
+        bind(to: navigationController)
+
+        self.isPushing = true
+        let present: () -> Void = {
+            navigationController.pushViewController(
+                adapter.viewController,
+                animated: isAnimated
+            )
+        }
+        var didPresent = false
+        if let transitionCoordinator = navigationController.transitionCoordinator,
+            transitionCoordinator.presentationStyle == .none
+        {
+            if let fromVC = navigationController.transitionCoordinator?.viewController(forKey: .from),
+                let transition = navigationController.delegates.transition(for: fromVC) as? ViewControllerTransition
+            {
+                transition.complete()
+                present()
+                didPresent = true
+            } else if let toVC = transitionCoordinator.viewController(forKey: .to),
+                let transition = navigationController.delegates.transition(for: toVC) as? ViewControllerTransition
+            {
+                transition.complete()
+                present()
+                didPresent = true
+            }
+        }
+        if !didPresent {
+            if let firstResponder = navigationController.topViewController?.firstResponder {
+                withCATransaction {
+                    firstResponder.resignFirstResponder()
+                    present()
+                }
             } else {
-                adapter.coordinator = self
+                present()
             }
         }
     }
@@ -389,7 +508,7 @@ final class DestinationLinkCoordinator<
             sourceView: sourceView,
             options: options,
             environment: adapter?.environment ?? .init(),
-            transaction: Transaction(animation: animation ?? (didPresentAnimated ? .default : nil))
+            transaction: Transaction(animation: animation)
         )
     }
 
@@ -402,7 +521,6 @@ final class DestinationLinkCoordinator<
         }
         if count > 0 {
             animation = transaction.animation
-            didPresentAnimated = false
             isPushing = false
         }
 
@@ -611,7 +729,7 @@ final class DestinationLinkCoordinator<
                         if isPushTransition {
                             self?.onPop(transaction)
                             self?.didPop()
-                        } else {
+                        } else if self?.isPresented.wrappedValue == false {
                             self?.isPresented.wrappedValue = true
                         }
                     } else if !isPushTransition, !isInteractive, isInterruptible {
@@ -637,9 +755,6 @@ final class DestinationLinkCoordinator<
             isPushing = nil
             animation = nil
         } else if !hasViewController, isPushing != true {
-            // Break the retain cycle
-            adapter?.coordinator = nil
-
             onPop(Transaction())
             didPop()
             isPushing = nil
@@ -647,7 +762,7 @@ final class DestinationLinkCoordinator<
 
         #if !targetEnvironment(macCatalyst)
         if #available(iOS 16.0, *),
-           let sheetPresentationController = viewController._activePresentationController as? SheetPresentationController,
+           let sheetPresentationController = viewController._presentationController as? SheetPresentationController,
            sheetPresentationController.detents.contains(where: { $0.isDynamic })
         {
             if animated {
@@ -862,7 +977,7 @@ public protocol DestinationLinkDelegate {
 }
 
 @objc
-protocol DestinationLinkCoordinatorDelegate: UINavigationControllerDelegate  {
+protocol DestinationLinkCoordinatorAdapterDelegate: UINavigationControllerDelegate  {
 
     func navigationControllerShouldBeginInteractivePop(
         _ navigationController: UINavigationController,
@@ -897,7 +1012,7 @@ final class DestinationLinkDelegateProxy: NSObject,
 
     private weak var navigationController: UINavigationController?
     private nonisolated(unsafe) weak var delegate: UINavigationControllerDelegate?
-    private var delegates = [ObjectIdentifier: ObjCWeakBox<DestinationLinkCoordinatorDelegate>]()
+    private var delegates = [ObjectIdentifier: ObjCRefBox<DestinationLinkCoordinatorAdapterDelegate>]()
 
     private var transitioningId: ObjectIdentifier?
     private weak var transition: UIPercentDrivenInteractiveTransition?
@@ -963,14 +1078,15 @@ final class DestinationLinkDelegateProxy: NSObject,
     }
 
     func add(
-        delegate: DestinationLinkCoordinatorDelegate,
-        for viewController: UIViewController
+        delegate: DestinationLinkCoordinatorAdapterDelegate,
+        for viewController: UIViewController,
+        isStrongReference: Bool = false
     ) {
-        delegates[ObjectIdentifier(viewController)] = ObjCWeakBox(value: delegate)
+        delegates[ObjectIdentifier(viewController)] = isStrongReference ? ObjCRefBox(value: delegate) : ObjCWeakBox(value: delegate)
     }
 
     func remove(
-        delegate: DestinationLinkCoordinatorDelegate,
+        delegate: DestinationLinkCoordinatorAdapterDelegate,
         for viewController: UIViewController
     ) {
         let id = ObjectIdentifier(viewController)
@@ -1071,7 +1187,34 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                 } else {
+                    let firstResponder = navigationController.firstResponder as? UIView
+                    var shouldResignFirstResponder = false
+                    if let firstResponder, let window = firstResponder.window, let hostingController = firstResponder.viewController as? AnyHostingController {
+                        let frameInWindow = firstResponder.convert(firstResponder.bounds, to: window)
+                        let isPinnedToBottom: Bool
+                        if firstResponder.inputAccessoryView != nil {
+                            isPinnedToBottom = false
+                        } else if #available(iOS 15.0, *) {
+                            let keyboardLayoutFrame = hostingController.view.convert(
+                                hostingController.view.keyboardLayoutGuide.layoutFrame,
+                                to: window
+                            )
+                            isPinnedToBottom = frameInWindow.maxY >= (keyboardLayoutFrame.minY - frameInWindow.height / 2)
+                        } else {
+                            isPinnedToBottom = false
+                        }
+                        if !isPinnedToBottom {
+                            shouldResignFirstResponder = firstResponder.resignFirstResponder()
+                        }
+                    }
                     navigationController.popViewController(animated: true)
+                    if shouldResignFirstResponder, let firstResponder {
+                        navigationController.transitionCoordinator?.animate(alongsideTransition: nil) { [weak firstResponder] ctx in
+                            if ctx.isCancelled {
+                                firstResponder?.becomeFirstResponder()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1727,15 +1870,11 @@ class DestinationLinkDestinationViewControllerAdapter<
 
     weak var navigationController: UINavigationController?
 
-    // Set to create a retain cycle if !shouldAutomaticallyDismissDestination
-    var coordinator: NSObject?
-
     init(
         destination: Destination,
-        sourceView: UIView,
+        sourceView: UIView?,
         transition: DestinationLinkTransition,
         context: Representable.Context,
-        navigationController: UINavigationController?,
         isPresented: Binding<Bool>,
         onPop: @escaping (Int, Transaction) -> Void
     ) {
@@ -1744,7 +1883,6 @@ class DestinationLinkDestinationViewControllerAdapter<
         self.environment = context.environment
         self.isPresented = isPresented
         self.onPop = onPop
-        self.navigationController = navigationController
         super.init(content: destination, context: context)
     }
 
@@ -1758,18 +1896,27 @@ class DestinationLinkDestinationViewControllerAdapter<
         super.updateViewController(content: destination, context: context)
     }
 
+    private func makeDestinationCoordinator() -> DestinationCoordinator {
+        DestinationCoordinator(
+            isPresented: isPresented.wrappedValue,
+            sourceView: sourceView,
+            seed: .constant(self),
+            dismissBlock: { [weak self, weak viewController] in
+                if let self {
+                    pop($0, $1)
+                } else {
+                    os_log(.debug, log: .default, "DestinationLink %{public}@ became detached. Please file an issue.", String(describing: DestinationController.self))
+                    viewController?._popViewController(animated: true)
+                }
+            }
+        )
+    }
+
     override func makeHostingController(
         content: Destination,
         context: Representable.Context
     ) -> UIViewController {
-        let modifier = DestinationBridgeAdapter(
-            destinationCoordinator: DestinationCoordinator(
-                isPresented: isPresented.wrappedValue,
-                sourceView: sourceView,
-                seed: .constant(self),
-                dismissBlock: { [weak self] in self?.pop($0, $1) }
-            )
-        )
+        let modifier = DestinationBridgeAdapter(destinationCoordinator: nil)
         let hostingController = DestinationController(content: content.modifier(modifier))
         hostingController.sourceViewController = sourceView?.viewController as? AnyHostingController
         configure(
@@ -1789,12 +1936,7 @@ class DestinationLinkDestinationViewControllerAdapter<
         context: Representable.Context
     ) {
         let modifier = DestinationBridgeAdapter(
-            destinationCoordinator: DestinationCoordinator(
-                isPresented: isPresented.wrappedValue,
-                sourceView: sourceView,
-                seed: .constant(self),
-                dismissBlock: { [weak self] in self?.pop($0, $1) }
-            )
+            destinationCoordinator: makeDestinationCoordinator()
         )
         let hostingController = viewController as! DestinationController
         hostingController.update(content: content.modifier(modifier), transaction: context.transaction)
@@ -1812,13 +1954,7 @@ class DestinationLinkDestinationViewControllerAdapter<
     override func transformViewControllerEnvironment(
         _ environment: inout EnvironmentValues
     ) {
-        let destinationCoordinator = DestinationCoordinator(
-            isPresented: isPresented.wrappedValue,
-            sourceView: sourceView,
-            seed: .constant(self),
-            dismissBlock: { [weak self] in self?.pop($0, $1) }
-        )
-        environment.destinationCoordinator = destinationCoordinator
+        environment.destinationCoordinator = makeDestinationCoordinator()
     }
 
     func pop(_ count: Int, _ transaction: Transaction) {

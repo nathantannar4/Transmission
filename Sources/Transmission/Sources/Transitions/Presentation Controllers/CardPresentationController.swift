@@ -169,7 +169,6 @@ open class CardPresentationController: InteractivePresentationController {
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-        dimmingView.isHidden = false
     }
 
     open override func dismissalTransitionShouldBegin(

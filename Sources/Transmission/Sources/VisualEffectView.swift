@@ -9,12 +9,11 @@ import SwiftUI
 import Engine
 
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol VisualEffectRepresentable: Equatable {
 
     associatedtype UIVisualEffectType: UIVisualEffect
 
-    @MainActor @preconcurrency func makeUIVisualEffect(in environment: EnvironmentValues) -> UIVisualEffectType
+    @MainActor @preconcurrency func makeUIVisualEffect(in environment: EnvironmentValues) -> UIVisualEffectType?
 }
 
 @frozen
@@ -95,7 +94,9 @@ public struct BlurEffect: Equatable {
 @available(iOS 14.0, *)
 extension BlurEffect: VisualEffectRepresentable {
 
-    public func makeUIVisualEffect(in environment: EnvironmentValues) -> UIBlurEffect {
+    public func makeUIVisualEffect(
+        in environment: EnvironmentValues
+    ) -> UIBlurEffect? {
         let uiVisualEffect = UIBlurEffect(
             style: style.toUIKit()
         )
@@ -164,9 +165,12 @@ public struct VibrancyEffect: Equatable {
 @available(iOS 14.0, *)
 extension VibrancyEffect: VisualEffectRepresentable {
 
-    public func makeUIVisualEffect(in environment: EnvironmentValues) -> UIVibrancyEffect {
+    public func makeUIVisualEffect(
+        in environment: EnvironmentValues
+    ) -> UIVibrancyEffect? {
+        guard let blurEffect = blur.makeUIVisualEffect(in: environment) else { return nil }
         let uiVisualEffect = UIVibrancyEffect(
-            blurEffect: blur.makeUIVisualEffect(in: environment),
+            blurEffect: blurEffect,
             style: style.toUIKit()
         )
         return uiVisualEffect
@@ -239,11 +243,14 @@ public struct GlassEffect: Equatable {
 @available(iOS 26.0, *)
 extension GlassEffect: VisualEffectRepresentable {
 
-    public func makeUIVisualEffect(in environment: EnvironmentValues) -> UIGlassEffect {
+    public func makeUIVisualEffect(
+        in environment: EnvironmentValues
+    ) -> UIGlassEffect? {
+        guard UIGlassEffect.responds(to: #selector(UIGlassEffect.init(style:))) else { return nil }
         let uiVisualEffect = UIGlassEffect(
             style: style.toUIKit()
         )
-        let tintColor = tintColor?.toUIColor(in: environment)
+        let tintColor = tintColor?.toUIColor()
         uiVisualEffect.isInteractive = isInteractive
         uiVisualEffect.tintColor = tintColor
 
@@ -318,7 +325,7 @@ public struct GlassContainerEffect: Equatable {
 @available(iOS 26.0, *)
 extension GlassContainerEffect: VisualEffectRepresentable {
 
-    public func makeUIVisualEffect(in environment: EnvironmentValues) -> UIGlassContainerEffect {
+    public func makeUIVisualEffect(in environment: EnvironmentValues) -> UIGlassContainerEffect? {
         let uiVisualEffect = UIGlassContainerEffect()
         uiVisualEffect.spacing = spacing
         return uiVisualEffect
@@ -339,7 +346,7 @@ extension VisualEffectRepresentable where Self == GlassContainerEffect {
 
 @frozen
 @available(iOS 14.0, *)
-public struct AnyVisualEffect: @preconcurrency VisualEffectRepresentable {
+public struct AnyVisualEffect: VisualEffectRepresentable {
 
     private var storage: AnyVisualEffectStorageBase
 
@@ -347,45 +354,51 @@ public struct AnyVisualEffect: @preconcurrency VisualEffectRepresentable {
         self.storage = AnyVisualEffectStorage(effect)
     }
 
-    public func makeUIVisualEffect(in environment: EnvironmentValues) -> UIVisualEffect {
+    public func makeUIVisualEffect(
+        in environment: EnvironmentValues
+    ) -> UIVisualEffect? {
         storage.makeUIVisualEffect(in: environment)
     }
 
     public static func == (lhs: AnyVisualEffect, rhs: AnyVisualEffect) -> Bool {
         return lhs.storage.isEqual(to: rhs.storage)
     }
+}
 
-    @usableFromInline
-    @MainActor @preconcurrency
-    class AnyVisualEffectStorageBase {
-        func makeUIVisualEffect(in environment: EnvironmentValues) -> UIVisualEffect {
-            fatalError("base")
-        }
+@available(iOS 14.0, *)
+@usableFromInline
+class AnyVisualEffectStorageBase {
 
-        func isEqual(to other: AnyVisualEffectStorageBase) -> Bool {
-            fatalError("base")
-        }
+    @MainActor
+    func makeUIVisualEffect(in environment: EnvironmentValues) -> UIVisualEffect? {
+        fatalError("base")
     }
 
+    func isEqual(to other: AnyVisualEffectStorageBase) -> Bool {
+        fatalError("base")
+    }
+}
+
+@available(iOS 14.0, *)
+@usableFromInline
+final class AnyVisualEffectStorage<Effect: VisualEffectRepresentable>: AnyVisualEffectStorageBase {
+
+    var effect: Effect
+
     @usableFromInline
-    @MainActor @preconcurrency
-    class AnyVisualEffectStorage<Effect: VisualEffectRepresentable>: AnyVisualEffectStorageBase {
+    init(_ effect: Effect) {
+        self.effect = effect
+    }
 
-        var effect: Effect
+    override func makeUIVisualEffect(
+        in environment: EnvironmentValues
+    ) -> UIVisualEffect? {
+        effect.makeUIVisualEffect(in: environment)
+    }
 
-        @usableFromInline
-        init(_ effect: Effect) {
-            self.effect = effect
-        }
-
-        override func makeUIVisualEffect(in environment: EnvironmentValues) -> UIVisualEffect {
-            effect.makeUIVisualEffect(in: environment)
-        }
-
-        override func isEqual(to other: AnyVisualEffect.AnyVisualEffectStorageBase) -> Bool {
-            guard let other = other as? AnyVisualEffectStorage<Effect> else { return false }
-            return effect == other.effect
-        }
+    override func isEqual(to other: AnyVisualEffectStorageBase) -> Bool {
+        guard let other = other as? AnyVisualEffectStorage<Effect> else { return false }
+        return effect == other.effect
     }
 }
 
@@ -406,7 +419,7 @@ public struct VisualEffectView<
         isEnabled: Bool = true,
         cornerRadius: CornerRadiusOptions? = nil,
         backgroundColor: Color? = nil,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: () -> Content = { EmptyView() }
     ) {
         self.effect = effect
         self.isEnabled = isEnabled
@@ -427,8 +440,9 @@ public struct VisualEffectView<
 
 extension View {
 
+    /// Embeds self in a visual effect view
     @available(iOS 14.0, *)
-    public func visualEffectBackground<Effect: VisualEffectRepresentable>(
+    public func visualEffect<Effect: VisualEffectRepresentable>(
         effect: Effect,
         isEnabled: Bool = true,
         cornerRadius: CornerRadiusOptions? = nil
@@ -440,6 +454,22 @@ extension View {
         ) {
             self
         }
+    }
+
+    /// Embeds a visual effect view in the background
+    @available(iOS 14.0, *)
+    public func visualEffectBackground<Effect: VisualEffectRepresentable>(
+        effect: Effect,
+        isEnabled: Bool = true,
+        cornerRadius: CornerRadiusOptions? = nil
+    ) -> some View {
+        background(
+            VisualEffectView(
+                effect: effect,
+                isEnabled: isEnabled,
+                cornerRadius: cornerRadius
+            )
+        )
     }
 }
 
@@ -495,6 +525,12 @@ private struct VisualEffectViewAdapter<
         uiView: UIViewType
     ) {
         size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
+    }
+
+    static func _modifyBridgedViewInputs(_ inputs: inout _ViewInputs) {
+        if Content.self != EmptyView.self {
+            inputs.bridgeHostingView()
+        }
     }
 }
 

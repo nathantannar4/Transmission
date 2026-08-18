@@ -8,7 +8,6 @@ import SwiftUI
 import EngineCore
 
 /// The context for a ``DestinationLinkTransitionRepresentableContext``
-@MainActor @preconcurrency
 @available(iOS 14.0, *)
 @frozen
 public struct DestinationLinkTransitionRepresentableContext {

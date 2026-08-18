@@ -12,6 +12,17 @@ protocol UIViewControllerPresentationDelegate: NSObject {
     func viewControllerDidDismiss(_ viewController: UIViewController, presentingViewController: UIViewController?, animated: Bool)
 }
 
+@available(iOS 14.0, *)
+extension UIViewController {
+
+    private static var preferredTransitioningDelegateKey: Bool = false
+
+    var preferredTransitioningDelegate: UIViewControllerTransitioningDelegate? {
+        get { objc_getAssociatedObject(self, &Self.preferredTransitioningDelegateKey) as? UIViewControllerTransitioningDelegate }
+        set { objc_setAssociatedObject(self, &Self.preferredTransitioningDelegateKey, newValue, .OBJC_ASSOCIATION_RETAIN) }
+    }
+}
+
 extension UIViewController {
 
     private static var presentationDelegateKey: Bool = false

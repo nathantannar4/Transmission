@@ -224,7 +224,7 @@ public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTra
             }
             presentedView.frame = transitionContext.initialFrame(for: presented)
             presentedView.transform = CGAffineTransform(to: presentedView.frame, from: presentedFrame)
-            if let presentationController = presented._activePresentationController as? PresentationController {
+            if let presentationController = presented._presentationController as? PresentationController {
                 presentationController.shadowView.preferredSourceView = presentedPortalView
             }
         }

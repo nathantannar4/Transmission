@@ -71,6 +71,7 @@ public struct DestinationLink<
         .modifier(
             DestinationLinkModifier(
                 transition: transition,
+                animation: animation,
                 isPresented: $isPresented,
                 destination: destination
             )

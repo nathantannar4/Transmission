@@ -5,6 +5,7 @@
 #if os(iOS)
 
 import UIKit
+import Engine
 
 extension UIViewController {
 
@@ -80,11 +81,30 @@ extension UIViewController {
         return nil
     }
 
-    var _activePresentationController: UIPresentationController? {
-        if #available(iOS 16.0, *) {
+    var _presentationController: UIPresentationController? {
+        var ancestor = self
+        while let parent = ancestor.parent {
+            ancestor = parent
+        }
+        guard ancestor.presentingViewController != nil else { return nil }
+        if #available(iOS 16.0, *), let activePresentationController = ancestor.activePresentationController {
             return activePresentationController
         }
-        return presentationController
+        return ancestor.presentationController
+    }
+
+    public var _contentScrollView: UIScrollView? {
+        contentScrollView
+    }
+
+    var contentScrollView: UIScrollView? {
+        view.firstDescendent(ofType: UIScrollView.self) { scrollView in
+            return scrollView.contentScrollsAlongYAxis
+        }
+    }
+
+    public func _firstDescendent<T: UIViewController>(ofType type: T.Type) -> T? {
+        firstDescendent(ofType: type)
     }
 
     func firstDescendent<T: UIViewController>(ofType type: T.Type) -> T? {
@@ -133,24 +153,8 @@ extension UIViewController {
     }
 
     var firstResponder: UIResponder? {
-        if isFirstResponder {
-            return self
-        }
-        return view.firstResponder
-    }
-}
-
-extension UIView {
-    fileprivate var firstResponder: UIResponder? {
-        if isFirstResponder {
-            return self
-        }
-        for subview in subviews {
-            if let responder = subview.firstResponder {
-                return responder
-            }
-        }
-        return nil
+        guard let firstReponder = UIResponder._current, firstReponder._isInResponderChain(of: self) else { return nil }
+        return firstReponder
     }
 }
 

@@ -121,6 +121,17 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         }
     }
 
+    open override func dismissalTransitionWillBegin() {
+        super.dismissalTransitionWillBegin()
+
+        updatePresentedViewAdditionalSafeAreaInsets()
+    }
+
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+        dismissalDidEnd()
+    }
+
     open func dismissalTransitionShouldBegin(
         translation: CGPoint,
         delta: CGPoint,
@@ -217,7 +228,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     open override func keyboardHeightDidChange() {
         super.keyboardHeightDidChange()
-        if keyboardHeight == 0 {
+        if keyboardHeight == 0, transition == nil {
             keyboardOffset = 0
         }
     }
@@ -244,6 +255,10 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             origin.y -= frameOfPresentedView.minY
             origin.x -= frameOfPresentedView.minX
             gestureRecognizer.setTranslation(origin, in: containerView)
+
+            if let resignedFirstResponder {
+                resignedFirstResponder.resignFirstResponder()
+            }
         }
 
         let gestureTranslation = gestureRecognizer.translation(in: presentedView)
@@ -256,6 +271,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             x: gestureTranslation.x - translationOffset.x,
             y: gestureTranslation.y - translationOffset.y
         )
+
+        func shouldDismiss() -> Bool {
+            let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
+            return shouldDismiss
+        }
 
         if let transition {
             let isFinished = {
@@ -340,7 +360,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     }
                 }
                 transition.pause()
-                if percentage >= 1, presentedViewController.isBeingPresented {
+                if percentage >= 1, presentedViewController.isBeingPresented, gestureRecognizer.state == .changed {
                     transition.finish()
                     self.transition = nil
                 } else {
@@ -359,8 +379,11 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 // - Large enough down vector
                 var shouldFinish = false
                 let isPresenting = presentedViewController.isBeingPresented
+                if isPresenting, !shouldDismiss() {
+                    shouldFinish = true
+                }
                 let targetVelocity = isPresenting ? CGPoint(x: -velocity.x, y: -velocity.y) : velocity
-                if gestureRecognizer.state == .ended {
+                if gestureRecognizer.state == .ended, !shouldFinish {
                     let targetVelocityThreshold: CGFloat = isPresenting ? 100 : 0
                     if edges.contains(.top), !shouldFinish {
                         shouldFinish = (percentage >= 0.5 && targetVelocity.y < targetVelocityThreshold) || (percentage > 0 && targetVelocity.y <= -800)
@@ -413,7 +436,9 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     self.transition = nil
                 } else {
                     transition.cancel()
-                    resignedFirstResponder?.becomeFirstResponder()
+                    if let resignedFirstResponder {
+                        resignedFirstResponder.becomeFirstResponder()
+                    }
                 }
                 panGestureDidEnd()
                 transitionAlongsidePresentation(progress: isPresenting ? (shouldFinish ? 1 : 0) : (shouldFinish ? 0 : 1))
@@ -459,10 +484,6 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 #else
                 return true
                 #endif
-            }
-            func shouldDismiss() -> Bool {
-                let shouldDismiss = delegate?.presentationControllerShouldDismiss?(self) ?? true
-                return shouldDismiss
             }
 
             let isScrollViewAtTop = scrollView.map({
@@ -580,8 +601,14 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         translationOffset = .zero
         lastTranslation = .zero
         trackingScrollView = nil
-        keyboardOffset = 0
         isDismissReady = false
+        if transition == nil {
+            dismissalDidEnd()
+        }
+    }
+
+    private func dismissalDidEnd() {
+        keyboardOffset = 0
         resignedFirstResponder = nil
         feedbackGenerator = nil
     }

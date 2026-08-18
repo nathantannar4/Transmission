@@ -21,15 +21,8 @@ open class PresentationHostingController<
 
     public weak var sourceViewController: AnyHostingController?
 
-    private func getPresentationController() -> UIPresentationController? {
-        var ancestor = parent ?? self
-        while let parent = ancestor.parent {
-            ancestor = parent
-        }
-        return ancestor._activePresentationController
-    }
-
     private var didRelayoutDuringPresentation = false
+    private var animator: UIViewPropertyAnimator?
 
     open override func viewDidLoad() {
         super.viewDidLoad()
@@ -47,6 +40,10 @@ open class PresentationHostingController<
             }
         }
 
+        if !isBeingDismissed {
+            didRelayoutDuringPresentation = false
+        }
+
         guard view.superview != nil, !isBeingDismissed else {
             return
         }
@@ -55,11 +52,11 @@ open class PresentationHostingController<
             return
         }
 
-        let isAnimated = !isBeingPresented || transitionCoordinator?.isAnimated == true
+        let isAnimated = (!isBeingPresented || transitionCoordinator?.isAnimated == true) && rootView.transaction.isAnimated
 
         if tracksContentSize, #available(iOS 15.0, *),
             presentingViewController != nil,
-            let sheetPresentationController = getPresentationController() as? UISheetPresentationController,
+            let sheetPresentationController = _presentationController as? UISheetPresentationController,
             sheetPresentationController.presentedViewController == self,
             let presentedView = sheetPresentationController.presentedView,
             let containerView = sheetPresentationController.containerView
@@ -91,28 +88,36 @@ open class PresentationHostingController<
             guard let resolvedDetentHeight, abs(resolvedDetentHeight - height) > 1e-5 else {
                 return
             }
-            didRelayoutDuringPresentation = true
+            if isBeingPresented {
+                didRelayoutDuringPresentation = true
+            }
 
             func performTransition(animated: Bool, completion: (() -> Void)? = nil) {
-                if animated {
-                    let duration = transitionCoordinator?.transitionDuration ?? 0.35
-                    let curve = transitionCoordinator?.completionCurve ?? .easeInOut
-                    UIView.transition(
-                        with: containerView,
-                        duration: duration,
-                        options: [
-                            .beginFromCurrentState,
-                            UIView.AnimationOptions(curve: curve),
-                        ]
-                    ) {
-                        sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
-                        containerView.layoutIfNeeded()
-                    } completion: { _ in
-                        completion?()
-                    }
-                } else {
+                let changes: () -> Void = {
                     sheetPresentationController.delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(sheetPresentationController)
                     containerView.layoutIfNeeded()
+                }
+                if animated {
+                    if let transitionCoordinator {
+                        transitionCoordinator.animate { _ in
+                            changes()
+                        } completion: { _ in
+                            completion?()
+                        }
+                    } else {
+                        animator?.stopAnimation(true)
+                        animator = UIViewPropertyAnimator(animation: rootView.transaction.animation ?? .default)
+                        animator?.addAnimations {
+                            changes()
+                        }
+                        animator?.addCompletion { [weak self] _ in
+                            completion?()
+                            self?.animator = nil
+                        }
+                        animator?.startAnimation()
+                    }
+                } else {
+                    changes()
                     completion?()
                 }
             }
@@ -130,7 +135,7 @@ open class PresentationHostingController<
 
         } else if tracksContentSize {
             if #available(iOS 16.0, *), presentingViewController != nil {
-                let presentationController = getPresentationController()
+                let presentationController = _presentationController
                 if let popoverPresentationController = presentationController as? UIPopoverPresentationController,
                     popoverPresentationController.presentedViewController == self,
                     let containerView = popoverPresentationController.containerView
@@ -140,70 +145,93 @@ open class PresentationHostingController<
                         size: view.preferredContentSize(for: containerView.bounds.width)
                     ).inset(by: view.safeAreaInsets).size
                     guard !preferredContentSize.isApproximatelyEqual(to: contentSize) else { return }
-                    didRelayoutDuringPresentation = true
+                    if isBeingPresented {
+                        didRelayoutDuringPresentation = true
+                    }
 
                     let oldSize = preferredContentSize
+                    let changes: () -> Void = { [weak self] in
+                        self?.preferredContentSize = contentSize
+                    }
                     if oldSize == .zero || oldSize == CGSize(width: 10_000, height: 10_000) || !isAnimated {
-                        UIView.performWithoutAnimation {
-                            self.preferredContentSize = contentSize
-                        }
+                        changes()
                     } else {
                         allowUIKitAnimationsForNextUpdate = isAnimated
-                        UIView.transition(
-                            with: containerView,
-                            duration: 0.35,
-                            options: [
-                                .beginFromCurrentState,
-                                .curveEaseInOut,
-                            ]
-                        ) { [weak self] in
-                            self?.preferredContentSize = contentSize
-                        } completion: { [weak self] _ in
-                            self?.allowUIKitAnimationsForNextUpdate = false
-                        }
-                    }
-                } else if let presentationController = presentationController as? PresentationController {
-                    guard presentationController.shouldAutoLayoutPresentedView else { return }
-                    let frame = presentationController.frameOfPresentedViewInContainerView
-                    guard !view.frame.size.isApproximatelyEqual(to: frame.size) else { return }
-                    didRelayoutDuringPresentation = true
-                    if isAnimated {
-                        self.allowUIKitAnimationsForNextUpdate = true
                         if let transitionCoordinator {
                             transitionCoordinator.animate { _ in
-                                presentationController.layoutPresentedView(frame: frame)
+                                changes()
                             } completion: { [weak self] _ in
                                 self?.allowUIKitAnimationsForNextUpdate = false
                             }
                         } else {
-                            UIView.animate(
-                                withDuration: 0.35,
-                                delay: 0,
-                                options: [
-                                    .beginFromCurrentState,
-                                    .curveEaseInOut
-                                ]
-                            ) {
-                                presentationController.layoutPresentedView(frame: frame)
-                            } completion: { [weak self] _ in
-                                self?.allowUIKitAnimationsForNextUpdate = false
-                            }
+                            changes()
                         }
-                    } else {
+                    }
+                } else if let presentationController = presentationController as? PresentationController {
+                    guard presentationController.shouldAutoLayoutPresentedView || isBeingPresented else { return }
+                    let frame = presentationController.frameOfPresentedViewInContainerView
+                    guard !view.frame.size.isApproximatelyEqual(to: frame.size) else { return }
+                    if isBeingPresented {
+                        didRelayoutDuringPresentation = true
+                    }
+                    let changes: () -> Void = {
                         presentationController.layoutPresentedView(frame: frame)
                     }
+                    if isAnimated {
+                        self.allowUIKitAnimationsForNextUpdate = true
+                        let completion: () -> Void = { [weak self] in
+                            self?.allowUIKitAnimationsForNextUpdate = false
+                        }
+                        if let transitionCoordinator {
+                            transitionCoordinator.animate { _ in
+                                changes()
+                            } completion: { _ in
+                                completion()
+                            }
+                        } else {
+                            animator?.stopAnimation(true)
+                            animator = UIViewPropertyAnimator(animation: rootView.transaction.animation ?? .default)
+                            animator?.addAnimations {
+                                changes()
+                            }
+                            animator?.addCompletion { [weak self] _ in
+                                completion()
+                                self?.animator = nil
+                            }
+                            animator?.startAnimation()
+                        }
+                    } else {
+                        changes()
+                    }
                 } else if let containerView = presentationController?.containerView {
-                    let contentSize = CGRect(origin: .zero, size: view.preferredContentSize(for: containerView.bounds.width)).inset(by: view.safeAreaInsets).size
+                    let contentSize = CGRect(
+                        origin: .zero,
+                        size: view.preferredContentSize(for: containerView.bounds.inset(by: containerView.layoutMargins).width)
+                    ).inset(by: view.safeAreaInsets).size
                     preferredContentSize = contentSize
                 } else {
-                    let contentSize = CGRect(origin: .zero, size: view.intrinsicContentSize).inset(by: view.safeAreaInsets).size
+                    let contentSize = CGRect(
+                        origin: .zero,
+                        size: view.intrinsicContentSize
+                    ).inset(by: view.safeAreaInsets).size
                     preferredContentSize = contentSize
                 }
             } else {
-                let contentSize = CGRect(origin: .zero, size: view.intrinsicContentSize).inset(by: view.safeAreaInsets).size
+                let contentSize = CGRect(
+                    origin: .zero,
+                    size: view.intrinsicContentSize
+                ).inset(by: view.safeAreaInsets).size
                 preferredContentSize = contentSize
             }
         }
+    }
+
+    open override func accessibilityPerformEscape() -> Bool {
+        if !isModalInPresentation {
+            dismiss(animated: true)
+            return true
+        }
+        return super.accessibilityPerformEscape()
     }
 }
 

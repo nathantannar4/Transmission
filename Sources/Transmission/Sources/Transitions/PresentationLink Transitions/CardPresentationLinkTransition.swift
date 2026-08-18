@@ -33,6 +33,7 @@ extension PresentationLinkTransition {
         insetSafeAreaByCornerRadius: Bool = true,
         preferredAspectRatio: CGFloat? = 1,
         preferredPresentationShadow: ShadowOptions? = nil,
+        isUndimmed: Bool = false,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
         preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
@@ -45,6 +46,7 @@ extension PresentationLinkTransition {
                 insetSafeAreaByCornerRadius: insetSafeAreaByCornerRadius,
                 preferredAspectRatio: preferredAspectRatio,
                 preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .minimal),
+                isUndimmed: isUndimmed,
                 hapticsStyle: hapticsStyle
             ),
             options: .init(
@@ -53,28 +55,6 @@ extension PresentationLinkTransition {
                 preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
                 preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
             )
-        )
-    }
-}
-
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-
-    /// The card presentation style.
-    @available(*, deprecated, message: "Use `CornerRadiusOptions`")
-    public static func card(
-        preferredEdgeInset: CGFloat? = nil,
-        preferredCornerRadius: CGFloat,
-        preferredAspectRatio: CGFloat? = 1,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        .card(
-            preferredEdgeInset: preferredEdgeInset,
-            preferredCornerRadius: .rounded(cornerRadius: preferredCornerRadius),
-            preferredAspectRatio: preferredAspectRatio,
-            isInteractive: isInteractive,
-            preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
         )
     }
 }
@@ -93,6 +73,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         /// A `nil` aspect ratio will size the cards height to it's ideal size
         public var preferredAspectRatio: CGFloat?
         public var preferredPresentationShadow: ShadowOptions
+        public var isUndimmed: Bool
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
         public init(
@@ -101,6 +82,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
             insetSafeAreaByCornerRadius: Bool = true,
             preferredAspectRatio: CGFloat? = 1,
             preferredPresentationShadow: ShadowOptions = .minimal,
+            isUndimmed: Bool = false,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.preferredEdgeInset = preferredEdgeInset
@@ -108,6 +90,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
             self.insetSafeAreaByCornerRadius = insetSafeAreaByCornerRadius
             self.preferredAspectRatio = preferredAspectRatio
             self.preferredPresentationShadow = preferredPresentationShadow
+            self.isUndimmed = isUndimmed
             self.hapticsStyle = hapticsStyle
         }
     }
@@ -158,6 +141,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         presentationController: CardPresentationController,
         context: Context
     ) {
+        presentationController.dimmingView.isHidden = options.isUndimmed
         presentationController.preferredEdgeInset = edgeInset
         presentationController.preferredCornerRadius = cornerRadius
         presentationController.insetSafeAreaByCornerRadius = options.insetSafeAreaByCornerRadius

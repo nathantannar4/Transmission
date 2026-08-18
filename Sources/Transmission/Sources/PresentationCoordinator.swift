@@ -150,7 +150,7 @@ extension EnvironmentValues {
             if let coordinator = self[PresentationCoordinatorKey.self] {
                 return coordinator
             }
-            if #available(iOS 17.0, *), let hostingController {
+            if let hostingController {
                 return PresentationCoordinator(
                     hostingController: hostingController
                 )
@@ -180,7 +180,7 @@ extension EnvironmentValues {
 
 @available(iOS 14.0, *)
 struct PresentationBridgeAdapter: ViewModifier {
-    var presentationCoordinator: PresentationCoordinator
+    var presentationCoordinator: PresentationCoordinator?
 
     func body(content: Content) -> some View {
         content

@@ -11,7 +11,7 @@ public struct ViewControllerReaderAdapter<Content: View>: View {
 
     let content: (UIViewController?) -> Content
 
-    @WeakState var presentingViewController: UIViewController?
+    @State var presentingViewController = ObjCWeakBox<UIViewController>(value: nil)
 
     public init(
         @ViewBuilder content: @escaping (UIViewController?) -> Content
@@ -20,30 +20,55 @@ public struct ViewControllerReaderAdapter<Content: View>: View {
     }
 
     public var body: some View {
-        content(presentingViewController)
-            .background(ViewControllerReaderAdapterBody(presentingViewController: $presentingViewController))
+        content(presentingViewController.value)
+            .background(
+                ViewControllerReaderAdapterBody(
+                    presentingViewController: $presentingViewController
+                )
+            )
     }
 }
 
 private struct ViewControllerReaderAdapterBody: UIViewRepresentable {
-    var presentingViewController: Binding<UIViewController?>
+    var presentingViewController: Binding<ObjCWeakBox<UIViewController>>
 
     func makeUIView(context: Context) -> ViewControllerReader {
-        let uiView = ViewControllerReader(
-            presentingViewController: presentingViewController
-        )
+        let uiView = ViewControllerReader()
+        uiView.delegate = context.coordinator
         return uiView
     }
 
-    func updateUIView(_ uiView: ViewControllerReader, context: Context) { }
+    func updateUIView(_ uiView: ViewControllerReader, context: Context) {
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(presentingViewController: presentingViewController)
+    }
+
+    class Coordinator: ViewControllerReaderDelegate {
+        var presentingViewController: Binding<ObjCWeakBox<UIViewController>>
+
+        init(presentingViewController: Binding<ObjCWeakBox<UIViewController>>) {
+            self.presentingViewController = presentingViewController
+        }
+
+        func viewControllerReaderDidMoveToWindow(_ view: UIView) {
+            guard presentingViewController.wrappedValue.value == nil else { return }
+            presentingViewController.wrappedValue = ObjCWeakBox(value: view.viewController)
+        }
+    }
+}
+
+protocol ViewControllerReaderDelegate: AnyObject {
+
+    @MainActor @preconcurrency func viewControllerReaderDidMoveToWindow(_ view: UIView)
 }
 
 class ViewControllerReader: UIView {
 
-    let presentingViewController: Binding<UIViewController?>
+    weak var delegate: ViewControllerReaderDelegate?
 
-    init(presentingViewController: Binding<UIViewController?>) {
-        self.presentingViewController = presentingViewController
+    init() {
         super.init(frame: .zero)
         isHidden = true
     }
@@ -58,10 +83,41 @@ class ViewControllerReader: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        guard presentingViewController.wrappedValue == nil else { return }
-        let viewController = viewController
-        withCATransaction { [presentingViewController] in
-            presentingViewController.wrappedValue = viewController
+        delegate?.viewControllerReaderDidMoveToWindow(self)
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct ViewControllerReaderAdapter_Previews: PreviewProvider {
+
+    class PreviewHostingController<Content: View>: HostingController<Content> {
+        deinit {
+            print("deinit PreviewHostingController")
+        }
+    }
+
+    struct Preview: View {
+        var body: some View {
+            ViewControllerReaderAdapter { viewController in
+                VStack {
+                    Text(viewController?.description ?? "nil")
+
+                    Button { [weak viewController] in
+                        let hostingController = PreviewHostingController(content: Preview())
+                        viewController?.present(hostingController, animated: true)
+                    } label: {
+                        Text("Present")
+                    }
+                }
+            }
+        }
+    }
+
+    static var previews: some View {
+        ZStack {
+            Preview()
         }
     }
 }

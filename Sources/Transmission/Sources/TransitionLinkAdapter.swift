@@ -7,6 +7,24 @@
 import SwiftUI
 import Engine
 
+/// A ``ViewInputFlag`` to force a ``TransitionLinkAdapter``
+/// to lazy load its `UIViewRepresentable` to make it more performant.
+///
+/// By default, ``TransitionLinkAdapter`` detects when its in a built in
+/// lazy view, such as `LazyVStack`, and will always lazy load.
+///
+/// Disable lazy loading via ``.defaultInput(TransitionLinkAdapterIsLazy.self)``
+///
+@available(iOS 14.0, *)
+public struct TransitionLinkAdapterIsLazy: ViewInputFlag, ViewInputsCondition {
+    public static func evaluate(_ inputs: ViewInputs) -> Bool {
+        if let isLazy = inputs[Self.self, default: nil] {
+            return isLazy
+        }
+        return IsInLazyContainer.evaluate(inputs) || IsInHostingConfiguration.evaluate(inputs)
+    }
+}
+
 @frozen
 @available(iOS 14.0, *)
 public enum LinkTransition: Sendable {
@@ -87,15 +105,67 @@ public struct TransitionLinkAdapter<
     }
 
     public var body: some View {
-        TransitionLinkAdapterBody(
-            transition: transition,
-            useHostingControllerAsSourceView: useHostingControllerAsSourceView,
-            cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
-            isPresented: isPresented,
-            destination: destination,
-            sourceView: content
-        )
+        UnaryViewAdaptor {
+            ViewInputConditionalContent(TransitionLinkAdapterIsLazy.self) {
+                LazyTransitionLinkAdapter(
+                    transition: transition,
+                    cornerRadius: cornerRadius,
+                    backgroundColor: backgroundColor,
+                    useHostingControllerAsSourceView: useHostingControllerAsSourceView,
+                    isPresented: isPresented,
+                    content: content,
+                    destination: destination
+                )
+            } otherwise: {
+                TransitionLinkAdapterBody(
+                    transition: transition,
+                    cornerRadius: cornerRadius,
+                    backgroundColor: backgroundColor,
+                    useHostingControllerAsSourceView: useHostingControllerAsSourceView,
+                    isPresented: isPresented,
+                    destination: destination,
+                    sourceView: content
+                )
+            }
+        }
+    }
+}
+
+@available(iOS 14.0, *)
+private struct LazyTransitionLinkAdapter<
+    Content: View,
+    Destination: View
+>: View {
+
+    var transition: LinkTransition
+    var cornerRadius: CornerRadiusOptions?
+    var backgroundColor: Color?
+    var useHostingControllerAsSourceView: Bool
+    var isPresented: Binding<Bool>
+    var content: Content
+    var destination: Destination
+
+    @State var isLazyLoaded = false
+
+    var body: some View {
+        if isPresented.wrappedValue || isLazyLoaded {
+            TransitionLinkAdapterBody(
+                transition: transition,
+                cornerRadius: cornerRadius,
+                backgroundColor: backgroundColor,
+                useHostingControllerAsSourceView: useHostingControllerAsSourceView,
+                isPresented: isPresented,
+                destination: destination,
+                sourceView: content
+            )
+            .transition(.identity)
+            .onAppear {
+                isLazyLoaded = true
+            }
+        } else {
+            content
+                .transition(.identity)
+        }
     }
 }
 
@@ -106,23 +176,21 @@ private struct TransitionLinkAdapterBody<
 >: UIViewRepresentable {
 
     var transition: LinkTransition
-    var useHostingControllerAsSourceView: Bool
     var cornerRadius: CornerRadiusOptions?
     var backgroundColor: Color?
+    var useHostingControllerAsSourceView: Bool
     var isPresented: Binding<Bool>
     var destination: Destination
     var sourceView: SourceView
-
-    @WeakState var presentingViewController: UIViewController?
 
     typealias UIViewType = TransitionSourceView<SourceView>
 
     func makeUIView(context: Context) -> UIViewType {
         let uiView = UIViewType(
-            presentingViewController: $presentingViewController,
             content: sourceView,
             useHostingController: useHostingControllerAsSourceView
         )
+        uiView.delegate = context.coordinator
         return uiView
     }
 
@@ -134,7 +202,6 @@ private struct TransitionLinkAdapterBody<
             backgroundColor: backgroundColor?.toUIColor(in: context.environment)
         )
         context.coordinator.onUpdate(
-            presentingViewController: presentingViewController,
             isPresented: isPresented,
             transition: transition,
             destination: destination,
@@ -160,6 +227,12 @@ private struct TransitionLinkAdapterBody<
         size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
+    static func _modifyBridgedViewInputs(_ inputs: inout _ViewInputs) {
+        if SourceView.self != EmptyView.self {
+            inputs.bridgeHostingView()
+        }
+    }
+
     static func dismantleUIView(
         _ uiView: UIViewType,
         coordinator: Coordinator
@@ -179,10 +252,10 @@ private struct TransitionLinkAdapterBody<
 final class TransitionLinkCoordinator<
     Destination: View,
     Representable: UIViewRepresentable
-> {
+>: TransitionSourceViewDelegate {
 
-    typealias PresentationCoordinator = PresentationLinkCoordinator<Destination, Representable>
-    typealias DestinationCoordinator = DestinationLinkCoordinator<Destination, Representable>
+    typealias PresentationCoordinator = PresentationLinkCoordinatorAdapter<Destination, Representable>
+    typealias DestinationCoordinator = DestinationLinkCoordinatorAdapter<Destination, Representable>
 
     var isPresented: Binding<Bool>
     var presentationCoordinator: PresentationCoordinator
@@ -194,8 +267,12 @@ final class TransitionLinkCoordinator<
         self.destinationCoordinator = DestinationCoordinator(isPresented: .constant(false))
     }
 
+    func transitionSourceViewDidMoveToWindow(_ view: UIView) {
+        presentationCoordinator.transitionSourceViewDidMoveToWindow(view)
+        destinationCoordinator.transitionSourceViewDidMoveToWindow(view)
+    }
+
     func onUpdate(
-        presentingViewController: UIViewController?,
         isPresented: Binding<Bool>,
         transition: LinkTransition,
         destination: Destination,
@@ -206,7 +283,6 @@ final class TransitionLinkCoordinator<
         switch transition {
         case .presentation(let transition):
             presentationCoordinator.onUpdate(
-                presentingViewController: presentingViewController,
                 isPresented: isPresented,
                 transition: transition,
                 destination: destination,
@@ -214,7 +290,6 @@ final class TransitionLinkCoordinator<
                 sourceView: sourceView
             )
             destinationCoordinator.onUpdate(
-                presentingViewController: presentingViewController,
                 isPresented: .constant(false),
                 transition: .default,
                 destination: destination,
@@ -224,7 +299,6 @@ final class TransitionLinkCoordinator<
 
         case .destination(let transition):
             presentationCoordinator.onUpdate(
-                presentingViewController: presentingViewController,
                 isPresented: .constant(false),
                 transition: .default,
                 destination: destination,
@@ -232,7 +306,6 @@ final class TransitionLinkCoordinator<
                 sourceView: sourceView
             )
             destinationCoordinator.onUpdate(
-                presentingViewController: presentingViewController,
                 isPresented: isPresented,
                 transition: transition,
                 destination: destination,

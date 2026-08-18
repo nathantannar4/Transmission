@@ -28,7 +28,7 @@ open class SheetPresentationController: InteractivePresentationController {
     public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
 
     private var prevPresentationController: SheetPresentationController? {
-        presentingViewController._activePresentationController as? SheetPresentationController
+        presentingViewController._presentationController as? SheetPresentationController
     }
 
     private var depth = 0 {
@@ -222,14 +222,14 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     public var preferredBackgroundColor: UIColor? {
         didSet {
             guard preferredBackgroundColor != oldValue else { return }
-            updateBackground(didNilColor: preferredBackgroundColor == nil && oldValue != nil)
+            updateBackground(didChangeBackgroundColor: true, didChangeGlassEffect: false)
         }
     }
 
     public var preferredGlassEffect: GlassEffect? {
         didSet {
             guard preferredGlassEffect != oldValue else { return }
-            updateBackground(didNilColor: false)
+            updateBackground(didChangeBackgroundColor: false, didChangeGlassEffect: true)
         }
     }
 
@@ -291,7 +291,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     open override func presentationTransitionWillBegin() {
         super.presentationTransitionWillBegin()
         updatePanGesture()
-        updateBackgroundColors(didNilColor: false)
+        updateBackgroundColors(didChangeBackgroundColor: false)
 
         NotificationCenter.default.addObserver(
             self,
@@ -378,41 +378,41 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadii?.uniformCornerRadius
     }
 
-    private func updateBackgroundColors(didNilColor: Bool) {
-        if preferredBackgroundColor?.isTranslucent == true || didNilColor {
+    private func updateBackgroundColors(didChangeBackgroundColor: Bool) {
+        if preferredBackgroundColor?.isTranslucent == true || (didChangeBackgroundColor && preferredBackgroundColor == nil) {
             let shadowColor = preferredBackgroundColor?.cgColor ?? CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1)
             dimmingView?.layer.shadowColor = shadowColor
             dropShadowView?.layer.shadowColor = shadowColor
         }
     }
 
-    private func updateBackground(didNilColor: Bool) {
-        updateBackgroundColors(didNilColor: didNilColor)
+    private func updateBackground(didChangeBackgroundColor: Bool, didChangeGlassEffect: Bool) {
+        updateBackgroundColors(didChangeBackgroundColor: didChangeBackgroundColor)
         #if canImport(FoundationModels) // Xcode 26
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.0, *), didChangeGlassEffect || (didChangeBackgroundColor && preferredGlassEffect == nil) {
             var largeBackground: Any?
             let hasTranslucentBackground = preferredBackgroundColor?.isTranslucent == true
             if hasTranslucentBackground {
                 largeBackground = UIColor.clear
             }
-            if let preferredGlassEffect {
+            var background = largeBackground
+            let supportsGlassEffect = UIGlassEffect.responds(to: #selector(UIGlassEffect.init(style:)))
+            if supportsGlassEffect, let preferredGlassEffect {
                 let effect = UIGlassEffect(style: preferredGlassEffect.style.toUIKit())
                 effect.isInteractive = preferredGlassEffect.isInteractive
                 effect.tintColor = preferredGlassEffect.tintColor?.toUIColor()
 
                 // glass
                 if let aSelector = NSStringFromBase64EncodedString("Z2xhc3M="), effect.responds(to: NSSelectorFromString(aSelector)) {
-                    largeBackground = effect.value(forKey: aSelector)
+                    background = effect.value(forKey: aSelector)
                 }
-            }
-            var background = largeBackground
-            if !hasTranslucentBackground, preferredGlassEffect == nil {
-                let effect = UIGlassEffect(style: .regular)
-                effect.isInteractive = true
+
+                let largeEffect = UIGlassEffect(style: preferredGlassEffect.style.toUIKit())
+                largeEffect.tintColor = preferredGlassEffect.tintColor?.toUIColor()
 
                 // glass
-                if let aSelector = NSStringFromBase64EncodedString("Z2xhc3M="), effect.responds(to: NSSelectorFromString(aSelector)) {
-                    background = effect.value(forKey: aSelector)
+                if let aSelector = NSStringFromBase64EncodedString("Z2xhc3M="), largeEffect.responds(to: NSSelectorFromString(aSelector)) {
+                    largeBackground = largeEffect.value(forKey: aSelector)
                 }
             }
             // _setLargeBackground:
@@ -635,7 +635,8 @@ extension SheetPresentationLinkTransition.Options {
         animation: Animation?,
         from oldValue: Self,
         to newValue: Self,
-        preferredBackgroundColor: UIColor?
+        preferredBackgroundColor: @autoclosure() -> UIColor?,
+        preferredBackgroundColorDidChange: Bool
     ) {
         let detents = newValue.detents
         #if targetEnvironment(macCatalyst)
@@ -660,10 +661,11 @@ extension SheetPresentationLinkTransition.Options {
         if #available(iOS 26.0, *) {
             presentationController.prefersSheetInset = newValue.prefersSheetInset
         }
-        presentationController.preferredBackgroundColor = preferredBackgroundColor
-        presentationController.preferredGlassEffect = newValue.preferredGlassEffect
         let selectedDetentIdentifier = newValue.selected?.wrappedValue?.toUIKit()
         let hasChanges: Bool = {
+            if preferredBackgroundColorDidChange {
+                return true
+            }
             if #available(iOS 17.0, *), oldValue.prefersPageSizing != newValue.prefersPageSizing {
                 return true
             }
@@ -690,10 +692,14 @@ extension SheetPresentationLinkTransition.Options {
             if oldValue.detents != detents {
                 return true
             }
+            if oldValue.preferredGlassEffect != newValue.preferredGlassEffect {
+                return true
+            }
             return false
         }()
         #endif
         if hasChanges {
+            let preferredBackgroundColor = preferredBackgroundColor()
             func applyConfiguration() {
                 #if targetEnvironment(macCatalyst)
                 presentationController.largestUndimmedDetentIdentifier = newValue.largestUndimmedDetentIdentifier
@@ -711,6 +717,8 @@ extension SheetPresentationLinkTransition.Options {
                 if #available(iOS 17.0, *) {
                     presentationController.prefersPageSizing = newValue.prefersPageSizing
                 }
+                presentationController.preferredBackgroundColor = preferredBackgroundColor
+                presentationController.preferredGlassEffect = newValue.preferredGlassEffect
                 #endif
             }
             if let animation,

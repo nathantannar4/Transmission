@@ -43,7 +43,6 @@ public struct ContextMenuAccessoryViewLayoutProperties {
 
 /// Don't use directly, instead use ``ContextMenuAccessoryView``
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol ContextMenuAccessoryViewLayoutRepresentable {
     var layoutProperties: ContextMenuAccessoryViewLayoutProperties { get }
 }
@@ -227,32 +226,63 @@ extension UIContextMenuInteraction {
             }
         }()
 
+        lazy var previewViewController = configuration.previewViewController
         let fittingSize: CGSize = {
             guard let view = interaction.view, let window = view.window else { return UIScreen.main.bounds.size }
             let insets = window.layoutMargins
             let fittingRect = window.frame.inset(by: insets)
             guard location != .background else { return fittingRect.size }
-            let frameInWindow = view.convert(view.bounds, to: view.window)
-            let leadingInset = min(frameInWindow.minX, insets.left)
-            let trailingInset = min(window.bounds.width - frameInWindow.maxX, insets.right)
-            switch alignment.horizontal {
-            case .leading:
-                return CGSize(
-                    width: fittingRect.width - leadingInset,
-                    height: fittingRect.height
-                )
+            if alignment.vertical == .center {
+                if let previewViewController {
+                    if previewViewController.preferredContentSize != .zero {
+                        return previewViewController.preferredContentSize
+                    }
+                    return fittingRect.size
+                }
+                return view.bounds.size
+            } else {
+                let frameInWindow: CGRect = {
+                    if let previewViewController {
+                        let size = previewViewController.preferredContentSize
+                        if size != .zero {
+                            return CGRect(
+                                x: window.bounds.midX - size.width / 2,
+                                y: window.bounds.midY - size.height / 2,
+                                width: size.width,
+                                height: size.height
+                            )
+                        }
+                        return fittingRect
+                    }
+                    return view.convert(view.bounds, to: view.window)
+                }()
+                var leadingInset = min(frameInWindow.minX, insets.left)
+                var trailingInset = min(window.bounds.width - frameInWindow.maxX, insets.right)
+                let scale = max(1, view.bounds.height / fittingRect.height)
+                if scale > 1 {
+                    let aspectRatio = view.bounds.height / view.bounds.width
+                    leadingInset += (scale * (insets.left + aspectRatio)).rounded(scale: view.traitCollection.displayScale)
+                    trailingInset += (scale * (insets.right + aspectRatio)).rounded(scale: view.traitCollection.displayScale)
+                }
+                switch alignment.horizontal {
+                case .leading:
+                    return CGSize(
+                        width: fittingRect.width - leadingInset - insets.right,
+                        height: fittingRect.height
+                    )
 
-            case .trailing:
-                return CGSize(
-                    width: fittingRect.width - trailingInset,
-                    height: fittingRect.height
-                )
+                case .trailing:
+                    return CGSize(
+                        width: fittingRect.width - trailingInset - insets.left,
+                        height: fittingRect.height
+                    )
 
-            default:
-                return CGSize(
-                    width: frameInWindow.width + (leadingInset + trailingInset),
-                    height: fittingRect.height
-                )
+                default:
+                    return CGSize(
+                        width: frameInWindow.width + (leadingInset + trailingInset),
+                        height: fittingRect.height
+                    )
+                }
             }
         }()
         contentView.frame.size = contentView.sizeThatFits(fittingSize)
@@ -280,10 +310,15 @@ extension UIContextMenuInteraction {
                 placement: {
                     switch alignment.vertical {
                     case .top: return 1
-                    case .center: return 3
+                    case .center: return 0
                     case .bottom: return 4
                     default:
-                        return 3
+                        switch alignment.horizontal {
+                        case .leading: return 2
+                        case .trailing: return 3
+                        default:
+                            return 0
+                        }
                     }
                 }(),
                 alignment: {
@@ -313,7 +348,8 @@ extension UIContextMenuInteraction {
             accessoryView.responds(to: aSelector)
         {
             var offset = layout?.offset ?? .zero
-            let inset: CGFloat = 16
+            let spacing: CGFloat = 16
+            let inset: CGFloat = layout?.anchor ?? .center == .center ? spacing : 0
             // Mirror spacing between menu and preview
             if offset.y == 0, location == .preview {
                 if alignment.vertical == .top {
@@ -327,8 +363,22 @@ extension UIContextMenuInteraction {
                 offset.y += (anchor.y - 0.5) * contentView.frame.size.height
             }
             if location == .preview, let view = interaction.view, let window = view.window {
-                let frameInWindow = view.convert(view.bounds, to: view.window)
                 let insets = window.layoutMargins
+                let frameInWindow: CGRect = {
+                    if let previewViewController {
+                        let size = previewViewController.preferredContentSize
+                        if size != .zero {
+                            return CGRect(
+                                x: window.bounds.midX - size.width / 2,
+                                y: window.bounds.midY - size.height / 2,
+                                width: size.width,
+                                height: size.height
+                            )
+                        }
+                        return window.bounds.inset(by: insets)
+                    }
+                    return view.convert(view.bounds, to: view.window)
+                }()
                 if alignment.vertical == .top {
                     offset.y += min(insets.top + offset.y + 2, max(insets.top - offset.y - (frameInWindow.minY - contentView.frame.size.height), 0))
                 } else if alignment.vertical == .bottom {
@@ -486,6 +536,21 @@ struct ContextMenuAccessoryViewAnchor {
     var gravity: Int64
 }
 
+extension UIContextMenuConfiguration {
+
+    var previewViewController: UIViewController? {
+        guard
+            let value = value(forKey: "previewProvider") as? AnyObject,
+            !(value is NSNull)
+        else {
+            return nil
+        }
+        typealias ProviderBlock = @convention(block) () -> UIViewController?
+        let provider = unsafeBitCast(value, to: ProviderBlock.self)
+        return provider()
+    }
+}
+
 @available(iOS 14.0, *)
 extension UIView {
 
@@ -500,6 +565,127 @@ extension UIView {
             let aSel: Selector = #selector(getter:UIView.accessoryHostingView)
             let box = newValue.map { ObjCWeakBox(value: $0) }
             objc_setAssociatedObject(self, unsafeBitCast(aSel, to: UnsafeRawPointer.self), box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+}
+
+// MARK: - Previews
+
+@available(iOS 14.0, *)
+struct ContextMenuAccessoryView_Previews: PreviewProvider {
+
+    struct PreviewMenu: MenuElement {
+        var body: some MenuElement {
+            MenuButton {
+
+            } label: {
+                Text("Action A")
+            }
+
+            MenuButton {
+
+            } label: {
+                Text("Action D")
+            }
+
+            MenuButton {
+
+            } label: {
+                Text("Action C")
+            }
+        }
+    }
+
+    struct Preview: View {
+        var height: CGFloat
+
+        var body: some View {
+            ScrollView {
+                VStack {
+                    HStack {
+                        ContextMenuSourceViewLink {
+                            PreviewMenu()
+                        } label: {
+                            Color.blue
+                        } accessoryViews: {
+                            ContextMenuAccessoryView(
+                                location: .preview,
+                                alignment: .topLeading
+                            ) {
+                                Color.red
+                                    .frame(height: 52)
+                                    .withDebugOverlay(label: "AccessoryView", color: .yellow)
+                            }
+                        }
+
+                        ContextMenuSourceViewLink {
+                            PreviewMenu()
+                        } label: {
+                            Color.blue
+                        } accessoryViews: {
+                            ContextMenuAccessoryView(
+                                location: .preview,
+                                alignment: .topTrailing
+                            ) {
+                                Color.red
+                                    .frame(height: 52)
+                                    .withDebugOverlay(label: "AccessoryView", color: .yellow)
+                            }
+                        }
+                    }
+                    .frame(height: height)
+
+                    Spacer(minLength: height)
+
+                    HStack {
+                        ContextMenuSourceViewLink {
+                            PreviewMenu()
+                        } label: {
+                            Color.blue
+                        } accessoryViews: {
+                            ContextMenuAccessoryView(
+                                location: .preview,
+                                alignment: .bottomLeading
+                            ) {
+                                Color.red
+                                    .frame(height: 52)
+                                    .withDebugOverlay(label: "AccessoryView", color: .yellow)
+                            }
+                        }
+
+                        ContextMenuSourceViewLink {
+                            PreviewMenu()
+                        } label: {
+                            Color.blue
+                        } accessoryViews: {
+                            ContextMenuAccessoryView(
+                                location: .preview,
+                                alignment: .bottomTrailing
+                            ) {
+                                Color.red
+                                    .frame(height: 52)
+                                    .withDebugOverlay(label: "AccessoryView", color: .yellow)
+                            }
+                        }
+                    }
+                    .frame(height: height)
+                }
+            }
+            .overlay {
+                Rectangle()
+                    .stroke(Color.red, lineWidth: 2)
+                    .padding(8)
+            }
+        }
+    }
+
+    static var previews: some View {
+        Preview(height: 300)
+        GeometryReader { proxy in
+            Preview(height: proxy.size.height - 16)
+        }
+        GeometryReader { proxy in
+            Preview(height: 2 * (proxy.size.height - 16))
         }
     }
 }

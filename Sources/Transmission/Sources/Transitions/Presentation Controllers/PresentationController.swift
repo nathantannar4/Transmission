@@ -96,7 +96,6 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
         if let presentedView {
             containerView?.addSubview(presentedView)
         }
-        updateShadow(progress: 0)
 
         NotificationCenter.default
             .addObserver(
@@ -114,6 +113,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
                 object: nil
             )
 
+        transitionAlongsidePresentation(progress: 0)
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
                 self.transitionAlongsidePresentation(progress: 1)
@@ -150,8 +150,8 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
         super.dismissalTransitionWillBegin()
 
         dimmingView.isUserInteractionEnabled = false
-        updateShadow(progress: 1)
 
+        transitionAlongsidePresentation(progress: 1)
         if let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isAnimated {
             transitionCoordinator.animate { _ in
                 self.transitionAlongsidePresentation(progress: 0)
@@ -186,7 +186,13 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
     }
 
     open func transitionAlongsidePresentation(progress: CGFloat) {
-        dimmingView.alpha = progress
+        if presentedViewController.isBeingPresented {
+            dimmingView.alpha = max(dimmingView.alpha, progress)
+        } else if presentedViewController.isBeingDismissed {
+            dimmingView.alpha = min(dimmingView.alpha, progress)
+        } else {
+            dimmingView.alpha = progress
+        }
         layoutBackgroundViews()
         updateShadow(progress: progress)
     }
@@ -199,10 +205,16 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
     open func updateShadow(progress: Double) {
         if presentedViewShadow == .clear {
             shadowView.isHidden = true
+            shadowView.layer.shadowOpacity = 0
         } else {
             shadowView.isHidden = false
             var shadow = presentedViewShadow
             shadow.shadowOpacity *= Float(progress)
+            if presentedViewController.isBeingPresented {
+                shadow.shadowOpacity = max(shadow.shadowOpacity, shadowView.layer.shadowOpacity)
+            } else if presentedViewController.isBeingDismissed {
+                shadow.shadowOpacity = min(shadow.shadowOpacity, shadowView.layer.shadowOpacity)
+            }
             shadow.apply(to: shadowView.layer)
         }
     }
@@ -243,7 +255,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
 
     open func layoutDimmingView() {
         if !(presentedViewController.view.backgroundColor?.isTranslucent ?? true),
-            let presentationController = presentingViewController._activePresentationController
+            let presentationController = presentingViewController._presentationController
         {
             let frame = presentationController.presentedView?.frame ?? presentationController.frameOfPresentedViewInContainerView
             let dimmingViewFrame = presentingViewController.view.convert(
@@ -374,7 +386,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
                 }
             }
         } else if let next = presentedViewController.presentedViewController,
-            let presentationController = next._activePresentationController as? PresentationController
+            let presentationController = next._presentationController as? PresentationController
         {
             presentationController.didSelectBackground()
         } else {

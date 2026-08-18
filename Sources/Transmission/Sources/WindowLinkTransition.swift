@@ -125,44 +125,23 @@ extension WindowLinkTransition {
 
 @available(iOS 14.0, *)
 extension WindowLinkTransition {
-
-    /// The scale transition.
-    @available(*, deprecated, renamed: "scale(scale:)")
-    public static func scale(
-        _ multiplier: CGFloat
-    ) -> WindowLinkTransition {
-        .scale(scale: multiplier)
-    }
-
-    /// The scale transition.
-    @available(*, deprecated, renamed: "scale(scale:options:)")
-    public static func scale(
-        _ multiplier: CGFloat,
-        options: Options
-    ) -> WindowLinkTransition {
-        .scale(scale: multiplier, options: options)
-    }
-}
-
-@available(iOS 14.0, *)
-extension WindowLinkTransition {
     /// The transition options.
     @frozen
     public struct Options: Sendable {
-        public var preferredPresentationColorScheme: ColorScheme?
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled
         public var shouldAutomaticallyDismissDestination: Bool
+        public var preferredPresentationColorScheme: ColorScheme?
 
         public init(
-            preferredPresentationColorScheme: ColorScheme? = nil,
             isDestinationReusable: Bool = false,
-            shouldAutomaticallyDismissDestination: Bool = true
+            shouldAutomaticallyDismissDestination: Bool = true,
+            preferredPresentationColorScheme: ColorScheme? = nil
         ) {
-            self.preferredPresentationColorScheme = preferredPresentationColorScheme
             self.isDestinationReusable = isDestinationReusable
             self.shouldAutomaticallyDismissDestination = shouldAutomaticallyDismissDestination
+            self.preferredPresentationColorScheme = preferredPresentationColorScheme
         }
     }
 }
@@ -327,7 +306,7 @@ extension WindowLinkTransition.Value {
 
 @available(iOS 14.0, *)
 struct WindowBridgeAdapter: ViewModifier {
-    var presentationCoordinator: PresentationCoordinator
+    var presentationCoordinator: PresentationCoordinator?
     var transition: WindowLinkTransition.Value
 
     func body(content: Content) -> some View {

@@ -492,7 +492,10 @@ extension CornerRadiusOptions.RoundedRectangle: Shape, InsettableShape {
         if isContainerConcentric, cornerRadii == nil, #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
             return SwiftUI.ContainerRelativeShape().path(in: rect)
         }
-        let cornerRadii = cornerRadii?.resolved(for: rect.size, mask: mask) ?? CornerRadiusOptions.CornerRadii(cornerRadius: 0)
+        let cornerRadii = cornerRadii?.resolved(
+            for: isContainerConcentric ? rect.size : nil,
+            mask: mask
+        ) ?? CornerRadiusOptions.CornerRadii(cornerRadius: 0)
         if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
             return SwiftUI.UnevenRoundedRectangle(
                 topLeadingRadius: cornerRadii.topLeading,
@@ -594,7 +597,10 @@ extension CornerRadiusOptions.RoundedRectangle: RoundedRectangularShape {
 
     @available(iOS 26.0, *)
     public func corners(in size: CGSize?) -> Corners? {
-        let cornerRadii = cornerRadii?.resolved(for: size, mask: mask) ?? CornerRadiusOptions.CornerRadii(cornerRadius: 0)
+        let cornerRadii = cornerRadii?.resolved(
+            for: isContainerConcentric ? size : nil,
+            mask: mask
+        ) ?? CornerRadiusOptions.CornerRadii(cornerRadius: 0)
         return Corners(
             topLeading: isContainerConcentric ? .concentric(minimum: .fixed(cornerRadii.topLeading)) : .fixed(cornerRadii.topLeading),
             topTrailing: isContainerConcentric ? .concentric(minimum: .fixed(cornerRadii.topTrailing)) : .fixed(cornerRadii.topTrailing),
@@ -757,7 +763,10 @@ extension CornerRadiusOptions.RoundedRectangle {
         if #available(iOS 16.0, *), useCornerRadii {
             layer.fixCornerRadiiAnimation()
         }
-        let cornerRadii = cornerRadii?.resolved(for: size, mask: mask)
+        let cornerRadii = cornerRadii?.resolved(
+            for: isContainerConcentric ? size : nil,
+            mask: mask
+        )
         layer.cornerRadius = cornerRadii?.uniformCornerRadius ?? 0
         layer.cornerCurve = style.toCoreAnimation()
         layer.maskedCorners = mask.toCoreAnimation(
@@ -770,7 +779,11 @@ extension CornerRadiusOptions.RoundedRectangle {
     }
 
     public func cornerRadius(for size: CGSize? = nil) -> CGFloat {
-        return cornerRadii?.resolved(for: size, mask: mask).uniformCornerRadius ?? 0
+        let cornerRadii = cornerRadii?.resolved(
+            for: isContainerConcentric ? size : nil,
+            mask: mask
+        )
+        return cornerRadii?.uniformCornerRadius ?? 0
     }
 
     #if canImport(FoundationModels) // Xcode 26
@@ -794,7 +807,10 @@ extension CornerRadiusOptions.RoundedRectangle {
             return nil
         }
 
-        let cornerRadii = cornerRadii?.resolved(for: size, mask: mask)
+        let cornerRadii = cornerRadii?.resolved(
+            for: isContainerConcentric ? size : nil,
+            mask: mask
+        )
         let topLeadingRadius = corner(cornerRadii?.topLeading, mask.contains(.topLeading))
         let topTrailingRadius = corner(cornerRadii?.topTrailing, mask.contains(.topTrailing))
         let bottomLeadingRadius = corner(cornerRadii?.bottomLeading, mask.contains(.bottomLeading))
@@ -833,7 +849,9 @@ extension CornerRadiusOptions.Capsule {
     ) {
         #if canImport(FoundationModels) // Xcode 26
         if #available(iOS 26.0, *) {
-            view.cornerConfiguration = cornerConfiguration(size: size ?? view.bounds.size)
+            view.cornerConfiguration = cornerConfiguration(
+                size: size ?? view.bounds.size
+            )
         }
         #endif
         apply(

@@ -46,6 +46,43 @@ extension UIView {
         return value
     }
 
+    public func _firstAncestor<T: UIView>(ofType type: T.Type, matching: (T) -> Bool) -> T? {
+        firstAncestor(ofType: type, matching: matching)
+    }
+
+    public func _firstAncestor(matching: (UIView) -> Bool) -> UIView? {
+        firstAncestor(ofType: UIView.self, matching: matching)
+    }
+
+    func firstAncestor<T: UIView>(ofType type: T.Type, matching: (T) -> Bool) -> T? {
+        if let superview {
+            if let match = superview as? T, matching(match) {
+                return match
+            }
+            return superview.firstAncestor(ofType: type, matching: matching)
+        }
+        return nil
+    }
+
+    public func _firstDescendent<T: UIView>(ofType type: T.Type, matching: (T) -> Bool) -> T? {
+        firstDescendent(ofType: type, matching: matching)
+    }
+
+    public func _firstDescendent(matching: (UIView) -> Bool) -> UIView? {
+        firstDescendent(ofType: UIView.self, matching: matching)
+    }
+
+    func firstDescendent<T: UIView>(ofType type: T.Type, matching: (T) -> Bool) -> T? {
+        for subview in subviews {
+            if let match = subview as? T, matching(match) {
+                return match
+            } else if let match = subview.firstDescendent(ofType: type, matching: matching) {
+                return match
+            }
+        }
+        return nil
+    }
+
     func preferredContentSize(for width: CGFloat) -> CGSize {
         var size = intrinsicContentSize
         if size.height <= 0 || size.width > width {

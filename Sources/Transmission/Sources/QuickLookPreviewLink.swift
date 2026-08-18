@@ -52,47 +52,59 @@ public struct QuickLookPreviewTransition: Equatable {
 public struct QuickLookPreviewLink<
     Label: View
 >: View {
+
     var label: Label
     var items: [QuickLookPreviewItem]
     var transition: QuickLookPreviewTransition
+    var animation: Animation?
 
     @StateOrBinding var isPresented: Bool
 
     public init(
         items: [QuickLookPreviewItem],
         transition: QuickLookPreviewTransition = .default,
+        animation: Animation? = .default,
         @ViewBuilder label: () -> Label
     ) {
         self.label = label()
         self.items = items
         self.transition = transition
+        self.animation = animation
         self._isPresented = .init(false)
     }
 
     public init(
         items: [QuickLookPreviewItem],
         transition: QuickLookPreviewTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         @ViewBuilder label: () -> Label
     ) {
         self.label = label()
         self.items = items
         self.transition = transition
+        self.animation = animation
         self._isPresented = .init(isPresented)
     }
 
     public init(
         url: URL,
         transition: QuickLookPreviewTransition = .default,
+        animation: Animation? = .default,
         @ViewBuilder label: () -> Label
     ) {
-        self.init(items: [.init(url: url)], transition: transition, label: label)
+        self.init(
+            items: [.init(url: url)],
+            transition: transition,
+            animation: animation,
+            label: label
+        )
     }
 
     public var body: some View {
         Button {
-            withAnimation {
-                isPresented = true
+            withAnimation(animation) {
+                isPresented.toggle()
             }
         } label: {
             label
@@ -101,7 +113,8 @@ public struct QuickLookPreviewLink<
             QuickLookPreviewLinkModifier(
                 items: items,
                 transition: transition,
-                isPresented: $isPresented
+                animation: animation,
+                isPresented: $isPresented,
             )
         )
     }
@@ -114,12 +127,14 @@ extension View {
     public func quickLookPreview(
         items: [QuickLookPreviewItem],
         transition: QuickLookPreviewTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>
     ) -> some View {
         modifier(
             QuickLookPreviewLinkModifier(
                 items: items,
                 transition: transition,
+                animation: animation,
                 isPresented: isPresented
             )
         )
@@ -129,12 +144,14 @@ extension View {
     public func quickLookPreview(
         url: URL,
         transition: QuickLookPreviewTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>
     ) -> some View {
         modifier(
             QuickLookPreviewLinkModifier(
                 items: [.init(url: url)],
                 transition: transition,
+                animation: animation,
                 isPresented: isPresented
             )
         )
@@ -146,18 +163,21 @@ extension View {
 @frozen
 public struct QuickLookPreviewLinkModifier: ViewModifier {
 
+    var isPresented: Binding<Bool>
     var items: [QuickLookPreviewItem]
     var transition: QuickLookPreviewTransition
-    var isPresented: Binding<Bool>
+    var animation: Animation?
 
     public init(
         items: [QuickLookPreviewItem],
         transition: QuickLookPreviewTransition = .default,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>
     ) {
+        self.isPresented = isPresented
         self.items = items
         self.transition = transition
-        self.isPresented = isPresented
+        self.animation = animation
     }
 
     public func body(content: Content) -> some View {
@@ -165,6 +185,7 @@ public struct QuickLookPreviewLinkModifier: ViewModifier {
             .modifier(
                 PresentationLinkModifier(
                     transition: .default,
+                    animation: animation,
                     isPresented: isPresented,
                     destination: QuickLookPreviewView(
                         items: items,

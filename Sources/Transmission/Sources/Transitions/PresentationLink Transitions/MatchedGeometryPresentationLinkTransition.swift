@@ -87,42 +87,6 @@ extension PresentationLinkTransition {
     }
 }
 
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-
-    /// The matched geometry presentation style.
-    @available(*, deprecated, message: "Use `CornerRadiusOptions`")
-    public static func matchedGeometry(
-        preferredCornerRadius: CGFloat,
-        prefersScaleEffect: Bool = false,
-        prefersZoomEffect: Bool = false,
-        minimumScaleFactor: CGFloat = 0.5,
-        initialOpacity: CGFloat = 1,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        .matchedGeometry(
-            preferredFromCornerRadius: .rounded(cornerRadius: preferredCornerRadius),
-            prefersScaleEffect: prefersScaleEffect,
-            prefersZoomEffect: prefersZoomEffect,
-            minimumScaleFactor: minimumScaleFactor,
-            initialOpacity: initialOpacity,
-            isInteractive: isInteractive,
-            preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-        )
-    }
-
-    /// The matched geometry zoom presentation style.
-    @available(*, deprecated, message: "Use `CornerRadiusOptions`")
-    public static func matchedGeometryZoom(
-        preferredCornerRadius: CGFloat
-    ) -> PresentationLinkTransition {
-        .matchedGeometryZoom(
-            preferredFromCornerRadius: .rounded(cornerRadius: preferredCornerRadius)
-        )
-    }
-}
-
 @frozen
 @available(iOS 14.0, *)
 public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransitionRepresentable {

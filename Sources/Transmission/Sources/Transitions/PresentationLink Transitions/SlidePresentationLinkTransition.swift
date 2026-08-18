@@ -30,6 +30,7 @@ extension PresentationLinkTransition {
     public static func slide(
         edge: Edge = .bottom,
         prefersScaleEffect: Bool = true,
+        dimmingColor: Color? = nil,
         preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
@@ -40,6 +41,7 @@ extension PresentationLinkTransition {
             .init(
                 edge: edge,
                 prefersScaleEffect: prefersScaleEffect,
+                dimmingColor: dimmingColor,
                 preferredFromCornerRadius: preferredFromCornerRadius,
                 preferredToCornerRadius: preferredToCornerRadius,
                 preferredPresentationShadow: preferredPresentationBackgroundColor == .clear ? .clear : .minimal,
@@ -54,30 +56,6 @@ extension PresentationLinkTransition {
     }
 }
 
-@available(iOS 14.0, *)
-extension PresentationLinkTransition {
-
-    /// The slide presentation style.
-    @available(*, deprecated, message: "Use `CornerRadiusOptions`")
-    public static func slide(
-        edge: Edge = .bottom,
-        prefersScaleEffect: Bool = true,
-        preferredFromCornerRadius: CGFloat?,
-        preferredToCornerRadius: CGFloat?,
-        isInteractive: Bool = true,
-        preferredPresentationBackgroundColor: Color? = nil
-    ) -> PresentationLinkTransition {
-        .slide(
-            edge: edge,
-            prefersScaleEffect: prefersScaleEffect,
-            preferredFromCornerRadius: preferredFromCornerRadius.map { .rounded(cornerRadius: $0) },
-            preferredToCornerRadius: preferredToCornerRadius.map { .rounded(cornerRadius: $0) },
-            isInteractive: isInteractive,
-            preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-        )
-    }
-}
-
 @frozen
 @available(iOS 14.0, *)
 public struct SlidePresentationLinkTransition: PresentationLinkTransitionRepresentable {
@@ -88,6 +66,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
 
         public var edge: Edge
         public var prefersScaleEffect: Bool
+        public var dimmingColor: Color?
         public var preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle?
         public var preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
         public var preferredPresentationShadow: ShadowOptions
@@ -96,6 +75,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         public init(
             edge: Edge = .bottom,
             prefersScaleEffect: Bool = true,
+            dimmingColor: Color? = nil,
             preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
             preferredPresentationShadow: ShadowOptions = .minimal,
@@ -103,6 +83,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         ) {
             self.edge = edge
             self.prefersScaleEffect = prefersScaleEffect
+            self.dimmingColor = dimmingColor
             self.preferredFromCornerRadius = preferredFromCornerRadius
             self.preferredToCornerRadius = preferredToCornerRadius
             self.preferredPresentationShadow = preferredPresentationShadow
@@ -138,6 +119,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) {
         presentationController.edge = options.edge
         presentationController.prefersScaleEffect = options.prefersScaleEffect
+        presentationController.dimmingView.backgroundColor = options.dimmingColor?.toUIColor() ?? DimmingView.backgroundColor
         presentationController.preferredFromCornerRadius = options.preferredFromCornerRadius
         presentationController.preferredToCornerRadius = options.preferredToCornerRadius
         presentationController.presentedViewShadow = options.preferredPresentationShadow

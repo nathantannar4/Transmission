@@ -15,16 +15,16 @@ import Photos
 /// > Important: Conforming types should be a struct or an enum
 ///
 @available(iOS 14.0, *)
-@MainActor @preconcurrency
 public protocol ShareSheetItemProvider {
+
     /// The `UIActivityItemSource` representation of the provider
-    func makeUIActivityItemSource(context: Context) -> UIActivityItemSource
+    @MainActor @preconcurrency func makeUIActivityItemSource(context: Context) -> UIActivityItemSource
 
     /// The `UIActivity` representation of the provider
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     /// 
-    func makeUIActivity(context: Context) -> UIActivity?
+    @MainActor @preconcurrency func makeUIActivity(context: Context) -> UIActivity?
 
     typealias Context = ShareSheetItemProviderContext
 }
@@ -57,56 +57,75 @@ public struct ShareSheetItemProviderContext {
 public struct ShareSheetLink<
     Label: View
 >: View {
+
     var label: Label
     var items: [ShareSheetItemProvider]
     var action: ((Result<UIActivity.ActivityType?, Error>) -> Void)?
+    var animation: Animation?
 
     @StateOrBinding var isPresented: Bool
 
     public init(
         items: [ShareSheetItemProvider],
+        animation: Animation? = .default,
         action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
         @ViewBuilder label: () -> Label
     ) {
         self.label = label()
         self.items = items
         self.action = action
+        self.animation = animation
         self._isPresented = .init(false)
     }
 
     public init(
         items: [ShareSheetItemProvider],
-        action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
+        action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
         @ViewBuilder label: () -> Label
     ) {
         self.label = label()
         self.items = items
         self.action = action
+        self.animation = animation
         self._isPresented = .init(isPresented)
     }
 
     public init(
         items: ShareSheetItemProvider...,
+        animation: Animation? = .default,
         action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
         @ViewBuilder label: () -> Label
     ) {
-        self.init(items: items, action: action, label: label)
+        self.init(
+            items: items,
+            animation: animation,
+            action: action,
+            label: label
+        )
     }
 
     public init(
         items: ShareSheetItemProvider...,
-        action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
+        action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
         @ViewBuilder label: () -> Label
     ) {
-        self.init(items: items, action: action, isPresented: isPresented, label: label)
+        self.init(
+            items: items,
+            animation: animation,
+            isPresented: isPresented,
+            action: action,
+            label: label
+        )
     }
 
     public var body: some View {
         Button {
-            withAnimation {
-                isPresented = true
+            withAnimation(animation) {
+                isPresented.toggle()
             }
         } label: {
             label
@@ -115,6 +134,7 @@ public struct ShareSheetLink<
             ShareSheetLinkModifier(
                 items: items,
                 action: action,
+                animation: animation,
                 isPresented: $isPresented
             )
         )
@@ -126,20 +146,12 @@ extension View {
     
     /// A modifier that presents a `UIActivityViewController`
     ///
-    /// To present the share sheet with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``ShareSheetLinkModifier``
     ///  
     public func share(
         items: [ShareSheetItemProvider],
+        animation: Animation? = .default,
         isPresented: Binding<Bool>,
         action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil
     ) -> some View {
@@ -147,6 +159,7 @@ extension View {
             ShareSheetLinkModifier(
                 items: items,
                 action: action,
+                animation: animation,
                 isPresented: isPresented
             )
         )
@@ -154,23 +167,19 @@ extension View {
 
     /// A modifier that presents a `UIActivityViewController`
     ///
-    /// To present the share sheet with an animation, `isPresented` should
-    /// be updated with a transaction that has an animation. For example:
-    ///
-    /// ```
-    /// withAnimation {
-    ///     isPresented = true
-    /// }
-    /// ```
-    ///
     /// See Also:
     ///  - ``ShareSheetLinkModifier``
     ///
     public func share(
         item: Binding<ShareSheetItemProvider?>,
+        animation: Animation? = .default,
         action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil
     ) -> some View {
-        self.share(items: item.wrappedValue.map { [$0] } ?? [], isPresented: item.isNotNil(), action: action)
+        self.share(
+            items: item.wrappedValue.map { [$0] } ?? [],
+            animation: animation,
+            isPresented: item.isNotNil(),
+            action: action)
     }
 }
 
@@ -179,18 +188,21 @@ extension View {
 @frozen
 public struct ShareSheetLinkModifier: ViewModifier {
 
+    var isPresented: Binding<Bool>
     var items: [ShareSheetItemProvider]
     var action: ((Result<UIActivity.ActivityType?, Error>) -> Void)?
-    var isPresented: Binding<Bool>
+    var animation: Animation?
 
     public init(
         items: [ShareSheetItemProvider],
         action: ((Result<UIActivity.ActivityType?, Error>) -> Void)? = nil,
+        animation: Animation? = .default,
         isPresented: Binding<Bool>
     ) {
+        self.isPresented = isPresented
         self.items = items
         self.action = action
-        self.isPresented = isPresented
+        self.animation = animation
     }
 
     public func body(content: Content) -> some View {
@@ -198,6 +210,7 @@ public struct ShareSheetLinkModifier: ViewModifier {
             .modifier(
                 PresentationLinkModifier(
                     transition: .default,
+                    animation: animation,
                     isPresented: isPresented,
                     destination: Destination(
                         items: items,

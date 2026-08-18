@@ -8,27 +8,65 @@ import SwiftUI
 
 @available(iOS 14.0, *)
 @frozen
-public struct PresentationLinkPath<Value: Sendable>: Sendable, RandomAccessCollection {
-    private var path: [Value]
+public struct PresentationLinkPath<Value>: RandomAccessCollection {
+
+    @frozen
+    public struct ID: Hashable {
+        var seed: Seed
+    }
+
+    @usableFromInline
+    struct Storage {
+        var id: ID = .init(seed: Seed.generate())
+        var value: Value
+    }
+    private var path: [Storage]
 
     public init() {
         self.path = []
     }
 
     public init<Values: Collection>(path: Values) where Values.Element == Value {
-        self.path = Array(path)
+        self.path = path.map({ Storage(value: $0) })
     }
 
     public mutating func append(_ value: Value) {
-        path.append(value)
+        path.append(Storage(value: value))
+    }
+
+    public mutating func append(_ values: [Value]) {
+        path.append(contentsOf: values.map({ Storage(value: $0) }))
     }
 
     public mutating func append(_ values: Value...) {
-        path.append(contentsOf: values)
+        path.append(contentsOf: values.map({ Storage(value: $0) }))
     }
 
     public mutating func pop(count: Int = 1) {
         path.removeLast(Swift.min(path.count, count))
+    }
+
+    public func id(for index: Index) -> ID {
+        path[index].id
+    }
+
+    public var ids: [ID] {
+        indices.map({ id(for: $0) })
+    }
+
+    public nonisolated subscript(id: ID) -> Value? {
+        get { path.first(where: { $0.id == id })?.value }
+        set {
+            if let newValue {
+                if let index = path.firstIndex(where: { $0.id == id }) {
+                    path[index].value = newValue
+                } else {
+                    append(newValue)
+                }
+            } else if let index = path.firstIndex(where: { $0.id == id }) {
+                path.remove(at: index)
+            }
+        }
     }
 
     // MARK: RandomAccessCollection
@@ -47,14 +85,14 @@ public struct PresentationLinkPath<Value: Sendable>: Sendable, RandomAccessColle
     public nonisolated subscript(position: Int) -> Value? {
         get {
             guard path.indices.contains(position) else { return nil }
-            return path[position]
+            return path[position].value
         }
         set {
             if let newValue {
                 if path.indices.contains(position) {
-                    path[position] = newValue
+                    path[position].value = newValue
                 } else {
-                    path.insert(newValue, at: position)
+                    path.insert(Storage(value: newValue), at: position)
                 }
             } else if path.indices.contains(position) {
                 path.remove(at: position)
@@ -69,5 +107,9 @@ public struct PresentationLinkPath<Value: Sendable>: Sendable, RandomAccessColle
 
 @available(iOS 14.0, *)
 extension PresentationLinkPath: Equatable where Value: Equatable { }
+
+
+@available(iOS 14.0, *)
+extension PresentationLinkPath.Storage: Equatable where Value: Equatable { }
 
 #endif

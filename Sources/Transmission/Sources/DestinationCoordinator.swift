@@ -144,7 +144,7 @@ extension EnvironmentValues {
             if let coordinator = self[DestinationCoordinatorKey.self] {
                 return coordinator
             }
-            if #available(iOS 17.0, *), let hostingController {
+            if let hostingController {
                 return DestinationCoordinator(
                     hostingController: hostingController
                 )
@@ -174,7 +174,7 @@ extension EnvironmentValues {
 
 @available(iOS 14.0, *)
 struct DestinationBridgeAdapter: ViewModifier {
-    var destinationCoordinator: DestinationCoordinator
+    var destinationCoordinator: DestinationCoordinator?
     @State var didAppear = false
 
     func body(content: Content) -> some View {

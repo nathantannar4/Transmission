@@ -185,6 +185,7 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
         size: MenuSize = .automatic,
         displayPreferences: MenuDisplayPreferences = MenuDisplayPreferences(),
         order: MenuElementsOrder = .automatic,
+        preferredAlignment: Alignment? = nil,
         @MenuBuilder content: () -> Content,
         @LabelElementBuilder label: () -> LabelElement
     ) {
@@ -193,7 +194,10 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
         self.options = options
         self.size = size
         self.displayPreferences = displayPreferences
-        self.layoutProperties = MenuElementLayoutProperties(order: order)
+        self.layoutProperties = MenuElementLayoutProperties(
+            order: order,
+            preferredAlignment: preferredAlignment
+        )
         self.content = content()
     }
 
@@ -204,6 +208,7 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
         size: MenuSize = .automatic,
         displayPreferences: MenuDisplayPreferences = MenuDisplayPreferences(),
         order: MenuElementsOrder = .automatic,
+        preferredAlignment: Alignment? = nil,
         @MenuBuilder content: () -> Content
     ) {
         self.init(
@@ -212,6 +217,7 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
             size: size,
             displayPreferences: displayPreferences,
             order: order,
+            preferredAlignment: preferredAlignment,
             content: content,
             label: { }
         )

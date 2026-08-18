@@ -21,29 +21,26 @@ extension PresentationLinkTransition {
         detent: SheetPresentationLinkTransition.Detent = .large,
         prefersGrabberVisible: Bool = false,
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
+        isUndimmed: Bool = false,
         prefersZoomTransition: Bool = false,
         zoomTransitionOptions: ZoomTransitionOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-        isInteractive: Bool = true,
         preferredGlassEffect: GlassEffect? = nil,
+        isInteractive: Bool = true,
         preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
-        .sheet(
-            .init(
-                detents: [detent],
-                prefersGrabberVisible: prefersGrabberVisible,
-                preferredCornerRadius: preferredCornerRadius,
-                prefersZoomTransition: prefersZoomTransition,
-                zoomTransitionOptions: zoomTransitionOptions,
-                hapticsStyle: hapticsStyle,
-                preferredGlassEffect: preferredGlassEffect
-            ),
-            options: .init(
-                isInteractive: isInteractive,
-                preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
-                preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
-            )
+        PresentationLinkTransition.sheet(
+            detents: [detent],
+            prefersGrabberVisible: prefersGrabberVisible,
+            preferredCornerRadius: preferredCornerRadius,
+            largestUndimmedDetentIdentifier: isUndimmed ? detent.identifier : nil,
+            prefersZoomTransition: prefersZoomTransition,
+            hapticsStyle: hapticsStyle,
+            preferredGlassEffect: preferredGlassEffect,
+            isInteractive: isInteractive,
+            preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
+            preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
         )
     }
 
@@ -57,8 +54,9 @@ extension PresentationLinkTransition {
         largestUndimmedDetentIdentifier: SheetPresentationLinkTransition.Detent.Identifier? = nil,
         prefersZoomTransition: Bool = false,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-        isInteractive: Bool = true,
         preferredGlassEffect: GlassEffect? = nil,
+        isInteractive: Bool = true,
+        preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
     ) -> PresentationLinkTransition {
         .sheet(
@@ -74,6 +72,7 @@ extension PresentationLinkTransition {
             ),
             options: .init(
                 isInteractive: isInteractive,
+                preferredPresentationSafeAreaInsets: preferredPresentationSafeAreaInsets,
                 preferredPresentationBackgroundColor: preferredPresentationBackgroundColor
             )
         )
@@ -483,12 +482,24 @@ public struct SheetPresentationLinkTransition: Sendable {
     /// The transition options for a sheet transition.
     @frozen
     public struct Options: Sendable {
+
+        public enum Placement: Sendable {
+            case sourceView
+
+            @available(iOS 27.0, *)
+            case leading
+            @available(iOS 27.0, *)
+            case center
+            @available(iOS 27.0, *)
+            case trailing
+        }
+
         public var selected: Binding<Detent.Identifier?>?
         public var detents: [Detent]
         public var largestUndimmedDetentIdentifier: Detent.Identifier?
         public var prefersGrabberVisible: Bool
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
-        public var prefersSourceViewAlignment: Bool
+        public var preferredPlacement: Placement?
         public var prefersScrollingExpandsWhenScrolledToEdge: Bool
         public var prefersEdgeAttachedInCompactHeight: Bool
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
@@ -507,7 +518,7 @@ public struct SheetPresentationLinkTransition: Sendable {
             largestUndimmedDetentIdentifier: SheetPresentationLinkTransition.Detent.Identifier? = nil,
             prefersGrabberVisible: Bool = false,
             preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-            prefersSourceViewAlignment: Bool = false,
+            preferredPlacement: Placement? = nil,
             prefersScrollingExpandsWhenScrolledToEdge: Bool = true,
             prefersEdgeAttachedInCompactHeight: Bool = false,
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
@@ -534,7 +545,7 @@ public struct SheetPresentationLinkTransition: Sendable {
                 }
                 return prefersZoomTransition ? MainActor.assumeIsolated({.screen()}) : nil
             }()
-            self.prefersSourceViewAlignment = prefersSourceViewAlignment
+            self.preferredPlacement = preferredPlacement
             self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
             self.prefersEdgeAttachedInCompactHeight = prefersEdgeAttachedInCompactHeight
             self.widthFollowsPreferredContentSizeWhenEdgeAttached = widthFollowsPreferredContentSizeWhenEdgeAttached

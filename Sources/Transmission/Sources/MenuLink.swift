@@ -143,6 +143,12 @@ private struct MenuLinkBody<
         size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
+    static func _modifyBridgedViewInputs(_ inputs: inout _ViewInputs) {
+        if SourceView.self != EmptyView.self {
+            inputs.bridgeHostingView()
+        }
+    }
+
     static func dismantleUIView(
         _ uiView: UIViewType,
         coordinator: Coordinator

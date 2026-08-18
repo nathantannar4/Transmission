@@ -9,7 +9,7 @@ import Engine
 
 @available(iOS 14.0, *)
 @frozen
-public struct IndexedDestinationLinkPath<Key: Hashable & Sendable, Value: Sendable>: Sendable {
+public struct IndexedDestinationLinkPath<Key: Hashable, Value> {
     private var paths: [Key: DestinationLinkPath<Value>]
 
     public init() {
@@ -24,16 +24,15 @@ public struct IndexedDestinationLinkPath<Key: Hashable & Sendable, Value: Sendab
 
 @available(iOS 14.0, *)
 @frozen
-public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollection {
+public struct DestinationLinkPath<Value>: RandomAccessCollection {
 
-    @available(iOS 14.0, *)
     @frozen
-    public struct ID: Hashable, Sendable {
+    public struct ID: Hashable {
         var seed: Seed
     }
 
     @usableFromInline
-    struct Storage: Sendable {
+    struct Storage {
         var id: ID = .init(seed: Seed.generate())
         var value: Value
     }
@@ -51,6 +50,10 @@ public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollec
         path.append(Storage(value: value))
     }
 
+    public mutating func append(_ values: [Value]) {
+        path.append(contentsOf: values.map({ Storage(value: $0) }))
+    }
+
     public mutating func append(_ values: Value...) {
         path.append(contentsOf: values.map({ Storage(value: $0) }))
     }
@@ -63,8 +66,23 @@ public struct DestinationLinkPath<Value: Sendable>: Sendable, RandomAccessCollec
         path[index].id
     }
 
-    public var ids: Set<ID> {
-        Set(indices.map({ id(for: $0) }))
+    public var ids: [ID] {
+        indices.map({ id(for: $0) })
+    }
+
+    public nonisolated subscript(id: ID) -> Value? {
+        get { path.first(where: { $0.id == id })?.value }
+        set {
+            if let newValue {
+                if let index = path.firstIndex(where: { $0.id == id }) {
+                    path[index].value = newValue
+                } else {
+                    append(newValue)
+                }
+            } else if let index = path.firstIndex(where: { $0.id == id }) {
+                path.remove(at: index)
+            }
+        }
     }
 
     // MARK: RandomAccessCollection

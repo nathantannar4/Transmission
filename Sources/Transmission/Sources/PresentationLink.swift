@@ -73,6 +73,7 @@ public struct PresentationLink<
         .modifier(
             PresentationLinkModifier(
                 transition: transition,
+                animation: animation,
                 isPresented: $isPresented,
                 destination: destination
             )
