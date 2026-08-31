@@ -286,6 +286,13 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
         element = element.replacingChildren(updated) as! Menu
     }
 
+    public func _makeMenuElementsCount() -> Int {
+        if options.contains(.displayInline) {
+            return content._makeMenuElementsCount()
+        }
+        return 1
+    }
+
     public func _updateVisibleUIMenu(_ menu: inout UIMenu, context: Context, stop: inout Bool) {
         if var updated = menu as? Menu, menu.identifier.rawValue.hasPrefix("com.apple.menu.dynamic") || id?.toUIKit() == menu.identifier {
             updateUIMenuElement(&updated, context: context)

@@ -15,10 +15,12 @@ public protocol MenuElement {
     associatedtype Body: MenuElement
     @MenuBuilder @MainActor @preconcurrency var body: Body { get }
 
+    @MainActor @preconcurrency func _makeMenuElementsCount() -> Int
+
     @MainActor @preconcurrency func _makeUIMenuElement(context: Context) -> UIMenuElement
     @MainActor @preconcurrency func _updateUIMenuElement(_ element: inout UIMenuElement, context: Context)
 
-    @MainActor @preconcurrency func _makeUIMenuElementsCount() -> Int?
+    @MainActor @preconcurrency func _makeUIMenuElementsCount() -> Int
     @MainActor @preconcurrency func _makeUIMenuElements(context: Context) -> [UIMenuElement]
     @MainActor @preconcurrency func _updateUIMenuElements(_ elements: inout [UIMenuElement], context: Context)
 
@@ -112,6 +114,10 @@ public struct MenuRepresentableContext {
 @available(iOS 14.0, *)
 extension MenuElement {
 
+    public func _makeMenuElementsCount() -> Int {
+        body._makeMenuElementsCount()
+    }
+
     public func _makeUIMenuElement(context: MenuRepresentableContext) -> UIMenuElement {
         body._makeUIMenuElement(context: context)
     }
@@ -120,7 +126,7 @@ extension MenuElement {
         body._updateUIMenuElement(&element, context: context)
     }
 
-    public func _makeUIMenuElementsCount() -> Int? {
+    public func _makeUIMenuElementsCount() -> Int {
         body._makeUIMenuElementsCount()
     }
 
@@ -181,6 +187,10 @@ extension PrimitiveMenuElement {
         fatalError("body() should not be called on \(String(describing: Self.self))")
     }
 
+    public func _makeMenuElementsCount() -> Int {
+        return 1
+    }
+
     public func _makeUIMenuElement(context: MenuRepresentableContext) -> UIMenuElement {
         _makeUIMenu(context: context)
     }
@@ -194,7 +204,7 @@ extension PrimitiveMenuElement {
         }
     }
 
-    public func _makeUIMenuElementsCount() -> Int? {
+    public func _makeUIMenuElementsCount() -> Int {
         return 1
     }
 
@@ -232,6 +242,10 @@ extension Never: PrimitiveMenuElement { }
 @frozen
 public struct EmptyMenuElement: PrimitiveMenuElement {
 
+    public func _makeMenuElementsCount() -> Int {
+        return 0
+    }
+
     public func _makeUIMenuElement(context: MenuRepresentableContext) -> UIMenuElement {
         MenuBuilderEmptyElement()
     }
@@ -242,7 +256,7 @@ public struct EmptyMenuElement: PrimitiveMenuElement {
         }
     }
 
-    public func _makeUIMenuElementsCount() -> Int? {
+    public func _makeUIMenuElementsCount() -> Int {
         return 1
     }
 
@@ -278,6 +292,12 @@ public struct MenuElementsCollection<
 
     public typealias Menu = MenuBuilderMenu<Self>
 
+    public func _makeMenuElementsCount() -> Int {
+        return values.reduce(into: 0) { count, element in
+            count += element._makeMenuElementsCount()
+        }
+    }
+
     public func _makeUIMenuElement(context: Context) -> Menu {
         let children = _makeUIMenuElements(context: context)
         return Menu(inline: children)
@@ -289,8 +309,10 @@ public struct MenuElementsCollection<
         element = element.replacingChildren(updated) as! Menu
     }
 
-    public func _makeUIMenuElementsCount() -> Int? {
-        return values.count
+    public func _makeUIMenuElementsCount() -> Int {
+        return values.reduce(into: 0) { count, element in
+            count += element._makeUIMenuElementsCount()
+        }
     }
 
     public func _makeUIMenuElements(context: Context) -> [UIMenuElement] {
@@ -301,27 +323,18 @@ public struct MenuElementsCollection<
     public func _updateUIMenuElements(_ elements: inout [UIMenuElement], context: Context) {
         var index = 0
         for value in values {
-            if let count = value._makeUIMenuElementsCount() {
-                let endIndex = index + count
-                if elements.count >= endIndex {
-                    var updated = Array(elements[index..<endIndex])
-                    value._updateUIMenuElements(&updated, context: context)
-                    elements.replaceSubrange(index..<endIndex, with: updated)
-                } else {
-                    let updated = value._makeUIMenuElements(context: context)
-                    elements.replaceSubrange(index..<min(elements.endIndex, endIndex), with: [])
-                    elements.append(contentsOf: updated)
-                }
-                index += count
+            let count = value._makeUIMenuElementsCount()
+            let endIndex = index + count
+            if elements.count >= endIndex {
+                var updated = Array(elements[index..<endIndex])
+                value._updateUIMenuElements(&updated, context: context)
+                elements.replaceSubrange(index..<endIndex, with: updated)
             } else {
-                if elements.count > index {
-                    value._updateUIMenuElement(&elements[index], context: context)
-                } else {
-                    let element = value._makeUIMenuElement(context: context)
-                    elements.append(element)
-                }
-                index += 1
+                let updated = value._makeUIMenuElements(context: context)
+                elements.replaceSubrange(index..<min(elements.endIndex, endIndex), with: [])
+                elements.append(contentsOf: updated)
             }
+            index += count
         }
         elements.removeLast(elements.count - index)
     }
@@ -365,6 +378,12 @@ public struct MenuElementsTuple<
 
     public typealias Menu = MenuBuilderMenu<Self>
 
+    public func _makeMenuElementsCount() -> Int {
+        var visitor = CountVisitor()
+        children.visit(visitor: &visitor)
+        return visitor.count
+    }
+
     public func _makeUIMenuElement(context: Context) -> Menu {
         let children = _makeUIMenuElements(context: context)
         return Menu(inline: children)
@@ -376,8 +395,10 @@ public struct MenuElementsTuple<
         element = element.replacingChildren(updated) as! Menu
     }
 
-    public func _makeUIMenuElementsCount() -> Int? {
-        return children.count
+    public func _makeUIMenuElementsCount() -> Int {
+        var visitor = CountVisitor()
+        children.visit(visitor: &visitor)
+        return visitor.count
     }
 
     public func _makeUIMenuElements(context: Context) -> [UIMenuElement] {
@@ -411,6 +432,16 @@ public struct MenuElementsTuple<
     }
 
     @MainActor
+    private struct CountVisitor: @preconcurrency TupleVisitor {
+        var count = 0
+
+        mutating func visit<Element>(element: Element, offset: Offset, stop: inout Bool) {
+            guard let element = element as? any MenuElement else { return }
+            count += element._makeMenuElementsCount()
+        }
+    }
+
+    @MainActor
     private struct ElementsVisitor: @preconcurrency TupleVisitor {
         var elements: [UIMenuElement]
         var context: MenuRepresentableContext
@@ -419,27 +450,18 @@ public struct MenuElementsTuple<
         mutating func visit<Element>(element: Element, offset: Offset, stop: inout Bool) {
             guard let element = element as? any MenuElement else { return }
             func project<T: MenuElement>(_ element: T) {
-                if let count = element._makeUIMenuElementsCount() {
-                    let endIndex = index + count
-                    if elements.count >= endIndex {
-                        var updated = Array(elements[index..<endIndex])
-                        element._updateUIMenuElements(&updated, context: context)
-                        elements.replaceSubrange(index..<endIndex, with: updated)
-                    } else {
-                        let updated = element._makeUIMenuElements(context: context)
-                        elements.replaceSubrange(index..<min(elements.endIndex, endIndex), with: [])
-                        elements.append(contentsOf: updated)
-                    }
-                    index += count
+                let count = element._makeUIMenuElementsCount()
+                let endIndex = index + count
+                if elements.count >= endIndex {
+                    var updated = Array(elements[index..<endIndex])
+                    element._updateUIMenuElements(&updated, context: context)
+                    elements.replaceSubrange(index..<endIndex, with: updated)
                 } else {
-                    if elements.count > index {
-                        element._updateUIMenuElement(&elements[index], context: context)
-                    } else {
-                        let element = element._makeUIMenuElement(context: context)
-                        elements.append(element)
-                    }
-                    index += 1
+                    let updated = element._makeUIMenuElements(context: context)
+                    elements.replaceSubrange(index..<min(elements.endIndex, endIndex), with: [])
+                    elements.append(contentsOf: updated)
                 }
+                index += count
             }
             _openExistential(element, do: project)
             if stop {
@@ -476,6 +498,15 @@ public struct MenuElementsTuple<
 @available(iOS 14.0, *)
 extension ConditionalContent: MenuElement, PrimitiveMenuElement where TrueContent: MenuElement, FalseContent: MenuElement {
 
+    public func _makeMenuElementsCount() -> Int {
+        switch storage {
+        case .trueContent(let content):
+            return content._makeMenuElementsCount()
+        case .falseContent(let content):
+            return content._makeMenuElementsCount()
+        }
+    }
+
     public func _makeUIMenuElement(context: Context) -> UIMenuElement {
         switch storage {
         case .trueContent(let content):
@@ -494,7 +525,7 @@ extension ConditionalContent: MenuElement, PrimitiveMenuElement where TrueConten
         }
     }
 
-    public func _makeUIMenuElementsCount() -> Int? {
+    public func _makeUIMenuElementsCount() -> Int {
         switch storage {
         case .trueContent(let content):
             return content._makeUIMenuElementsCount()
@@ -515,13 +546,15 @@ extension ConditionalContent: MenuElement, PrimitiveMenuElement where TrueConten
     public func _updateUIMenuElements(_ elements: inout [UIMenuElement], context: Context) {
         switch storage {
         case .trueContent(let content):
-            if let count = content._makeUIMenuElementsCount(), count != elements.count {
+            let count = content._makeUIMenuElementsCount()
+            if count != elements.count {
                 elements = content._makeUIMenuElements(context: context)
             } else {
                 content._updateUIMenuElements(&elements, context: context)
             }
         case .falseContent(let content):
-            if let count = content._makeUIMenuElementsCount(), count != elements.count {
+            let count = content._makeUIMenuElementsCount()
+            if count != elements.count {
                 elements = content._makeUIMenuElements(context: context)
             } else {
                 content._updateUIMenuElements(&elements, context: context)
@@ -569,6 +602,15 @@ extension ConditionalContent: MenuElement, PrimitiveMenuElement where TrueConten
 @available(iOS 14.0, *)
 extension Optional: MenuElement, PrimitiveMenuElement where Wrapped: MenuElement {
 
+    public func _makeMenuElementsCount() -> Int {
+        switch self {
+        case .none:
+            return 0
+        case .some(let content):
+            return content._makeMenuElementsCount()
+        }
+    }
+
     public func _makeUIMenuElement(context: Context) -> UIMenuElement {
         switch self {
         case .none:
@@ -589,7 +631,7 @@ extension Optional: MenuElement, PrimitiveMenuElement where Wrapped: MenuElement
         }
     }
 
-    public func _makeUIMenuElementsCount() -> Int? {
+    public func _makeUIMenuElementsCount() -> Int {
         switch self {
         case .none:
             return 1
@@ -618,7 +660,8 @@ extension Optional: MenuElement, PrimitiveMenuElement where Wrapped: MenuElement
                 ]
             }
         case .some(let content):
-            if let count = content._makeUIMenuElementsCount(), count != elements.count {
+            let count = content._makeUIMenuElementsCount()
+            if count != elements.count {
                 elements = content._makeUIMenuElements(context: context)
             } else {
                 content._updateUIMenuElements(&elements, context: context)
@@ -670,80 +713,88 @@ extension Optional: MenuElement, PrimitiveMenuElement where Wrapped: MenuElement
 public struct AnyMenuElement: PrimitiveMenuElement {
 
     @usableFromInline
-    var makeMenuElement: @MainActor (Context) -> UIMenuElement
+    var makeMenuElementsCount: @MainActor () -> Int
 
     @usableFromInline
-    var updateMenuElement: @MainActor (inout UIMenuElement, Context) -> Void
+    var makeUIMenuElement: @MainActor (Context) -> UIMenuElement
 
     @usableFromInline
-    var makeMenuElementsCount: @MainActor () -> Int?
+    var updateUIMenuElement: @MainActor (inout UIMenuElement, Context) -> Void
 
     @usableFromInline
-    var makeMenuElements: @MainActor (Context) -> [UIMenuElement]
+    var makeUIMenuElementsCount: @MainActor () -> Int
 
     @usableFromInline
-    var updateMenuElements: @MainActor (inout [UIMenuElement], Context) -> Void
+    var makeUIMenuElements: @MainActor (Context) -> [UIMenuElement]
 
     @usableFromInline
-    var makeMenu: @MainActor (Context) -> UIMenu
+    var updateUIMenuElements: @MainActor (inout [UIMenuElement], Context) -> Void
 
     @usableFromInline
-    var updateMenu: @MainActor (inout UIMenu, Context) -> Void
+    var makeUIMenu: @MainActor (Context) -> UIMenu
 
     @usableFromInline
-    var updateVisibleMenu: @MainActor (inout UIMenu, Context, inout Bool) -> Void
+    var updateUIMenu: @MainActor (inout UIMenu, Context) -> Void
 
     @usableFromInline
-    var updateAlertController: @MainActor (UIAlertController, Context) -> Void
+    var updateUIVisibleMenu: @MainActor (inout UIMenu, Context, inout Bool) -> Void
+
+    @usableFromInline
+    var updateUIAlertController: @MainActor (UIAlertController, Context) -> Void
 
     @inlinable
     public init<Element: MenuElement>(_ element: Element) {
         let box = Box(element)
-        makeMenuElement = { box.value._makeUIMenuElement(context: $0) }
-        updateMenuElement = { box.value._updateUIMenuElement(&$0, context: $1) }
-        makeMenuElementsCount = { box.value._makeUIMenuElementsCount() }
-        makeMenuElements = { box.value._makeUIMenuElements(context: $0) }
-        updateMenuElements = { box.value._updateUIMenuElements(&$0, context: $1) }
-        makeMenu = { box.value._makeUIMenu(context: $0, ) }
-        updateMenu = { box.value._updateUIMenu(&$0, context: $1) }
-        updateVisibleMenu = { box.value._updateVisibleUIMenu(&$0, context: $1, stop: &$2) }
-        updateAlertController = { box.value._updateUIAlertController($0, context: $1) }
+        makeMenuElementsCount = { box.value._makeMenuElementsCount() }
+        makeUIMenuElement = { box.value._makeUIMenuElement(context: $0) }
+        updateUIMenuElement = { box.value._updateUIMenuElement(&$0, context: $1) }
+        makeUIMenuElementsCount = { box.value._makeUIMenuElementsCount() }
+        makeUIMenuElements = { box.value._makeUIMenuElements(context: $0) }
+        updateUIMenuElements = { box.value._updateUIMenuElements(&$0, context: $1) }
+        makeUIMenu = { box.value._makeUIMenu(context: $0, ) }
+        updateUIMenu = { box.value._updateUIMenu(&$0, context: $1) }
+        updateUIVisibleMenu = { box.value._updateVisibleUIMenu(&$0, context: $1, stop: &$2) }
+        updateUIAlertController = { box.value._updateUIAlertController($0, context: $1) }
     }
 
-    public func _makeUIMenuElement(context: Context) -> UIMenuElement {
-        makeMenuElement(context)
-    }
-
-    public func _updateUIMenuElement(_ element: inout UIMenuElement, context: Context) {
-        updateMenuElement(&element, context)
-    }
-
-    public func _makeUIMenuElementsCount() -> Int? {
+    public func _makeMenuElementsCount() -> Int {
         makeMenuElementsCount()
     }
 
+    public func _makeUIMenuElement(context: Context) -> UIMenuElement {
+        makeUIMenuElement(context)
+    }
+
+    public func _updateUIMenuElement(_ element: inout UIMenuElement, context: Context) {
+        updateUIMenuElement(&element, context)
+    }
+
+    public func _makeUIMenuElementsCount() -> Int {
+        makeUIMenuElementsCount()
+    }
+
     public func _makeUIMenuElements(context: Context) -> [UIMenuElement] {
-        makeMenuElements(context)
+        makeUIMenuElements(context)
     }
 
     public func _updateUIMenuElements(_ elements: inout [UIMenuElement], context: Context) {
-        updateMenuElements(&elements, context)
+        updateUIMenuElements(&elements, context)
     }
 
     public func _makeUIMenu(context: Context) -> UIMenu {
-        makeMenu(context)
+        makeUIMenu(context)
     }
 
     public func _updateUIMenu(_ menu: inout UIMenu, context: Context) {
-        updateMenu(&menu, context)
+        updateUIMenu(&menu, context)
     }
 
     public func _updateVisibleUIMenu(_ menu: inout UIMenu, context: Context, stop: inout Bool) {
-        updateVisibleMenu(&menu, context, &stop)
+        updateUIVisibleMenu(&menu, context, &stop)
     }
 
     public func _updateUIAlertController(_ alert: UIAlertController, context: Context) {
-        updateAlertController(alert, context)
+        updateUIAlertController(alert, context)
     }
 
     @usableFromInline

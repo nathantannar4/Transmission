@@ -8,6 +8,24 @@ import os.log
 import SwiftUI
 import Engine
 
+/// A ``ViewInputFlag`` to force a ``WindowLinkAdapter``
+/// to lazy load its `UIViewRepresentable` to make it more performant.
+///
+/// By default, ``WindowLinkAdapter`` detects when its in a built in
+/// lazy view, such as `LazyVStack`, and will always lazy load.
+///
+/// Disable lazy loading via ``.defaultInput(WindowLinkAdapterIsLazy.self)``
+///
+@available(iOS 14.0, *)
+public struct WindowLinkAdapterIsLazy: ViewInputFlag, ViewInputsCondition {
+    public static func evaluate(_ inputs: ViewInputs) -> Bool {
+        if let isLazy = inputs[Self.self, default: nil] {
+            return isLazy
+        }
+        return IsInLazyContainer.evaluate(inputs) || IsInHostingConfiguration.evaluate(inputs)
+    }
+}
+
 @available(iOS 14.0, *)
 public struct WindowLinkAdapter<
     Destination: View
@@ -31,12 +49,17 @@ public struct WindowLinkAdapter<
     }
 
     public var body: some View {
-        WindowLinkAdapterBody(
-            level: level,
-            transition: transition,
-            isPresented: isPresented,
-            destination: destination
-        )
+        LazySourceViewLinkAdapter(
+            WindowLinkAdapterIsLazy.self,
+            isPresented: isPresented.wrappedValue
+        ) {
+            WindowLinkAdapterBody(
+                level: level,
+                transition: transition,
+                isPresented: isPresented,
+                destination: destination
+            )
+        }
     }
 }
 
@@ -89,6 +112,7 @@ final class WindowLinkCoordinatorAdapter<
     private var adapter: WindowLinkDestinationWindowAdapter<Destination, Representable>?
     private var level: WindowLinkLevel = .default
     private var animation: Animation?
+    private weak var sourceView: UIView?
     private var isBeingReused = false
 
     weak var presentingWindow: UIWindow?
@@ -124,12 +148,14 @@ final class WindowLinkCoordinatorAdapter<
     ) {
         self.isPresented = isPresented
         self.level = level
+        self.sourceView = sourceView
 
         if isPresented.wrappedValue {
 
             let isAnimated = context.transaction.isAnimated
                 || sourceView?.viewController?.transitionCoordinator?.isAnimated == true
             let animation = context.transaction.animation
+                ?? (presentingWindow == nil ? self.animation : nil)
                 ?? (isAnimated ? .default : nil)
             self.animation = animation
 
@@ -162,6 +188,7 @@ final class WindowLinkCoordinatorAdapter<
                 } else {
                     adapter = WindowLinkDestinationWindowAdapter(
                         destination: destination,
+                        sourceView: sourceView,
                         transition: transition,
                         context: context,
                         isPresented: isPresented,
@@ -292,6 +319,12 @@ private class WindowLinkDestinationWindowAdapter<
     private(set) var window: UIWindow?
 
     var transition: WindowLinkTransition
+    weak var sourceView: UIView? {
+        didSet {
+            guard let hostingController = viewController as? DestinationController else { return }
+            hostingController.sourceViewController = sourceView?.viewController as? AnyHostingController
+        }
+    }
     var environment: EnvironmentValues
     var isPresented: Binding<Bool>
     var conformance: ProtocolConformance<UIViewControllerRepresentableProtocolDescriptor>? = nil
@@ -302,12 +335,14 @@ private class WindowLinkDestinationWindowAdapter<
 
     init(
         destination: Destination,
+        sourceView: UIView?,
         transition: WindowLinkTransition,
         context: Representable.Context,
         isPresented: Binding<Bool>,
         onDismiss: @escaping (Int, Transaction) -> Void
     ) {
         self.transition = transition
+        self.sourceView = sourceView
         self.environment = context.environment
         self.isPresented = isPresented
         self.onDismiss = onDismiss
@@ -370,6 +405,7 @@ private class WindowLinkDestinationWindowAdapter<
             transition: transition.value
         )
         let hostingController = DestinationController(content: content.modifier(modifier))
+        hostingController.sourceViewController = sourceView?.viewController as? AnyHostingController
         return hostingController
     }
 

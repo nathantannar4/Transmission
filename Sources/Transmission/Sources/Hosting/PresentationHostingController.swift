@@ -227,7 +227,13 @@ open class PresentationHostingController<
     }
 
     open override func accessibilityPerformEscape() -> Bool {
-        if !isModalInPresentation {
+        var canDismiss = !isModalInPresentation
+        if canDismiss, let presentationController = _presentationController {
+            if let shouldDismiss = presentationController.delegate?.presentationControllerShouldDismiss?(presentationController) {
+                canDismiss = shouldDismiss
+            }
+        }
+        if canDismiss {
             dismiss(animated: true)
             return true
         }

@@ -246,9 +246,7 @@ private struct MenuDialog<
         _ uiViewController: MenuDialogViewController,
         context: Context
     ) {
-        if #available(iOS 15.0, *) {
-            uiViewController.view.tintColor = context.environment.tintColor?.toUIColor(in: context.environment)
-        }
+        uiViewController.view.tintColor = context.environment.tintColor?.toUIColor(in: context.environment)
         uiViewController.title = title?.resolve(in: context.environment)
         uiViewController.message = message?.resolve(in: context.environment)
         uiViewController.isInteractive = transition.options.isInteractive

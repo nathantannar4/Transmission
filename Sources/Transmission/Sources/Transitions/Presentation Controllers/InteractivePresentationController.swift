@@ -31,7 +31,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     private var lastTranslation: CGPoint = .zero
     var keyboardOffset: CGFloat = 0
 
-    private var resignedFirstResponder: UIResponder?
+    private weak var resignedFirstResponder: UIResponder?
 
     open var dismissalHapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
     private var feedbackGenerator: UIImpactFeedbackGenerator?
@@ -451,19 +451,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 #if !targetEnvironment(macCatalyst)
                 let didResign: Bool
                 if keyboardHeight > 0 {
-                    var views = gestureRecognizer.view.map { [$0] } ?? []
-                    var firstResponder: UIView?
-                    var index = 0
-                    repeat {
-                        let view = views[index]
-                        if view.isFirstResponder {
-                            firstResponder = view
-                        } else {
-                            views.append(contentsOf: view.subviews)
-                            index += 1
-                        }
-                    } while index < views.count && firstResponder == nil
-                    if let firstResponder {
+                    if let firstResponder = UIResponder._current {
                         let keyboardHeight = keyboardHeight
                         didResign = firstResponder.resignFirstResponder()
                         if didResign {

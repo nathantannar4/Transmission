@@ -21,7 +21,6 @@ open class SlidePresentationController: InteractivePresentationController {
     public var prefersScaleEffect: Bool {
         didSet {
             guard oldValue != prefersScaleEffect else { return }
-            dimmingView.isHidden = !prefersScaleEffect
             updatePortalView()
         }
     }

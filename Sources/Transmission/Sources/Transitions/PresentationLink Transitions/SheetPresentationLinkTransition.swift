@@ -36,6 +36,7 @@ extension PresentationLinkTransition {
             preferredCornerRadius: preferredCornerRadius,
             largestUndimmedDetentIdentifier: isUndimmed ? detent.identifier : nil,
             prefersZoomTransition: prefersZoomTransition,
+            zoomTransitionOptions: zoomTransitionOptions,
             hapticsStyle: hapticsStyle,
             preferredGlassEffect: preferredGlassEffect,
             isInteractive: isInteractive,
@@ -53,6 +54,7 @@ extension PresentationLinkTransition {
         preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
         largestUndimmedDetentIdentifier: SheetPresentationLinkTransition.Detent.Identifier? = nil,
         prefersZoomTransition: Bool = false,
+        zoomTransitionOptions: ZoomTransitionOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         preferredGlassEffect: GlassEffect? = nil,
         isInteractive: Bool = true,
@@ -67,6 +69,7 @@ extension PresentationLinkTransition {
                 prefersGrabberVisible: prefersGrabberVisible,
                 preferredCornerRadius: preferredCornerRadius,
                 prefersZoomTransition: prefersZoomTransition,
+                zoomTransitionOptions: zoomTransitionOptions,
                 hapticsStyle: hapticsStyle,
                 preferredGlassEffect: preferredGlassEffect
             ),

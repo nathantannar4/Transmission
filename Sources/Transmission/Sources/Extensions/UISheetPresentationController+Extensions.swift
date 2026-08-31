@@ -41,11 +41,21 @@ extension UISheetPresentationController.Detent {
             // _identifier
             guard
                 let aSelector = NSStringFromBase64EncodedString("X2lkZW50aWZpZXI="),
-                responds(to: NSSelectorFromString(aSelector))
+                responds(to: NSSelectorFromString(aSelector)),
+                let identifier = value(forKey: aSelector) as? String
             else {
                 return nil
             }
-            return value(forKey: aSelector) as? String
+            return identifier
+        }
+    }
+
+    var _identifier: UISheetPresentationController.Detent.Identifier? {
+        if #available(iOS 16.0, *) {
+            return identifier
+        } else {
+            guard let id else { return nil }
+            return UISheetPresentationController.Detent.Identifier(rawValue: id)
         }
     }
 

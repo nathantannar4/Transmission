@@ -124,7 +124,7 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
 
         private func onUpdate() {
             guard let presentingViewController else { return }
-            let newValue = isEnabled ? style : nil
+            let newValue = isEnabled && style != .default ? style : nil
             if presentingViewController.preferredStatusBarStyleOverride != newValue {
                 if isEnabled {
                     presentingViewController.swizzled_preferredStatusBarStyle = style

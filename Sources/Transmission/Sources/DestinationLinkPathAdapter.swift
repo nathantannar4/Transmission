@@ -174,6 +174,7 @@ final class DestinationLinkPathCoordinator<
         }()
         self.path = path
         animation = context.transaction.animation
+            ?? (presentingViewController == nil ? animation : nil)
 
         for id in ids {
             let coordinator = {

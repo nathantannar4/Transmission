@@ -6,21 +6,18 @@
 
 import UIKit
 
-@available(iOS 26.0, *)
+@available(iOS, introduced: 26.0, obsoleted: 27.0, message: "Magic Morph is fixed in iOS 27")
 extension UIView {
 
     private static var didSwizzleMagicMorphSetCenterKey: UInt8 = 0
 
     public static func disableMagicMorphViewBounce() {
-        let aClass: NSObject.Type? = {
-            if #available(iOS 27.0, *) {
-                // UIKit.MagicMorphView
-                return NSClassFromBase64EncodedString("VUlLaXQuTWFnaWNNb3JwaFZpZXc=")
-            }
+        guard
             // _UIMagicMorphView
-            return NSClassFromBase64EncodedString("X1VJTWFnaWNNb3JwaFZpZXc=")
-        }()
-        guard let aClass else { return }
+            let aClass = NSClassFromBase64EncodedString("X1VJTWFnaWNNb3JwaFZpZXc=")
+        else {
+            return
+        }
         guard objc_getAssociatedObject(aClass, &Self.didSwizzleMagicMorphSetCenterKey) as? Bool != true else { return }
         objc_setAssociatedObject(aClass, &Self.didSwizzleMagicMorphSetCenterKey, true, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         swizzle(

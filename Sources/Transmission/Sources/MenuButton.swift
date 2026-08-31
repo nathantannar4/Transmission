@@ -66,11 +66,13 @@ public struct MenuButton: MenuElementRepresentable {
     @_disfavoredOverload
     @inlinable
     public init(
+        id: ID? = nil,
         role: Role,
         attributes: MenuElementAttributes = [],
         action: (@MainActor () -> Void)? = nil,
         @LabelElementBuilder label: () -> LabelElement
     ) {
+        self.id = id
         self.label = label()
         self.role = role
         self.state = .off
@@ -109,6 +111,27 @@ public struct MenuButton: MenuElementRepresentable {
             label: label
         )
     }
+
+    @inlinable
+    public init(
+        id: ID? = nil,
+        isSelected: Binding<Bool>,
+        attributes: MenuElementAttributes = [.prefersKeepsMenuPresented],
+        @LabelElementBuilder label: () -> LabelElement
+    ) {
+        self.init(
+            id: id,
+            isSelected: isSelected.wrappedValue,
+            attributes: attributes,
+            action: {
+                withAnimation {
+                    isSelected.wrappedValue.toggle()
+                }
+            },
+            label: label
+        )
+    }
+
 
     public func makeUIMenuElement(
         context: Context

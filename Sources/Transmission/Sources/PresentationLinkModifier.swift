@@ -114,15 +114,13 @@ extension PresentationLinkModifier {
         animation: Animation? = .default,
         value: Binding<T?>,
         destination: @escaping (Binding<T>, ViewControllerRepresentableAdapter<ViewController>.Context) -> ViewController
-    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
         self.init(
             transition: transition,
             animation: animation,
-            value: value
-        ) { $value in
-            ViewControllerRepresentableAdapter { ctx in
-                destination($value, ctx)
-            }
+            isPresented: value.isNotNil()
+        ) { [value = value.unwrap()] ctx in
+            destination(value!, ctx)
         }
     }
 
@@ -132,15 +130,13 @@ extension PresentationLinkModifier {
         animation: Animation? = .default,
         value: Binding<T?>,
         destination: @escaping (Binding<T>) -> ViewController
-    ) where Destination == Optional<ViewControllerRepresentableAdapter<ViewController>> {
+    ) where Destination == ViewControllerRepresentableAdapter<ViewController> {
         self.init(
             transition: transition,
             animation: animation,
-            value: value
-        ) { $value in
-            ViewControllerRepresentableAdapter {
-                destination($value)
-            }
+            isPresented: value.isNotNil()
+        ) { [value = value.unwrap()] in
+            destination(value!)
         }
     }
 }
@@ -267,6 +263,7 @@ extension View {
         modifier(
             PresentationLinkModifier(
                 transition: transition,
+                animation: animation,
                 value: value,
                 destination: destination
             )

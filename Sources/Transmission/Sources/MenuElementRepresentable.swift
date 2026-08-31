@@ -21,6 +21,10 @@ public protocol MenuElementRepresentable: PrimitiveMenuElement {
 @available(iOS 14.0, *)
 extension MenuElementRepresentable {
 
+    public func _makeMenuElementsCount() -> Int {
+        return 1
+    }
+
     public func _makeUIMenuElement(context: MenuRepresentableContext) -> UIMenuElement {
         makeUIMenuElement(context: context)
     }
@@ -34,7 +38,7 @@ extension MenuElementRepresentable {
         }
     }
 
-    public func _makeUIMenuElementsCount() -> Int? {
+    public func _makeUIMenuElementsCount() -> Int {
         return 1
     }
 

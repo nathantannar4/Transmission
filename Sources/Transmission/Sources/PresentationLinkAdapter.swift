@@ -80,26 +80,20 @@ public struct PresentationLinkAdapter<
     }
 
     public var body: some View {
-        UnaryViewAdaptor {
-            ViewInputConditionalContent(PresentationLinkAdapterIsLazy.self) {
-                LazyPresentationLinkAdapter(
-                    transition: transition,
-                    cornerRadius: cornerRadius,
-                    backgroundColor: backgroundColor,
-                    isPresented: isPresented,
-                    content: content,
-                    destination: destination
-                )
-            } otherwise: {
-                PresentationLinkAdapterBody(
-                    transition: transition,
-                    cornerRadius: cornerRadius,
-                    backgroundColor: backgroundColor,
-                    isPresented: isPresented,
-                    destination: destination,
-                    sourceView: content
-                )
-            }
+        LazySourceViewLinkAdapter(
+            PresentationLinkAdapterIsLazy.self,
+            isPresented: isPresented.wrappedValue
+        ) {
+            PresentationLinkAdapterBody(
+                transition: transition,
+                cornerRadius: cornerRadius,
+                backgroundColor: backgroundColor,
+                isPresented: isPresented,
+                destination: destination,
+                sourceView: content
+            )
+        } sourceView: {
+            content
         }
     }
 }
@@ -144,42 +138,6 @@ extension PresentationLinkAdapter {
             ViewControllerRepresentableAdapter(destination)
         } content: {
             content()
-        }
-    }
-}
-
-@available(iOS 14.0, *)
-private struct LazyPresentationLinkAdapter<
-    Content: View,
-    Destination: View
->: View {
-
-    var transition: PresentationLinkTransition
-    var cornerRadius: CornerRadiusOptions?
-    var backgroundColor: Color?
-    var isPresented: Binding<Bool>
-    var content: Content
-    var destination: Destination
-
-    @State var isLazyLoaded = false
-
-    var body: some View {
-        if isPresented.wrappedValue || isLazyLoaded {
-            PresentationLinkAdapterBody(
-                transition: transition,
-                cornerRadius: cornerRadius,
-                backgroundColor: backgroundColor,
-                isPresented: isPresented,
-                destination: destination,
-                sourceView: content
-            )
-            .transition(.identity)
-            .onAppear {
-                isLazyLoaded = true
-            }
-        } else {
-            content
-                .transition(.identity)
         }
     }
 }
@@ -441,6 +399,7 @@ final class PresentationLinkCoordinatorAdapter<
         sourceView: UIView? = nil
     ) {
         self.isPresented = isPresented
+        self.sourceView = sourceView
 
         if isPresented.wrappedValue {
 
@@ -630,12 +589,10 @@ final class PresentationLinkCoordinatorAdapter<
                     }
 
                 case .popover:
-                    self.sourceView = sourceView
                     self.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
                 case .sheet(let options):
-                    self.sourceView = sourceView
                     self.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
@@ -657,7 +614,6 @@ final class PresentationLinkCoordinatorAdapter<
                     }
 
                 case .zoom(let options):
-                    self.sourceView = sourceView
                     self.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
 
@@ -680,7 +636,6 @@ final class PresentationLinkCoordinatorAdapter<
 
                 case .representable(let representable):
                     assert(!swift_getIsClassType(representable), "PresentationLinkTransitionRepresentable must be value types (either a struct or an enum); it was a class")
-                    self.sourceView = sourceView
                     self.overrideTraitCollection = traits
                     adapter.viewController.modalPresentationStyle = .custom
                 }
@@ -740,6 +695,8 @@ final class PresentationLinkCoordinatorAdapter<
             // Swizzle to hook up for programatic dismissal
             adapter.viewController.presentationDelegate = self
         }
+
+        adapter.sourceView = sourceView
 
         var presentingViewController = presentingViewController
         if !adapter.transition.options.shouldAutomaticallyDismissPresentedView {
@@ -1440,7 +1397,7 @@ final class PresentationLinkCoordinatorAdapter<
                 }
                 if #available(iOS 26.0, *),
                    transition.options.preferredPresentationBackgroundColor == nil,
-                   options.detents.contains(where: { $0.identifier != .large || $0.identifier != .fullScreen }),
+                   options.detents.contains(where: { $0.identifier != .large && $0.identifier != .fullScreen }),
                    options.selected?.wrappedValue != .large,
                    options.selected?.wrappedValue != .fullScreen
                 {
@@ -1535,9 +1492,11 @@ final class PresentationLinkCoordinatorAdapter<
                 if let panGesture = sheetPresentationController.panGesture {
                     panGesture.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
                 }
-                if let scrollView = sheetPresentationController.presentedViewController.contentScrollView(for: .bottom) {
-                    scrollView.panGestureRecognizer.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
-                }
+                let scrollView = sheetPresentationController.presentedViewController.view.firstDescendent(
+                    ofType: UIScrollView.self,
+                    matching: { $0.contentScrollsAlongYAxis }
+                )
+                scrollView?.panGestureRecognizer.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
             }
         } else if presentationController is UIPopoverPresentationController,
             let viewController = adapter?.viewController,
@@ -1579,13 +1538,15 @@ final class PresentationLinkCoordinatorAdapter<
                     switch newValue {
                     case .large, .fullScreen:
                         break
+                    case .medium:
+                        backgroundColor = .clear
                     default:
                         guard let maximumDetentValue = sheetPresentationController.maximumDetentValue else { return }
                         let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
                         backgroundColor = isClear ? .clear : backgroundColor
                     }
 
-                    if sheetPresentationController.panGesture?.state == .ended {
+                    if sheetPresentationController.panGesture?.state != .possible {
                         sheetPresentationController.animateChanges {
                             sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
                         }
@@ -1744,7 +1705,12 @@ class PresentationLinkDestinationViewControllerAdapter<
     typealias DestinationController = PresentationHostingController<ModifiedContent<Destination, PresentationBridgeAdapter>>
 
     var transition: PresentationLinkTransition
-    weak var sourceView: UIView?
+    weak var sourceView: UIView? {
+        didSet {
+            guard let hostingController = viewController as? DestinationController else { return }
+            hostingController.sourceViewController = sourceView?.viewController as? AnyHostingController
+        }
+    }
     var environment: EnvironmentValues
     var isPresented: Binding<Bool>
     var onDismiss: (Int, Transaction) -> Void

@@ -210,7 +210,7 @@ final class ContextMenuLinkCoordinator<
 
     private(set) var isPresenting = false
     private(set) var isDismissing = false
-    private var ignoreUpdates = 0
+    private var didDeferUpdates = false
 
     private var environment: EnvironmentValues?
     private var adapter: ContextMenuPreviewViewControllerAdapter<Preview, Representable>?
@@ -237,6 +237,7 @@ final class ContextMenuLinkCoordinator<
         interaction: UIContextMenuInteraction?
     ) {
         assert(!swift_getIsClassType(menu), "MenuRepresentable must be value types (either a struct or an enum); it was a class")
+        let oldMenu = self.menu
         self.menu = menu
         self.isPresented = isPresented
         self.environment = context.environment
@@ -267,11 +268,19 @@ final class ContextMenuLinkCoordinator<
 
         guard let interaction else { return }
         let hasVisibleMenu = interaction.hasVisibleMenu
-        if isPresenting {
-            ignoreUpdates -= 1
-        }
         if isPresented.wrappedValue {
-            if hasVisibleMenu, !isPresenting {
+            let canUpdate: Bool = {
+                guard isPresenting else { return true }
+                guard !didDeferUpdates else { return false }
+                // Updating the number of menu items during a presentation breaks the animation
+                let oldCount = oldMenu._makeMenuElementsCount()
+                let newCount = menu._makeMenuElementsCount()
+                return oldCount == newCount
+            }()
+            if hasVisibleMenu, !canUpdate {
+                didDeferUpdates = true
+            }
+            if hasVisibleMenu, canUpdate {
                 let context = MenuRepresentableContext(
                     transaction: context.transaction,
                     environment: context.environment
@@ -279,8 +288,12 @@ final class ContextMenuLinkCoordinator<
                 interaction.update(menu, context: context)
             } else if !hasVisibleMenu, !isDismissing {
                 isPresenting = true
-                withCATransaction {
-                    interaction.presentMenu()
+                withCATransaction { [weak interaction] in
+                    if interaction?.view?.window == nil {
+                        isPresented.wrappedValue = false
+                    } else {
+                        interaction?.presentMenu()
+                    }
                 }
             } else if isDismissing {
                 withCATransaction {
@@ -315,21 +328,20 @@ final class ContextMenuLinkCoordinator<
     }
 
     func didShow(animation: Animation? = nil) {
-        if ignoreUpdates < 0, let interaction, let environment {
+        if didDeferUpdates, let interaction, let environment {
             let context = MenuRepresentableContext(
                 transaction: Transaction(animation: animation),
                 environment: environment
             )
-            withCATransaction { [menu] in
-                interaction.update(menu, context: context)
-            }
+            interaction.update(menu, context: context)
         }
-        ignoreUpdates = 0
+        didDeferUpdates = false
     }
 
     func willHide(animation: Animation? = nil) {
         isPresenting = false
         sourceViewSize = nil
+        didDeferUpdates = false
         adapter = nil
         withAnimation(animation) {
             isPresented.wrappedValue = false
@@ -422,9 +434,6 @@ final class ContextMenuLinkCoordinator<
         if let animator {
             if !isPresenting {
                 isPresenting = true
-                // Skip 2 superfulous updates when triggered via UI interaction, since updating the menu
-                // cancels touch interaction.
-                ignoreUpdates = 2
             }
             animator.addAnimations { [weak self] in
                 guard let self else { return }
@@ -498,12 +507,11 @@ final class ContextMenuLinkCoordinator<
     func contextMenuPreview(
         _ interaction: UIContextMenuInteraction
     ) -> UITargetedPreview? {
-        guard let sourceView = sourceView ?? interaction.view else { return nil }
+        guard let sourceView = sourceView ?? interaction.view, sourceView.window != nil else { return nil }
         let parameters = UIPreviewParameters()
         if sourceView.isHidden {
             parameters.backgroundColor = .clear
             parameters.visiblePath = UIBezierPath(rect: CGRect(origin: .zero, size: CGSize(width: sourceView.bounds.width, height: 0)))
-            parameters.shadowPath = UIBezierPath()
             let preview = UITargetedPreview(
                 view: {
                     if #available(iOS 26.0, *) {
@@ -521,24 +529,6 @@ final class ContextMenuLinkCoordinator<
                 let rect = sourceView.bounds
                     .insetBy(dx: visibleInset, dy: visibleInset)
                 parameters.visiblePath = UIBezierPath(rect: rect)
-            }
-            let isScaled = sourceView.window.map { window in
-                let availableSize = window.bounds.inset(by: window.safeAreaInsets)
-                return sourceView.bounds.width > availableSize.width || sourceView.bounds.height > availableSize.height
-            }
-            if isScaled != true, sourceView.layer.cornerRadius == 0 {
-                var shadowPath: UIBezierPath?
-                if let path = sourceView.layer.sublayers?.lazy.compactMap({ ($0 as? CAShapeLayer)?.path }).first {
-                    shadowPath = UIBezierPath(cgPath: path)
-                } else if let cornerRadiusLayer = sourceView.layer.sublayers?.first(where: { $0.cornerRadius > 0 }) {
-                    shadowPath = UIBezierPath(
-                        roundedRect: cornerRadiusLayer.bounds,
-                        cornerRadius: cornerRadiusLayer.cornerRadius
-                    )
-                }
-                parameters.shadowPath = shadowPath
-            }
-            if sourceView.layer.cornerRadius < 1, parameters.shadowPath == nil {
                 parameters.shadowPath = UIBezierPath()
             }
             var container = sourceView.superview
@@ -724,9 +714,12 @@ class ContextMenuPreviewViewControllerAdapter<
             storage = .destination(adapter)
         case .custom, .transient:
             let adapter = ContextMenuCustomPreviewViewControllerAdapter(
-                content: preview,
+                destination: preview,
                 sourceView: sourceView,
-                context: context
+                transition: .default,
+                context: context,
+                isPresented: .constant(true),
+                onDismiss: { onFinish($1) }
             )
             storage = .transient(adapter)
         }
@@ -770,7 +763,6 @@ class ContextMenuPresentationPreviewViewControllerAdapter<
         context: Representable.Context
     ) -> UIViewController {
         let viewController = super.makeHostingController(content: content, context: context) as! DestinationController
-        viewController.tracksContentSize = true
         if let window = sourceView?.window {
             let width = window.bounds.inset(by: window.layoutMargins).width
             viewController.preferredContentSize = viewController.view.idealSize(for: width)
@@ -804,30 +796,16 @@ class ContextMenuDestinationPreviewViewControllerAdapter<
 class ContextMenuCustomPreviewViewControllerAdapter<
     Preview: View,
     Representable: UIViewRepresentable
->: ViewControllerAdapter<Preview, Representable> {
-
-    weak var sourceView: UIView?
-
-    init(
-        content: Preview,
-        sourceView: UIView?,
-        context: Representable.Context
-    ) {
-        self.sourceView = sourceView
-        super.init(content: content, context: context)
-    }
+>: ContextMenuPresentationPreviewViewControllerAdapter<Preview, Representable> {
 
     override func makeHostingController(
         content: Preview,
         context: Representable.Context
     ) -> UIViewController {
-        let viewController = PresentationHostingController(content: content)
-        viewController.view.backgroundColor = nil
-        viewController.tracksContentSize = true
-        if let window = sourceView?.window {
-            let width = window.bounds.inset(by: window.layoutMargins).width
-            viewController.preferredContentSize = viewController.view.idealSize(for: width)
-        }
+        let viewController = super.makeHostingController(content: content, context: context) as! DestinationController
+        viewController.disableSafeArea = true
+        viewController.view.backgroundColor = sourceView?.backgroundColor
+        viewController.view.layer.cornerRadius = sourceView?.layer.cornerRadius ?? 0
         return viewController
     }
 }
@@ -930,7 +908,6 @@ struct ContextMenuLinkAdapter_Previews: PreviewProvider {
                 }
 
                 ContextMenuLinkAdapter(
-                    cornerRadius: .rounded(cornerRadius: .leastNonzeroMagnitude), // Disable shadow
                     isPresented: $isMenuCPresented
                 ) {
                     MenuButton {

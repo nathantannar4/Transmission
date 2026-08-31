@@ -153,7 +153,7 @@ extension UIViewController {
     }
 
     var firstResponder: UIResponder? {
-        guard let firstReponder = UIResponder._current, firstReponder._isInResponderChain(of: self) else { return nil }
+        guard presentedViewController == nil, let firstReponder = UIResponder._current, firstReponder._isInResponderChain(of: self) else { return nil }
         return firstReponder
     }
 }

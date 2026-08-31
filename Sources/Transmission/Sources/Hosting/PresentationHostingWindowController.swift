@@ -40,6 +40,8 @@ open class PresentationHostingWindowController<Content: View>: UIViewController 
 
     public weak var presentingWindow: UIWindow?
 
+    public weak var sourceViewController: AnyHostingController?
+
     private let hostingController: HostingController<Content>
 
     public init(content: Content) {
@@ -69,6 +71,18 @@ open class PresentationHostingWindowController<Content: View>: UIViewController 
 
     open func update(content: Content, transaction: Transaction) {
         hostingController.update(content: content, transaction: transaction)
+    }
+
+    open override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        if let sourceViewController, sourceViewController.shouldRenderForContentUpdate {
+            // Render so the modifier that controls the presentation of this hosting controller
+            // can run and update.
+            withCATransaction { [weak sourceViewController] in
+                sourceViewController?.render()
+            }
+        }
     }
 }
 

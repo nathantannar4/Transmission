@@ -253,16 +253,37 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
 
     open override var selectedDetentIdentifier: UISheetPresentationController.Detent.Identifier? {
         get {
-            if isKeyboardAdjustedLargeDetent {
-                return .large
-            }
             return super.selectedDetentIdentifier
         }
-        set { super.selectedDetentIdentifier = newValue }
+        set {
+            if isKeyboardAdjustedLargeDetent {
+                _selectedDetent = newValue
+            } else {
+                super.selectedDetentIdentifier = newValue
+            }
+        }
     }
+
+    open override var detents: [UISheetPresentationController.Detent] {
+        get {
+            return super.detents
+        }
+        set {
+            if isKeyboardAdjustedLargeDetent {
+                _detents = newValue
+            } else {
+                super.detents = newValue
+            }
+        }
+    }
+
+    private var _detents: [UISheetPresentationController.Detent] = []
+    private var _selectedDetent: UISheetPresentationController.Detent.Identifier?
 
     /// The interactive transition driving the presentation or dismissal animation
     public weak var transition: UIPercentDrivenInteractiveTransition?
+
+    private weak var resignedFirstResponder: UIResponder?
 
     private var isKeyboardAdjustedLargeDetent = false
     private weak var panGestureDelegate: UIGestureRecognizerDelegate?
@@ -321,9 +342,11 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             presentedViewController.fixSwiftUIHitTesting()
             fixTransitionHitTesting()
             panGesture?.addTarget(self, action: #selector(didPan(_:)))
-            if let scrollView = presentedViewController.contentScrollView(for: .bottom) {
-                scrollView.panGestureRecognizer.addTarget(self, action: #selector(didPan(_:)))
-            }
+            let scrollView = presentedViewController.view.firstDescendent(
+                ofType: UIScrollView.self,
+                matching: { $0.contentScrollsAlongYAxis }
+            )
+            scrollView?.panGestureRecognizer.addTarget(self, action: #selector(didPan(_:)))
         } else {
             delegate?.presentationControllerDidDismiss?(self)
         }
@@ -453,9 +476,24 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         }
 
         switch gesture.state {
-        case .began:
-            break
-        case .changed:
+        case .began, .changed:
+            let canResign = presentedViewController.isBeingDismissed || {
+                guard
+                    let scrollView = gesture.view as? UIScrollView,
+                    scrollView.contentScrollsAlongYAxis
+                else {
+                    return gesture.state == .began
+                }
+                return scrollView.contentOffset.y <= scrollView.adjustedContentInset.top
+            }()
+            if canResign {
+                if resignedFirstResponder == nil, let firstResponder = UIResponder._current {
+                    resignedFirstResponder = firstResponder
+                    if !firstResponder.resignFirstResponder() {
+                        resignedFirstResponder = nil
+                    }
+                }
+            }
             let translation = gesture.translation(in: gesture.view)
             if #available(iOS 26.0, *), presentedViewController.isBeingDismissed, translation.y < 0, let interactionController, interactionController.completionSpeed < 1 {
                 // Fix UIKit transition delaying ending, `completionSpeed` is
@@ -463,9 +501,9 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
                 interactionController.completionSpeed = 1
                 interactionController.cancel()
             }
-        case .ended:
+        case .ended, .cancelled, .failed:
             var shouldDismiss = false
-            if selectedDetentIdentifier == .large {
+            if selectedDetentIdentifier == .large || selectedDetentIdentifier == .fullScreen {
                 shouldDismiss = gesture.velocity(in: gesture.view).y >= 4000
             } else {
                 shouldDismiss = gesture.velocity(in: gesture.view).y >= 2400
@@ -476,6 +514,24 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
                 }
                 if shouldDismiss, delegate?.presentationControllerShouldDismiss?(self) != false {
                     presentedViewController.dismiss(animated: true)
+                }
+            } else if let resignedFirstResponder {
+                if selectedDetentIdentifier == .large || selectedDetentIdentifier == .fullScreen {
+                    let translation = gesture.translation(in: gesture.view)
+                    if translation.y < frameOfPresentedViewInContainerView.height / 2 {
+                        resignedFirstResponder.becomeFirstResponder()
+                    }
+                } else {
+                    if isKeyboardAdjustedLargeDetent {
+                        isKeyboardAdjustedLargeDetent = false
+                        detents = _detents
+                        if let selectedDetent = _selectedDetent {
+                            selectedDetentIdentifier = selectedDetent
+                        }
+                        _detents = []
+                        _selectedDetent = nil
+                    }
+                    didChangeSelectedDetentIdentifier()
                 }
             }
             if !shouldDismiss, !shouldAdjustDetentsForKeyboard {
@@ -494,7 +550,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             }
             fallthrough
         default:
-            isKeyboardAdjustedLargeDetent = false
+            resignedFirstResponder = nil
         }
     }
 
@@ -546,21 +602,71 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         return shouldDismiss
     }
 
+    @objc
+    func _sendDidChangeSelectedDetentIdentifier() {
+        // Skip since it will be restored
+        if resignedFirstResponder != nil {
+            return
+        }
+        guard
+            let aClass = class_getSuperclass(Self.self),
+            // _sendDidChangeSelectedDetentIdentifier
+            let aSelector = NSSelectorFromBase64EncodedString("X3NlbmREaWRDaGFuZ2VTZWxlY3RlZERldGVudElkZW50aWZpZXI="),
+            let imp = class_getMethodImplementation(aClass, aSelector)
+        else {
+            didChangeSelectedDetentIdentifier()
+            return
+        }
+        typealias Fn = @convention(c) (AnyObject, Selector) -> Void
+        let fn = unsafeBitCast(imp, to: Fn.self)
+        fn(self, aSelector)
+    }
+
+    private func didChangeSelectedDetentIdentifier() {
+        delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(self)
+    }
+
     // MARK: - Keyboard Handling
 
     @objc
     private func onKeyboardChange(_ notification: Notification) {
+        guard
+            notification.userInfo?[UIResponder.keyboardIsLocalUserInfoKey] as? Bool != false
+        else {
+            return
+        }
         switch notification.name {
         case UIResponder.keyboardWillShowNotification:
-            if shouldAdjustDetentsForKeyboard, selectedDetentIdentifier != .large {
-                isKeyboardAdjustedLargeDetent = true
-                delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(self)
+            if shouldAdjustDetentsForKeyboard, selectedDetentIdentifier != .large, selectedDetentIdentifier != .fullScreen {
+                if detents.contains(where: { $0._identifier == .large }) {
+                    animateChanges {
+                        selectedDetentIdentifier = .large
+                    }
+                    didChangeSelectedDetentIdentifier()
+                } else {
+                    var keyboardDetents = detents
+                    _detents = detents
+                    _selectedDetent = selectedDetentIdentifier
+                    keyboardDetents.append(.large())
+                    animateChanges {
+                        detents = keyboardDetents
+                        selectedDetentIdentifier = .large
+                    }
+                    didChangeSelectedDetentIdentifier()
+                    isKeyboardAdjustedLargeDetent = true
+                }
             }
 
         case UIResponder.keyboardWillHideNotification:
-            if isKeyboardAdjustedLargeDetent {
+            if isKeyboardAdjustedLargeDetent, resignedFirstResponder == nil {
                 isKeyboardAdjustedLargeDetent = false
-                delegate?.sheetPresentationControllerDidChangeSelectedDetentIdentifier?(self)
+                animateChanges {
+                    detents = _detents
+                    selectedDetentIdentifier = _selectedDetent ?? detents.first?._identifier
+                    didChangeSelectedDetentIdentifier()
+                }
+                _detents = []
+                _selectedDetent = nil
             }
             fallthrough
 

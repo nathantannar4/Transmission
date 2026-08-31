@@ -73,6 +73,10 @@ open class TransitionSourceView<Content: View>: UIView {
         backgroundColor: UIColor? = nil
     ) {
         guard let hostingView = hostStorage?.hostingView else { return }
+        var transaction = transaction
+        if #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *), transaction.isLazySourceViewTransition {
+            transaction.animation = nil
+        }
         hostingView.update(content: content, transaction: transaction)
         UIView.animate(with: transaction.animation) {
             hostingView.cornerRadius = cornerRadius

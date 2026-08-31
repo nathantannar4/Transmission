@@ -162,7 +162,7 @@ extension View {
     ) -> UIView? {
         let presentationCoordinator = PresentationCoordinator(
             isPresented: true,
-            sourceView: nil,
+            sourceView: interaction.view,
             seed: Seed.constant(ObjectIdentifier(configuration))
         ) { [weak interaction] _, transaction in
             if transaction.isAnimated {
@@ -427,17 +427,17 @@ struct AccessoryView<Content: View>: View {
 }
 
 @available(iOS 14.0, *)
-final class AccessoryHostingView<Content: View>: HostingView<AccessoryContentView<AccessoryView<Content>>> {
+final class AccessoryHostingView<Content: View>: HostingView<AccessoryView<Content>> {
 
-    init(content: AccessoryView<Content>) {
-        super.init(content: AccessoryContentView(content: content))
-        _rootView.content.sourceView = self
+    override init(content: AccessoryView<Content>) {
+        super.init(content: content)
         disablesSafeArea = true
+        invalidatesIntrinsicContentSizeOnIdealSizeChange = true
     }
 
     func update(content newValue: Content, transaction: Transaction) {
         var content = content
-        content.content.content = newValue
+        content.content = newValue
         update(content: content, transaction: transaction)
     }
 
@@ -445,50 +445,9 @@ final class AccessoryHostingView<Content: View>: HostingView<AccessoryContentVie
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func setNeedsLayout() {
-        super.setNeedsLayout()
+    override func invalidateIntrinsicContentSize() {
+        super.invalidateIntrinsicContentSize()
         superview?.setNeedsLayout()
-    }
-}
-
-struct AccessoryContentView<Content: View>: View {
-
-    public var content: Content
-
-    weak var sourceView: UIView?
-
-    public var body: some View {
-        content
-            .modifier(IntrinsicContentSizeInvalidationModifier(sourceView: sourceView))
-    }
-}
-
-private struct IntrinsicContentSizeInvalidationModifier: VersionedViewModifier {
-
-    weak var sourceView: UIView?
-
-    @available(iOS 16.0, *)
-    func v4Body(content: Content) -> some View {
-        content
-            .onGeometryChange(for: CGSize.self) { proxy in
-                proxy.size
-            } action: { [weak sourceView] _ in
-                sourceView?.setNeedsLayout()
-            }
-    }
-
-    @available(iOS 14.0, *)
-    func v2Body(content: Content) -> some View {
-        content
-            .background(
-                GeometryReader { [weak sourceView] proxy in
-                    Color.clear
-                        .hidden()
-                        .onChange(of: proxy.size) { [weak sourceView] _ in
-                            sourceView?.setNeedsLayout()
-                        }
-                }
-            )
     }
 }
 
@@ -634,8 +593,40 @@ struct ContextMenuAccessoryView_Previews: PreviewProvider {
                         }
                     }
                     .frame(height: height)
+                    .padding(.horizontal, 32)
 
-                    Spacer(minLength: height)
+                    ContextMenuSourceViewLink {
+                        PreviewMenu()
+                    } label: {
+                        Color.blue
+                    } accessoryViews: {
+                        ContextMenuAccessoryView(
+                            location: .preview,
+                            alignment: .center
+                        ) {
+                            Color.red
+                                .frame(height: 52)
+                                .withDebugOverlay(label: "AccessoryView", color: .yellow)
+                        }
+                    }
+                    .frame(height: height / 2)
+
+                    ContextMenuSourceViewLink {
+                        PreviewMenu()
+                    } label: {
+                        Color.blue
+                    } accessoryViews: {
+                        ContextMenuAccessoryView(
+                            location: .preview,
+                            alignment: .center
+                        ) {
+                            Color.red
+                                .frame(height: 52)
+                                .withDebugOverlay(label: "AccessoryView", color: .yellow)
+                        }
+                    }
+                    .frame(height: height / 2)
+                    .padding(.horizontal, 32)
 
                     HStack {
                         ContextMenuSourceViewLink {
