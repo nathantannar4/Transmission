@@ -228,7 +228,7 @@ extension DestinationSourceViewLink {
             backgroundColor: backgroundColor,
             animation: animation,
             isPresented: value.isNotNil()
-        ) { [value = value.unwrap()] ctx in
+        ) { [value = Binding(unwrapping: value)] ctx in
             destination(value!, ctx)
         } label: {
             label()
@@ -251,7 +251,7 @@ extension DestinationSourceViewLink {
             backgroundColor: backgroundColor,
             animation: animation,
             isPresented: value.isNotNil()
-        ) { [value = value.unwrap()] in
+        ) { [value = Binding(unwrapping: value)] in
             destination(value!)
         } label: {
             label()

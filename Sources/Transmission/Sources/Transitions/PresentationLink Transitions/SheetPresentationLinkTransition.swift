@@ -13,7 +13,9 @@ extension PresentationLinkTransition {
 
     /// The sheet presentation style.
     @available(iOS 15.0, *)
-    public static let sheet: PresentationLinkTransition = .sheet()
+    public static var sheet: PresentationLinkTransition {
+        .sheet()
+    }
 
     /// The sheet presentation style.
     @available(iOS 15.0, *)
@@ -96,7 +98,7 @@ extension PresentationLinkTransition {
 
 /// The transition options for a sheet transition.
 @frozen
-public struct SheetPresentationLinkTransition: Sendable {
+public struct SheetPresentationLinkTransition {
 
     /// The detent of the sheet transition
     @frozen
@@ -484,9 +486,9 @@ public struct SheetPresentationLinkTransition: Sendable {
 
     /// The transition options for a sheet transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
 
-        public enum Placement: Sendable {
+        public enum Placement {
             case sourceView
 
             @available(iOS 27.0, *)

@@ -164,7 +164,8 @@ private class TransitionSourceHostingView<Content: View>: HostingView<Content> {
 
     open override func invalidateIntrinsicContentSize() {
         super.invalidateIntrinsicContentSize()
-        superview?.invalidateIntrinsicContentSize()
+        let ancestor = _firstAncestor { $0.superview?.isSwiftUIPlatformViewHost == true } ?? superview
+        ancestor?.invalidateIntrinsicContentSize()
     }
 
     override func action(for layer: CALayer, forKey event: String) -> CAAction? {

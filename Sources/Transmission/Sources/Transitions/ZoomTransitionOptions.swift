@@ -8,7 +8,7 @@ import SwiftUI
 import UIKit
 
 @frozen
-public struct ZoomTransitionOptions: Sendable {
+public struct ZoomTransitionOptions {
 
     public var dimmingColor: Color?
     public var dimmingVisualEffect: UIBlurEffect.Style?

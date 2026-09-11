@@ -243,7 +243,7 @@ public struct TransitionReader<Content: View>: View {
 ```swift
 /// The transition and presentation style for a ``DestinationLink`` or ``DestinationLinkModifier``.
 @available(iOS 14.0, *)
-public struct DestinationLinkTransition: Sendable {
+public struct DestinationLinkTransition {
 
     public static let `default`: DestinationLinkTransition
 

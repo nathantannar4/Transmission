@@ -13,10 +13,10 @@ import Engine
 ///
 @frozen
 @available(iOS 14.0, *)
-public struct MenuSourceViewLinkBackgroundStyle: Equatable, Sendable {
+public struct MenuSourceViewLinkBackgroundStyle: Equatable {
 
     @usableFromInline
-    enum Effect: Sendable {
+    enum Effect {
         case plain
         case glass
         case prominentGlass
@@ -29,10 +29,12 @@ public struct MenuSourceViewLinkBackgroundStyle: Equatable, Sendable {
     @usableFromInline
     var color: Color?
 
-    public static let plain = MenuSourceViewLinkBackgroundStyle(effect: .plain)
+    public static var plain: MenuSourceViewLinkBackgroundStyle {
+        MenuSourceViewLinkBackgroundStyle(effect: .plain) }
 
     @available(iOS 26.0, *)
-    public static let glass = MenuSourceViewLinkBackgroundStyle(effect: .glass)
+    public static var glass: MenuSourceViewLinkBackgroundStyle {
+        MenuSourceViewLinkBackgroundStyle(effect: .glass) }
 
     @available(iOS 26.0, *)
     public static func glass(tint: Color) -> MenuSourceViewLinkBackgroundStyle {
@@ -40,7 +42,8 @@ public struct MenuSourceViewLinkBackgroundStyle: Equatable, Sendable {
     }
 
     @available(iOS 26.0, *)
-    public static let clearGlass = MenuSourceViewLinkBackgroundStyle(effect: .clearGlass)
+    public static var clearGlass: MenuSourceViewLinkBackgroundStyle {
+        MenuSourceViewLinkBackgroundStyle(effect: .clearGlass) }
 
     @available(iOS 26.0, *)
     public static func clearGlass(tint: Color) -> MenuSourceViewLinkBackgroundStyle {
@@ -228,11 +231,11 @@ private struct MenuSourceViewBody<
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
-        uiView.primaryAction = primaryAction
-        uiView.background = background
         uiView.onUpdate(
             content: sourceView,
             context: context,
+            primaryAction: primaryAction,
+            background: background,
             cornerRadius: cornerRadius
         )
         context.coordinator.onUpdate(
@@ -293,11 +296,7 @@ private class MenuLinkSourceView<
     Content: View
 >: UIButton {
 
-    var sourceView: UIView {
-        hostingView.sourceView ?? hostingView
-    }
-
-    var primaryAction: MenuLinkPrimaryAction = .showMenu {
+    private var primaryAction: MenuLinkPrimaryAction = .showMenu {
         didSet {
             switch primaryAction {
             case .showMenu:
@@ -308,12 +307,15 @@ private class MenuLinkSourceView<
         }
     }
 
-    var background: MenuSourceViewLinkBackgroundStyle {
+    private var background: MenuSourceViewLinkBackgroundStyle {
         didSet {
             guard #available(iOS 15.0, *), oldValue != background else { return }
+            needsUpdateConfigurationBackground = true
             setNeedsUpdateConfiguration()
         }
     }
+
+    private var needsUpdateConfigurationBackground = false
 
     private let hostingView: TransitionSourceView<Content>
     private let coordinator: MenuSourceViewBody<Menu, Content>.Coordinator
@@ -388,8 +390,12 @@ private class MenuLinkSourceView<
     func onUpdate(
         content: Content,
         context: MenuSourceViewBody<Menu, Content>.Context,
+        primaryAction: MenuLinkPrimaryAction,
+        background: MenuSourceViewLinkBackgroundStyle,
         cornerRadius: CornerRadiusOptions?
     ) {
+        self.primaryAction = primaryAction
+        self.background = background
         hostingView.update(
             content: content,
             transaction: context.transaction,
@@ -399,8 +405,11 @@ private class MenuLinkSourceView<
 
     @available(iOS 15.0, *)
     override func updateConfiguration() {
-        configuration = background.makeConfiguration()
-        contentView.addSubview(hostingView)
+        super.updateConfiguration()
+        if needsUpdateConfigurationBackground {
+            configuration = background.makeConfiguration()
+            contentView.addSubview(hostingView)
+        }
     }
 
     func sizeThatFits(_ proposal: ProposedSize) -> CGSize? {

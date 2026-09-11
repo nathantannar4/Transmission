@@ -9,10 +9,10 @@ import Engine
 
 /// The transition and presentation style for a ``DestinationLink`` or ``DestinationLinkModifier``.
 @available(iOS 14.0, *)
-public struct DestinationLinkTransition: Sendable {
+public struct DestinationLinkTransition {
 
     @usableFromInline
-    enum Value: Sendable {
+    enum Value {
         case `default`
         case zoom(ZoomDestinationLinkTransition.Options)
         case representable(any DestinationLinkTransitionRepresentable)
@@ -50,7 +50,9 @@ public struct DestinationLinkTransition: Sendable {
 extension DestinationLinkTransition {
 
     /// The default presentation style of the `UINavigationController`.
-    public static let `default` = DestinationLinkTransition(value: .default)
+    public static var `default`: DestinationLinkTransition {
+        DestinationLinkTransition(value: .default)
+    }
 
     /// The default presentation style of the `UINavigationController`.
     public static func `default`(

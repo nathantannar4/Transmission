@@ -28,7 +28,18 @@ private class _UISheetPresentationControllerDetentResolver: NSObject {
 @available(iOS 15.0, *)
 extension UISheetPresentationController.Detent.Identifier {
 
+    @available(iOS 18.0, *)
     public static let fullScreen = UISheetPresentationController.Detent.Identifier("com.apple.UIKit.full")
+
+    var isLargeOrFullScreen: Bool {
+        if self == .large {
+            return true
+        }
+        if #available(iOS 18.0, *), self == .fullScreen {
+            return true
+        }
+        return false
+    }
 }
 
 @available(iOS 15.0, *)

@@ -11,7 +11,9 @@ import SwiftUI
 extension PresentationLinkTransition {
 
     /// The slide presentation style.
-    public static let slide: PresentationLinkTransition = .slide()
+    public static var slide: PresentationLinkTransition {
+        .slide()
+    }
 
     /// The slide presentation style.
     public static func slide(
@@ -62,7 +64,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
 
     /// The transition options for a slide transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
 
         public var edge: Edge
         public var prefersScaleEffect: Bool

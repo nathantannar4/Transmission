@@ -39,7 +39,7 @@ extension DestinationLinkTransitionRepresentable {
 
 /// A protocol that defines a custom push transition for a ``DestinationLinkTransition``
 @available(iOS 14.0, *)
-public protocol DestinationLinkPushTransitionRepresentable: Sendable {
+public protocol DestinationLinkPushTransitionRepresentable {
 
     typealias Context = DestinationLinkTransitionRepresentableContext
     associatedtype UIPushAnimationControllerType: UIViewControllerAnimatedTransitioning
@@ -105,7 +105,7 @@ extension DestinationLinkPushTransitionRepresentable where Self == DestinationLi
 
 /// A protocol that defines a custom pop transition for a ``DestinationLinkTransition``
 @available(iOS 14.0, *)
-public protocol DestinationLinkPopTransitionRepresentable: Sendable {
+public protocol DestinationLinkPopTransitionRepresentable {
 
     typealias Context = DestinationLinkTransitionRepresentableContext
     associatedtype UIPopAnimationControllerType: UIViewControllerAnimatedTransitioning

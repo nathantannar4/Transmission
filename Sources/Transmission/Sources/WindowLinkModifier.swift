@@ -127,7 +127,7 @@ extension WindowLinkModifier {
             transition: transition,
             animation: animation,
             isPresented: value.isNotNil()
-        ) { [value = value.unwrap()] ctx in
+        ) { [value = Binding(unwrapping: value)] ctx in
             destination(value!, ctx)
         }
     }
@@ -145,7 +145,7 @@ extension WindowLinkModifier {
             transition: transition,
             animation: animation,
             isPresented: value.isNotNil()
-        ) { [value = value.unwrap()] in
+        ) { [value = Binding(unwrapping: value)] in
             destination(value!)
         }
     }

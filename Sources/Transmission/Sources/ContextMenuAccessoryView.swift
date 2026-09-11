@@ -10,7 +10,7 @@ import Engine
 /// The location of the context menu accessory view
 @frozen
 @available(iOS 14.0, *)
-public enum ContextMenuAccessoryLayoutLocation: Sendable {
+public enum ContextMenuAccessoryLayoutLocation {
     case background
     case preview
     case menu
@@ -499,7 +499,10 @@ extension UIContextMenuConfiguration {
 
     var previewViewController: UIViewController? {
         guard
-            let value = value(forKey: "previewProvider") as? AnyObject,
+            // previewProvider
+            let aSelector = NSStringFromBase64EncodedString("cHJldmlld1Byb3ZpZGVy"),
+            responds(to: NSSelectorFromString(aSelector)),
+            let value = value(forKey: aSelector) as? AnyObject,
             !(value is NSNull)
         else {
             return nil

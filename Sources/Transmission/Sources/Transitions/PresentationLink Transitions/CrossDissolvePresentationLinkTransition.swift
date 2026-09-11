@@ -11,7 +11,9 @@ import SwiftUI
 extension PresentationLinkTransition {
 
     /// The cross dissolve presentation style.
-    public static let crossDissolve: PresentationLinkTransition = .crossDissolve()
+    public static var crossDissolve: PresentationLinkTransition {
+        .crossDissolve()
+    }
 
     /// The cross dissolve presentation style.
     public static func crossDissolve(
@@ -54,7 +56,7 @@ public struct CrossDissolvePresentationLinkTransition: PresentationLinkTransitio
 
     /// The transition options for a cross dissolve transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
 
         public var transform: CGAffineTransform
         public var fromCornerRadius: CornerRadiusOptions?

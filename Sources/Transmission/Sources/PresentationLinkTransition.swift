@@ -10,10 +10,10 @@ import EngineCore
 /// The transition and presentation style for a ``PresentationLink`` or ``PresentationLinkModifier``.
 @available(iOS 14.0, *)
 @frozen
-public struct PresentationLinkTransition: Sendable {
+public struct PresentationLinkTransition {
 
     @usableFromInline
-    enum Value: Sendable {
+    enum Value {
         case `default`
         case sheet(SheetPresentationLinkTransition.Options)
         case currentContext
@@ -62,7 +62,9 @@ public struct PresentationLinkTransition: Sendable {
 extension PresentationLinkTransition {
 
     /// The default presentation style of the `UIViewController`.
-    public static let `default` = PresentationLinkTransition(value: .default)
+    public static var `default`: PresentationLinkTransition {
+        PresentationLinkTransition(value: .default)
+    }
 
     /// The default presentation style of the `UIViewController`.
     public static func `default`(
@@ -72,7 +74,9 @@ extension PresentationLinkTransition {
     }
 
     /// The current context presentation style.
-    public static let currentContext = PresentationLinkTransition(value: .currentContext)
+    public static var currentContext: PresentationLinkTransition {
+        PresentationLinkTransition(value: .currentContext)
+    }
 
     /// The current context presentation style.
     public static func currentContext(
@@ -82,7 +86,9 @@ extension PresentationLinkTransition {
     }
 
     /// The fullscreen presentation style.
-    public static let fullscreen = PresentationLinkTransition(value: .fullscreen)
+    public static var fullscreen: PresentationLinkTransition {
+        PresentationLinkTransition(value: .fullscreen)
+    }
 
     /// The fullscreen presentation style.
     public static func fullscreen(
@@ -123,7 +129,7 @@ extension PresentationLinkTransition {
 
     /// The transition options.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
         /// Used when the presentation delegate asks if it should dismiss
         public var isInteractive: Bool
         /// When non-interactive and dismissal is attempted, will be set to `true`

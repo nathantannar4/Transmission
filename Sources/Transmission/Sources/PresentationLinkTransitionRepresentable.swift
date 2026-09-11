@@ -49,7 +49,7 @@ public protocol PresentationLinkTransitionRepresentable:
 }
 
 @available(iOS 14.0, *)
-public protocol PresentationLinkPresentedTransitionRepresentable: Sendable {
+public protocol PresentationLinkPresentedTransitionRepresentable {
 
     typealias Context = PresentationLinkTransitionRepresentableContext
     associatedtype UIPresentationControllerType: UIPresentationController
@@ -117,7 +117,7 @@ extension PresentationLinkPresentedTransitionRepresentable where Self == Present
 }
 
 @available(iOS 14.0, *)
-public protocol PresentationLinkPresentingTransitionRepresentable: Sendable {
+public protocol PresentationLinkPresentingTransitionRepresentable {
 
     typealias Context = PresentationLinkTransitionRepresentableContext
     associatedtype UIPresentingAnimationControllerType: UIViewControllerAnimatedTransitioning
@@ -184,7 +184,7 @@ extension PresentationLinkPresentingTransitionRepresentable where Self == Presen
 }
 
 @available(iOS 14.0, *)
-public protocol PresentationLinkDismissingTransitionRepresentable: Sendable {
+public protocol PresentationLinkDismissingTransitionRepresentable {
 
     typealias Context = PresentationLinkTransitionRepresentableContext
     associatedtype UIDismissingAnimationControllerType: UIViewControllerAnimatedTransitioning

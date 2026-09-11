@@ -11,7 +11,9 @@ import SwiftUI
 extension PresentationLinkTransition {
 
     /// The popover presentation style.
-    public static let popover: PresentationLinkTransition = .popover()
+    public static var popover: PresentationLinkTransition {
+        .popover()
+    }
 
     /// The popover presentation style.
     public static func popover(
@@ -50,12 +52,12 @@ extension PresentationLinkTransition {
 
 /// The transition options for a popover transition.
 @frozen
-public struct PopoverPresentationLinkTransition: Sendable {
+public struct PopoverPresentationLinkTransition {
     public typealias PermittedArrowDirections = Edge.Set
 
     /// The transition options for a sheet transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
         public var dimmingColor: Color?
         public var permittedArrowDirections: PermittedArrowDirections
         public var canOverlapSourceViewRect: Bool

@@ -59,7 +59,7 @@ public struct CrossDissolveDestinationLinkTransition: DestinationLinkTransitionR
 
     /// The transition options for a cross dissolve transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
 
         public var transform: CGAffineTransform
         public var fromCornerRadius: CornerRadiusOptions?

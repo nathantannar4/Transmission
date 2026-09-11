@@ -503,7 +503,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             }
         case .ended, .cancelled, .failed:
             var shouldDismiss = false
-            if selectedDetentIdentifier == .large || selectedDetentIdentifier == .fullScreen {
+            if selectedDetentIdentifier?.isLargeOrFullScreen == true {
                 shouldDismiss = gesture.velocity(in: gesture.view).y >= 4000
             } else {
                 shouldDismiss = gesture.velocity(in: gesture.view).y >= 2400
@@ -516,7 +516,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
                     presentedViewController.dismiss(animated: true)
                 }
             } else if let resignedFirstResponder {
-                if selectedDetentIdentifier == .large || selectedDetentIdentifier == .fullScreen {
+                if selectedDetentIdentifier?.isLargeOrFullScreen == true {
                     let translation = gesture.translation(in: gesture.view)
                     if translation.y < frameOfPresentedViewInContainerView.height / 2 {
                         resignedFirstResponder.becomeFirstResponder()
@@ -637,7 +637,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         }
         switch notification.name {
         case UIResponder.keyboardWillShowNotification:
-            if shouldAdjustDetentsForKeyboard, selectedDetentIdentifier != .large, selectedDetentIdentifier != .fullScreen {
+            if shouldAdjustDetentsForKeyboard, selectedDetentIdentifier?.isLargeOrFullScreen != true {
                 if detents.contains(where: { $0._identifier == .large }) {
                     animateChanges {
                         selectedDetentIdentifier = .large

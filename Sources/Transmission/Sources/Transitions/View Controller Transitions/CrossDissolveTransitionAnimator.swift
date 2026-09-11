@@ -14,8 +14,8 @@ public struct CrossDissolveTransitionAnimator: ViewControllerTransitionAnimator 
 
     public init(
         transform: CGAffineTransform,
-        fromCornerRadius: CornerRadiusOptions?,
-        toCornerRadius: CornerRadiusOptions?,
+        fromCornerRadius: CornerRadiusOptions? = nil,
+        toCornerRadius: CornerRadiusOptions? = nil,
     ) {
         self.transform = transform
         self.fromCornerRadius = fromCornerRadius

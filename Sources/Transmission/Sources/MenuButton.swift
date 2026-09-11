@@ -39,7 +39,7 @@ public struct MenuButton: MenuElementRepresentable {
     }
 
     @frozen
-    public enum State: Sendable {
+    public enum State {
         case off
         case on
         case mixed

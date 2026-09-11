@@ -9,10 +9,10 @@ import Engine
 
 @available(iOS 14.0, *)
 @frozen
-public struct MenuDialogTransition: Sendable {
+public struct MenuDialogTransition {
 
     @usableFromInline
-    enum Value: Sendable {
+    enum Value {
         case `default`
         case alert
         case actionSheet
@@ -31,13 +31,19 @@ public struct MenuDialogTransition: Sendable {
     }
 
     /// The default automatic transition based on the menu
-    public static let `default` = MenuDialogTransition(value: .default)
-
+    public static var `default`: MenuDialogTransition {
+        MenuDialogTransition(value: .default)
+    }
+    
     /// The alert transition style
-    public static let alert = MenuDialogTransition(value: .alert)
-
+    public static var alert: MenuDialogTransition {
+        MenuDialogTransition(value: .alert)
+    }
+    
     /// The action sheet transition style
-    public static let actionSheet = MenuDialogTransition(value: .actionSheet)
+    public static var actionSheet: MenuDialogTransition {
+        MenuDialogTransition(value: .actionSheet)
+    }
 
     @inlinable
     public func isInteractive(_ isInteractive: Bool) -> MenuDialogTransition {

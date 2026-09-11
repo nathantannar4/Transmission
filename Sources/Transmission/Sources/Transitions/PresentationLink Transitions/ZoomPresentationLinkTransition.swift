@@ -12,7 +12,9 @@ extension PresentationLinkTransition {
 
     /// The zoom presentation style.
     @available(iOS 18.0, *)
-    public static let zoom: PresentationLinkTransition = .zoom()
+    public static var zoom: PresentationLinkTransition {
+        .zoom()
+    }
 
     /// The zoom presentation style.
     @available(iOS 18.0, *)
@@ -91,11 +93,11 @@ extension PresentationLinkTransition {
 }
 
 @frozen
-public struct ZoomPresentationLinkTransition: Sendable {
+public struct ZoomPresentationLinkTransition {
 
     /// The transition options for a zoom transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
         private var options: ZoomTransitionOptions
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 

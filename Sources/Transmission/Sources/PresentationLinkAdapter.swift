@@ -1731,6 +1731,7 @@ class PresentationLinkDestinationViewControllerAdapter<
         super.init(content: destination, context: context)
     }
 
+    @MainActor
     deinit {
         switch transition.value {
         case .sheet(let options):

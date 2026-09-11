@@ -11,7 +11,9 @@ import SwiftUI
 extension PresentationLinkTransition {
 
     /// The matched geometry presentation style.
-    public static let matchedGeometry: PresentationLinkTransition = .matchedGeometry()
+    public static var matchedGeometry: PresentationLinkTransition {
+        .matchedGeometry()
+    }
 
     /// The matched geometry presentation style.
     public static func matchedGeometry(
@@ -60,7 +62,9 @@ extension PresentationLinkTransition {
     }
 
     /// The matched geometry zoom presentation style.
-    public static let matchedGeometryZoom: PresentationLinkTransition = .matchedGeometryZoom()
+    public static var matchedGeometryZoom: PresentationLinkTransition {
+        .matchedGeometryZoom()
+    }
 
     /// The matched geometry zoom presentation style.
     public static func matchedGeometryZoom(

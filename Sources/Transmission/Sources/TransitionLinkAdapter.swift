@@ -27,7 +27,7 @@ public struct TransitionLinkAdapterIsLazy: ViewInputFlag, ViewInputsCondition {
 
 @frozen
 @available(iOS 14.0, *)
-public enum LinkTransition: Sendable {
+public enum LinkTransition {
     case presentation(PresentationLinkTransition)
     case destination(DestinationLinkTransition)
 }

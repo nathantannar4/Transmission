@@ -11,7 +11,9 @@ import SwiftUI
 extension PresentationLinkTransition {
 
     /// The card presentation style.
-    public static let card: PresentationLinkTransition = .card()
+    public static var card: PresentationLinkTransition {
+        .card()
+    }
 
     /// The card presentation style.
     public static func card(
@@ -65,7 +67,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
 
     /// The transition options for a card transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
 
         public var preferredEdgeInset: CGFloat?
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?

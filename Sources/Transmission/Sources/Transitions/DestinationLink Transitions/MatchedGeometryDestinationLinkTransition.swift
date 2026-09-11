@@ -51,7 +51,9 @@ extension DestinationLinkTransition {
     }
 
     /// The matched geometry transition style.
-    public static let matchedGeometryZoom: DestinationLinkTransition = .matchedGeometryZoom()
+    public static var matchedGeometryZoom: DestinationLinkTransition {
+        .matchedGeometryZoom()
+    }
 
     /// The matched geometry transition style.
     public static func matchedGeometryZoom(

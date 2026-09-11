@@ -11,16 +11,32 @@ extension EdgeInsets {
     static let zero = EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
 }
 
-extension UIEdgeInsets {
-    public init(
-        edgeInsets: EdgeInsets,
+extension EdgeInsets {
+
+    init(
+        edgeInsets: UIEdgeInsets,
         layoutDirection: UITraitEnvironmentLayoutDirection
     ) {
         self.init(
             top: edgeInsets.top,
-            left: layoutDirection == .rightToLeft ? edgeInsets.trailing : edgeInsets.leading,
+            leading: layoutDirection == .leftToRight ? edgeInsets.left : edgeInsets.right,
+            bottom: edgeInsets.right,
+            trailing: layoutDirection == .leftToRight ? edgeInsets.right : edgeInsets.left
+        )
+    }
+}
+
+extension UIEdgeInsets {
+
+    init(
+        edgeInsets: EdgeInsets,
+        layoutDirection: LayoutDirection
+    ) {
+        self.init(
+            top: edgeInsets.top,
+            left: layoutDirection == .leftToRight ? edgeInsets.leading : edgeInsets.trailing,
             bottom: edgeInsets.bottom,
-            right: layoutDirection == .rightToLeft ? edgeInsets.leading : edgeInsets.trailing
+            right: layoutDirection == .leftToRight ? edgeInsets.trailing : edgeInsets.leading
         )
     }
 }

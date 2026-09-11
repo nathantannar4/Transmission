@@ -35,7 +35,7 @@ public struct WindowLinkLevel: Hashable, Sendable {
 
 /// The transition style for a ``WindowLink`` and ``WindowLinkModifier``.
 @available(iOS 14.0, *)
-public struct WindowLinkTransition: Sendable {
+public struct WindowLinkTransition {
     indirect enum Value: Equatable, Sendable {
         case identity
         case opacity
@@ -48,10 +48,14 @@ public struct WindowLinkTransition: Sendable {
     var options: Options
 
     /// The identity transition.
-    public static let identity = WindowLinkTransition(value: .identity, options: .init())
+    public static var identity: WindowLinkTransition {
+        WindowLinkTransition(value: .identity, options: .init())
+    }
 
     /// The opacity transition.
-    public static let opacity = WindowLinkTransition(value: .opacity, options: .init())
+    public static var opacity: WindowLinkTransition {
+        WindowLinkTransition(value: .opacity, options: .init())
+    }
 
     /// The move transition.
     public static func move(edge: Edge) -> WindowLinkTransition {
@@ -64,7 +68,9 @@ public struct WindowLinkTransition: Sendable {
     }
 
     /// The scale transition.
-    public static let scale = WindowLinkTransition(value: .scale(scale: .leastNonzeroMagnitude), options: .init())
+    public static var scale: WindowLinkTransition {
+        WindowLinkTransition(value: .scale(scale: .leastNonzeroMagnitude), options: .init())
+    }
 
     /// The scale transition.
     public static func scale(scale: CGFloat) -> WindowLinkTransition {
@@ -127,7 +133,7 @@ extension WindowLinkTransition {
 extension WindowLinkTransition {
     /// The transition options.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
         /// When `true`, the destination will not be deallocated when dismissed and instead reused for subsequent presentations.
         public var isDestinationReusable: Bool
         /// When `true`, the destination will be dismissed when the presentation source is dismantled

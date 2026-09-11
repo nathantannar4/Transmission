@@ -59,7 +59,7 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
 
     /// The transition options for a push transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
 
         public var dimmingColor: Color?
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?

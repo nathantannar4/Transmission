@@ -12,7 +12,7 @@ extension DestinationLinkTransition {
 
     /// The zoom presentation style.
     @available(iOS 18.0, *)
-    public static let zoom: DestinationLinkTransition = .zoom()
+    public static var zoom: DestinationLinkTransition { .zoom() }
 
     /// The zoom presentation style.
     @available(iOS 18.0, *)
@@ -73,10 +73,10 @@ extension DestinationLinkTransition {
 
 /// The transition options for a zoom transition.
 @frozen
-public struct ZoomDestinationLinkTransition: Sendable {
+public struct ZoomDestinationLinkTransition {
 
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
         private var options: ZoomTransitionOptions
 
         public var dimmingColor: Color? {

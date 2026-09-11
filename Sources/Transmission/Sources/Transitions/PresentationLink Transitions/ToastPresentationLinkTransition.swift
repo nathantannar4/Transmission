@@ -11,7 +11,9 @@ import SwiftUI
 extension PresentationLinkTransition {
 
     /// The toast presentation style.
-    public static let toast: PresentationLinkTransition = .toast()
+    public static var toast: PresentationLinkTransition {
+        .toast()
+    }
 
     /// The toast presentation style.
     public static func toast(
@@ -56,7 +58,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
 
     /// The transition options for a toast transition.
     @frozen
-    public struct Options: Sendable {
+    public struct Options {
 
         public var edge: Edge
         public var preferredCornerRadius: CornerRadiusOptions?
