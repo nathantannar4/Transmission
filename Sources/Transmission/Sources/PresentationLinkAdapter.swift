@@ -265,7 +265,7 @@ class PresentationLinkCoordinatorAdapterBase: NSObject, UIAdaptivePresentationCo
     func presentationController(
         _ presentationController: UIPresentationController,
         willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
-        transitionCoordinator: (any UIViewControllerTransitionCoordinator)?
+        transitionCoordinator: UIViewControllerTransitionCoordinator?
     ) {
 
     }
@@ -300,25 +300,25 @@ class PresentationLinkCoordinatorAdapterBase: NSObject, UIAdaptivePresentationCo
         forPresented presented: UIViewController,
         presenting: UIViewController,
         source: UIViewController
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> UIViewControllerAnimatedTransitioning? {
         return nil
     }
 
     func animationController(
         forDismissed dismissed: UIViewController
-    ) -> (any UIViewControllerAnimatedTransitioning)? {
+    ) -> UIViewControllerAnimatedTransitioning? {
         return nil
     }
 
     func interactionControllerForPresentation(
-        using animator: any UIViewControllerAnimatedTransitioning
-    ) -> (any UIViewControllerInteractiveTransitioning)? {
+        using animationController: UIViewControllerAnimatedTransitioning
+    ) -> UIViewControllerInteractiveTransitioning? {
         return nil
     }
 
     func interactionControllerForDismissal(
-        using animator: any UIViewControllerAnimatedTransitioning
-    ) -> (any UIViewControllerInteractiveTransitioning)? {
+        using animationController: UIViewControllerAnimatedTransitioning
+    ) -> UIViewControllerInteractiveTransitioning? {
         return nil
     }
 }
@@ -868,6 +868,9 @@ final class PresentationLinkCoordinatorAdapter<
     }
 
     func didDismiss() {
+        if case .sheet(let options) = adapter?.transition.value, let selected = options.selected {
+            selected.wrappedValue = nil
+        }
         if adapter?.transition.options.isDestinationReusable == true {
             isBeingReused = true
         } else {
@@ -1271,22 +1274,22 @@ final class PresentationLinkCoordinatorAdapter<
     }
 
     override func interactionControllerForPresentation(
-        using animator: UIViewControllerAnimatedTransitioning
+        using animationController: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning? {
         guard let transition = adapter?.transition else { return nil }
         switch transition.value {
         case .sheet:
             guard #available(iOS 15.0, *) else { return nil }
-            return animator as? SheetPresentationControllerTransition
+            return animationController as? SheetPresentationControllerTransition
 
         case .representable(let representable):
             return representable.interactionControllerForPresentation(
-                using: animator,
+                using: animationController,
                 context: makeContext(options: transition.options)
             )
 
         case .default:
-            return animator as? UIViewControllerInteractiveTransitioning
+            return animationController as? UIViewControllerInteractiveTransitioning
 
         default:
             return nil
@@ -1294,22 +1297,22 @@ final class PresentationLinkCoordinatorAdapter<
     }
 
     override func interactionControllerForDismissal(
-        using animator: UIViewControllerAnimatedTransitioning
+        using animationController: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning? {
         guard let transition = adapter?.transition else { return nil }
         switch transition.value {
         case .sheet:
             guard #available(iOS 15.0, *) else { return nil }
-            return animator as? SheetPresentationControllerTransition
+            return animationController as? SheetPresentationControllerTransition
 
         case .representable(let representable):
             return representable.interactionControllerForDismissal(
-                using: animator,
+                using: animationController,
                 context: makeContext(options: transition.options)
             )
 
         case .default:
-            return animator as? UIViewControllerInteractiveTransitioning
+            return animationController as? UIViewControllerInteractiveTransitioning
 
         default:
             return nil
@@ -1729,19 +1732,6 @@ class PresentationLinkDestinationViewControllerAdapter<
         self.isPresented = isPresented
         self.onDismiss = onDismiss
         super.init(content: destination, context: context)
-    }
-
-    @MainActor
-    deinit {
-        switch transition.value {
-        case .sheet(let options):
-            guard let selected = options.selected else { return }
-            withCATransaction {
-                selected.wrappedValue = nil
-            }
-        default:
-            break
-        }
     }
 
     func update(

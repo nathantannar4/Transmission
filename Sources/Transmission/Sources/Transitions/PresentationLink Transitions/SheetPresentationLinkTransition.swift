@@ -583,6 +583,7 @@ open class SheetPresentationControllerTransition: SlidePresentationControllerTra
     ) {
         super.init(
             edge: .bottom,
+            initialOpacity: 1,
             isPresenting: isPresenting,
             animation: animation
         )

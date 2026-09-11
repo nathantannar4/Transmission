@@ -102,7 +102,7 @@ public struct SlideDestinationLinkTransition: DestinationLinkTransitionRepresent
 @available(iOS 14.0, *)
 open class SlideNavigationControllerTransition: NavigationControllerTransition {
 
-    public let initialOpacity: CGFloat
+    public var initialOpacity: CGFloat
 
     public init(
         initialOpacity: CGFloat,
@@ -117,51 +117,12 @@ open class SlideNavigationControllerTransition: NavigationControllerTransition {
         using transitionContext: any UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
     ) {
-        guard
-            let fromVC = transitionContext.viewController(forKey: .from),
-            let toVC = transitionContext.viewController(forKey: .to)
-        else {
-            transitionContext.completeTransition(false)
-            return
-        }
-
-        let width = transitionContext.containerView.frame.width
-        if isPresenting {
-            toVC.view.alpha = 0
-            transitionContext.containerView.addSubview(toVC.view)
-        } else {
-            transitionContext.containerView.insertSubview(toVC.view, belowSubview: fromVC.view)
-        }
-
-        toVC.view.frame = transitionContext.finalFrame(for: toVC)
-        toVC.view.layoutIfNeeded()
-
-        toVC.view.transform = CGAffineTransform(
-            translationX: isPresenting ? width : -width,
-            y: 0
+        let transition = SlideTransitionAnimator(
+            edge: .trailing,
+            initialOpacity: initialOpacity,
+            animatedViews: [.from, .to]
         )
-        let fromVCTransform = CGAffineTransform(
-            translationX: isPresenting ? -width + 1 : width,
-            y: 0
-        )
-
-        toVC.view.alpha = initialOpacity
-        animator.addAnimations { [initialOpacity] in
-            toVC.view.transform = .identity
-            toVC.view.alpha = 1
-            fromVC.view.transform = fromVCTransform
-            fromVC.view.alpha = initialOpacity
-        }
-        animator.addCompletion { animatingPosition in
-            toVC.view.transform = .identity
-            fromVC.view.transform = .identity
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
-            }
-        }
+        transition.animateTransition(with: animator, using: transitionContext, isPresenting: isPresenting)
     }
 }
 

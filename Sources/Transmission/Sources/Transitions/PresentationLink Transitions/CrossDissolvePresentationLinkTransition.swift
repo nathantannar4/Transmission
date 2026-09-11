@@ -158,9 +158,9 @@ public struct CrossDissolvePresentationLinkTransition: PresentationLinkTransitio
 @available(iOS 14.0, *)
 open class CrossDissolveControllerTransition: PresentationControllerTransition {
 
-    public let transform: CGAffineTransform
-    public let fromCornerRadius: CornerRadiusOptions?
-    public let toCornerRadius: CornerRadiusOptions?
+    public var transform: CGAffineTransform
+    public var fromCornerRadius: CornerRadiusOptions?
+    public var toCornerRadius: CornerRadiusOptions?
 
     private weak var presentedView: UIView?
 

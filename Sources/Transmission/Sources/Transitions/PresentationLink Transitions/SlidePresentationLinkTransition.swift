@@ -31,6 +31,7 @@ extension PresentationLinkTransition {
     /// The slide presentation style.
     public static func slide(
         edge: Edge = .bottom,
+        initialOpacity: CGFloat = 1,
         prefersScaleEffect: Bool = true,
         dimmingColor: Color? = nil,
         preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
@@ -42,6 +43,7 @@ extension PresentationLinkTransition {
         .slide(
             .init(
                 edge: edge,
+                initialOpacity: initialOpacity,
                 prefersScaleEffect: prefersScaleEffect,
                 dimmingColor: dimmingColor,
                 preferredFromCornerRadius: preferredFromCornerRadius,
@@ -67,6 +69,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     public struct Options {
 
         public var edge: Edge
+        public var initialOpacity: CGFloat
         public var prefersScaleEffect: Bool
         public var dimmingColor: Color?
         public var preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle?
@@ -76,6 +79,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
 
         public init(
             edge: Edge = .bottom,
+            initialOpacity: CGFloat = 1,
             prefersScaleEffect: Bool = true,
             dimmingColor: Color? = nil,
             preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
@@ -84,6 +88,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
             self.edge = edge
+            self.initialOpacity = initialOpacity
             self.prefersScaleEffect = prefersScaleEffect
             self.dimmingColor = dimmingColor
             self.preferredFromCornerRadius = preferredFromCornerRadius
@@ -137,6 +142,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) -> SlidePresentationControllerTransition? {
         let transition = SlidePresentationControllerTransition(
             edge: options.edge,
+            initialOpacity: options.initialOpacity,
             isPresenting: true,
             animation: context.transaction.animation
         )
@@ -155,6 +161,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) -> SlidePresentationControllerTransition? {
         let transition = SlidePresentationControllerTransition(
             edge: options.edge,
+            initialOpacity: options.initialOpacity,
             isPresenting: false,
             animation: context.transaction.animation
         )

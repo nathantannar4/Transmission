@@ -45,23 +45,26 @@ public protocol DestinationLinkPushTransitionRepresentable {
     associatedtype UIPushAnimationControllerType: UIViewControllerAnimatedTransitioning
     associatedtype UIPushInteractionControllerType: UIViewControllerInteractiveTransitioning
 
-    /// The interaction controller to use for the transition presentation.
+    /// The animation controller to use for the transition.
     ///
     /// > Note: This protocol implementation is optional and defaults to `nil`
     ///
-    @MainActor @preconcurrency func navigationController(
-        _ navigationController: UINavigationController,
-        interactionControllerForPush animationController: UIViewControllerAnimatedTransitioning,
-        context: Context
-    ) -> UIPushInteractionControllerType?
-
-    /// The animation controller to use for the transition presentation.
     @MainActor @preconcurrency func navigationController(
         _ navigationController: UINavigationController,
         pushing toVC: UIViewController,
         from fromVC: UIViewController,
         context: Context
     ) -> UIPushAnimationControllerType?
+
+    /// The interaction controller to use for the transition.
+    ///
+    /// > Note: This protocol implementation is optional and defaults to the `animationController`
+    ///
+    @MainActor @preconcurrency func navigationController(
+        _ navigationController: UINavigationController,
+        interactionControllerForPush animationController: UIViewControllerAnimatedTransitioning,
+        context: Context
+    ) -> UIPushInteractionControllerType?
 }
 
 @available(iOS 14.0, *)
@@ -157,7 +160,7 @@ public struct DestinationLinkDefaultPopTransition: DestinationLinkPopTransitionR
 
     public func navigationController(
         _ navigationController: UINavigationController,
-        interactionControllerForPop animationController: any UIViewControllerAnimatedTransitioning,
+        interactionControllerForPop animationController: UIViewControllerAnimatedTransitioning,
         context: Context
     ) -> UIViewControllerInteractiveTransitioning? {
         return nil

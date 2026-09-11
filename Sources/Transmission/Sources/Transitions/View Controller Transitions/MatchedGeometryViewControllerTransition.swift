@@ -11,12 +11,12 @@ import SwiftUI
 public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTransitionAnimator {
 
     public weak var sourceView: UIView?
-    public let prefersScaleEffect: Bool
-    public let prefersZoomEffect: Bool
-    public let preferredFromCornerRadius: CornerRadiusOptions?
-    public let preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
-    public let initialOpacity: CGFloat
-    public let sourceViewFrameTransform: SourceViewFrameTransform?
+    public var prefersScaleEffect: Bool
+    public var prefersZoomEffect: Bool
+    public var preferredFromCornerRadius: CornerRadiusOptions?
+    public var preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?
+    public var initialOpacity: CGFloat
+    public var sourceViewFrameTransform: SourceViewFrameTransform?
 
     public init(
         sourceView: UIView?,

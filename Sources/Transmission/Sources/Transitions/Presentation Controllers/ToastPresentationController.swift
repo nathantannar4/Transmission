@@ -119,7 +119,7 @@ open class ToastPresentationController: InteractivePresentationController {
 @available(iOS 14.0, *)
 open class ToastPresentationControllerTransition: PresentationControllerTransition {
 
-    public let edge: Edge
+    public var edge: Edge
 
     public init(
         edge: Edge,

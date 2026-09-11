@@ -81,7 +81,7 @@ final class UINavigationControllerDelegateProxy: NSObject, UINavigationControlle
 
     func navigationController(
         _ navigationController: UINavigationController,
-        interactionControllerFor animationController: any UIViewControllerAnimatedTransitioning
+        interactionControllerFor animationController: UIViewControllerAnimatedTransitioning
     ) -> UIViewControllerInteractiveTransitioning? {
         if let interactionController = override?.navigationController?(navigationController, interactionControllerFor: animationController) {
             return interactionController

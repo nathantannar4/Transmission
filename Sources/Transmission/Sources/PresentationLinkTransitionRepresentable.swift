@@ -136,7 +136,7 @@ public protocol PresentationLinkPresentingTransitionRepresentable {
 
     /// The interaction controller to use for the transition presentation.
     ///
-    /// > Note: This protocol implementation is optional and defaults to `nil`
+    /// > Note: This protocol implementation is optional and defaults to the animator
     ///
     @MainActor @preconcurrency func interactionControllerForPresentation(
         using animator: UIViewControllerAnimatedTransitioning,
@@ -202,10 +202,10 @@ public protocol PresentationLinkDismissingTransitionRepresentable {
 
     /// The interaction controller to use for the transition dismissal.
     ///
-    /// > Note: This protocol implementation is optional and defaults to `nil`
+    /// > Note: This protocol implementation is optional and defaults to the `animationController`
     ///
     @MainActor @preconcurrency func interactionControllerForDismissal(
-        using animator: UIViewControllerAnimatedTransitioning,
+        using animationController: UIViewControllerAnimatedTransitioning,
         context: Context
     ) -> UIDismissingInteractionControllerType?
 }
@@ -214,10 +214,10 @@ public protocol PresentationLinkDismissingTransitionRepresentable {
 extension PresentationLinkDismissingTransitionRepresentable {
 
     public func interactionControllerForDismissal(
-        using animator: UIViewControllerAnimatedTransitioning,
+        using animationController: UIViewControllerAnimatedTransitioning,
         context: Context
     ) -> UIViewControllerInteractiveTransitioning? {
-        return animator as? UIViewControllerInteractiveTransitioning
+        return animationController as? UIViewControllerInteractiveTransitioning
     }
 }
 
@@ -334,10 +334,10 @@ extension PresentationLinkTransitionRepresentable
 
     @MainActor @preconcurrency
     public func interactionControllerForDismissal(
-        using animator: UIViewControllerAnimatedTransitioning,
+        using animationController: UIViewControllerAnimatedTransitioning,
         context: Context
     ) -> UIViewControllerInteractiveTransitioning? {
-        return animator as? PresentationControllerTransition
+        return animationController as? PresentationControllerTransition
     }
 }
 

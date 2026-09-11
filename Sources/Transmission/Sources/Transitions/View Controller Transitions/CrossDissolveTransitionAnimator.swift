@@ -8,9 +8,9 @@ import UIKit
 
 public struct CrossDissolveTransitionAnimator: ViewControllerTransitionAnimator {
 
-    public let transform: CGAffineTransform
-    public let fromCornerRadius: CornerRadiusOptions?
-    public let toCornerRadius: CornerRadiusOptions?
+    public var transform: CGAffineTransform
+    public var fromCornerRadius: CornerRadiusOptions?
+    public var toCornerRadius: CornerRadiusOptions?
 
     public init(
         transform: CGAffineTransform,

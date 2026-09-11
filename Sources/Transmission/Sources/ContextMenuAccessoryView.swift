@@ -217,6 +217,7 @@ extension UIContextMenuInteraction {
         let allocSelector = NSSelectorFromString("alloc")
         guard let instance = aClass.perform(allocSelector)?.takeUnretainedValue() else { return nil }
 
+        let isRTL = interaction.view?.effectiveUserInterfaceLayoutDirection == .rightToLeft
         let location = layout?.location ?? .menu
         let alignment = layout?.alignment ?? {
             switch location {
@@ -264,14 +265,14 @@ extension UIContextMenuInteraction {
                     leadingInset += (scale * (insets.left + aspectRatio)).rounded(scale: view.traitCollection.displayScale)
                     trailingInset += (scale * (insets.right + aspectRatio)).rounded(scale: view.traitCollection.displayScale)
                 }
-                switch alignment.horizontal {
-                case .leading:
+                switch (alignment.horizontal, isRTL) {
+                case (.leading, false), (.trailing, true):
                     return CGSize(
                         width: fittingRect.width - leadingInset - insets.right,
                         height: fittingRect.height
                     )
 
-                case .trailing:
+                case (.trailing, false), (.leading, true):
                     return CGSize(
                         width: fittingRect.width - trailingInset - insets.left,
                         height: fittingRect.height
@@ -309,13 +310,18 @@ extension UIContextMenuInteraction {
             var anchor = ContextMenuAccessoryViewAnchor(
                 placement: {
                     switch alignment.vertical {
-                    case .top: return 1
-                    case .center: return 0
-                    case .bottom: return 4
+                    case .top:
+                        return 1
+                    case .center:
+                        return 0
+                    case .bottom:
+                        return 4
                     default:
                         switch alignment.horizontal {
-                        case .leading: return 2
-                        case .trailing: return 3
+                        case .leading:
+                            return isRTL ? 3 : 2
+                        case .trailing:
+                            return isRTL ? 2 : 3
                         default:
                             return 0
                         }
@@ -323,9 +329,12 @@ extension UIContextMenuInteraction {
                 }(),
                 alignment: {
                     switch alignment.horizontal {
-                    case .leading: return 2
-                    case .center: return 3
-                    case .trailing: return 8
+                    case .leading:
+                        return isRTL ? 8 : 2
+                    case .center:
+                        return 3
+                    case .trailing:
+                        return isRTL ? 2 : 8
                     default:
                         return 3
                     }

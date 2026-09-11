@@ -122,6 +122,7 @@ open class SlidePresentationController: InteractivePresentationController {
             if fromPresentationController is SlidePresentationController || fromPresentationController == nil {
                 if let portalView = PortalView(sourceView: presentingViewController.view) {
                     portalView.hidesSourceView = true
+                    portalView.matchesAlpha = true
                     portalView.layer.cornerCurve = .circular
                     portalView.layer.masksToBounds = true
                     portalView.layer.cornerRadius = UIScreen.main.displayCornerRadius()
@@ -166,13 +167,16 @@ open class SlidePresentationController: InteractivePresentationController {
 open class SlidePresentationControllerTransition: PresentationControllerTransition {
 
     public var edge: Edge
+    public var initialOpacity: CGFloat
 
     public init(
         edge: Edge,
+        initialOpacity: CGFloat,
         isPresenting: Bool,
         animation: Animation?
     ) {
         self.edge = edge
+        self.initialOpacity = initialOpacity
         super.init(isPresenting: isPresenting, animation: animation)
     }
 
@@ -180,91 +184,12 @@ open class SlidePresentationControllerTransition: PresentationControllerTransiti
         using transitionContext: any UIViewControllerContextTransitioning,
         animator: UIViewPropertyAnimator
     ) {
-        guard
-            let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
-            let presenting = transitionContext.viewController(forKey: isPresenting ? .from : .to),
-            let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
-            let presentingView = transitionContext.view(forKey: isPresenting ? .from : .to) ?? presenting.view
-        else {
-            transitionContext.completeTransition(false)
-            return
-        }
-
-        if isPresenting {
-            presentedView.alpha = 0
-            var presentedFrame = transitionContext.finalFrame(for: presented)
-            if presentedView.superview == nil {
-                transitionContext.containerView.addSubview(presentedView)
-            }
-            presentedView.frame = presentedFrame
-            presentedView.layoutIfNeeded()
-
-            configureTransitionReaderCoordinator(
-                presented: presented,
-                presentedView: presentedView,
-                presentedFrame: &presentedFrame
-            )
-
-            let transform = presentationTransform(
-                presented: presented,
-                frame: presentedFrame
-            )
-            presentedView.transform = transform
-            presentedView.alpha = 1
-            animator.addAnimations {
-                presentedView.transform = .identity
-            }
-        } else {
-            if presentingView.superview == nil {
-                transitionContext.containerView.insertSubview(presentingView, at: 0)
-                presentingView.frame = transitionContext.finalFrame(for: presenting)
-                presentingView.layoutIfNeeded()
-            }
-            let frame = transitionContext.initialFrame(for: presented)
-            let transform = presentationTransform(
-                presented: presented,
-                frame: frame
-            )
-            presentedView.layoutIfNeeded()
-
-            animator.addAnimations {
-                presentedView.transform = transform
-            }
-        }
-        animator.addCompletion { animatingPosition in
-            switch animatingPosition {
-            case .end:
-                transitionContext.completeTransition(true)
-            default:
-                transitionContext.completeTransition(false)
-            }
-        }
-    }
-
-    private func presentationTransform(
-        presented: UIViewController,
-        frame: CGRect
-    ) -> CGAffineTransform {
-        switch edge {
-        case .top:
-            return CGAffineTransform(translationX: 0, y: -frame.maxY)
-        case .bottom:
-            return CGAffineTransform(translationX: 0, y: frame.maxY)
-        case .leading:
-            switch presented.traitCollection.layoutDirection {
-            case .rightToLeft:
-                return CGAffineTransform(translationX: frame.maxX, y: 0)
-            default:
-                return CGAffineTransform(translationX: -frame.maxX, y: 0)
-            }
-        case .trailing:
-            switch presented.traitCollection.layoutDirection {
-            case .leftToRight:
-                return CGAffineTransform(translationX: frame.maxX, y: 0)
-            default:
-                return CGAffineTransform(translationX: -frame.maxX, y: 0)
-            }
-        }
+        let transition = SlideTransitionAnimator(
+            edge: edge,
+            initialOpacity: initialOpacity,
+            animatedViews: [.to]
+        )
+        transition.animateTransition(with: animator, using: transitionContext, isPresenting: isPresenting)
     }
 }
 
