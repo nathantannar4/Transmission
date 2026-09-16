@@ -37,7 +37,7 @@ extension UIView.AnimationCurve {
         case .easeInOut:
             return .easeInOut(duration: duration)
         @unknown default:
-            return .easeInOut(duration: duration)
+            return .timingCurve(0.25, 0.1, 0.25, 1.0, duration: duration)
         }
     }
 }

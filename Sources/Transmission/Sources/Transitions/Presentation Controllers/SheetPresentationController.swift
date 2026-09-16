@@ -477,12 +477,13 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
 
         switch gesture.state {
         case .began, .changed:
+            let translation = gesture.translation(in: gesture.view)
             let canResign = presentedViewController.isBeingDismissed || {
                 guard
                     let scrollView = gesture.view as? UIScrollView,
                     scrollView.contentScrollsAlongYAxis
                 else {
-                    return gesture.state == .began
+                    return translation.y > 0
                 }
                 return scrollView.contentOffset.y <= scrollView.adjustedContentInset.top
             }()
@@ -494,7 +495,6 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
                     }
                 }
             }
-            let translation = gesture.translation(in: gesture.view)
             if #available(iOS 26.0, *), presentedViewController.isBeingDismissed, translation.y < 0, let interactionController, interactionController.completionSpeed < 1 {
                 // Fix UIKit transition delaying ending, `completionSpeed` is
                 interactionController.pause()
@@ -570,10 +570,9 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             }
         } else {
             guard
-                let aClass = class_getSuperclass(Self.self),
                 // dimmingViewWasTapped:
                 let aSelector = NSSelectorFromBase64EncodedString("ZGltbWluZ1ZpZXdXYXNUYXBwZWQ6"),
-                let imp = class_getMethodImplementation(aClass, aSelector)
+                let imp = class_getMethodImplementation(UISheetPresentationController.self, aSelector)
             else {
                 return
             }
@@ -589,10 +588,9 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             return false
         }
         guard
-            let aClass = class_getSuperclass(Self.self),
             // _shouldDismissByDragging
             let aSelector = NSSelectorFromBase64EncodedString("X3Nob3VsZERpc21pc3NCeURyYWdnaW5n"),
-            let imp = class_getMethodImplementation(aClass, aSelector)
+            let imp = class_getMethodImplementation(UISheetPresentationController.self, aSelector)
         else {
             return true
         }
@@ -609,10 +607,9 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             return
         }
         guard
-            let aClass = class_getSuperclass(Self.self),
             // _sendDidChangeSelectedDetentIdentifier
             let aSelector = NSSelectorFromBase64EncodedString("X3NlbmREaWRDaGFuZ2VTZWxlY3RlZERldGVudElkZW50aWZpZXI="),
-            let imp = class_getMethodImplementation(aClass, aSelector)
+            let imp = class_getMethodImplementation(UISheetPresentationController.self, aSelector)
         else {
             didChangeSelectedDetentIdentifier()
             return
