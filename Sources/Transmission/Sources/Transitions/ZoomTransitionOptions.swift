@@ -26,7 +26,7 @@ public struct ZoomTransitionOptions {
 
     @MainActor @preconcurrency
     @available(iOS 18.0, *)
-    func toUIKit() -> UIViewController.Transition.ZoomOptions {
+    public func toUIKit() -> UIViewController.Transition.ZoomOptions {
         let options = UIViewController.Transition.ZoomOptions()
         options.dimmingColor = dimmingColor?.toUIColor()
         options.dimmingVisualEffect = dimmingVisualEffect.map { UIBlurEffect(style: $0) }

@@ -28,7 +28,7 @@ public struct MenuIdentifier: Hashable, ExpressibleByStringLiteral {
         self.id = id
     }
 
-    func toUIKit() -> UIMenu.Identifier {
+    public func toUIKit() -> UIMenu.Identifier {
         return id
     }
 }
@@ -55,7 +55,7 @@ public struct MenuOptions: OptionSet {
     @available(iOS 17.0, *)
     public static let displayAsPalette = MenuOptions(rawValue: 1 << 3)
 
-    func toUIKit() -> UIMenu.Options {
+    public func toUIKit() -> UIMenu.Options {
         var options = UIMenu.Options()
         if contains(.displayInline) { options.insert(.displayInline) }
         if contains(.destructive) { options.insert(.destructive) }
@@ -87,6 +87,16 @@ public struct MenuDisplayPreferences {
         preferredLineLimit: Int? = nil
     ) {
         self.preferredLineLimit = preferredLineLimit
+    }
+
+    @available(iOS 17.4, *)
+    @MainActor
+    public func toUIKit() -> UIMenuDisplayPreferences {
+        let preferences = UIMenuDisplayPreferences()
+        if let lineLimit {
+            preferences.maximumNumberOfTitleLines = lineLimit
+        }
+        return preferences
     }
 }
 
@@ -147,7 +157,7 @@ public struct MenuSize {
     }
 
     @available(iOS 16.0, *)
-    func toUIKit() -> UIMenu.ElementSize {
+    public func toUIKit() -> UIMenu.ElementSize {
         switch value {
         case .small:
             return .small
@@ -257,9 +267,7 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
             )
         }
         if #available(iOS 17.4, *) {
-            let preferences = UIMenuDisplayPreferences()
-            preferences.maximumNumberOfTitleLines = displayPreferences.lineLimit ?? 0
-            menu.displayPreferences = preferences
+            menu.displayPreferences = displayPreferences.toUIKit()
         }
         return menu
     }
@@ -278,7 +286,7 @@ public struct MenuGroup<Content: MenuElement>: MenuElementRepresentable {
             element.setValue(size.toUIKit().rawValue, forKey: "preferredElementSize")
         }
         if #available(iOS 17.4, *) {
-            element.displayPreferences?.maximumNumberOfTitleLines = displayPreferences.lineLimit ?? 0
+            element.displayPreferences = displayPreferences.toUIKit()
         }
 
         var updated = element.children

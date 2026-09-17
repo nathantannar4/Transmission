@@ -18,7 +18,7 @@ public enum SnapshotRendererColorSpace {
     // The non-linear sRGB working color space.
     case nonLinear
 
-    func toCoreGraphics() -> CGColorSpace {
+    public func toCoreGraphics() -> CGColorSpace {
         switch self {
         case .extendedLinear:
             return CGColorSpace(name: CGColorSpace.extendedLinearSRGB)!
@@ -29,7 +29,7 @@ public enum SnapshotRendererColorSpace {
         }
     }
 
-    func toUIKit() -> UIGraphicsImageRendererFormat.Range {
+    public func toUIKit() -> UIGraphicsImageRendererFormat.Range {
         switch self {
         case .extendedLinear:
             return .extended

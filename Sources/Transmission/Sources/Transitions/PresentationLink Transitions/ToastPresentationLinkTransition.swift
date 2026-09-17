@@ -105,7 +105,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         presentationController.insetSafeAreaByCornerRadius = options.insetSafeAreaByCornerRadius
         presentationController.preferredCornerRadius = options.preferredCornerRadius
         presentationController.presentedViewShadow = options.preferredPresentationShadow ?? .minimal
-        presentationController.preferredSafeAreaInsets = context.options.preferredPresentationSafeAreaInsets?.resolve(in: context.environment)
+        presentationController.preferredSafeAreaInsets = context.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(layoutDirection: context.environment.layoutDirection)
     }
 
     public func updateHostingController<Content>(

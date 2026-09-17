@@ -183,8 +183,8 @@ public struct SheetPresentationLinkTransition {
             @available(macOS, unavailable)
             @available(tvOS, unavailable)
             @available(watchOS, unavailable)
-            func toUIKit() -> UISheetPresentationController.Detent.Identifier {
-                .init(rawValue: rawValue)
+            public func toUIKit() -> UISheetPresentationController.Detent.Identifier {
+                UISheetPresentationController.Detent.Identifier(rawValue: rawValue)
             }
         }
 

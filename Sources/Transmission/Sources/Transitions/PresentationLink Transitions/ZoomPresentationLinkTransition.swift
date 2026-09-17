@@ -132,7 +132,7 @@ public struct ZoomPresentationLinkTransition {
 
         @MainActor @preconcurrency
         @available(iOS 18.0, *)
-        func toUIKit() -> UIViewController.Transition.ZoomOptions {
+        public func toUIKit() -> UIViewController.Transition.ZoomOptions {
             options.toUIKit()
         }
     }

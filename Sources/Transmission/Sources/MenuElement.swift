@@ -75,7 +75,7 @@ public struct MenuElementAttributes: OptionSet, Sendable {
         return []
     }
 
-    func toUIKit() -> UIMenuElement.Attributes {
+    public func toUIKit() -> UIMenuElement.Attributes {
         var attributes = UIMenuElement.Attributes()
         if contains(.disabled) { attributes.insert(.disabled) }
         if contains(.destructive) { attributes.insert(.destructive) }

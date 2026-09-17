@@ -27,7 +27,7 @@ public struct MenuButton: MenuElementRepresentable {
             self.id = id
         }
 
-        func toUIKit() -> UIAction.Identifier {
+        public func toUIKit() -> UIAction.Identifier {
             return id
         }
     }
@@ -44,7 +44,7 @@ public struct MenuButton: MenuElementRepresentable {
         case on
         case mixed
 
-        func toUIKit() -> UIAction.State {
+        public func toUIKit() -> UIAction.State {
             switch self {
             case .off:
                 return .off

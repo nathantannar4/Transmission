@@ -43,7 +43,7 @@ public struct BlurEffect: Equatable {
         // A non-material blur thats mostly translucent
         case `default`
 
-        func toUIKit() -> UIBlurEffect.Style {
+        public func toUIKit() -> UIBlurEffect.Style {
             switch self {
             case .ultraThin:
                 return .systemUltraThinMaterial
@@ -61,7 +61,7 @@ public struct BlurEffect: Equatable {
         }
 
         @available(iOS 15.0, *)
-        func toSwiftUI() -> Material {
+        public func toSwiftUI() -> Material {
             switch self {
             case .ultraThin:
                 return .ultraThin
@@ -127,7 +127,7 @@ public struct VibrancyEffect: Equatable {
         case tertiaryFill
         case separator
 
-        func toUIKit() -> UIVibrancyEffectStyle {
+        public func toUIKit() -> UIVibrancyEffectStyle {
             switch self {
             case .label:
                 return .label
@@ -199,7 +199,7 @@ public struct GlassEffect: Equatable {
 
         #if canImport(FoundationModels) // Xcode 26
         @available(iOS 26.0, *)
-        func toUIKit() -> UIGlassEffect.Style {
+        public func toUIKit() -> UIGlassEffect.Style {
             switch self {
             case .regular:
                 return .regular
@@ -209,7 +209,7 @@ public struct GlassEffect: Equatable {
         }
 
         @available(iOS 26.0, *)
-        func toSwiftUI() -> Glass {
+        public func toSwiftUI() -> Glass {
             switch self {
             case .regular:
                 return .regular

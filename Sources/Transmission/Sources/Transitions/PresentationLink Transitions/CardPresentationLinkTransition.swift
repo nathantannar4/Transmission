@@ -150,7 +150,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         presentationController.preferredAspectRatio = options.preferredAspectRatio
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
-        presentationController.preferredSafeAreaInsets = context.options.preferredPresentationSafeAreaInsets?.resolve(in: context.environment)
+        presentationController.preferredSafeAreaInsets = context.options.preferredPresentationSafeAreaInsets?.toUIEdgeInsets(layoutDirection: context.environment.layoutDirection)
     }
 
     public func updateHostingController<Content>(
