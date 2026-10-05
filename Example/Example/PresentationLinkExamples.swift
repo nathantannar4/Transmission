@@ -457,24 +457,26 @@ struct PresentationLinkExamples: View {
                 Text("Extra fancy matched geometry transition")
                     .font(.callout.weight(.medium))
 
+                let toCornerRadius: CornerRadiusOptions.RoundedRectangle = .screen(minimum: 25)
                 PresentationSourceViewLink(
                     transition: .asymmetric(
                         presented: CardPresentationLinkTransition(
                             options: .init(
+                                preferredCornerRadius: toCornerRadius,
                                 preferredAspectRatio: nil,
                             )
                         ),
                         presenting: MatchedGeometryPresentationLinkTransition(
                             options: .init(
                                 preferredFromCornerRadius: .capsule,
-                                preferredToCornerRadius: .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - CardPresentationLinkTransition.defaultEdgeInset),
+                                preferredToCornerRadius: toCornerRadius,
                                 initialOpacity: 1
                             )
                         ),
                         dismissing: MatchedGeometryPresentationLinkTransition(
                             options: .init(
                                 preferredFromCornerRadius: .capsule,
-                                preferredToCornerRadius: .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - CardPresentationLinkTransition.defaultEdgeInset),
+                                preferredToCornerRadius: toCornerRadius,
                                 initialOpacity: 1
                             )
                         ),
@@ -647,24 +649,26 @@ struct InfoCardView: View {
                         }
                 }
 
+                let toCornerRadius: CornerRadiusOptions.RoundedRectangle = .screen(minimum: 25)
                 PresentationLink(
                     transition: .asymmetric(
                         presented: CardPresentationLinkTransition(
                             options: .init(
-                                preferredAspectRatio: nil
+                                preferredCornerRadius: toCornerRadius,
+                                preferredAspectRatio: nil,
                             )
                         ),
                         presenting: MatchedGeometryPresentationLinkTransition(
                             options: .init(
                                 preferredFromCornerRadius: .capsule,
-                                preferredToCornerRadius: .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - CardPresentationLinkTransition.defaultEdgeInset),
+                                preferredToCornerRadius: toCornerRadius,
                                 initialOpacity: 1
                             )
                         ),
                         dismissing: MatchedGeometryPresentationLinkTransition(
                             options: .init(
                                 preferredFromCornerRadius: .capsule,
-                                preferredToCornerRadius: .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - CardPresentationLinkTransition.defaultEdgeInset),
+                                preferredToCornerRadius: toCornerRadius,
                                 initialOpacity: 1
                             )
                         ),

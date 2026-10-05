@@ -11,28 +11,20 @@ import SwiftUI
 @available(iOS 14.0, *)
 open class MatchedGeometryPresentationController: InteractivePresentationController {
 
-    public var minimumScaleFactor: CGFloat
+    public var minimumScaleFactor: CGFloat = 0.5
 
     open override var wantsInteractiveDismissal: Bool {
         return true
     }
 
-    public init(
-        edges: Edge.Set = .all,
-        dimmingColor: Color? = nil,
-        minimumScaleFactor: CGFloat = 0.5,
+    public override init(
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
-        self.minimumScaleFactor = minimumScaleFactor
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-        self.edges = edges
-        if let dimmingColor {
-            self.dimmingView.backgroundColor = dimmingColor.toUIColor()
-        }
         dimmingView.isHidden = false
     }
 
@@ -74,7 +66,7 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
         super.transformPresentedView(transform: transform)
         guard let presentedView else { return }
         if transform.isIdentity {
-            CornerRadiusOptions.identity.apply(to: presentedView)
+            CornerRadiusOptions.identity.setCornerRadius(to: presentedView)
             dimmingView.alpha = 1
         } else {
             let transformProgress: CGFloat = {
@@ -84,11 +76,8 @@ open class MatchedGeometryPresentationController: InteractivePresentationControl
                 return min((1 - max(dx, dy)), min(transform.a, transform.d))
             }()
             let progress = max(0, min(transformProgress, 1))
-            var cornerRadius = CornerRadiusOptions.RoundedRectangle.screen(min: 0)
-            if let radius = cornerRadius.cornerRadii?.uniformCornerRadius {
-                cornerRadius.cornerRadii = CornerRadiusOptions.CornerRadii(cornerRadius: radius * progress)
-            }
-            cornerRadius.apply(to: presentedView)
+            let cornerRadius = CornerRadiusOptions.RoundedRectangle.screen()
+            cornerRadius.setCornerRadius(to: presentedView)
             dimmingView.alpha = progress
         }
     }

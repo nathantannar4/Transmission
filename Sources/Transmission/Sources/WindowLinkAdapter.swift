@@ -80,14 +80,16 @@ private struct WindowLinkAdapterBody<
     }
 
     func updateUIView(_ uiView: WindowReader, context: Context) {
-        context.coordinator.onUpdate(
-            isPresented: isPresented,
-            level: level,
-            transition: transition,
-            destination: destination,
-            context: context,
-            sourceView: uiView
-        )
+        withCATransaction {
+            context.coordinator.onUpdate(
+                isPresented: isPresented,
+                level: level,
+                transition: transition,
+                destination: destination,
+                context: context,
+                sourceView: uiView
+            )
+        }
     }
 
     static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
@@ -127,8 +129,8 @@ final class WindowLinkCoordinatorAdapter<
             presentingWindow = window
             if let adapter {
                 let isAnimated = animation != nil
-                withCATransaction {
-                    self.present(
+                withCATransaction { [weak self] in
+                    self?.present(
                         adapter: adapter,
                         presentingWindow: window,
                         isAnimated: isAnimated

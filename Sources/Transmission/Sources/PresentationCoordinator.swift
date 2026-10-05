@@ -184,7 +184,6 @@ struct PresentationBridgeAdapter: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .modifier(_ViewInputsBridgeModifier())
             .environment(\.presentationCoordinator, presentationCoordinator)
     }
 }

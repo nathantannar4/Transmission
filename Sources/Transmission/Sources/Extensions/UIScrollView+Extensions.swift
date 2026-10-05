@@ -8,7 +8,7 @@ import UIKit
 
 extension UIScrollView {
 
-    var contentScrollsAlongYAxis: Bool {
+    public var contentScrollsAlongYAxis: Bool {
         guard
             // _contentScrollsAlongYAxis
             let aSelector = NSStringFromBase64EncodedString("X2NvbnRlbnRTY3JvbGxzQWxvbmdZQXhpcw=="),
@@ -20,7 +20,7 @@ extension UIScrollView {
         return value
     }
 
-    var contentScrollsAlongXAxis: Bool {
+    public var contentScrollsAlongXAxis: Bool {
         guard
             // _contentScrollsAlongXAxis
             let aSelector = NSStringFromBase64EncodedString("X2NvbnRlbnRTY3JvbGxzQWxvbmdYQXhpcw=="),

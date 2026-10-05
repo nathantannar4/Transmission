@@ -90,13 +90,15 @@ private struct PresentationLinkPathAdapter<
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
-        context.coordinator.onUpdate(
-            path: path,
-            transition: transition,
-            destination: destination,
-            context: context,
-            sourceView: uiView
-        )
+        withCATransaction {
+            context.coordinator.onUpdate(
+                path: path,
+                transition: transition,
+                destination: destination,
+                context: context,
+                sourceView: uiView
+            )
+        }
     }
 
     static func dismantleUIView(
@@ -141,8 +143,8 @@ final class PresentationLinkPathCoordinator<
             presentingViewController = viewController
             if !coordinators.isEmpty {
                 let isAnimated = animation != nil
-                withCATransaction { [ids] in
-                    self.update(
+                withCATransaction { [weak self, ids] in
+                    self?.update(
                         presentingViewController: viewController,
                         added: ids,
                         removed: [],

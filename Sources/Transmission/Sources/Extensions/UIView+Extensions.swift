@@ -46,7 +46,7 @@ extension UIView {
         return value
     }
 
-    public func _firstAncestor<T: UIView>(ofType type: T.Type, matching: (T) -> Bool) -> T? {
+    public func _firstAncestor<T: UIView>(ofType type: T.Type, matching: (T) -> Bool = { _ in true }) -> T? {
         firstAncestor(ofType: type, matching: matching)
     }
 
@@ -54,7 +54,7 @@ extension UIView {
         firstAncestor(ofType: UIView.self, matching: matching)
     }
 
-    func firstAncestor<T: UIView>(ofType type: T.Type, matching: (T) -> Bool) -> T? {
+    func firstAncestor<T: UIView>(ofType type: T.Type, matching: (T) -> Bool = { _ in true }) -> T? {
         if let superview {
             if let match = superview as? T, matching(match) {
                 return match
@@ -64,7 +64,7 @@ extension UIView {
         return nil
     }
 
-    public func _firstDescendent<T: UIView>(ofType type: T.Type, matching: (T) -> Bool) -> T? {
+    public func _firstDescendent<T: UIView>(ofType type: T.Type, matching: (T) -> Bool = { _ in true }) -> T? {
         firstDescendent(ofType: type, matching: matching)
     }
 
@@ -72,7 +72,7 @@ extension UIView {
         firstDescendent(ofType: UIView.self, matching: matching)
     }
 
-    func firstDescendent<T: UIView>(ofType type: T.Type, matching: (T) -> Bool) -> T? {
+    func firstDescendent<T: UIView>(ofType type: T.Type, matching: (T) -> Bool = { _ in true }) -> T? {
         for subview in subviews {
             if let match = subview as? T, matching(match) {
                 return match

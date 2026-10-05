@@ -50,13 +50,12 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         using transitionContext: UIViewControllerContextTransitioning
     ) {
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
-        animatedStarted(transitionContext: transitionContext)
 
         if transitionContext.isAnimated {
             let delay = animation?.delay ?? 0
             animator.startAnimation(afterDelay: delay)
         } else {
-            animator.finishAnimation(at: .end)
+            complete(true)
         }
     }
 
@@ -128,10 +127,15 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
     }
 
     open func complete(_ didComplete: Bool) {
-        if animator?.state != .stopped {
-            animator?.stopAnimation(false)
+        guard let animator else { return }
+        // `finishAnimation` requires a stopped animator, and `stopAnimation` is a no-op when inactive
+        if animator.state == .inactive {
+            animator.pauseAnimation()
         }
-        animator?.finishAnimation(at: didComplete ? .end : .start)
+        if animator.state == .active {
+            animator.stopAnimation(false)
+        }
+        animator.finishAnimation(at: didComplete ? .end : .start)
     }
 
     open override func responds(to aSelector: Selector!) -> Bool {
@@ -156,9 +160,19 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         animator.isInterruptible = isInterruptible
         // This must be set before configuring, as view layout can sometimes trigger re-entry
         self.animator = animator
-        configureTransitionAnimator(using: transitionContext, animator: animator)
+        // Prevent any implicit animations when configuring starting configuration
+        UIView.performWithoutAnimation {
+            _configureTransitionAnimator(using: transitionContext, animator: animator)
+        }
         animatedStarted(transitionContext: transitionContext)
         return animator
+    }
+
+    open func _configureTransitionAnimator(
+        using transitionContext: UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
+        configureTransitionAnimator(using: transitionContext, animator: animator)
     }
 
     public func configureTransitionReaderCoordinator(
@@ -208,7 +222,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
         let isPresenting = isPresenting
         if isPresenting {
-            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -230,10 +243,14 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             }
             presentedView.layoutIfNeeded()
         }
+        if isPresenting {
+            presentedView.alpha = 0
+        }
         animator.addAnimations {
             presentedView.alpha = isPresenting ? 1 : 0
         }
         animator.addCompletion { animatingPosition in
+            presentedView.alpha = 1
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

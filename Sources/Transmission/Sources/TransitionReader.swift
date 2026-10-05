@@ -151,8 +151,8 @@ final class TransitionReaderCoordinator: NSObject {
             }
         }
 
-        withCATransaction {
-            self.transitionCoordinatorDidChange(isAppearing: true)
+        withCATransaction { [weak self] in
+            self?.transitionCoordinatorDidChange(isAppearing: true)
         }
     }
 
@@ -186,12 +186,12 @@ final class TransitionReaderCoordinator: NSObject {
                 guard proxy.wrappedValue.progress != newValue else { return }
                 let transaction = Transaction(animation: nil)
                 withTransaction(transaction) {
-                    self.proxy.wrappedValue.progress = newValue
+                    proxy.wrappedValue.progress = newValue
                 }
             } else {
                 let transaction = Transaction(animation: nil)
                 withTransaction(transaction) {
-                    self.proxy.wrappedValue.progress = 1
+                    proxy.wrappedValue.progress = 1
                 }
             }
         } else {

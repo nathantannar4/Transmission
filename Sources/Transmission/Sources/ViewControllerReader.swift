@@ -59,29 +59,29 @@ private struct ViewControllerReaderAdapterBody: UIViewRepresentable {
     }
 }
 
-protocol ViewControllerReaderDelegate: AnyObject {
+public protocol ViewControllerReaderDelegate: AnyObject {
 
     @MainActor @preconcurrency func viewControllerReaderDidMoveToWindow(_ view: UIView)
 }
 
-class ViewControllerReader: UIView {
+public class ViewControllerReader: UIView {
 
-    weak var delegate: ViewControllerReaderDelegate?
+    public weak var delegate: ViewControllerReaderDelegate?
 
-    init() {
+    public init() {
         super.init(frame: .zero)
         isHidden = true
     }
 
-    required init?(coder: NSCoder) {
+    public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func sizeThatFits(_ size: CGSize) -> CGSize {
+    public override func sizeThatFits(_ size: CGSize) -> CGSize {
         return size
     }
 
-    override func didMoveToWindow() {
+    public override func didMoveToWindow() {
         super.didMoveToWindow()
         delegate?.viewControllerReaderDidMoveToWindow(self)
     }

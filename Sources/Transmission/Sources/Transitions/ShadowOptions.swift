@@ -9,7 +9,6 @@ import SwiftUI
 import Engine
 
 @frozen
-@available(iOS 14.0, *)
 public struct ShadowOptions: Equatable, Sendable {
 
     public var shadowOpacity: Float
@@ -49,18 +48,58 @@ public struct ShadowOptions: Equatable, Sendable {
         shadowRadius: 0,
         shadowColor: .clear
     )
+}
 
-    @MainActor @preconcurrency
-    public func apply(to view: UIView) {
-        apply(to: view.layer)
+@frozen
+public struct ShadowOptionsModifier: ViewModifier {
+
+    public var options: ShadowOptions
+
+    @inlinable
+    public init(options: ShadowOptions) {
+        self.options = options
     }
 
-    @MainActor @preconcurrency
-    public func apply(to layer: CALayer) {
-        layer.shadowOpacity = shadowOpacity
-        layer.shadowRadius = shadowRadius
-        layer.shadowOffset = shadowOffset
-        layer.shadowColor = shadowColor.toCGColor()
+    public func body(content: Content) -> some View {
+        content
+            .shadow(
+                color: options.shadowColor.opacity(Double(options.shadowOpacity)),
+                radius: options.shadowRadius,
+                x: options.shadowOffset.width,
+                y: options.shadowOffset.height
+            )
+    }
+}
+
+extension View {
+
+    @inlinable
+    public func shadow(_ options: ShadowOptions) -> some View {
+        modifier(ShadowOptionsModifier(options: options))
+    }
+}
+
+extension UIView {
+
+    @available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *)
+    public func setShadow(_ options: ShadowOptions) {
+        layer.setShadow(options)
+    }
+}
+
+extension CALayer {
+
+    @available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *)
+    public func setShadow(_ options: ShadowOptions) {
+        shadowOpacity = options.shadowOpacity
+        shadowRadius = options.shadowRadius
+        shadowOffset = options.shadowOffset
+        switch options.shadowColor {
+        case .clear:
+            shadowColor = UIColor.clear.cgColor
+        default:
+            shadowColor = options.shadowColor.toCGColor()
+        }
     }
 }
 

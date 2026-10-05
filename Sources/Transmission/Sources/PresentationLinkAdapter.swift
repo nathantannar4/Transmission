@@ -189,13 +189,15 @@ private struct PresentationLinkAdapterBody<
             cornerRadius: cornerRadius,
             backgroundColor: backgroundColor?.toUIColor(in: context.environment)
         )
-        context.coordinator.onUpdate(
-            isPresented: isPresented,
-            transition: transition,
-            destination: destination,
-            context: context,
-            sourceView: uiView.sourceView ?? uiView
-        )
+        withCATransaction {
+            context.coordinator.onUpdate(
+                isPresented: isPresented,
+                transition: transition,
+                destination: destination,
+                context: context,
+                sourceView: uiView.sourceView ?? uiView
+            )
+        }
     }
 
     @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
@@ -215,6 +217,7 @@ private struct PresentationLinkAdapterBody<
         size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
+    @available(iOS 15.0, *)
     static func _modifyBridgedViewInputs(_ inputs: inout _ViewInputs) {
         if SourceView.self != EmptyView.self {
             inputs.bridgeHostingView()
@@ -379,8 +382,8 @@ final class PresentationLinkCoordinatorAdapter<
             presentingViewController = viewController
             if let adapter {
                 let isAnimated = animation != nil
-                withCATransaction {
-                    self.present(
+                withCATransaction { [weak self] in
+                    self?.present(
                         adapter: adapter,
                         presentingViewController: viewController,
                         isAnimated: isAnimated,
@@ -746,19 +749,12 @@ final class PresentationLinkCoordinatorAdapter<
         if let presentedViewController = presentingViewController.presentedViewController {
             let dismissThenPresent: () -> Void = {
                 if let firstResponder = presentedViewController.firstResponder {
-                    withCATransaction {
-                        firstResponder.resignFirstResponder()
-                        presentedViewController.dismiss(
-                            animated: isAnimated,
-                            completion: present
-                        )
-                    }
-                } else {
-                    presentedViewController.dismiss(
-                        animated: isAnimated,
-                        completion: present
-                    )
+                    firstResponder.resignFirstResponder()
                 }
+                presentedViewController.dismiss(
+                    animated: isAnimated,
+                    completion: present
+                )
             }
             if presentedViewController.isBeingPresented,
                let transitionCoordinator = presentedViewController.transitionCoordinator
@@ -800,13 +796,9 @@ final class PresentationLinkCoordinatorAdapter<
         }
         if !didPresent {
             if let firstResponder = presentingViewController.firstResponder {
-                withCATransaction {
-                    firstResponder.resignFirstResponder()
-                    present()
-                }
-            } else {
-                present()
+                firstResponder.resignFirstResponder()
             }
+            present()
         }
     }
 
@@ -983,7 +975,7 @@ final class PresentationLinkCoordinatorAdapter<
                 if !ctx.isInteractive {
                     self?.onDismiss(transaction)
                     if !isInterruptible {
-                        withCATransaction {
+                        withCATransaction { [weak self] in
                             self?.didDismiss()
                         }
                     }
@@ -1344,10 +1336,10 @@ final class PresentationLinkCoordinatorAdapter<
             if #available(iOS 15.0, *) {
                 #if targetEnvironment(macCatalyst)
                 let presentationController = SheetPresentationController(
-                    preferredCornerRadius: options.preferredCornerRadius,
                     presentedViewController: presented,
                     presenting: presenting
                 )
+                presentationController.preferredCornerRadius = options.preferredCornerRadius
                 let selected = options.selected?.wrappedValue
                 presentationController.detent = options.detents.first(where: { $0.identifier == selected }) ?? options.detents.first ?? .large
                 presentationController.selected = options.selected
@@ -1370,23 +1362,13 @@ final class PresentationLinkCoordinatorAdapter<
                 presentationController.prefersScrollingExpandsWhenScrolledToEdge = options.prefersScrollingExpandsWhenScrolledToEdge
                 presentationController.prefersEdgeAttachedInCompactHeight = options.prefersEdgeAttachedInCompactHeight
                 presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = options.widthFollowsPreferredContentSizeWhenEdgeAttached
-                if let placement = options.preferredPlacement {
-                    if placement == .sourceView {
-                        presentationController.sourceView = sourceView
-                    } else if #available(iOS 27.0, *) {
-                        #if canImport(NowPlaying) // Xcode 27
-                        switch placement {
-                        case .leading:
-                            presentationController.preferredPlacement = .leading
-                        case .center:
-                            presentationController.preferredPlacement = .center
-                        case .trailing:
-                            presentationController.preferredPlacement = .trailing
-                        default:
-                            break
-                        }
-                        #endif
-                    }
+                if #available(iOS 27.0, *) {
+                    #if XCODE_27
+                    presentationController.preferredPlacement = options.preferredPlacement?.toUIKitSheetPlacement() ?? .automatic
+                    #endif
+                }
+                if options.preferredPlacement == .sourceView {
+                    presentationController.sourceView = sourceView
                 }
                 if #available(iOS 17.0, *) {
                     presentationController.prefersPageSizing = options.prefersPageSizing
@@ -1529,36 +1511,6 @@ final class PresentationLinkCoordinatorAdapter<
     ) {
         guard let transition = adapter?.transition else { return }
         if case .sheet(let options) = transition.value {
-            func applySelection() {
-                let newValue = sheetPresentationController.selectedDetentIdentifier.map {
-                    SheetPresentationLinkTransition.Detent.Identifier($0.rawValue)
-                }
-                if let selected = options.selected, selected.wrappedValue != newValue {
-                    selected.wrappedValue = newValue
-                }
-                if #available(iOS 26.0, *) {
-                    var backgroundColor = transition.options.preferredPresentationBackgroundUIColor ?? .systemBackground
-                    switch newValue {
-                    case .large, .fullScreen:
-                        break
-                    case .medium:
-                        backgroundColor = .clear
-                    default:
-                        guard let maximumDetentValue = sheetPresentationController.maximumDetentValue else { return }
-                        let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
-                        backgroundColor = isClear ? .clear : backgroundColor
-                    }
-
-                    if sheetPresentationController.panGesture?.state != .possible {
-                        sheetPresentationController.animateChanges {
-                            sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
-                        }
-                    } else {
-                        sheetPresentationController.presentedViewController.view.backgroundColor = backgroundColor
-                    }
-                }
-            }
-
             if sheetPresentationController.selectedDetentIdentifier?.rawValue == SheetPresentationLinkTransition.Detent.ideal.identifier.rawValue {
                 if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
                     if let transitionCoordinator = sheetPresentationController.presentedViewController.transitionCoordinator {
@@ -1568,17 +1520,27 @@ final class PresentationLinkCoordinatorAdapter<
                     } else {
                         sheetPresentationController.invalidateDetents()
                     }
-                    applySelection()
+                    options.detentDidChange(
+                        sheetPresentationController: sheetPresentationController,
+                        options: transition.options
+                    )
                 } else {
                     sheetPresentationController.detents = options.detents.map {
                         $0.toUIKit(in: sheetPresentationController)
                     }
-                    withCATransaction {
-                        applySelection()
+                    withCATransaction { [weak sheetPresentationController] in
+                        guard let sheetPresentationController else { return }
+                        options.detentDidChange(
+                            sheetPresentationController: sheetPresentationController,
+                            options: transition.options
+                        )
                     }
                 }
             } else {
-                applySelection()
+                options.detentDidChange(
+                    sheetPresentationController: sheetPresentationController,
+                    options: transition.options
+                )
             }
         }
     }
@@ -1828,7 +1790,6 @@ class PresentationLinkDestinationViewControllerAdapter<
 
         viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
         viewController.isModalInPresentation = !transition.options.isInteractive
-        viewController.view.accessibilityViewIsModal = !transition.options.isInteractive
 
         let shouldUpdateBackgroundColor = {
             if case .popover = transition.value {

@@ -39,7 +39,6 @@ public struct SlideTransitionAnimator: ViewControllerTransitionAnimator {
         }
 
         if isPresenting {
-            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -64,8 +63,6 @@ public struct SlideTransitionAnimator: ViewControllerTransitionAnimator {
                     presentedView.alpha = 1
                     presentedView.transform = .identity
                 }
-            } else {
-                presentedView.alpha = 1
             }
             if animatedViews.contains(.from) {
                 let transform = transform(
@@ -109,11 +106,16 @@ public struct SlideTransitionAnimator: ViewControllerTransitionAnimator {
                 }
             }
         }
+        let animatedViews = animatedViews
         animator.addCompletion { animatingPosition in
-            presentedView.alpha = 1
-            presentedView.transform = .identity
-            presentingView.alpha = 1
-            presentingView.transform = .identity
+            if animatedViews.contains(.to) {
+                presentedView.alpha = 1
+                presentedView.transform = .identity
+            }
+            if animatedViews.contains(.from) {
+                presentingView.alpha = 1
+                presentingView.transform = .identity
+            }
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

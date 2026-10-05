@@ -170,28 +170,28 @@ extension MenuSourceViewLinkBackgroundStyle {
         var configuration: UIButton.Configuration = .plain()
         switch effect {
         case .glass:
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *) {
                 configuration = UIButton.Configuration.glass()
                 configuration.baseBackgroundColor = color?.toUIColor()
             }
             #endif
         case .prominentGlass:
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *) {
                 configuration = UIButton.Configuration.prominentGlass()
                 configuration.baseBackgroundColor = color?.toUIColor()
             }
             #endif
         case .clearGlass:
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *) {
                 configuration = UIButton.Configuration.clearGlass()
                 configuration.baseBackgroundColor = color?.toUIColor()
             }
             #endif
         case .prominentClearGlass:
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *) {
                 configuration = UIButton.Configuration.prominentClearGlass()
                 configuration.baseBackgroundColor = color?.toUIColor()
@@ -267,6 +267,7 @@ private struct MenuSourceViewBody<
         size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
+    @available(iOS 15.0, *)
     static func _modifyBridgedViewInputs(_ inputs: inout _ViewInputs) {
         if SourceView.self != EmptyView.self {
             inputs.bridgeHostingView()
@@ -517,7 +518,7 @@ private class MenuLinkSourceView<
 struct MenuSourceViewLink_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *) {
                 StateAdapter(initialValue: false) { $isSelected in
                     MenuSourceViewLink(background: isSelected ? .clearGlass(tint: .blue) : .glass) {

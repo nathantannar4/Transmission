@@ -77,19 +77,7 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: ViewControllerReader, coordinator: Coordinator) {
-        let windows = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .filter { $0.isKeyWindow }
-        for window in windows {
-            if coordinator.isAnimated {
-                UIView.animate(withDuration: 0.15) {
-                    window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
-                }
-            } else {
-                window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
-            }
-        }
+        coordinator.onDismantle()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -122,9 +110,15 @@ private struct PreferredStatusBarStyleAdapter: UIViewRepresentable {
             onUpdate()
         }
 
+        func onDismantle() {
+            guard let presentingViewController else { return }
+            presentingViewController.preferredStatusBarStyleOverride = nil
+            presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+        }
+
         private func onUpdate() {
             guard let presentingViewController else { return }
-            let newValue = isEnabled && style != .default ? style : nil
+            let newValue = isEnabled ? style : nil
             if presentingViewController.preferredStatusBarStyleOverride != newValue {
                 if isEnabled {
                     presentingViewController.swizzled_preferredStatusBarStyle = style
@@ -187,19 +181,7 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: ViewControllerReader, coordinator: Coordinator) {
-        let windows = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .filter { $0.isKeyWindow }
-        for window in windows {
-            if coordinator.isAnimated {
-                UIView.animate(withDuration: 0.15) {
-                    window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
-                }
-            } else {
-                window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
-            }
-        }
+        coordinator.onDismantle()
     }
 
     func makeCoordinator() -> Coordinator {
@@ -232,6 +214,12 @@ private struct PrefersStatusBarHiddenAdapter: UIViewRepresentable {
             onUpdate()
         }
 
+        func onDismantle() {
+            guard let presentingViewController else { return }
+            presentingViewController.prefersStatusBarHiddenOverride = nil
+            presentingViewController.setNeedsStatusBarAppearanceUpdate(animated: isAnimated)
+        }
+
         private func onUpdate() {
             guard let presentingViewController else { return }
             let newValue = isEnabled ? isHidden : nil
@@ -252,32 +240,30 @@ extension UIViewController {
     func setNeedsStatusBarAppearanceUpdate(animated: Bool, transitionAlongsideCoordinator: Bool = true) {
         let update: () -> Void = {
             self.setNeedsStatusBarAppearanceUpdate()
-            let windows: [UIWindow]
-            if let presentingWindow = self.view.window {
-                windows = presentingWindow.windowScene?.windows
-                    .filter { $0 !== presentingWindow && $0.windowLevel == presentingWindow.windowLevel } ?? []
-            } else {
-                windows = UIApplication.shared.connectedScenes
-                    .compactMap { $0 as? UIWindowScene }
-                    .flatMap { $0.windows }
-            }
+            let windows = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
             for window in windows {
                 window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
             }
         }
 
+        var didUpdate = false
         if transitionAlongsideCoordinator, let transitionCoordinator {
-            transitionCoordinator.animate { _ in
+            didUpdate = transitionCoordinator.animate { _ in
                 update()
             }
-        } else if animated {
-            UIView.animate(withDuration: 0.15, animations: update)
-        } else {
-            update()
+        }
+        if !didUpdate {
+            if animated {
+                UIView.animate(withDuration: 0.15, animations: update)
+            } else {
+                update()
+            }
         }
     }
 
-    private var swizzled_childForStatusBar: UIViewController? {
+    private func getChildForStatusBarAppearance() -> UIViewController? {
         if let navigationController = self as? UINavigationController {
             return navigationController.topViewController
         }
@@ -286,13 +272,6 @@ extension UIViewController {
         }
         if let pageViewController = self as? UIPageViewController {
             return pageViewController.viewControllers?.first
-        }
-        return nil
-    }
-
-    private func getChildForStatusBarAppearance() -> UIViewController? {
-        if let child = swizzled_childForStatusBar {
-            return child
         }
         if self is AnyHostingController {
             for child in children {
@@ -306,32 +285,24 @@ extension UIViewController {
 
     @objc
     var swizzled_childForStatusBarStyle: UIViewController? {
-        if getPreferredStatusBarStyle() != .default {
+        if preferredStatusBarStyleOverride != nil {
             return nil
         }
-        
-        if let child = swizzled_childForStatusBar {
+        if let child = getChildForStatusBarAppearance() {
             return child
         }
-
-        typealias GetChildForStatusBarStyleMethod = @convention(c) (NSObject, Selector) -> UIViewController?
-        let swizzled = #selector(getter: UIViewController.swizzled_childForStatusBarStyle)
-        return unsafeBitCast(method(for: swizzled), to: GetChildForStatusBarStyleMethod.self)(self, swizzled)
+        return self.swizzled_childForStatusBarStyle
     }
 
     @objc
     var swizzled_childForStatusBarHidden: UIViewController? {
-        if getPrefersStatusBarHidden() != false {
+        if prefersStatusBarHiddenOverride != nil {
             return nil
         }
-
-        if let child = swizzled_childForStatusBar {
+        if let child = getChildForStatusBarAppearance() {
             return child
         }
-
-        typealias GetChildForStatusBarHiddenMethod = @convention(c) (NSObject, Selector) -> UIViewController?
-        let swizzled = #selector(getter: UIViewController.swizzled_childForStatusBarHidden)
-        return unsafeBitCast(method(for: swizzled), to: GetChildForStatusBarHiddenMethod.self)(self, swizzled)
+        return self.swizzled_childForStatusBarHidden
     }
 
     // MARK: preferredStatusBarStyle
@@ -359,38 +330,30 @@ extension UIViewController {
         }
     }
 
-    private func getPreferredStatusBarStyle() -> UIStatusBarStyle? {
-        if let style = preferredStatusBarStyleOverride {
-            return style
-        } else if let child = getChildForStatusBarAppearance() {
-            return child.getPreferredStatusBarStyle()
-        }
-        return nil
-    }
-
     @objc
     var swizzled_preferredStatusBarStyle: UIStatusBarStyle {
         get {
-            if let style = getPreferredStatusBarStyle() {
+            if let style = preferredStatusBarStyleOverride {
                 return style
             }
-
-            typealias GetPreferredStatusBarStyleMethod = @convention(c) (NSObject, Selector) -> UIStatusBarStyle
-            let swizzled = #selector(getter: UIViewController.swizzled_preferredStatusBarStyle)
-            return unsafeBitCast(method(for: swizzled), to: GetPreferredStatusBarStyleMethod.self)(self, swizzled)
+            return self.swizzled_preferredStatusBarStyle
         }
         set {
             if !Self.preferredStatusBarStyleKey {
                 Self.preferredStatusBarStyleKey = true
 
-                objc_class_swizzle(
-                    original: #selector(getter: UIViewController.preferredStatusBarStyle),
-                    replacement: #selector(getter: UIViewController.swizzled_preferredStatusBarStyle)
+                swizzle(
+                    target: UIHostingController<AnyView>.self,
+                    source: UIViewController.self,
+                    aSelector: #selector(getter: UIViewController.preferredStatusBarStyle),
+                    aSwizzledSelector: #selector(getter: UIViewController.swizzled_preferredStatusBarStyle)
                 )
 
-                objc_class_swizzle(
-                    original: #selector(getter: UIViewController.childForStatusBarStyle),
-                    replacement: #selector(getter: UIViewController.swizzled_childForStatusBarStyle)
+                swizzle(
+                    target: UIHostingController<AnyView>.self,
+                    source: UIViewController.self,
+                    aSelector: #selector(getter: UIViewController.childForStatusBarStyle),
+                    aSwizzledSelector: #selector(getter: UIViewController.swizzled_childForStatusBarStyle)
                 )
             }
             preferredStatusBarStyleOverride = newValue
@@ -422,50 +385,34 @@ extension UIViewController {
         }
     }
 
-    private func getPrefersStatusBarHidden() -> Bool? {
-        if let isHidden = prefersStatusBarHiddenOverride {
-            return isHidden
-        } else if let child = getChildForStatusBarAppearance() {
-            return child.getPrefersStatusBarHidden()
-        }
-        return nil
-    }
-
     @objc
     var swizzled_prefersStatusBarHidden: Bool {
         get {
-            if let isHidden = getPrefersStatusBarHidden() {
+            if let isHidden = prefersStatusBarHiddenOverride {
                 return isHidden
             }
-
-            typealias GetPrefersStatusBarHiddenMethod = @convention(c) (NSObject, Selector) -> Bool
-            let swizzled = #selector(getter: UIViewController.swizzled_prefersStatusBarHidden)
-            return unsafeBitCast(method(for: swizzled), to: GetPrefersStatusBarHiddenMethod.self)(self, swizzled)
+            return self.swizzled_prefersStatusBarHidden
         }
         set {
             if !Self.prefersStatusBarHiddenKey {
                 Self.prefersStatusBarHiddenKey = true
 
-                objc_class_swizzle(
-                    original: #selector(getter: UIViewController.prefersStatusBarHidden),
-                    replacement: #selector(getter: UIViewController.swizzled_prefersStatusBarHidden)
+                swizzle(
+                    target: UIHostingController<AnyView>.self,
+                    source: UIViewController.self,
+                    aSelector: #selector(getter: UIViewController.prefersStatusBarHidden),
+                    aSwizzledSelector: #selector(getter: UIViewController.swizzled_prefersStatusBarHidden)
                 )
 
-                objc_class_swizzle(
-                    original: #selector(getter: UIViewController.childForStatusBarHidden),
-                    replacement: #selector(getter: UIViewController.swizzled_childForStatusBarHidden)
+                swizzle(
+                    target: UIHostingController<AnyView>.self,
+                    source: UIViewController.self,
+                    aSelector: #selector(getter: UIViewController.childForStatusBarHidden),
+                    aSwizzledSelector: #selector(getter: UIViewController.swizzled_childForStatusBarHidden)
                 )
             }
             prefersStatusBarHiddenOverride = newValue
         }
-    }
-}
-
-private func objc_class_swizzle(original: Selector, replacement swizzled: Selector) {
-    if let originalMethod = class_getInstanceMethod(UIHostingController<AnyView>.self, original),
-        let swizzledMethod = class_getInstanceMethod(UIViewController.self, swizzled)
-    {
-        method_exchangeImplementations(originalMethod, swizzledMethod)
     }
 }
 

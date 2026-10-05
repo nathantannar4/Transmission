@@ -201,13 +201,15 @@ private struct TransitionLinkAdapterBody<
             cornerRadius: cornerRadius,
             backgroundColor: backgroundColor?.toUIColor(in: context.environment)
         )
-        context.coordinator.onUpdate(
-            isPresented: isPresented,
-            transition: transition,
-            destination: destination,
-            context: context,
-            sourceView: uiView.sourceView ?? uiView
-        )
+        withCATransaction {
+            context.coordinator.onUpdate(
+                isPresented: isPresented,
+                transition: transition,
+                destination: destination,
+                context: context,
+                sourceView: uiView.sourceView ?? uiView
+            )
+        }
     }
 
     @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
@@ -227,6 +229,7 @@ private struct TransitionLinkAdapterBody<
         size = uiView.sizeThatFits(ProposedSize(proposedSize)) ?? size
     }
 
+    @available(iOS 15.0, *)
     static func _modifyBridgedViewInputs(_ inputs: inout _ViewInputs) {
         if SourceView.self != EmptyView.self {
             inputs.bridgeHostingView()

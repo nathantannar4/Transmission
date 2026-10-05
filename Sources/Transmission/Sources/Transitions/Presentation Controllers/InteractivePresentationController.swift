@@ -181,7 +181,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     }
 
     open func transformPresentedView(transform: CGAffineTransform) {
-        let scale = presentedViewController.view.traitCollection.displayScale
+        let scale = traitCollection.displayScale
         var frame = frameOfPresentedViewInContainerView.applying(transform)
         frame.origin.x = frame.origin.x.rounded(scale: scale)
         frame.origin.y = frame.origin.y.rounded(scale: scale)
@@ -198,7 +198,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         let frameOfPresentedViewInContainerView = frameOfPresentedViewInContainerView
         let frame = presentedViewController.view.frame
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
-        let scale = presentedView.traitCollection.displayScale
+        let scale = traitCollection.displayScale
         let dyTop = (frame.origin.y - frameOfPresentedViewInContainerView.origin.y)
             .rounded(scale: scale)
         let dyBottom = (-dyTop + frameOfPresentedViewInContainerView.size.height - frame.size.height)
@@ -436,12 +436,17 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     self.transition = nil
                 } else {
                     transition.cancel()
-                    if let resignedFirstResponder {
+                    if let resignedFirstResponder, translation.y < presentedView.bounds.height / 2 {
                         resignedFirstResponder.becomeFirstResponder()
+                    } else if resignedFirstResponder != nil {
+                        dismissalDidEnd()
+                        let frame = frameOfPresentedViewInContainerView
+                        presentedViewController.transitionCoordinator?.animate { [weak self] _ in
+                            self?.layoutPresentedView(frame: frame)
+                        }
                     }
                 }
                 panGestureDidEnd()
-                transitionAlongsidePresentation(progress: isPresenting ? (shouldFinish ? 1 : 0) : (shouldFinish ? 0 : 1))
 
             default:
                 break
@@ -539,7 +544,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     panGestureDidEnd()
                     presentedViewController.dismiss(animated: true)
                 } else {
-                    if translation.y < max(keyboardOffset, keyboardHeight) / 3 {
+                    if translation.y < presentedView.bounds.height / 2 {
                         resignedFirstResponder?.becomeFirstResponder()
                     }
                     panGestureDidEnd()
@@ -734,7 +739,9 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         if otherGestureRecognizer.isSwiftUIGestureRecognizer, otherGestureRecognizer.state != .began {
             return !otherGestureRecognizer.isSwiftSimultaneousUIResponderGestureRecognizer
         }
-        if !otherGestureRecognizer.isSimultaneousWithTransition, otherGestureRecognizer is UIPanGestureRecognizer {
+        let isSimultaneousWithTransition = otherGestureRecognizer
+            .isSimultaneousWithTransition(horizontal: !edges.intersection(.horizontal).isEmpty, vertical: !edges.intersection(.vertical).isEmpty)
+        if !isSimultaneousWithTransition {
             return true
         }
         if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer {
@@ -756,15 +763,8 @@ open class InteractivePresentationController: PresentationController, UIGestureR
             otherGestureRecognizer.state != .cancelled,
             let scrollView = otherGestureRecognizer.view as? UIScrollView
         {
-            var isSimultaneousWithTransition = otherGestureRecognizer.isSimultaneousWithTransition
-            if isSimultaneousWithTransition {
-                // Only start if near the top of the scroll view
-                isSimultaneousWithTransition = isAtTop(
-                    scrollView: scrollView,
-                    delta: CGPoint(x: 4, y: 4),
-                    translation: .zero
-                )
-            }
+            let isSimultaneousWithTransition = otherGestureRecognizer
+                .isSimultaneousWithTransition(horizontal: !edges.intersection(.horizontal).isEmpty, vertical: !edges.intersection(.vertical).isEmpty)
             guard isSimultaneousWithTransition else {
                 // Cancel
                 gestureRecognizer.isEnabled = false; gestureRecognizer.isEnabled = true

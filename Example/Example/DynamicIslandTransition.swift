@@ -10,13 +10,15 @@ import SwiftUI
 import Transmission
 
 extension PresentationLinkTransition {
-    static let dynamicIsland: PresentationLinkTransition = .custom(
-        options: Options(
-            modalPresentationCapturesStatusBarAppearance: true,
-            preferredPresentationBackgroundColor: .black
-        ),
-        DynamicIslandTransition()
-    )
+    static var dynamicIsland: PresentationLinkTransition {
+        .custom(
+            options: Options(
+                modalPresentationCapturesStatusBarAppearance: true,
+                preferredPresentationBackgroundColor: .black
+            ),
+            DynamicIslandTransition()
+        )
+    }
 }
 
 struct DynamicIslandTransition: PresentationLinkTransitionRepresentable {

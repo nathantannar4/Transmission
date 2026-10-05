@@ -199,6 +199,12 @@ public protocol LuminanceTrackingReaderDelegate: AnyObject {
 }
 
 @available(iOS 14.0, *)
+extension LuminanceTrackingReaderDelegate {
+
+    public func luminanceTrackingReader(_ view: LuminanceTrackingReader, luminanceDidChange luminance: Double?) { }
+}
+
+@available(iOS 14.0, *)
 open class LuminanceTrackingReader: UIView {
 
     public weak var delegate: LuminanceTrackingReaderDelegate?

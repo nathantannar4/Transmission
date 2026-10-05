@@ -175,18 +175,10 @@ extension EnvironmentValues {
 @available(iOS 14.0, *)
 struct DestinationBridgeAdapter: ViewModifier {
     var destinationCoordinator: DestinationCoordinator?
-    @State var didAppear = false
 
     func body(content: Content) -> some View {
         content
-            .modifier(_ViewInputsBridgeModifier())
             .environment(\.destinationCoordinator, destinationCoordinator)
-            .onAppear {
-                // Need to trigger a render update during presentation to fix DatePicker
-                withCATransaction {
-                    didAppear = true
-                }
-            }
     }
 }
 

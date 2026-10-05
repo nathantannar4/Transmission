@@ -210,7 +210,7 @@ class AlertActionHostingController<Content: View>: HostingController<Content> {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = nil
-        #if canImport(FoundationModels) // Xcode 26
+        #if XCODE_26
         if #available(iOS 26.0, *)  {
             view.clipsToBounds = true
             view.cornerConfiguration = .capsule()

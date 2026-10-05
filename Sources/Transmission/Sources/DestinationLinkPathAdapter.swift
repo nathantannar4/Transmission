@@ -91,13 +91,15 @@ private struct DestinationLinkPathAdapter<
     }
 
     func updateUIView(_ uiView: UIViewType, context: Context) {
-        context.coordinator.onUpdate(
-            path: path,
-            transition: transition,
-            destination: destination,
-            context: context,
-            sourceView: uiView
-        )
+        withCATransaction {
+            context.coordinator.onUpdate(
+                path: path,
+                transition: transition,
+                destination: destination,
+                context: context,
+                sourceView: uiView
+            )
+        }
     }
 
     static func dismantleUIView(
@@ -142,8 +144,8 @@ final class DestinationLinkPathCoordinator<
             presentingViewController = viewController
             if !coordinators.isEmpty {
                 let isAnimated = animation != nil
-                withCATransaction { [ids] in
-                    self.update(
+                withCATransaction { [weak self, ids] in
+                    self?.update(
                         presentingViewController: viewController,
                         added: ids,
                         removed: [],
@@ -281,13 +283,9 @@ final class DestinationLinkPathCoordinator<
                 )
             }
             if let firstResponder = navigationController.topViewController?.firstResponder {
-                withCATransaction {
-                    firstResponder.resignFirstResponder()
-                    update()
-                }
-            } else {
-                update()
+                firstResponder.resignFirstResponder()
             }
+            update()
         }
     }
 }

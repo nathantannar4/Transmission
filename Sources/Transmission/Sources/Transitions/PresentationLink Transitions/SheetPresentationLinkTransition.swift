@@ -379,6 +379,8 @@ public struct SheetPresentationLinkTransition {
                                       let selectedViewController = pageViewController.viewControllers?.first
                             {
                                 return idealHeight(for: selectedViewController)
+                            } else if viewController.children.count == 1, viewController.children[0].view.bounds == viewController.view.bounds {
+                                return idealHeight(for: viewController.children[0])
                             }
                             return nil
                         }
@@ -488,23 +490,12 @@ public struct SheetPresentationLinkTransition {
     @frozen
     public struct Options {
 
-        public enum Placement {
-            case sourceView
-
-            @available(iOS 27.0, *)
-            case leading
-            @available(iOS 27.0, *)
-            case center
-            @available(iOS 27.0, *)
-            case trailing
-        }
-
         public var selected: Binding<Detent.Identifier?>?
         public var detents: [Detent]
         public var largestUndimmedDetentIdentifier: Detent.Identifier?
         public var prefersGrabberVisible: Bool
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
-        public var preferredPlacement: Placement?
+        public var preferredPlacement: PreferredPresentationPlacement?
         public var prefersScrollingExpandsWhenScrolledToEdge: Bool
         public var prefersEdgeAttachedInCompactHeight: Bool
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
@@ -523,7 +514,7 @@ public struct SheetPresentationLinkTransition {
             largestUndimmedDetentIdentifier: SheetPresentationLinkTransition.Detent.Identifier? = nil,
             prefersGrabberVisible: Bool = false,
             preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-            preferredPlacement: Placement? = nil,
+            preferredPlacement: PreferredPresentationPlacement? = nil,
             prefersScrollingExpandsWhenScrolledToEdge: Bool = true,
             prefersEdgeAttachedInCompactHeight: Bool = false,
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
@@ -544,12 +535,7 @@ public struct SheetPresentationLinkTransition {
             }
             self.largestUndimmedDetentIdentifier = largestUndimmedDetentIdentifier
             self.prefersGrabberVisible = prefersGrabberVisible
-            self.preferredCornerRadius = {
-                if let preferredCornerRadius {
-                    return preferredCornerRadius
-                }
-                return prefersZoomTransition ? MainActor.assumeIsolated({.screen()}) : nil
-            }()
+            self.preferredCornerRadius = preferredCornerRadius
             self.preferredPlacement = preferredPlacement
             self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
             self.prefersEdgeAttachedInCompactHeight = prefersEdgeAttachedInCompactHeight
@@ -659,6 +645,13 @@ open class SheetPresentationControllerTransition: PresentationControllerTransiti
             }
         }
         animator.addCompletion { animatingPosition in
+            if !presentedView.transform.isIdentity {
+                // On iOS 26 the presentation animates the frame, so preserve the
+                // resolved frame rather than leaving the initial offset transform
+                let frame = presentedView.frame
+                presentedView.transform = .identity
+                presentedView.frame = frame
+            }
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

@@ -150,9 +150,6 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         context: Context
     ) -> MatchedGeometryPresentationController {
         let presentationController = MatchedGeometryPresentationController(
-            edges: options.edges,
-            dimmingColor: options.dimmingColor,
-            minimumScaleFactor: options.minimumScaleFactor,
             presentedViewController: presented,
             presenting: presenting
         )
@@ -164,7 +161,7 @@ public struct MatchedGeometryPresentationLinkTransition: PresentationLinkTransit
         context: Context
     ) {
         presentationController.edges = options.edges
-        presentationController.dimmingView.backgroundColor = options.dimmingColor?.toUIColor() ?? DimmingView.backgroundColor
+        presentationController.dimmingView.backgroundColor = options.dimmingColor?.toUIColor(in: context.environment) ?? DimmingView.backgroundColor
         presentationController.minimumScaleFactor = options.minimumScaleFactor
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle

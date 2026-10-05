@@ -221,7 +221,7 @@ struct ContextMenuSourceViewLink_Previews: PreviewProvider {
                     trackingAxis: [.vertical, .horizontal]
                 ) {
                     if #available(iOS 26.0, *) {
-                        #if canImport(FoundationModels) // Xcode 26
+                        #if XCODE_26
                         Text("Accessory")
                             .padding()
                             .glassEffect()

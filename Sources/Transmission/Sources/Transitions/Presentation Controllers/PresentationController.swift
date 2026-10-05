@@ -208,14 +208,14 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
             shadowView.layer.shadowOpacity = 0
         } else {
             shadowView.isHidden = false
-            var shadow = presentedViewShadow
-            shadow.shadowOpacity *= Float(progress)
+            var presentedViewShadow = presentedViewShadow
+            presentedViewShadow.shadowOpacity *= Float(progress)
             if presentedViewController.isBeingPresented {
-                shadow.shadowOpacity = max(shadow.shadowOpacity, shadowView.layer.shadowOpacity)
+                presentedViewShadow.shadowOpacity = max(presentedViewShadow.shadowOpacity, shadowView.layer.shadowOpacity)
             } else if presentedViewController.isBeingDismissed {
-                shadow.shadowOpacity = min(shadow.shadowOpacity, shadowView.layer.shadowOpacity)
+                presentedViewShadow.shadowOpacity = min(presentedViewShadow.shadowOpacity, shadowView.layer.shadowOpacity)
             }
-            shadow.apply(to: shadowView.layer)
+            shadowView.layer.setShadow(presentedViewShadow)
         }
     }
 
@@ -267,7 +267,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
             )
             dimmingView.frame = dimmingViewFrame.rounded(scale: dimmingView.traitCollection.displayScale)
             if let presentedView = presentationController.presentedView ?? presentationController.presentedViewController.view {
-                #if canImport(FoundationModels) // Xcode 26
+                #if XCODE_26
                 if #available(iOS 26.0, *) {
                     dimmingView.cornerConfiguration = presentedView.cornerConfiguration
                 }
@@ -281,7 +281,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
             }
         } else {
             dimmingView.frame = containerView?.bounds ?? .zero
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *) {
                 dimmingView.cornerConfiguration = .corners(topLeftRadius: nil, topRightRadius: nil, bottomLeftRadius: nil, bottomRightRadius: nil)
             }
