@@ -198,6 +198,11 @@ public protocol LuminanceTrackingReaderDelegate: AnyObject {
     func luminanceTrackingReader(_ view: LuminanceTrackingReader, userInterfaceStyleDidChange style: UIUserInterfaceStyle)
 }
 
+extension LuminanceTrackingReaderDelegate {
+
+    public func luminanceTrackingReader(_ view: LuminanceTrackingReader, luminanceDidChange luminance: Double?) { }
+}
+
 @available(iOS 14.0, *)
 open class LuminanceTrackingReader: UIView {
 

@@ -14,6 +14,25 @@ open class DestinationHostingController<
 
     public weak var sourceViewController: AnyHostingController?
 
+    private var didAppear = false
+
+    open override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+
+        // Fix push transition of navigation items, such as a custom title view
+        if #unavailable(iOS 26.0),
+            !didAppear,
+            let transitionCoordinator,
+            transitionCoordinator.presentationStyle == .none,
+            transitionCoordinator.isAnimated
+        {
+            transitionCoordinator.animate { [weak self] _ in
+                self?.render()
+            }
+        }
+        didAppear = true
+    }
+
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         if let sourceViewController, sourceViewController.shouldRenderForContentUpdate {

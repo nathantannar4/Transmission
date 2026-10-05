@@ -35,6 +35,7 @@ extension PresentationLinkTransition {
         insetSafeAreaByCornerRadius: Bool = true,
         preferredAspectRatio: CGFloat? = 1,
         preferredPresentationShadow: ShadowOptions? = nil,
+        preferredPlacement: PreferredPresentationPlacement? = nil,
         isUndimmed: Bool = false,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         isInteractive: Bool = true,
@@ -48,6 +49,7 @@ extension PresentationLinkTransition {
                 insetSafeAreaByCornerRadius: insetSafeAreaByCornerRadius,
                 preferredAspectRatio: preferredAspectRatio,
                 preferredPresentationShadow: preferredPresentationShadow ?? (preferredPresentationBackgroundColor == .clear ? .clear : .minimal),
+                preferredPlacement: preferredPlacement,
                 isUndimmed: isUndimmed,
                 hapticsStyle: hapticsStyle
             ),
@@ -75,6 +77,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         /// A `nil` aspect ratio will size the cards height to it's ideal size
         public var preferredAspectRatio: CGFloat?
         public var preferredPresentationShadow: ShadowOptions
+        public var preferredPlacement: PreferredPresentationPlacement?
         public var isUndimmed: Bool
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
 
@@ -84,6 +87,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
             insetSafeAreaByCornerRadius: Bool = true,
             preferredAspectRatio: CGFloat? = 1,
             preferredPresentationShadow: ShadowOptions = .minimal,
+            preferredPlacement: PreferredPresentationPlacement? = nil,
             isUndimmed: Bool = false,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil
         ) {
@@ -92,6 +96,7 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
             self.insetSafeAreaByCornerRadius = insetSafeAreaByCornerRadius
             self.preferredAspectRatio = preferredAspectRatio
             self.preferredPresentationShadow = preferredPresentationShadow
+            self.preferredPlacement = preferredPlacement
             self.isUndimmed = isUndimmed
             self.hapticsStyle = hapticsStyle
         }
@@ -103,25 +108,6 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         self.options = options
     }
 
-    public static let defaultEdgeInset: CGFloat = {
-        if #available(iOS 26.0, *) {
-            return 8
-        }
-        return 4
-    }()
-
-    @MainActor @preconcurrency
-    public static let defaultCornerRadius: CGFloat = UIScreen.main.displayCornerRadius(min: 36)
-
-    var edgeInset: CGFloat {
-        options.preferredEdgeInset ?? CardPresentationLinkTransition.defaultEdgeInset
-    }
-
-    @MainActor @preconcurrency
-    var cornerRadius: CornerRadiusOptions.RoundedRectangle {
-        options.preferredCornerRadius ?? .containerConcentric(minimum: CardPresentationLinkTransition.defaultCornerRadius - edgeInset)
-    }
-
     public func makeUIPresentationController(
         presented: UIViewController,
         presenting: UIViewController?,
@@ -129,13 +115,10 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         context: Context
     ) -> CardPresentationController {
         let presentationController = CardPresentationController(
-            preferredEdgeInset: edgeInset,
-            preferredCornerRadius: cornerRadius,
-            insetSafeAreaByCornerRadius: options.insetSafeAreaByCornerRadius,
-            preferredAspectRatio: options.preferredAspectRatio,
             presentedViewController: presented,
             presenting: presenting
         )
+        presentationController.sourceView = context.sourceView
         return presentationController
     }
 
@@ -144,8 +127,9 @@ public struct CardPresentationLinkTransition: PresentationLinkTransitionRepresen
         context: Context
     ) {
         presentationController.dimmingView.isHidden = options.isUndimmed
-        presentationController.preferredEdgeInset = edgeInset
-        presentationController.preferredCornerRadius = cornerRadius
+        presentationController.preferredEdgeInset = options.preferredEdgeInset
+        presentationController.preferredCornerRadius = options.preferredCornerRadius
+        presentationController.preferredPlacement = options.preferredPlacement
         presentationController.insetSafeAreaByCornerRadius = options.insetSafeAreaByCornerRadius
         presentationController.preferredAspectRatio = options.preferredAspectRatio
         presentationController.presentedViewShadow = options.preferredPresentationShadow

@@ -11,7 +11,7 @@ import SwiftUI
 @available(iOS 14.0, *)
 open class ToastPresentationController: InteractivePresentationController {
 
-    public var edge: Edge {
+    public var edge: Edge = .top {
         didSet {
             guard edge != oldValue else { return }
             switch edge {
@@ -22,6 +22,11 @@ open class ToastPresentationController: InteractivePresentationController {
             }
             containerView?.setNeedsLayout()
         }
+    }
+
+    public override var edges: Edge.Set {
+        get { Edge.Set(edge) }
+        set { }
     }
 
     public var preferredCornerRadius: CornerRadiusOptions? {
@@ -50,7 +55,7 @@ open class ToastPresentationController: InteractivePresentationController {
     open override var frameOfPresentedViewInContainerView: CGRect {
         var insets = preferredSafeAreaInsets ?? containerView?.layoutMargins ?? .zero
         insets.bottom = max(insets.bottom, keyboardHeight + (insets.bottom - ((preferredSafeAreaInsets ?? containerView?.safeAreaInsets)?.bottom ?? 0)))
-        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius() ?? 0).rounded(scale: presentedViewController.view.traitCollection.displayScale) : 0
+        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius(in: presentedView?.window) ?? 0).rounded(scale: traitCollection.displayScale) : 0
         var frame = super.frameOfPresentedViewInContainerView
             .inset(by: insets)
             .insetBy(dx: inset, dy: 0)
@@ -76,20 +81,27 @@ open class ToastPresentationController: InteractivePresentationController {
         return frame
     }
 
-    public init(
-        edge: Edge = .top,
+    public override init(
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
-        self.edge = edge
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
         )
-        edges = Edge.Set(edge)
+    }
+
+    open override func containerViewDidLayoutSubviews() {
+        super.containerViewDidLayoutSubviews()
+        if #unavailable(iOS 26.0), let presentedView {
+            preferredCornerRadius?.setCornerRadius(to: presentedView)
+        }
     }
 
     private func cornerRadiusDidChange() {
+        if let presentedView {
+            preferredCornerRadius?.setCornerRadius(to: presentedView)
+        }
         let additionalSafeAreaInsets = presentedViewAdditionalSafeAreaInsets()
         if presentedViewController.additionalSafeAreaInsets != additionalSafeAreaInsets {
             presentedViewController.additionalSafeAreaInsets = additionalSafeAreaInsets
@@ -99,7 +111,7 @@ open class ToastPresentationController: InteractivePresentationController {
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         let additionalSafeAreaInsets = super.presentedViewAdditionalSafeAreaInsets()
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
-        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius() ?? 0).rounded(scale: presentedViewController.view.traitCollection.displayScale) : 0
+        let inset = insetSafeAreaByCornerRadius ? (preferredCornerRadius?.cornerRadius(in: presentedView?.window) ?? 0).rounded(scale: traitCollection.displayScale) : 0
         var edgeInsets = additionalSafeAreaInsets
         edgeInsets.top = max(edgeInsets.top, inset)
         edgeInsets.left = max(edgeInsets.left, inset)
@@ -146,7 +158,6 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
         }
 
         if isPresenting {
-            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -176,7 +187,6 @@ open class ToastPresentationControllerTransition: PresentationControllerTransiti
                 }
             }()
             presentedView.transform = transform
-            presentedView.alpha = 1
             animator.addAnimations {
                 presentedView.transform = .identity
             }

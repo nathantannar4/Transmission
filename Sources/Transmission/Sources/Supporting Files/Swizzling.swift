@@ -14,27 +14,23 @@ public func swizzle(
         let originalMethod = class_getInstanceMethod(target, aSelector),
         let swizzledMethod = class_getInstanceMethod(source, aSwizzledSelector)
     else {
-        preconditionFailure("Failed to swizzle \(target):\(aSelector)")
+        assertionFailure("Failed to swizzle \(target):\(aSelector)")
+        return
     }
 
-    let didAdd = class_addMethod(
-        target,
-        aSelector,
-        method_getImplementation(swizzledMethod),
-        method_getTypeEncoding(swizzledMethod)
-    )
+    let originalImplementation = method_getImplementation(originalMethod)
+    let swizzledImplementation = method_getImplementation(swizzledMethod)
+
     class_replaceMethod(
         target,
         aSwizzledSelector,
-        method_getImplementation(originalMethod),
+        originalImplementation,
         method_getTypeEncoding(originalMethod)
     )
-    if !didAdd {
-        class_replaceMethod(
-            target,
-            aSelector,
-            method_getImplementation(swizzledMethod),
-            method_getTypeEncoding(swizzledMethod)
-        )
-    }
+    class_replaceMethod(
+        target,
+        aSelector,
+        swizzledImplementation,
+        method_getTypeEncoding(swizzledMethod)
+    )
 }

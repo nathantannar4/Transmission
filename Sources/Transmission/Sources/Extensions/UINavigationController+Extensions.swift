@@ -92,4 +92,77 @@ extension UINavigationController {
     }
 }
 
+extension UINavigationBar {
+
+    private static var didFixTitleViewHitTesting = false
+    static func fixHitTesting() {
+        guard !didFixTitleViewHitTesting else { return }
+        didFixTitleViewHitTesting = true
+        swizzle(
+            target: UINavigationBar.self,
+            source: UINavigationBar.self,
+            aSelector: #selector(UINavigationBar.point(inside:with:)),
+            aSwizzledSelector: #selector(UINavigationBar.swizzled_pointInside(_:with:))
+        )
+        swizzle(
+            target: UINavigationBar.self,
+            source: UINavigationBar.self,
+            aSelector: #selector(UINavigationBar.hitTest(_:with:)),
+            aSwizzledSelector: #selector(UINavigationBar.swizzled_hitTest(_:with:))
+        )
+    }
+
+    @objc
+    private func swizzled_hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        if let result = swizzled_hitTest(point, with: event) {
+            return result
+        }
+        if let titleView = topItem?.titleView {
+            let point = convert(point, to: titleView)
+            if let result = titleView.hitTest(point, with: event) {
+                return result
+            }
+        }
+        if let topPalette = topItem?.topPalette?.contentView {
+            let point = convert(point, to: topPalette)
+            if let result = topPalette.hitTest(point, with: event) {
+                return result
+            }
+        }
+        if let bottomPalette = topItem?.bottomPalette?.contentView {
+            let point = convert(point, to: bottomPalette)
+            if let result = bottomPalette.hitTest(point, with: event) {
+                return result
+            }
+        }
+        return nil
+    }
+
+    @objc
+    private func swizzled_pointInside(_ point: CGPoint, with event: UIEvent?) -> Bool {
+        if swizzled_pointInside(point, with: event) {
+            return true
+        }
+        if let titleView = topItem?.titleView {
+            let point = convert(point, to: titleView)
+            if titleView.point(inside: point, with: event) {
+                return true
+            }
+        }
+        if let topPalette = topItem?.topPalette?.contentView {
+            let point = convert(point, to: topPalette)
+            if topPalette.point(inside: point, with: event) {
+                return true
+            }
+        }
+        if let bottomPalette = topItem?.bottomPalette?.contentView {
+            let point = convert(point, to: bottomPalette)
+            if bottomPalette.point(inside: point, with: event) {
+                return true
+            }
+        }
+        return false
+    }
+}
+
 #endif

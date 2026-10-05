@@ -40,7 +40,6 @@ open class PresentationControllerTransition: ViewControllerTransition {
         }
 
         if isPresenting {
-            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -61,7 +60,6 @@ open class PresentationControllerTransition: ViewControllerTransition {
                 y: dy
             )
             presentedView.transform = transform
-            presentedView.alpha = 1
             animator.addAnimations {
                 presentedView.transform = .identity
             }

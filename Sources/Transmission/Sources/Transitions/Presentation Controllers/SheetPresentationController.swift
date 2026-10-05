@@ -123,11 +123,9 @@ open class SheetPresentationController: InteractivePresentationController {
     }
 
     public init(
-        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?,
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
-        self.preferredCornerRadius = preferredCornerRadius
         super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
         presentedViewShadow = .minimal
     }
@@ -138,8 +136,8 @@ open class SheetPresentationController: InteractivePresentationController {
         selected?.wrappedValue = detent.identifier
 
         if let presentedView {
-            let toCornerRadius = preferredCornerRadius ?? .screen(min: 12)
-            toCornerRadius.apply(to: presentedView)
+            let toCornerRadius = preferredCornerRadius ?? .screen(prefersContainerConcentric: false)
+            toCornerRadius.setCornerRadius(to: presentedView)
         }
 
         if let transitionCoordinator = presentedViewController.transitionCoordinator {
@@ -286,7 +284,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     private weak var resignedFirstResponder: UIResponder?
 
     private var isKeyboardAdjustedLargeDetent = false
-    private weak var panGestureDelegate: UIGestureRecognizerDelegate?
+    private var panGestureDelegateProxy: UIGestureRecognizerDelegateProxy?
 
     public override init(
         presentedViewController: UIViewController,
@@ -342,11 +340,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
             presentedViewController.fixSwiftUIHitTesting()
             fixTransitionHitTesting()
             panGesture?.addTarget(self, action: #selector(didPan(_:)))
-            let scrollView = presentedViewController.view.firstDescendent(
-                ofType: UIScrollView.self,
-                matching: { $0.contentScrollsAlongYAxis }
-            )
-            scrollView?.panGestureRecognizer.addTarget(self, action: #selector(didPan(_:)))
+            updateContentScrollView()
         } else {
             delegate?.presentationControllerDidDismiss?(self)
         }
@@ -384,6 +378,21 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         }
     }
 
+    open override func containerViewWillLayoutSubviews() {
+        super.containerViewWillLayoutSubviews()
+        // Fix presentation animation
+        if #available(iOS 26.0, *),
+            transition == nil,
+            presentedViewController.isBeingPresented,
+            let presentedView,
+            presentedView.transform != .identity,
+            presentedView.transform.tx == 0
+        {
+            let dx = (1 - presentedView.transform.a) * presentedView.bounds.width / 2
+            presentedView.transform = presentedView.transform.translatedBy(x: dx, y: 0)
+        }
+    }
+
     private func fixTransitionHitTesting() {
         // Fix hit testing when stray CAAnimations are left over
         guard let containerView else { return }
@@ -398,7 +407,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     }
 
     private func updateCornerRadius() {
-        preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadii?.uniformCornerRadius
+        preferredCornerRadius = preferredCornerRadiusOptions?.cornerRadii.uniformCornerRadius
     }
 
     private func updateBackgroundColors(didChangeBackgroundColor: Bool) {
@@ -411,7 +420,7 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
 
     private func updateBackground(didChangeBackgroundColor: Bool, didChangeGlassEffect: Bool) {
         updateBackgroundColors(didChangeBackgroundColor: didChangeBackgroundColor)
-        #if canImport(FoundationModels) // Xcode 26
+        #if XCODE_26
         if #available(iOS 26.0, *), didChangeGlassEffect || (didChangeBackgroundColor && preferredGlassEffect == nil) {
             var largeBackground: Any?
             let hasTranslucentBackground = preferredBackgroundColor?.isTranslucent == true
@@ -452,13 +461,31 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         #endif
     }
 
+    private func updateContentScrollView() {
+        let scrollView = presentedViewController.view.firstDescendent(
+            ofType: UIScrollView.self,
+            matching: {
+                guard $0.contentScrollsAlongYAxis else { return false }
+                let frame = $0.convert($0.bounds, to: presentedViewController.view)
+                return presentedViewController.view.frame.intersects(frame)
+            }
+        )
+        scrollView?.panGestureRecognizer.addTarget(self, action: #selector(didPan(_:)))
+    }
+
     private func updatePanGesture() {
-        panGesture?.isEnabled = isPanToDismissGestureEnabled
-        if isPanToDismissGestureEnabled, panGestureDelegate != nil {
-            panGesture?.delegate = panGestureDelegate
-        } else if !isPanToDismissGestureEnabled, panGesture?.delegate !== self {
-            panGestureDelegate = panGesture?.delegate
-            panGesture?.delegate = self
+        if let panGesture {
+            panGesture.isEnabled = isPanToDismissGestureEnabled
+            if isPanToDismissGestureEnabled, let panGestureDelegateProxy {
+                panGesture.delegate = panGestureDelegateProxy.original
+                self.panGestureDelegateProxy = nil
+            } else if !isPanToDismissGestureEnabled, let panGestureDelegate = panGesture.delegate, panGestureDelegate !== panGestureDelegateProxy {
+                let proxy = UIGestureRecognizerDelegateProxy(override: self, original: panGestureDelegate)
+                panGestureDelegateProxy = proxy
+                panGesture.delegate = proxy
+            }
+        } else {
+            panGestureDelegateProxy = nil
         }
     }
 
@@ -597,6 +624,9 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
         typealias Fn = @convention(c) (AnyObject, Selector) -> Bool
         let fn = unsafeBitCast(imp, to: Fn.self)
         let shouldDismiss = fn(self, aSelector)
+        if shouldDismiss {
+            updateContentScrollView()
+        }
         return shouldDismiss
     }
 
@@ -769,6 +799,11 @@ extension SheetPresentationLinkTransition.Options {
             if preferredBackgroundColorDidChange {
                 return true
             }
+            #if XCODE_27
+            if #available(iOS 27.0, *), oldValue.preferredPlacement != newValue.preferredPlacement {
+                return true
+            }
+            #endif
             if #available(iOS 17.0, *), oldValue.prefersPageSizing != newValue.prefersPageSizing {
                 return true
             }
@@ -822,6 +857,11 @@ extension SheetPresentationLinkTransition.Options {
                 }
                 presentationController.preferredBackgroundColor = preferredBackgroundColor
                 presentationController.preferredGlassEffect = newValue.preferredGlassEffect
+                #if XCODE_27
+                if #available(iOS 27.0, *) {
+                    presentationController.preferredPlacement = newValue.preferredPlacement?.toUIKitSheetPlacement() ?? .automatic
+                }
+                #endif
                 #endif
             }
             if let animation,

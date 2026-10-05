@@ -130,14 +130,14 @@ private class TransitionSourceHostingView<Content: View>: HostingView<Content> {
     var cornerRadius: CornerRadiusOptions? {
         didSet {
             guard cornerRadius != oldValue else { return }
-            cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
+            cornerRadius?.setCornerRadius(to: self, prefersMasksToBounds: backgroundColor != nil)
         }
     }
 
     override var backgroundColor: UIColor? {
         didSet {
             guard backgroundColor != oldValue else { return }
-            cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
+            cornerRadius?.setCornerRadius(to: self, prefersMasksToBounds: backgroundColor != nil)
         }
     }
 
@@ -157,7 +157,7 @@ private class TransitionSourceHostingView<Content: View>: HostingView<Content> {
     override func layoutSubviews() {
         super.layoutSubviews()
         if #unavailable(iOS 26.0) {
-            cornerRadius?.apply(to: self, masksToBounds: backgroundColor != nil)
+            cornerRadius?.setCornerRadius(to: self, prefersMasksToBounds: backgroundColor != nil)
         }
         hasInitialLayout = bounds.size != .zero
     }

@@ -11,14 +11,14 @@ import SwiftUI
 @available(iOS 14.0, *)
 open class SlidePresentationController: InteractivePresentationController {
 
-    public var edge: Edge
+    public var edge: Edge = .bottom
 
     public override var edges: Edge.Set {
         get { Edge.Set(edge) }
         set { }
     }
 
-    public var prefersScaleEffect: Bool {
+    public var prefersScaleEffect: Bool = false {
         didSet {
             guard oldValue != prefersScaleEffect else { return }
             updatePortalView()
@@ -35,18 +35,10 @@ open class SlidePresentationController: InteractivePresentationController {
 
     private var portalView: UIView?
 
-    public init(
-        edge: Edge = .bottom,
-        prefersScaleEffect: Bool,
-        preferredFromCornerRadius: CornerRadiusOptions.RoundedRectangle?,
-        preferredToCornerRadius: CornerRadiusOptions.RoundedRectangle?,
+    public override init(
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
-        self.edge = edge
-        self.prefersScaleEffect = prefersScaleEffect
-        self.preferredFromCornerRadius = preferredFromCornerRadius
-        self.preferredToCornerRadius = preferredToCornerRadius
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
@@ -62,14 +54,14 @@ open class SlidePresentationController: InteractivePresentationController {
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
         if completed, let presentedView {
-            CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView)
+            CornerRadiusOptions.RoundedRectangle.identity.setCornerRadius(to: presentedView)
         }
     }
 
     open override func dismissalTransitionDidEnd(_ completed: Bool) {
         super.dismissalTransitionDidEnd(completed)
         if !completed, let presentedView {
-            CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView)
+            CornerRadiusOptions.RoundedRectangle.identity.setCornerRadius(to: presentedView)
         }
     }
 
@@ -77,11 +69,11 @@ open class SlidePresentationController: InteractivePresentationController {
         super.transitionAlongsidePresentation(progress: progress)
         if let presentedView {
             if (presentedViewController.isBeingPresented && progress == 1) || (presentedViewController.isBeingDismissed && progress == 0) {
-                let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
-                toCornerRadius.apply(to: presentedView)
+                let toCornerRadius = preferredToCornerRadius ?? .screen()
+                toCornerRadius.setCornerRadius(to: presentedView, prefersEffectiveMinimium: true)
             } else if (presentedViewController.isBeingDismissed && progress == 1) || (presentedViewController.isBeingPresented && progress == 0) {
-                let fromCornerRadius = preferredFromCornerRadius ?? .screen(min: 0)
-                fromCornerRadius.apply(to: presentedView)
+                let fromCornerRadius = preferredFromCornerRadius ?? preferredToCornerRadius ?? .screen()
+                fromCornerRadius.setCornerRadius(to: presentedView, prefersEffectiveMinimium: true)
             }
         }
         portalView?.transform = portalViewTransform(progress: progress)
@@ -92,15 +84,15 @@ open class SlidePresentationController: InteractivePresentationController {
 
         if transform.isIdentity {
             if let presentedView, panGesture.state == .possible {
-                CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedView)
+                CornerRadiusOptions.RoundedRectangle.identity.setCornerRadius(to: presentedView)
             }
             updateShadow(progress: 0)
         } else {
-            if let presentedView {
-                let toCornerRadius = preferredToCornerRadius ?? .screen(min: 0)
-                toCornerRadius.apply(to: presentedView)
-            }
             let progress = max(0, min(transform.d, 1))
+            if let presentedView {
+                let toCornerRadius = preferredToCornerRadius ?? .screen()
+                toCornerRadius.setCornerRadius(to: presentedView)
+            }
             updateShadow(progress: progress)
         }
     }
@@ -114,19 +106,24 @@ open class SlidePresentationController: InteractivePresentationController {
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
         portalView?.setFramePreservingTransform(containerView?.bounds ?? .zero)
+        if #unavailable(iOS 26.0), let portalView {
+            let cornerRadius = CornerRadiusOptions.screen()
+            cornerRadius.setCornerRadius(to: portalView)
+        }
     }
 
     private func updatePortalView() {
-        if prefersScaleEffect, portalView == nil {
+        if prefersScaleEffect, portalView == nil, let containerView {
             let fromPresentationController = presentingViewController._presentationController
             if fromPresentationController is SlidePresentationController || fromPresentationController == nil {
                 if let portalView = PortalView(sourceView: presentingViewController.view) {
                     portalView.hidesSourceView = true
                     portalView.matchesAlpha = true
-                    portalView.layer.cornerCurve = .circular
-                    portalView.layer.masksToBounds = true
-                    portalView.layer.cornerRadius = UIScreen.main.displayCornerRadius()
-                    containerView?.insertSubview(portalView, at: 0)
+                    portalView.clipsToBounds = true
+                    let cornerRadius = CornerRadiusOptions.screen()
+                    cornerRadius.setCornerRadius(to: portalView)
+                    portalView.frame = containerView.bounds
+                    containerView.insertSubview(portalView, at: 0)
                     self.portalView = portalView
                 }
             }

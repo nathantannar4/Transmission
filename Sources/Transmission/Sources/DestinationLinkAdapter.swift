@@ -593,7 +593,7 @@ final class DestinationLinkCoordinatorAdapter<
                 if gesture == navigationController.interactivePopGestureRecognizer {
                     return true
                 }
-                #if canImport(FoundationModels) // Xcode 26
+                #if XCODE_26
                 if #available(iOS 26.0, *), gesture == navigationController.interactiveContentPopGestureRecognizer {
                     return true
                 }
@@ -761,7 +761,7 @@ final class DestinationLinkCoordinatorAdapter<
             if navigationController.interactivePopGestureRecognizer?.isInteracting == true {
                 sourceView?.alpha = 1
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), navigationController.interactiveContentPopGestureRecognizer?.isInteracting == true {
                 sourceView?.alpha = 1
             }
@@ -1007,7 +1007,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         } else {
             navigationController.interactivePopGestureRecognizer?.delegate = self
         }
-        #if canImport(FoundationModels) // Xcode 26
+        #if XCODE_26
         if #available(iOS 26.0, *) {
             if let panGestureDelegate = navigationController.interactiveContentPopGestureRecognizer?.delegate {
                 let proxy = UIGestureRecognizerDelegateProxy(override: self, original: panGestureDelegate)
@@ -1039,7 +1039,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             action: #selector(panGestureDidChange(_:))
         )
         interactivePopPanGestureRecognizer.delegate = self
-        #if canImport(FoundationModels) // Xcode 26
+        #if XCODE_26
         if #available(iOS 26.0, *), let builtinGesture = navigationController.interactiveContentPopGestureRecognizer {
             interactivePopPanGestureRecognizer.delaysTouchesBegan = builtinGesture.delaysTouchesBegan
             interactivePopPanGestureRecognizer.delaysTouchesEnded = builtinGesture.delaysTouchesEnded
@@ -1284,6 +1284,30 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                         navigationController.topViewController?.fixSwiftUIHitTesting()
                     }
+
+                    if #available(iOS 26.0, *),
+                        isInterruptedInteractiveTransition,
+                        let to = transitionCoordinator.viewController(forKey: .to),
+                        let from = transitionCoordinator.viewController(forKey: .from)
+                    {
+                        // Fix glass animation
+                        if let tabBarController = navigationController.tabBarController,
+                            to.hidesBottomBarWhenPushed,
+                            !from.hidesBottomBarWhenPushed,
+                            !tabBarController.isTabBarHidden
+                        {
+                            let tabBar = tabBarController.tabBar
+                            tabBar.isHidden = false
+                            transitionCoordinator.animateAlongsideTransition(in: tabBar) { _ in
+                                tabBar.alpha = 1
+                            }
+                        }
+                        if let searchBar = from.navigationItem.searchController?.searchBar {
+                            transitionCoordinator.animateAlongsideTransition(in: navigationController.navigationBar) { _ in
+                                searchBar.alpha = 1
+                            }
+                        }
+                    }
                 }
                 transition.cancel()
 
@@ -1488,7 +1512,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return canBegin ?? true
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController.interactiveContentPopGestureRecognizer {
                 let canBegin = panGestureDelegateProxy?.original?.gestureRecognizerShouldBegin?(
                     gestureRecognizer
@@ -1507,7 +1531,7 @@ final class DestinationLinkDelegateProxy: NSObject,
         if gestureRecognizer == interactivePopEdgeGestureRecognizer {
             return true
         } else if gestureRecognizer == interactivePopPanGestureRecognizer {
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), otherGestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 return false
             }
@@ -1535,7 +1559,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldRecognizeSimultaneouslyWith ?? false
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldRecognizeSimultaneouslyWith = panGestureDelegateProxy?.original?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1561,6 +1585,12 @@ final class DestinationLinkDelegateProxy: NSObject,
             if otherGestureRecognizer.isSwiftUIGestureRecognizer, otherGestureRecognizer.state != .began {
                 return true
             }
+            if !isInterruptedInteractiveTransition,
+                let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer,
+                !panGesture.isSimultaneousWithTransition(horizontal: true, vertical: false)
+            {
+                return true
+            }
             return false
         } else {
             if gestureRecognizer == navigationController?.interactivePopGestureRecognizer {
@@ -1570,7 +1600,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldRequireFailureOf ?? false
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldRequireFailureOf = panGestureDelegateProxy?.original?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1591,7 +1621,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             if otherGestureRecognizer == navigationController?.interactivePopGestureRecognizer {
                 return true
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), otherGestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 return true
             }
@@ -1610,7 +1640,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldBeRequiredToFailBy ?? false
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldBeRequiredToFailBy = panGestureDelegateProxy?.original?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1637,7 +1667,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldReceive = panGestureDelegateProxy?.original?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1664,7 +1694,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldReceive = panGestureDelegateProxy?.original?.gestureRecognizer?(
                     gestureRecognizer,
@@ -1691,7 +1721,7 @@ final class DestinationLinkDelegateProxy: NSObject,
                 )
                 return shouldReceive ?? true
             }
-            #if canImport(FoundationModels) // Xcode 26
+            #if XCODE_26
             if #available(iOS 26.0, *), gestureRecognizer == navigationController?.interactiveContentPopGestureRecognizer {
                 let shouldReceive = panGestureDelegateProxy?.original?.gestureRecognizer?(
                     gestureRecognizer,

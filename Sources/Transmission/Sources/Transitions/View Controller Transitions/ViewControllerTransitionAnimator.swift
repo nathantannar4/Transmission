@@ -27,12 +27,15 @@ extension ViewControllerTransitionAnimator {
             transitionContext.presentationStyle != .none,
             let presented = transitionContext.viewController(forKey: isPresenting ? .to : .from),
             let presentedView = transitionContext.view(forKey: isPresenting ? .to : .from) ?? presented.view,
-            let presentationController = presented.presentationController
+            let presentationController = presented.presentationController,
+            let hostingController = presented as? AnyHostingController
         else {
             return
         }
 
-        (presented as? AnyHostingController)?.render()
+        presentedView.alpha = 0; defer { presentedView.alpha = 1 }
+
+        hostingController.render()
 
         guard
             let transitionReaderCoordinator = presented.transitionReaderCoordinator

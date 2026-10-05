@@ -488,23 +488,12 @@ public struct SheetPresentationLinkTransition {
     @frozen
     public struct Options {
 
-        public enum Placement {
-            case sourceView
-
-            @available(iOS 27.0, *)
-            case leading
-            @available(iOS 27.0, *)
-            case center
-            @available(iOS 27.0, *)
-            case trailing
-        }
-
         public var selected: Binding<Detent.Identifier?>?
         public var detents: [Detent]
         public var largestUndimmedDetentIdentifier: Detent.Identifier?
         public var prefersGrabberVisible: Bool
         public var preferredCornerRadius: CornerRadiusOptions.RoundedRectangle?
-        public var preferredPlacement: Placement?
+        public var preferredPlacement: PreferredPresentationPlacement?
         public var prefersScrollingExpandsWhenScrolledToEdge: Bool
         public var prefersEdgeAttachedInCompactHeight: Bool
         public var widthFollowsPreferredContentSizeWhenEdgeAttached: Bool
@@ -523,7 +512,7 @@ public struct SheetPresentationLinkTransition {
             largestUndimmedDetentIdentifier: SheetPresentationLinkTransition.Detent.Identifier? = nil,
             prefersGrabberVisible: Bool = false,
             preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-            preferredPlacement: Placement? = nil,
+            preferredPlacement: PreferredPresentationPlacement? = nil,
             prefersScrollingExpandsWhenScrolledToEdge: Bool = true,
             prefersEdgeAttachedInCompactHeight: Bool = false,
             widthFollowsPreferredContentSizeWhenEdgeAttached: Bool = false,
@@ -544,12 +533,7 @@ public struct SheetPresentationLinkTransition {
             }
             self.largestUndimmedDetentIdentifier = largestUndimmedDetentIdentifier
             self.prefersGrabberVisible = prefersGrabberVisible
-            self.preferredCornerRadius = {
-                if let preferredCornerRadius {
-                    return preferredCornerRadius
-                }
-                return prefersZoomTransition ? MainActor.assumeIsolated({.screen()}) : nil
-            }()
+            self.preferredCornerRadius = preferredCornerRadius
             self.preferredPlacement = preferredPlacement
             self.prefersScrollingExpandsWhenScrolledToEdge = prefersScrollingExpandsWhenScrolledToEdge
             self.prefersEdgeAttachedInCompactHeight = prefersEdgeAttachedInCompactHeight

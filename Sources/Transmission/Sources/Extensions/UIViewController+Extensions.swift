@@ -103,15 +103,37 @@ extension UIViewController {
         }
     }
 
-    public func _firstDescendent<T: UIViewController>(ofType type: T.Type) -> T? {
-        firstDescendent(ofType: type)
+    public func _firstAncestor<T: UIViewController>(ofType type: T.Type, matching: (T) -> Bool = { _ in true }) -> T? {
+        firstAncestor(ofType: type, matching: matching)
     }
 
-    func firstDescendent<T: UIViewController>(ofType type: T.Type) -> T? {
-        for child in children {
-            if let match = child as? T {
+    public func _firstAncestor(matching: (UIViewController) -> Bool) -> UIViewController? {
+        firstAncestor(ofType: UIViewController.self, matching: matching)
+    }
+
+    func firstAncestor<T: UIViewController>(ofType type: T.Type, matching: (T) -> Bool = { _ in true }) -> T? {
+        if let parent {
+            if let match = parent as? T, matching(match) {
                 return match
-            } else if let match = child.firstDescendent(ofType: type) {
+            }
+            return parent.firstAncestor(ofType: type, matching: matching)
+        }
+        return nil
+    }
+
+    public func _firstDescendent<T: UIViewController>(ofType type: T.Type, matching: (T) -> Bool = { _ in true }) -> T? {
+        firstDescendent(ofType: type, matching: matching)
+    }
+
+    public func _firstDescendent(matching: (UIViewController) -> Bool) -> UIViewController? {
+        firstDescendent(ofType: UIViewController.self, matching: matching)
+    }
+
+    func firstDescendent<T: UIViewController>(ofType type: T.Type, matching: (T) -> Bool = { _ in true }) -> T? {
+        for child in children {
+            if let match = child as? T, matching(match) {
+                return match
+            } else if let match = child.firstDescendent(ofType: type, matching: matching) {
                 return match
             }
         }

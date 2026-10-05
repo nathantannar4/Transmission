@@ -142,7 +142,6 @@ open class PopoverPresentationControllerTransition: PresentationControllerTransi
         }()
 
         if isPresenting {
-            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -166,6 +165,7 @@ open class PopoverPresentationControllerTransition: PresentationControllerTransi
                 frame: presentedFrame
             )
             presentedView.transform = transform
+            presentedView.alpha = 0
             animator.addAnimations {
                 dimmingView?.alpha = 1
                 presentedView.alpha = 1

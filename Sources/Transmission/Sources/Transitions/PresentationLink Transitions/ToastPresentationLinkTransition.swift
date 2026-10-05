@@ -90,7 +90,6 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) -> ToastPresentationController {
         let presentationController = ToastPresentationController(
-            edge: options.edge,
             presentedViewController: presented,
             presenting: presenting
         )
@@ -112,6 +111,7 @@ public struct ToastPresentationLinkTransition: PresentationLinkTransitionReprese
         presenting: PresentationHostingController<Content>,
         context: Context
     ) where Content: View {
+        presenting.view.clipsToBounds = context.options.preferredPresentationBackgroundColor != .clear
         presenting.tracksContentSize = true
         presenting.disableSafeArea = context.options.preferredPresentationSafeAreaInsets == .zero
     }

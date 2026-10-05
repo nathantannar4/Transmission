@@ -82,7 +82,7 @@ open class PopoverPresentationController: UIPopoverPresentationController, Perce
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(didSelectBackground))
         dimmingView.addGestureRecognizer(tapGesture)
 
-        #if canImport(FoundationModels) // Xcode 26
+        #if XCODE_26
         if #available(iOS 26.0, *) {
             presentedViewController.view.superview?.clipsToBounds = false
             presentedViewController.view.superview?.cornerConfiguration = .corners(

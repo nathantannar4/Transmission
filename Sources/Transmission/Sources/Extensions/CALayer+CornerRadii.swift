@@ -14,7 +14,7 @@ extension CACornerMask {
         .layerMaxXMaxYCorner,
         .layerMaxXMinYCorner,
         .layerMinXMaxYCorner,
-        .layerMinXMinYCorner
+        .layerMinXMinYCorner,
     ]
 
     static let topLeft: CACornerMask = .layerMinXMinYCorner
@@ -105,10 +105,10 @@ extension CALayer {
             }
             if let newValue {
                 let value = CACornerRadiiLayout(
-                    bottomLeft: CGSize(width: newValue.bottomLeading, height: newValue.bottomLeading),
-                    bottomRight: CGSize(width: newValue.bottomTrailing, height: newValue.bottomTrailing),
-                    topRight: CGSize(width: newValue.topTrailing, height: newValue.topTrailing),
-                    topLeft: CGSize(width: newValue.topLeading, height: newValue.topLeading)
+                    bottomLeft: CGSize(width: newValue.bottomLeading.fixed ?? 0, height: newValue.bottomLeading.fixed ?? 0),
+                    bottomRight: CGSize(width: newValue.bottomTrailing.fixed ?? 0, height: newValue.bottomTrailing.fixed ?? 0),
+                    topRight: CGSize(width: newValue.topTrailing.fixed ?? 0, height: newValue.topTrailing.fixed ?? 0),
+                    topLeft: CGSize(width: newValue.topLeading.fixed ?? 0, height: newValue.topLeading.fixed ?? 0)
                 )
                 let box = withUnsafeBytes(of: value) { bytes in
                     CACornerRadiiType.withCString { objCType in
@@ -131,8 +131,6 @@ extension CALayer {
     private static let cornerRadiiObjCType: String? = NSStringFromBase64EncodedString(
         "e0NBQ29ybmVyUmFkaWk9e0NHU2l6ZT1kZH17Q0dTaXplPWRkfXtDR1NpemU9ZGR9e0NHU2l6ZT1kZH19"
     )
-
-    nonisolated(unsafe) private static var hasCornerRadiiKey: UInt = 0
 }
 
 #endif

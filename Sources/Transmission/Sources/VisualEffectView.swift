@@ -197,7 +197,7 @@ public struct GlassEffect: Equatable {
         /// Clear glass effect style.
         case clear
 
-        #if canImport(FoundationModels) // Xcode 26
+        #if XCODE_26
         @available(iOS 26.0, *)
         public func toUIKit() -> UIGlassEffect.Style {
             switch self {
@@ -209,7 +209,7 @@ public struct GlassEffect: Equatable {
         }
 
         @available(iOS 26.0, *)
-        public func toSwiftUI() -> Glass {
+        public func toSwiftUI() -> SwiftUI.Glass {
             switch self {
             case .regular:
                 return .regular
@@ -239,7 +239,7 @@ public struct GlassEffect: Equatable {
     }
 }
 
-#if canImport(FoundationModels) // Xcode 26
+#if XCODE_26
 @available(iOS 26.0, *)
 extension GlassEffect: VisualEffectRepresentable {
 
@@ -321,7 +321,7 @@ public struct GlassContainerEffect: Equatable {
     }
 }
 
-#if canImport(FoundationModels) // Xcode 26
+#if XCODE_26
 @available(iOS 26.0, *)
 extension GlassContainerEffect: VisualEffectRepresentable {
 
@@ -545,14 +545,14 @@ private class VisualEffectHostingView<
     private var cornerRadius: CornerRadiusOptions? {
         didSet {
             guard cornerRadius != oldValue else { return }
-            cornerRadius?.apply(to: self, masksToBounds: visualEffect != nil || backgroundColor != nil)
+            cornerRadius?.setCornerRadius(to: self, prefersMasksToBounds: visualEffect != nil || backgroundColor != nil)
         }
     }
 
     override var backgroundColor: UIColor? {
         didSet {
             guard backgroundColor != oldValue else { return }
-            cornerRadius?.apply(to: self, masksToBounds: visualEffect != nil || backgroundColor != nil)
+            cornerRadius?.setCornerRadius(to: self, prefersMasksToBounds: visualEffect != nil || backgroundColor != nil)
         }
     }
 
@@ -632,10 +632,116 @@ private class VisualEffectHostingView<
     override func layoutSubviews() {
         super.layoutSubviews()
         if #unavailable(iOS 26.0) {
-            cornerRadius?.apply(to: self, masksToBounds: visualEffect != nil || backgroundColor != nil)
+            cornerRadius?.setCornerRadius(to: self, prefersMasksToBounds: visualEffect != nil || backgroundColor != nil)
         }
     }
 }
+
+#if XCODE_26
+@available(iOS 26.0, *)
+public struct LiquidLensEffectView<
+    Content: View
+>: View {
+
+    public var isLifted: Bool
+    public var content: Content
+
+    public init(isLifted: Bool, @ViewBuilder content: () -> Content) {
+        self.isLifted = isLifted
+        self.content = content()
+    }
+
+    public var body: some View {
+        LiquidLensEffectViewAdapter(
+            isLifted: isLifted,
+            content: content
+        )
+    }
+}
+
+@available(iOS 26.0, *)
+private struct LiquidLensEffectViewAdapter<
+    Content: View
+>: UIViewRepresentable {
+
+    var isLifted: Bool
+    var content: Content
+
+    typealias UIViewType = LiquidLensEffectHostingView<Content>
+
+    func makeUIView(context: Context) -> UIViewType {
+        let uiView = UIViewType(
+            content: content
+        )
+        return uiView
+    }
+
+    func updateUIView(_ uiView: UIViewType, context: Context) {
+        uiView.update(
+            content: content,
+            transaction: context.transaction,
+            isLifted: isLifted
+        )
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        uiView: UIViewType,
+        context: Context
+    ) -> CGSize? {
+        return uiView.sizeThatFits(ProposedSize(proposal))
+    }
+
+    static func _modifyBridgedViewInputs(_ inputs: inout _ViewInputs) {
+        if Content.self != EmptyView.self {
+            inputs.bridgeHostingView()
+        }
+    }
+}
+
+@available(iOS 26.0, *)
+private class LiquidLensEffectHostingView<Content: View>: UIView {
+
+    private let hostingView: HostingView<Content>
+    private let liquidLensView: LiquidLensView?
+
+    override var intrinsicContentSize: CGSize {
+        hostingView.intrinsicContentSize
+    }
+
+    init(content: Content) {
+        let hostingView = HostingView(content: content)
+        hostingView.disablesSafeArea = true
+        hostingView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        self.hostingView = hostingView
+        self.liquidLensView = LiquidLensView(contentView: hostingView)
+        super.init(frame: .zero)
+        if let liquidLensView {
+            liquidLensView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            addSubview(liquidLensView)
+        } else {
+            addSubview(hostingView)
+        }
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(content: Content, transaction: Transaction, isLifted: Bool) {
+        hostingView.update(content: content, transaction: transaction)
+        liquidLensView?.setLifted(isLifted, animated: transaction.isAnimated)
+    }
+
+    func sizeThatFits(_ proposal: ProposedSize) -> CGSize {
+        hostingView.sizeThatFits(proposal)
+    }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        hostingView.sizeThatFits(size)
+    }
+}
+#endif
 
 // MARK: - Previews
 
@@ -706,8 +812,15 @@ struct VisualEffectView_Previews: PreviewProvider {
                         }
                     }
 
-                    #if canImport(FoundationModels) // Xcode 26
+                    #if XCODE_26
                     if #available(iOS 26.0, *) {
+                        VStack(alignment: .leading) {
+                            Text("Liquid Lens")
+                                .font(.headline)
+
+                            LiquidLensPreview()
+                        }
+
                         VStack(alignment: .leading) {
                             Text("Glass")
                                 .font(.headline)
@@ -934,7 +1047,7 @@ struct VisualEffectView_Previews: PreviewProvider {
                         .pickerStyle(.segmented)
                     }
 
-                    #if canImport(FoundationModels) // Xcode 26
+                    #if XCODE_26
                     if #available(iOS 26.0, *) {
                         VStack(alignment: .leading) {
                             Text("AnyEffect")
@@ -963,6 +1076,31 @@ struct VisualEffectView_Previews: PreviewProvider {
             }
         }
     }
+
+    #if XCODE_26
+    @available(iOS 26.0, *)
+    struct LiquidLensPreview: View {
+        @GestureState var translation: CGSize?
+
+        var body: some View {
+            LiquidLensEffectView(
+                isLifted: translation != nil
+            ) {
+                Circle()
+                    .fill(.blue)
+            }
+            .frame(width: 50, height: 50)
+            .offset(translation ?? .zero)
+            .animation(.bouncy, value: translation == nil)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($translation) { value, translation, _ in
+                        translation = value.translation
+                    }
+            )
+        }
+    }
+    #endif
 }
 
 #endif

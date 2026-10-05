@@ -12,13 +12,19 @@ extension UIScreen {
         _displayCornerRadius
     }
 
-    func displayCornerRadius(min: CGFloat = 12) -> CGFloat {
+    func displayCornerRadius(min: CGFloat = 8) -> CGFloat {
         max(min, _displayCornerRadius)
     }
 
     public var _displayCornerRadius: CGFloat {
-        let key = String("suidaRrenroCyalpsid_".reversed())
-        let value = value(forKey: key) as? CGFloat ?? 0
+        guard
+            // _displayCornerRadius
+            let aSelector = NSStringFromBase64EncodedString("X2Rpc3BsYXlDb3JuZXJSYWRpdXM="),
+            responds(to: NSSelectorFromString(aSelector)),
+            let value = value(forKey: aSelector) as? CGFloat
+        else {
+            return 0
+        }
         return value
     }
 }

@@ -512,6 +512,7 @@ final class ContextMenuLinkCoordinator<
         if sourceView.isHidden {
             parameters.backgroundColor = .clear
             parameters.visiblePath = UIBezierPath(rect: CGRect(origin: .zero, size: CGSize(width: sourceView.bounds.width, height: 0)))
+            parameters.shadowPath = UIBezierPath()
             let preview = UITargetedPreview(
                 view: {
                     if #available(iOS 26.0, *) {
@@ -530,6 +531,22 @@ final class ContextMenuLinkCoordinator<
                     .insetBy(dx: visibleInset, dy: visibleInset)
                 parameters.visiblePath = UIBezierPath(rect: rect)
                 parameters.shadowPath = UIBezierPath()
+            } else {
+                let shapeLayers = sourceView.layer.sublayers?
+                    .compactMap { $0 as? CAShapeLayer }
+                    .filter { $0.path != nil } ?? []
+                if !shapeLayers.isEmpty {
+                    let shadowPath = UIBezierPath()
+                    for shapeLayer in shapeLayers {
+                        guard let path = shapeLayer.path else { continue }
+                        // Shape layer paths are relative to the shape layer, not the source view
+                        let origin = sourceView.layer.convert(CGPoint.zero, from: shapeLayer)
+                        let bezierPath = UIBezierPath(cgPath: path)
+                        bezierPath.apply(CGAffineTransform(translationX: origin.x, y: origin.y))
+                        shadowPath.append(bezierPath)
+                    }
+                    parameters.shadowPath = shadowPath
+                }
             }
             var container = sourceView.superview
             while let ancestor = container, !ancestor.isSwiftUIPlatformViewHost {

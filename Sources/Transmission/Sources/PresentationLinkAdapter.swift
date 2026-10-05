@@ -1370,23 +1370,13 @@ final class PresentationLinkCoordinatorAdapter<
                 presentationController.prefersScrollingExpandsWhenScrolledToEdge = options.prefersScrollingExpandsWhenScrolledToEdge
                 presentationController.prefersEdgeAttachedInCompactHeight = options.prefersEdgeAttachedInCompactHeight
                 presentationController.widthFollowsPreferredContentSizeWhenEdgeAttached = options.widthFollowsPreferredContentSizeWhenEdgeAttached
-                if let placement = options.preferredPlacement {
-                    if placement == .sourceView {
-                        presentationController.sourceView = sourceView
-                    } else if #available(iOS 27.0, *) {
-                        #if canImport(NowPlaying) // Xcode 27
-                        switch placement {
-                        case .leading:
-                            presentationController.preferredPlacement = .leading
-                        case .center:
-                            presentationController.preferredPlacement = .center
-                        case .trailing:
-                            presentationController.preferredPlacement = .trailing
-                        default:
-                            break
-                        }
-                        #endif
-                    }
+                if #available(iOS 27.0, *) {
+                    #if XCODE_27
+                    presentationController.preferredPlacement = options.preferredPlacement?.toUIKitSheetPlacement() ?? .automatic
+                    #endif
+                }
+                if options.preferredPlacement == .sourceView {
+                    presentationController.sourceView = sourceView
                 }
                 if #available(iOS 17.0, *) {
                     presentationController.prefersPageSizing = options.prefersPageSizing

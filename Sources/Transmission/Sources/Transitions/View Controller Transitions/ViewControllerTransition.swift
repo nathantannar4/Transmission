@@ -156,9 +156,19 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         animator.isInterruptible = isInterruptible
         // This must be set before configuring, as view layout can sometimes trigger re-entry
         self.animator = animator
-        configureTransitionAnimator(using: transitionContext, animator: animator)
+        // Prevent any implicit animations when configuring starting configuration
+        UIView.performWithoutAnimation {
+            _configureTransitionAnimator(using: transitionContext, animator: animator)
+        }
         animatedStarted(transitionContext: transitionContext)
         return animator
+    }
+
+    open func _configureTransitionAnimator(
+        using transitionContext: UIViewControllerContextTransitioning,
+        animator: UIViewPropertyAnimator
+    ) {
+        configureTransitionAnimator(using: transitionContext, animator: animator)
     }
 
     public func configureTransitionReaderCoordinator(
@@ -208,7 +218,6 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
 
         let isPresenting = isPresenting
         if isPresenting {
-            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -230,10 +239,14 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
             }
             presentedView.layoutIfNeeded()
         }
+        if isPresenting {
+            presentedView.alpha = 0
+        }
         animator.addAnimations {
             presentedView.alpha = isPresenting ? 1 : 0
         }
         animator.addCompletion { animatingPosition in
+            presentedView.alpha = 1
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

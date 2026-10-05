@@ -88,7 +88,7 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
         context: Context
     ) -> PushNavigationControllerTransition? {
         let transition = PushNavigationControllerTransition(
-            dimmingColor: options.dimmingColor?.toUIColor(),
+            dimmingColor: options.dimmingColor?.toUIColor(in: context.environment),
             preferredCornerRadius: options.preferredCornerRadius,
             preferredShadow: options.preferredShadow,
             isPresenting: true,
@@ -104,7 +104,7 @@ public struct PushDestinationLinkTransition: DestinationLinkTransitionRepresenta
         context: Context
     ) -> PushNavigationControllerTransition? {
         let transition = PushNavigationControllerTransition(
-            dimmingColor: options.dimmingColor?.toUIColor(),
+            dimmingColor: options.dimmingColor?.toUIColor(in: context.environment),
             preferredCornerRadius: options.preferredCornerRadius,
             preferredShadow: options.preferredShadow,
             isPresenting: false,
@@ -166,13 +166,11 @@ open class PushNavigationControllerTransition: NavigationControllerTransition {
             return
         }
 
-
         let width = transitionContext.containerView.frame.width
         let offset = width * 0.3
         let isPresenting = isPresenting
         let preferredCornerRadius = preferredCornerRadius
         if isPresenting {
-            toVC.view.alpha = 0
             transitionContext.containerView.addSubview(toVC.view)
         } else {
             transitionContext.containerView.insertSubview(toVC.view, belowSubview: fromVC.view)
@@ -213,7 +211,7 @@ open class PushNavigationControllerTransition: NavigationControllerTransition {
                 let shadowView = DropShadowView()
                 shadowView.alpha = isPresenting ? 0 : 1
                 if let preferredShadow {
-                    preferredShadow.apply(to: shadowView)
+                    shadowView.setShadow(preferredShadow)
                 }
                 transitionContext.containerView.insertSubview(
                     shadowView,
@@ -230,36 +228,42 @@ open class PushNavigationControllerTransition: NavigationControllerTransition {
         toVC.view.transform = toVCTransform
         let presentedVC = isPresenting ? toVC : fromVC
         if let preferredCornerRadius {
-            preferredCornerRadius.apply(to: presentedVC.view)
+            preferredCornerRadius.setCornerRadius(to: presentedVC.view, prefersEffectiveMinimium: true)
             if let dropShadowView {
-                preferredCornerRadius.apply(to: dropShadowView, masksToBounds: false)
+                preferredCornerRadius.setCornerRadius(to: dropShadowView, prefersEffectiveMinimium: true)
             }
-        } else if #available(iOS 26.0, *) {
-            #if canImport(FoundationModels) // Xcode 26
-            let presentationController = transitionContext.viewController(forKey: isPresenting ? .from : .to)?.activePresentationController
+        } else {
+            let presentationController = transitionContext.viewController(forKey: isPresenting ? .from : .to)?._presentationController
             var presentedView = presentationController?.presentedView
             if let presentationController = presentationController as? UISheetPresentationController {
                 presentedView = presentationController.presentedView?.subviews.last
             }
-            if let presentedView, presentedView.layer.cornerRadius > 0 || presentedView.cornerConfiguration != .identity {
+            #if XCODE_26
+            if #available(iOS 26.0, *), let presentedView, presentedView.layer.cornerRadius > 0 || presentedView.cornerConfiguration != .identity {
                 presentedVC.view.cornerConfiguration = presentedView.cornerConfiguration
                 presentedVC.view.layer.cornerCurve = presentedView.layer.cornerCurve
-                presentedVC.view.clipsToBounds = presentedView.clipsToBounds
+                presentedVC.view.layer.masksToBounds = presentedView.layer.masksToBounds
                 if let dropShadowView {
                     dropShadowView.cornerConfiguration = presentedView.cornerConfiguration
                     dropShadowView.layer.cornerCurve = presentedView.layer.cornerCurve
                 }
             } else {
-                let cornerRadius = CornerRadiusOptions.RoundedRectangle.screen()
-                cornerRadius.apply(to: presentedVC.view)
+                let cornerRadius = CornerRadiusOptions.screen()
+                cornerRadius.setCornerRadius(to: presentedVC.view, prefersEffectiveMinimium: true)
                 if let dropShadowView {
-                    cornerRadius.apply(to: dropShadowView, masksToBounds: false)
+                    cornerRadius.setCornerRadius(to: dropShadowView, prefersEffectiveMinimium: true)
                 }
+            }
+            #else
+            let cornerRadius = CornerRadiusOptions.screen()
+            cornerRadius.setCornerRadius(to: presentedVC.view)
+            if let dropShadowView {
+                cornerRadius.setCornerRadius(to: dropShadowView)
             }
             #endif
         }
+
         let dimmingView = dimmingView
-        toVC.view.alpha = 1
         animator.addAnimations {
             toVC.view.transform = .identity
             dropShadowView?.transform = isPresenting ? .identity : fromVCTransform
@@ -272,11 +276,7 @@ open class PushNavigationControllerTransition: NavigationControllerTransition {
             fromVC.view.transform = .identity
             dropShadowView?.removeFromSuperview()
             dimmingView?.removeFromSuperview()
-            if preferredCornerRadius != nil {
-                CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedVC.view)
-            } else if #available(iOS 26.0, *) {
-                CornerRadiusOptions.RoundedRectangle.identity.apply(to: presentedVC.view)
-            }
+            CornerRadiusOptions.RoundedRectangle.identity.setCornerRadius(to: presentedVC.view)
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

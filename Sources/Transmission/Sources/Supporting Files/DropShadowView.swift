@@ -13,7 +13,7 @@ open class DropShadowView: UIView {
         super.init(frame: frame)
 
         isUserInteractionEnabled = false
-        ShadowOptions.feather.apply(to: self)
+        setShadow(ShadowOptions.feather)
     }
 
     public required init?(coder aDecoder: NSCoder) {

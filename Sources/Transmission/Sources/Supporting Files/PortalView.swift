@@ -159,16 +159,15 @@ open class PortalView: UIView {
     }
 
     public init?(sourceView: UIView) {
-        let allocSelector = NSSelectorFromString("alloc")
-        // initWithSourceView:
-        let initSelector = NSSelectorFromBase64EncodedString("aW5pdFdpdGhTb3VyY2VWaWV3Og==")
-        // _UIPortalView
-        let portalViewClass = NSClassFromBase64EncodedString("X1VJUG9ydGFsVmlldw==")
         guard
-            let portalViewClass = portalViewClass as? UIView.Type
+            // _UIPortalView
+            let portalViewClass = NSClassFromBase64EncodedString("X1VJUG9ydGFsVmlldw==") as? UIView.Type,
+            // initWithSourceView:
+            let initSelector = NSSelectorFromBase64EncodedString("aW5pdFdpdGhTb3VyY2VWaWV3Og==")
         else {
             return nil
         }
+        let allocSelector = NSSelectorFromString("alloc")
         let instance = portalViewClass.perform(allocSelector).takeUnretainedValue()
         guard
             instance.responds(to: initSelector),

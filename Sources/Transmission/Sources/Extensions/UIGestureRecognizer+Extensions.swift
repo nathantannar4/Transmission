@@ -30,8 +30,24 @@ extension UIGestureRecognizer {
         return isInteracting
     }
 
+    func isSimultaneousWithTransition(horizontal: Bool, vertical: Bool) -> Bool {
+        if isScrollViewPanGesture, let scrollView = view as? UIScrollView {
+            if horizontal, scrollView.contentScrollsAlongXAxis {
+                let minX = -scrollView.adjustedContentInset.left
+                let isAtFarLeft = scrollView.contentOffset.x <= minX
+                return isAtFarLeft
+            }
+            if vertical, scrollView.contentScrollsAlongYAxis {
+                let minY = -scrollView.adjustedContentInset.top
+                let isAtTop = scrollView.contentOffset.y <= minY
+                return isAtTop
+            }
+        }
+        return isSimultaneousWithTransition
+    }
+
     var isSimultaneousWithTransition: Bool {
-        isScrollViewPanGesture || isWebViewPanGesture || isMapViewGesture
+        return isWebViewPanGesture || isMapViewGesture
             || delaysTouchesBegan
             || isKind(of: UIPinchGestureRecognizer.self)
     }
@@ -67,6 +83,14 @@ extension UIGestureRecognizer {
     private static let MKTiltGestureRecognizer: AnyClass? = NSClassFromString("MKTiltGestureRecognizer")
     var isMapViewTiltGestureRecognizer: Bool {
         guard let aClass = Self.MKTiltGestureRecognizer else {
+            return false
+        }
+        return isKind(of: aClass)
+    }
+
+    private static let UIScrollViewDelayedTouchesBeganGestureRecognizer: AnyClass? = NSClassFromString("UIScrollViewDelayedTouchesBeganGestureRecognizer")
+    var isScrollViewDelayedTouchesBeganGestureRecognizer: Bool {
+        guard let aClass = Self.UIScrollViewDelayedTouchesBeganGestureRecognizer else {
             return false
         }
         return isKind(of: aClass)

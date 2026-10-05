@@ -155,13 +155,13 @@ public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTra
             : (presentedView.transform.isIdentity ? presentedView.frame : transitionContext.initialFrame(for: presented))
 
         let fromCornerRadius = preferredFromCornerRadius ?? .identity
-        let toCornerRadius = preferredToCornerRadius ?? .containerConcentric(minimum: nil)
+        let toCornerRadius = preferredToCornerRadius ?? .screen()
 
         if isPresenting {
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
             }
-            fromCornerRadius.apply(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
+            fromCornerRadius.setCornerRadius(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
 
             if prefersZoomEffect {
                 presentedView.frame = presentedFrame
@@ -187,7 +187,7 @@ public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTra
             CATransaction.flush()
         } else {
             if presentedView.layer.cornerRadius == 0 {
-                toCornerRadius.apply(to: presentedPortalView ?? presentedView)
+                toCornerRadius.setCornerRadius(to: presentedPortalView ?? presentedView)
             }
             presentedView.layoutIfNeeded()
             hostingController?.render()
@@ -206,9 +206,9 @@ public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTra
             if let sourceViewPortalView {
                 sourceViewPortalView.transform = CGAffineTransform(to: sourceFrame, from: presentedFrame, preserveAspectRatio: true)
                 if let preferredToCornerRadius {
-                    preferredToCornerRadius.apply(to: sourceViewPortalView)
+                    preferredToCornerRadius.setCornerRadius(to: sourceViewPortalView)
                 } else {
-                    sourceViewPortalView.applyCornerRadius(from: presentedView)
+                    sourceViewPortalView.setCornerRadius(from: presentedView)
                 }
             }
         }
@@ -218,9 +218,9 @@ public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTra
             presentedPortalView.frame = presentedFrame
             presentedPortalView.transform = presentedView.transform
             if let preferredToCornerRadius {
-                preferredToCornerRadius.apply(to: presentedPortalView)
+                preferredToCornerRadius.setCornerRadius(to: presentedPortalView)
             } else {
-                presentedPortalView.applyCornerRadius(from: presentedView)
+                presentedPortalView.setCornerRadius(from: presentedView)
             }
             presentedView.frame = transitionContext.initialFrame(for: presented)
             presentedView.transform = CGAffineTransform(to: presentedView.frame, from: presentedFrame)
@@ -248,14 +248,14 @@ public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTra
             }
 
             if isPresenting {
-                toCornerRadius.apply(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
+                toCornerRadius.setCornerRadius(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
                 if let sourceViewPortalView {
-                    toCornerRadius.apply(to: sourceViewPortalView, size: sourceFrame.size)
+                    toCornerRadius.setCornerRadius(to: sourceViewPortalView, size: sourceFrame.size)
                 }
             } else {
-                fromCornerRadius.apply(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
+                fromCornerRadius.setCornerRadius(to: presentedPortalView ?? presentedView, size: sourceFrame.size)
                 if let sourceViewPortalView {
-                    fromCornerRadius.apply(to: sourceViewPortalView, size: sourceFrame.size)
+                    fromCornerRadius.setCornerRadius(to: sourceViewPortalView, size: sourceFrame.size)
                 }
             }
 
@@ -283,7 +283,7 @@ public struct MatchedGeometryViewControllerTransitionAnimator: ViewControllerTra
             if shouldDelayAnimations {
                 presentedView.layer.removeAllAnimations()
             }
-            CornerRadiusOptions.identity.apply(to: presentedView)
+            CornerRadiusOptions.identity.setCornerRadius(to: presentedView)
             switch animatingPosition {
             case .end:
                 transitionContext.completeTransition(true)

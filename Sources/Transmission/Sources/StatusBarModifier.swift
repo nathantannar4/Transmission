@@ -383,14 +383,14 @@ extension UIViewController {
             if !Self.preferredStatusBarStyleKey {
                 Self.preferredStatusBarStyleKey = true
 
-                objc_class_swizzle(
-                    original: #selector(getter: UIViewController.preferredStatusBarStyle),
-                    replacement: #selector(getter: UIViewController.swizzled_preferredStatusBarStyle)
+                swizzle_hostingController(
+                    aSelector: #selector(getter: UIViewController.preferredStatusBarStyle),
+                    aSwizzledSelector: #selector(getter: UIViewController.swizzled_preferredStatusBarStyle)
                 )
 
-                objc_class_swizzle(
-                    original: #selector(getter: UIViewController.childForStatusBarStyle),
-                    replacement: #selector(getter: UIViewController.swizzled_childForStatusBarStyle)
+                swizzle_hostingController(
+                    aSelector: #selector(getter: UIViewController.childForStatusBarStyle),
+                    aSwizzledSelector: #selector(getter: UIViewController.swizzled_childForStatusBarStyle)
                 )
             }
             preferredStatusBarStyleOverride = newValue
@@ -446,14 +446,14 @@ extension UIViewController {
             if !Self.prefersStatusBarHiddenKey {
                 Self.prefersStatusBarHiddenKey = true
 
-                objc_class_swizzle(
-                    original: #selector(getter: UIViewController.prefersStatusBarHidden),
-                    replacement: #selector(getter: UIViewController.swizzled_prefersStatusBarHidden)
+                swizzle_hostingController(
+                    aSelector: #selector(getter: UIViewController.prefersStatusBarHidden),
+                    aSwizzledSelector: #selector(getter: UIViewController.swizzled_prefersStatusBarHidden)
                 )
 
-                objc_class_swizzle(
-                    original: #selector(getter: UIViewController.childForStatusBarHidden),
-                    replacement: #selector(getter: UIViewController.swizzled_childForStatusBarHidden)
+                swizzle_hostingController(
+                    aSelector: #selector(getter: UIViewController.childForStatusBarHidden),
+                    aSwizzledSelector: #selector(getter: UIViewController.swizzled_childForStatusBarHidden)
                 )
             }
             prefersStatusBarHiddenOverride = newValue
@@ -461,12 +461,13 @@ extension UIViewController {
     }
 }
 
-private func objc_class_swizzle(original: Selector, replacement swizzled: Selector) {
-    if let originalMethod = class_getInstanceMethod(UIHostingController<AnyView>.self, original),
-        let swizzledMethod = class_getInstanceMethod(UIViewController.self, swizzled)
-    {
-        method_exchangeImplementations(originalMethod, swizzledMethod)
-    }
+private func swizzle_hostingController(aSelector: Selector, aSwizzledSelector: Selector) {
+    swizzle(
+        target: UIHostingController<AnyView>.self,
+        source: UIViewController.self,
+        aSelector: aSelector,
+        aSwizzledSelector: aSwizzledSelector
+    )
 }
 
 #endif

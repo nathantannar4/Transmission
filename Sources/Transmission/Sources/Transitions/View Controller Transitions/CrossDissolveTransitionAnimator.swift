@@ -41,7 +41,6 @@ public struct CrossDissolveTransitionAnimator: ViewControllerTransitionAnimator 
         let toCornerRadius = toCornerRadius ?? (isPresenting && fromCornerRadius != nil ? .identity : nil)
 
         if isPresenting {
-            presentedView.alpha = 0
             var presentedFrame = transitionContext.finalFrame(for: presented)
             if presentedView.superview == nil {
                 transitionContext.containerView.addSubview(presentedView)
@@ -56,11 +55,12 @@ public struct CrossDissolveTransitionAnimator: ViewControllerTransitionAnimator 
             )
 
             presentedView.transform = transform
-            fromCornerRadius?.apply(to: presentedView)
+            presentedView.alpha = 0
+            fromCornerRadius?.setCornerRadius(to: presentedView)
             animator.addAnimations {
                 presentedView.alpha = 1
                 presentedView.transform = .identity
-                toCornerRadius?.apply(to: presentedView)
+                toCornerRadius?.setCornerRadius(to: presentedView)
             }
         } else {
             if presentingView.superview == nil {
@@ -71,16 +71,16 @@ public struct CrossDissolveTransitionAnimator: ViewControllerTransitionAnimator 
             presentedView.layoutIfNeeded()
 
             let transform = transform
-            toCornerRadius?.apply(to: presentedView)
+            toCornerRadius?.setCornerRadius(to: presentedView)
             animator.addAnimations {
                 presentedView.alpha = 0
                 presentedView.transform = transform
-                fromCornerRadius?.apply(to: presentedView)
+                fromCornerRadius?.setCornerRadius(to: presentedView)
             }
         }
         animator.addCompletion { animatingPosition in
             if fromCornerRadius != nil || toCornerRadius != nil {
-                CornerRadiusOptions.identity.apply(to: presentedView)
+                CornerRadiusOptions.identity.setCornerRadius(to: presentedView)
             }
             switch animatingPosition {
             case .end:

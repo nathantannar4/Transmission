@@ -33,6 +33,13 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
+    public var preferredPlacement: PreferredPresentationPlacement? {
+        didSet {
+            guard oldValue != preferredPlacement else { return }
+            containerView?.setNeedsLayout()
+        }
+    }
+
     public var insetSafeAreaByCornerRadius: Bool = true {
         didSet {
             guard insetSafeAreaByCornerRadius != oldValue else { return }
@@ -48,27 +55,44 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
+    public weak var sourceView: UIView? {
+        didSet {
+            guard oldValue != sourceView, preferredPlacement == .sourceView else { return }
+            containerView?.setNeedsLayout()
+        }
+    }
+
     open override var frameOfPresentedViewInContainerView: CGRect {
         var frame = super.frameOfPresentedViewInContainerView
-        if traitCollection.horizontalSizeClass == .regular {
-            let width = min(frame.width, 430)
-            let height = min(frame.height, 430)
-            frame = CGRect(
-                x: frame.midX - width / 2,
-                y: frame.maxY - height,
-                width: height,
-                height: width
-            )
-        }
-        let isCompact = traitCollection.verticalSizeClass == .compact
-        let width = isCompact ? frame.height : frame.width
+        let scale = traitCollection.displayScale
+        let cornerRadius = cornerRadius
+        let edgeInset = edgeInset
+        let availableWidth = {
+            if traitCollection.verticalSizeClass == .compact {
+                return frame.height
+            }
+            if traitCollection.horizontalSizeClass == .regular {
+                #if XCODE_27_1
+                if #available(iOS 27.1, *), let containerView, traitCollection.verticalBarEdge != .unspecified, containerView.bounds.width > containerView.bounds.height {
+                    return (containerView.bounds.inset(by: containerView.safeAreaInsets).width / 2).rounded(scale: scale)
+                }
+                #endif
+                return min(frame.width, 440)
+            }
+            return frame.width
+        }()
         let height: CGFloat = {
-            let cornerRadius = cornerRadius
-            var fittingWidth = width - (2 * edgeInset)
-            let inset = (isKeyboardSessionActive ? cornerRadius / 2 : max((containerView?.safeAreaInsets.bottom ?? 0) - cornerRadius / 2, 0))
-            let scale = presentedViewController.view.traitCollection.displayScale
+            var fittingWidth = availableWidth - (2 * edgeInset)
             if let preferredAspectRatio {
-                let height = (preferredAspectRatio * fittingWidth).rounded(scale: scale) + inset + edgeInset
+                if let containerView, traitCollection.verticalSizeClass != .compact {
+                    fittingWidth -= max(0, containerView.safeAreaInsets.left - edgeInset)
+                    fittingWidth -= max(0, containerView.safeAreaInsets.right - edgeInset)
+                }
+                var height = (preferredAspectRatio * fittingWidth).rounded(scale: scale) + 2 * edgeInset
+                let inset = max(0, (containerView?.safeAreaInsets.bottom ?? 0) - cornerRadius / 2 - edgeInset)
+                if inset >= 1 {
+                    height += inset
+                }
                 return height
             }
             if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented {
@@ -80,7 +104,7 @@ open class CardPresentationController: InteractivePresentationController {
                 height: presentedViewController.view.idealHeight(for: fittingWidth)
             )
             if sizeThatFits.height <= 0 {
-                sizeThatFits.height = width
+                sizeThatFits.height = availableWidth
             }
             sizeThatFits.height += (2 * edgeInset)
             if presentedViewController.view.safeAreaInsets == .zero, presentedViewController.isBeingPresented, preferredSafeAreaInsets != .zero {
@@ -92,12 +116,63 @@ open class CardPresentationController: InteractivePresentationController {
             }
             return min(frame.height, sizeThatFits.height).rounded(scale: scale)
         }()
-        frame = CGRect(
-            x: frame.origin.x + (frame.width - width) / 2,
-            y: frame.origin.y + (frame.height - height),
-            width: width,
-            height: height
-        )
+        if traitCollection.horizontalSizeClass == .regular {
+            var width = availableWidth
+            let height = max(height, width * (preferredAspectRatio ?? 0)).rounded(scale: scale)
+            let y = frame.maxY - height
+            var x = (frame.midX - availableWidth / 2).rounded(scale: scale)
+            var placement = preferredPlacement ?? .center
+            let isLeftToRight = presentedViewController.view.effectiveUserInterfaceLayoutDirection == .leftToRight
+            if placement == .sourceView, let sourceView, let containerView {
+                let midX = containerView.convert(sourceView.bounds, from: sourceView).midX
+                if midX < containerView.bounds.width / 3 {
+                    placement = isLeftToRight ? .leading : .trailing
+                } else if midX > (containerView.bounds.width * 2 / 3) {
+                    placement = isLeftToRight ? .trailing : .leading
+                }
+            }
+            #if XCODE_27_1
+            if #available(iOS 27.1, *), placement == .center || placement == .sourceView, let containerView, !containerView.reservedRegions(kind: .division).isEmpty {
+                switch traitCollection.verticalBarEdge {
+                case .leading:
+                    placement = .trailing
+                case .trailing:
+                    placement = .leading
+                case .unspecified:
+                    break
+                @unknown default:
+                    break
+                }
+            }
+            #endif
+            switch (placement, isLeftToRight) {
+            case (.sourceView, _), (.center, _):
+                break
+            case (.leading, true), (.trailing, false):
+                if let preferredAspectRatio {
+                    width = (height * preferredAspectRatio).rounded(scale: scale) + max(0, (containerView?.safeAreaInsets.left ?? 0) - edgeInset)
+                }
+                x = frame.minX
+            case (.trailing, true), (.leading, false):
+                if let preferredAspectRatio {
+                    width = (height * preferredAspectRatio).rounded(scale: scale) + max(0, (containerView?.safeAreaInsets.right ?? 0) - edgeInset)
+                }
+                x = frame.maxX - width
+            }
+            frame = CGRect(
+                x: x,
+                y: y,
+                width: width,
+                height: height
+            )
+        } else {
+            frame = CGRect(
+                x: frame.origin.x + ((frame.width - availableWidth) / 2).rounded(scale: scale),
+                y: frame.origin.y + (frame.height - height),
+                width: availableWidth,
+                height: height
+            )
+        }
         let keyboardOverlap = keyboardOverlapInContainerView(
             of: frame,
             keyboardHeight: keyboardHeight
@@ -120,18 +195,30 @@ open class CardPresentationController: InteractivePresentationController {
     }
 
     private var edgeInset: CGFloat {
-        preferredEdgeInset ?? 0
+        preferredEdgeInset ?? Self.defaultEdgeInset
+    }
+
+    open class var defaultEdgeInset: CGFloat {
+        if #available(iOS 26.0, *) {
+            return 8
+        }
+        return 4
     }
 
     private var cornerRadius: CGFloat {
-        preferredCornerRadius?.cornerRadius() ?? 0
+        let cornerRadius = preferredCornerRadius?.cornerRadius(in: presentedView?.window) ?? max(0, displayCornerRadius - edgeInset)
+        return cornerRadius
+    }
+
+    private var displayCornerRadius: CGFloat {
+        CornerRadiusOptions.RoundedRectangle.screen(prefersContainerConcentric: false).cornerRadius(in: presentedView?.window) ?? 0
     }
 
     private func needsCustomCornerRadiusPath(cornerRadius: CGFloat) -> Bool {
         guard cornerRadius > 0, !isKeyboardSessionActive else { return false }
         let inset = cornerRadius + edgeInset
         guard inset < (containerView?.safeAreaInsets.bottom ?? 0) || !insetSafeAreaByCornerRadius else { return false }
-        return inset < UIScreen.main.displayCornerRadius()
+        return inset < displayCornerRadius
     }
 
     private var customCornerRadiusPath: CGPath? {
@@ -153,18 +240,10 @@ open class CardPresentationController: InteractivePresentationController {
         }
     }
 
-    public init(
-        preferredEdgeInset: CGFloat? = nil,
-        preferredCornerRadius: CornerRadiusOptions.RoundedRectangle? = nil,
-        insetSafeAreaByCornerRadius: Bool = true,
-        preferredAspectRatio: CGFloat? = 1,
+    public override init(
         presentedViewController: UIViewController,
         presenting presentingViewController: UIViewController?
     ) {
-        self.preferredEdgeInset = preferredEdgeInset
-        self.preferredCornerRadius = preferredCornerRadius
-        self.insetSafeAreaByCornerRadius = insetSafeAreaByCornerRadius
-        self.preferredAspectRatio = preferredAspectRatio
         super.init(
             presentedViewController: presentedViewController,
             presenting: presentingViewController
@@ -196,16 +275,24 @@ open class CardPresentationController: InteractivePresentationController {
 
     open override func presentationTransitionDidEnd(_ completed: Bool) {
         super.presentationTransitionDidEnd(completed)
-        if completed {
-            setCornerRadius()
-        }
+        setCornerRadius()
+    }
+
+    open override func dismissalTransitionWillBegin() {
+        super.dismissalTransitionWillBegin()
+        setCornerRadius()
+    }
+
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
+        super.dismissalTransitionDidEnd(completed)
+        setCornerRadius()
     }
 
     open override func presentedViewAdditionalSafeAreaInsets() -> UIEdgeInsets {
         let additionalSafeAreaInsets = super.presentedViewAdditionalSafeAreaInsets()
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
         let cornerRadius = cornerRadius
-        let inset = insetSafeAreaByCornerRadius ? (cornerRadius / 2).rounded(scale: presentedViewController.view.traitCollection.displayScale) : 0
+        let inset = insetSafeAreaByCornerRadius ? (cornerRadius / 2).rounded() : 0
         var edgeInsets = additionalSafeAreaInsets
         edgeInsets.top = max(edgeInsets.top, inset)
         edgeInsets.left = max(edgeInsets.left, inset)
@@ -219,6 +306,15 @@ open class CardPresentationController: InteractivePresentationController {
         return edgeInsets
     }
 
+    open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        let didChangeSizeClass =  previousTraitCollection?.horizontalSizeClass != traitCollection.horizontalSizeClass
+            || previousTraitCollection?.verticalSizeClass != traitCollection.verticalSizeClass
+        if #available(iOS 26.0, *), didChangeSizeClass {
+            setCornerRadius()
+        }
+    }
+
     private func cornerRadiusDidChange() {
         updatePresentedViewAdditionalSafeAreaInsets()
         setCornerRadius()
@@ -228,21 +324,22 @@ open class CardPresentationController: InteractivePresentationController {
         guard !presentedViewController.isBeingDismissed else { return }
         guard !presentedViewController.isBeingPresented || presentedViewController.view.layer.cornerRadius == 0 || force else { return }
         var didApplyCornerConfiguration = false
-        #if canImport(FoundationModels) // Xcode 26
+        let cornerRadius = cornerRadius
+        #if XCODE_26
         if #available(iOS 26.0, *) {
-            var cornerRadius = preferredCornerRadius ?? .rounded(cornerRadius: 0)
-            if isKeyboardSessionActive {
-                cornerRadius.isContainerConcentric = true
-            }
-            presentedViewController.view.cornerConfiguration = cornerRadius.cornerConfiguration(
-                layoutDirectionIsLeftToRight: presentedViewController.view.effectiveUserInterfaceLayoutDirection == .leftToRight
+            let prefersContainerConcentric = traitCollection.horizontalSizeClass == .compact && traitCollection.verticalSizeClass != .compact
+            let cornerRadius = preferredCornerRadius ?? .unevenRounded(
+                topLeading: .fixed(cornerRadius),
+                bottomLeading: .screen(prefersContainerConcentric: prefersContainerConcentric),
+                bottomTrailing: .screen(prefersContainerConcentric: prefersContainerConcentric),
+                topTrailing: .fixed(cornerRadius),
+                style: .circular
             )
+            cornerRadius.setCornerRadius(to: presentedViewController.view, prefersEffectiveMinimium: true)
             didApplyCornerConfiguration = true
         }
         #endif
         if !didApplyCornerConfiguration {
-            let cornerRadius = cornerRadius
-            let displayCornerRadius = UIScreen.main.displayCornerRadius()
             let layoutDirectionIsLeftToRight = presentedViewController.view.effectiveUserInterfaceLayoutDirection == .leftToRight
             if let maskPath = customCornerRadiusPath {
                 if cornerRadiusMask == nil {
@@ -251,7 +348,7 @@ open class CardPresentationController: InteractivePresentationController {
                 }
                 cornerRadiusMask?.path = maskPath
                 cornerRadiusMask?.cornerCurve = preferredCornerRadius?.style.toCoreAnimation() ?? .circular
-                cornerRadiusMask?.maskedCorners = (preferredCornerRadius?.mask ?? .all).intersection([.topLeading, .topTrailing]).toCoreAnimation(layoutDirectionIsLeftToRight: layoutDirectionIsLeftToRight)
+                cornerRadiusMask?.maskedCorners = (preferredCornerRadius?.cornerRadii.mask ?? .all).intersection([.topLeading, .topTrailing]).toCoreAnimation(layoutDirectionIsLeftToRight: layoutDirectionIsLeftToRight)
                 let isCompact = traitCollection.verticalSizeClass == .compact
                 let cornerRadius = isCompact ? cornerRadius : displayCornerRadius - edgeInset
                 presentedViewController.view.layer.cornerRadius = cornerRadius
@@ -262,8 +359,8 @@ open class CardPresentationController: InteractivePresentationController {
                     cornerRadiusMask = nil
                 }
                 presentedViewController.view.layer.cornerRadius = cornerRadius
-                presentedViewController.view.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == UIScreen.main.displayCornerRadius() ? .circular : (preferredCornerRadius?.style.toCoreAnimation() ?? .continuous)
-                presentedViewController.view.layer.maskedCorners = (preferredCornerRadius?.mask ?? .all).toCoreAnimation(layoutDirectionIsLeftToRight: layoutDirectionIsLeftToRight)
+                presentedViewController.view.layer.cornerCurve = cornerRadius > 0 && (cornerRadius + edgeInset) == displayCornerRadius ? .circular : (preferredCornerRadius?.style.toCoreAnimation() ?? .continuous)
+                presentedViewController.view.layer.maskedCorners = (preferredCornerRadius?.cornerRadii.mask ?? .all).toCoreAnimation(layoutDirectionIsLeftToRight: layoutDirectionIsLeftToRight)
             }
         }
     }

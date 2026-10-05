@@ -110,10 +110,6 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         context: Context
     ) -> SlidePresentationController {
         let presentationController = SlidePresentationController(
-            edge: options.edge,
-            prefersScaleEffect: options.prefersScaleEffect,
-            preferredFromCornerRadius: options.preferredFromCornerRadius,
-            preferredToCornerRadius: options.preferredToCornerRadius,
             presentedViewController: presented,
             presenting: presenting
         )
@@ -126,12 +122,19 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
     ) {
         presentationController.edge = options.edge
         presentationController.prefersScaleEffect = options.prefersScaleEffect
-        presentationController.dimmingView.backgroundColor = options.dimmingColor?.toUIColor() ?? DimmingView.backgroundColor
+        presentationController.dimmingView.backgroundColor = options.dimmingColor?.toUIColor(in: context.environment) ?? DimmingView.backgroundColor
         presentationController.preferredFromCornerRadius = options.preferredFromCornerRadius
         presentationController.preferredToCornerRadius = options.preferredToCornerRadius
         presentationController.presentedViewShadow = options.preferredPresentationShadow
         presentationController.dismissalHapticsStyle = options.hapticsStyle
         presentationController.isInteractive = context.options.isInteractive
+    }
+
+    public func updateHostingController<Content>(
+        presenting: PresentationHostingController<Content>,
+        context: Context
+    ) where Content: View {
+        presenting.view.clipsToBounds = context.options.preferredPresentationBackgroundColor != .clear
     }
 
     public func animationController(
