@@ -159,10 +159,10 @@ private struct NavigationTitleViewAdapter<TitleView: View>: UIViewRepresentable 
             } else {
                 if let titleView {
                     titleView.preferredPlacement = preferredPlacement
-                    titleView.contentView.update(content: content, transaction: context.transaction)
+                    titleView.titleView.update(content: content, transaction: context.transaction)
                 } else {
                     titleView = NavigationTitleViewContentView(
-                        contentView: NavigationTitleViewHostingView(
+                        titleView: NavigationTitleViewHostingView(
                             content: content
                         )
                     )
@@ -215,18 +215,45 @@ open class NavigationTitleViewHostingView<Content: View>: HostingView<Navigation
     open func update(content: Content, transaction: Transaction) {
         update(content: NavigationTitleView(content: content), transaction: transaction)
     }
+
+    open override func layoutIntrinsicContentSizeChange() {
+        if let titleView = firstAncestor(ofType: _NavigationTitleViewContentView.self) {
+            UIView.animate(with: _rootView.transaction.animation ?? .default) {
+                titleView.invalidateIntrinsicContentSize()
+                titleView.layoutIfNeeded()
+            }
+        } else {
+            super.layoutIntrinsicContentSizeChange()
+        }
+    }
 }
 
-open class NavigationTitleViewContentView<ContentView: UIView>: UIView {
+open class NavigationTitleViewContentView<TitleView: UIView>: _NavigationTitleViewContentView {
+
+    public var titleView: TitleView
+
+    public init(titleView: TitleView) {
+        self.titleView = titleView
+        super.init(contentView: titleView)
+    }
+
+    public required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
+open class _NavigationTitleViewContentView: UIView {
 
     open override var intrinsicContentSize: CGSize {
-        let intrinsicContentSize = contentView.intrinsicContentSize
+        var intrinsicContentSize = contentView.intrinsicContentSize
+        intrinsicContentSize.height = min(intrinsicContentSize.height, 44)
         switch placement {
         case .automatic:
-            return intrinsicContentSize
+            break
         case .leading, .center:
-            return CGSize(width: UIView.layoutFittingExpandedSize.width, height: intrinsicContentSize.height)
+            intrinsicContentSize.width = UIView.layoutFittingExpandedSize.width
         }
+        return intrinsicContentSize
     }
 
     open var preferredPlacement: NavigationTitleViewPreferredPlacement? {
@@ -240,24 +267,24 @@ open class NavigationTitleViewContentView<ContentView: UIView>: UIView {
         if let preferredPlacement {
             return preferredPlacement
         }
-        guard
-            traitCollection.horizontalSizeClass == .regular,
-            let navigationBar,
-            navigationBar.hasLeadingItems
-        else {
-            return .automatic
+        if traitCollection.horizontalSizeClass == .regular {
+            return .leading
         }
-        return .leading
+        return .automatic
     }
 
     public var navigationBar: UINavigationBar? {
         _firstAncestor(ofType: UINavigationBar.self)
     }
 
-    public let contentView: ContentView
+    open var contentView: UIView {
+        _contentView
+    }
 
-    public init(contentView: ContentView) {
-        self.contentView = contentView
+    private var _contentView: UIView
+
+    public init(contentView: UIView) {
+        self._contentView = contentView
         super.init(frame: .zero)
         addSubview(contentView)
         translatesAutoresizingMaskIntoConstraints = false
@@ -302,61 +329,20 @@ open class NavigationTitleViewContentView<ContentView: UIView>: UIView {
     open override func layoutSubviews() {
         super.layoutSubviews()
 
+        let size = contentView.sizeThatFits(bounds.size)
+        let targetY = max(0, ((bounds.height - size.height) / 2).rounded(scale: traitCollection.displayScale))
         let contentFrame: CGRect
         let placement = placement
-        if placement == .automatic {
-            contentFrame = bounds
-        } else {
-            let size = contentView.sizeThatFits(bounds.size)
-            let targetY = max(0, ((bounds.height - size.height) / 2).rounded(scale: traitCollection.displayScale))
-            if placement == .center, let navigationBar {
-                let navigationBarContentBounds = navigationBar.bounds.inset(by: navigationBar.safeAreaInsets)
-                let center = navigationBar
-                    .convert(CGPoint(x: navigationBarContentBounds.midX, y: navigationBarContentBounds.midY), to: self)
-                    .applying(transform)
-                let targetWidth = min(size.width, bounds.width)
-                let targetX = (center.x - (targetWidth / 2)).rounded(scale: traitCollection.displayScale)
-                let dx = 2 * targetX
-                let offset = targetWidth - abs(dx)
-                if offset <= 0 {
-                    contentFrame = CGRect(
-                        x: targetX,
-                        y: targetY,
-                        width: targetWidth,
-                        height: size.height
-                    )
-                } else {
-                    let intrinsicContentSize = contentView.intrinsicContentSize
-                    if intrinsicContentSize.width >= 0, offset >= intrinsicContentSize.width {
-                        contentFrame = CGRect(
-                            x: max(0, dx),
-                            y: targetY,
-                            width: targetWidth - abs(dx),
-                            height: size.height
-                        )
-                    } else if intrinsicContentSize.width >= 0, intrinsicContentSize.width <= targetWidth {
-                        let dx = ((offset - intrinsicContentSize.width) / 2).rounded(scale: traitCollection.displayScale)
-                        contentFrame = CGRect(
-                            x: max(0, dx),
-                            y: targetY,
-                            width: intrinsicContentSize.width,
-                            height: size.height
-                        )
-                    } else {
-                        let targetX = max(0, (bounds.width - size.width) / 2)
-                        contentFrame = CGRect(
-                            origin: CGPoint(
-                                x: targetX,
-                                y: targetY
-                            ),
-                            size: size
-                        )
-                    }
-                }
-            } else if placement == .leading {
-                let intrinsicContentSize = contentView.intrinsicContentSize
-                let targetWidth = min(min(intrinsicContentSize.width > 0 ? intrinsicContentSize.width : .infinity, size.width), bounds.width)
-                let targetX = effectiveUserInterfaceLayoutDirection == .rightToLeft ? bounds.width - targetWidth : 0
+        if placement == .center, let navigationBar {
+            let navigationBarContentBounds = navigationBar.bounds.inset(by: navigationBar.safeAreaInsets)
+            let center = navigationBar
+                .convert(CGPoint(x: navigationBarContentBounds.midX, y: navigationBarContentBounds.midY), to: self)
+                .applying(transform)
+            let targetWidth = min(size.width, bounds.width)
+            let targetX = (center.x - (targetWidth / 2)).rounded(scale: traitCollection.displayScale)
+            let dx = 2 * targetX
+            let offset = targetWidth - abs(dx)
+            if offset <= 0 {
                 contentFrame = CGRect(
                     x: targetX,
                     y: targetY,
@@ -364,103 +350,66 @@ open class NavigationTitleViewContentView<ContentView: UIView>: UIView {
                     height: size.height
                 )
             } else {
-                let targetX = max(0, (bounds.width - size.width) / 2)
-                contentFrame = CGRect(
-                    origin: CGPoint(
-                        x: targetX,
-                        y: targetY
-                    ),
-                    size: size
-                )
+                let intrinsicContentSize = contentView.intrinsicContentSize
+                if intrinsicContentSize.width >= 0, offset >= intrinsicContentSize.width {
+                    contentFrame = CGRect(
+                        x: max(0, dx),
+                        y: targetY,
+                        width: targetWidth - abs(dx),
+                        height: size.height
+                    )
+                } else if intrinsicContentSize.width >= 0, intrinsicContentSize.width <= targetWidth {
+                    let dx = ((offset - intrinsicContentSize.width) / 2).rounded(scale: traitCollection.displayScale)
+                    contentFrame = CGRect(
+                        x: max(0, dx),
+                        y: targetY,
+                        width: intrinsicContentSize.width,
+                        height: size.height
+                    )
+                } else {
+                    let targetX = max(0, (bounds.width - size.width) / 2)
+                    contentFrame = CGRect(
+                        origin: CGPoint(
+                            x: targetX,
+                            y: targetY
+                        ),
+                        size: size
+                    )
+                }
             }
+        } else if placement == .leading {
+            let intrinsicContentSize = contentView.intrinsicContentSize
+            let targetWidth = min(min(intrinsicContentSize.width > 0 ? intrinsicContentSize.width : .infinity, size.width), bounds.width)
+            let targetX = effectiveUserInterfaceLayoutDirection == .rightToLeft ? bounds.width - targetWidth : 0
+            contentFrame = CGRect(
+                x: targetX,
+                y: targetY,
+                width: targetWidth,
+                height: size.height
+            )
+        } else {
+            let targetX = max(0, (bounds.width - size.width) / 2)
+            contentFrame = CGRect(
+                origin: CGPoint(
+                    x: targetX,
+                    y: targetY
+                ),
+                size: size
+            )
         }
-
-        contentView.frame = contentFrame
+        _contentView.frame = contentFrame
     }
 
     open override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
         guard !isHidden, isUserInteractionEnabled else { return false }
-        let point = convert(point, to: contentView)
-        return contentView.point(inside: point, with: event)
+        let point = convert(point, to: _contentView)
+        return _contentView.point(inside: point, with: event)
     }
 
     open override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard !isHidden, isUserInteractionEnabled else { return nil }
-        let point = convert(point, to: contentView)
-        return contentView.hitTest(point, with: event)
-    }
-}
-
-extension UINavigationBar {
-
-    public var hasLeadingItems: Bool {
-        guard let topItem else { return false }
-        var hasLeadingItems = false
-        if #available(iOS 16.0, *) {
-            for group in topItem.leadingItemGroups where !group.isHidden {
-                for item in group.barButtonItems where !item._isHidden {
-                    hasLeadingItems = true
-                    if isInNavigationBar(item: item) {
-                        return true
-                    }
-                }
-            }
-        } else {
-            let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
-            if let leadingItems = isRTL ? topItem.rightBarButtonItems : topItem.leftBarButtonItems {
-                for item in leadingItems where !item._isHidden {
-                    hasLeadingItems = true
-                    if isInNavigationBar(item: item) {
-                        return true
-                    }
-                }
-            }
-            if let leadingItem = isRTL ? topItem.rightBarButtonItem : topItem.leftBarButtonItem, !leadingItem._isHidden {
-                hasLeadingItems = true
-                if isInNavigationBar(item: leadingItem)  {
-                    return true
-                }
-            }
-        }
-        let isBackButtonVisible: Bool = {
-            guard !topItem.hidesBackButton, topItem.backBarButtonItem != nil, backItem != nil else { return false }
-            if hasLeadingItems {
-                return topItem.leftItemsSupplementBackButton
-            }
-            return true
-        }()
-        if isBackButtonVisible {
-            return true
-        }
-        return false
-    }
-
-    private func isInNavigationBar(item: UIBarButtonItem) -> Bool {
-        #if XCODE_27_1
-        if #available(iOS 27.1, *), item.axisBehavior != .horizontalOnly {
-            switch traitCollection.verticalBarEdge {
-            case .leading:
-                return true
-            case .trailing:
-                return false
-            case .unspecified:
-                return false
-            @unknown default:
-                return true
-            }
-        }
-        #endif
-        return true
-    }
-}
-
-extension UIBarButtonItem {
-
-    var _isHidden: Bool {
-        if #available(iOS 16.0, *) {
-            return isHidden
-        }
-        return false
+        let point = convert(point, to: _contentView)
+        return _contentView.hitTest(point, with: event)
     }
 }
 
@@ -532,6 +481,7 @@ struct NavigationTitleViewModifier_Previews: PreviewProvider {
                         .font(.caption)
                 }
             }
+            .padding()
             .modifier(GeometryGroupModifier())
             .withDebugOverlay(color: .red)
             .onTapGesture {

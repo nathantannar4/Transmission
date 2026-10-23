@@ -1129,7 +1129,7 @@ extension CornerRadiusOptions.RoundedRectangle {
         layoutDirectionIsLeftToRight: Bool = true
     ) -> UICornerConfiguration {
 
-        let cornerRadii = cornerRadii.resolved(for: size, in: window)
+        let cornerRadii = cornerRadii.masked(mask).resolved(for: size, in: window)
         let topLeadingRadius = cornerRadii.topLeading.toUIKit()
         let topTrailingRadius = cornerRadii.topTrailing.toUIKit()
         let bottomLeadingRadius = cornerRadii.bottomLeading.toUIKit()

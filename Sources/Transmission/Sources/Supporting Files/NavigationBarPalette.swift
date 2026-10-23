@@ -204,39 +204,4 @@ public func UINavigationBarPalette(contentView: UIView) -> _UINavigationBarPalet
     return paletteView
 }
 
-extension UIView {
-
-    private static var didFixPaletteTransition = false
-    @available(iOS 26.0, *)
-    static func fixPaletteTransition() {
-        guard !didFixPaletteTransition else { return }
-        didFixPaletteTransition = true
-        guard
-            // _UINavigationBarPalette
-            let paletteViewClass = NSClassFromBase64EncodedString("X1VJTmF2aWdhdGlvbkJhclBhbGV0dGU=") as? UIView.Type
-                else {
-            return
-        }
-        swizzle(
-            target: paletteViewClass,
-            source: paletteViewClass,
-            aSelector: #selector(UIView.snapshotView(afterScreenUpdates:)),
-            aSwizzledSelector: #selector(UIView.swizzled_snapshotView(afterScreenUpdates:))
-        )
-    }
-
-    @objc
-    func swizzled_snapshotView(afterScreenUpdates: Bool) -> UIView? {
-        guard
-            let palette = self as? _UINavigationBarPalette,
-            palette.isTransitioning,
-            palette.contentView?.layer.animationKeys()?.isEmpty == false
-        else {
-            return swizzled_snapshotView(afterScreenUpdates: afterScreenUpdates)
-        }
-        // Force live render so custom transition animations can animate it
-        return self
-    }
-}
-
 #endif

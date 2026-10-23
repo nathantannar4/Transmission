@@ -97,12 +97,6 @@ open class SlidePresentationController: InteractivePresentationController {
         }
     }
 
-    open override func transitionAlongsideRotation() {
-        super.transitionAlongsideRotation()
-        portalView?.frame = containerView?.bounds ?? .zero
-        portalView?.transform = portalViewTransform(progress: 1)
-    }
-
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
         portalView?.setFramePreservingTransform(containerView?.bounds ?? .zero)
