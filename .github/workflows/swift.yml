@@ -30,6 +30,8 @@ jobs:
       run: xcodebuild -scheme Transmission -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' build
     - name: Build for visionOS
       run: xcodebuild -scheme Transmission -destination 'generic/platform=visionOS Simulator' build
+    - name: Test for iOS
+      run: xcodebuild -scheme Transmission -destination 'platform=iOS Simulator,name=iPhone 16' -resultBundlePath TestResults/iOS.xcresult test
   build-26:
     runs-on: macos-26
     steps:
@@ -50,6 +52,8 @@ jobs:
       run: xcodebuild -scheme Transmission -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' build
     - name: Build for visionOS
       run: xcodebuild -scheme Transmission -destination 'generic/platform=visionOS Simulator' build
+    - name: Test for iOS
+      run: xcodebuild -scheme Transmission -destination 'platform=iOS Simulator,name=iPhone 17' -resultBundlePath TestResults/iOS.xcresult test
   build-27:
     # macOS 27 is only available through the Xcode 27 preview image
     runs-on: xcode-27
@@ -71,3 +75,5 @@ jobs:
       run: xcodebuild -scheme Transmission -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' build
     - name: Build for visionOS
       run: xcodebuild -scheme Transmission -destination 'generic/platform=visionOS Simulator' build
+    - name: Test for iOS
+      run: xcodebuild -scheme Transmission -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -resultBundlePath TestResults/iOS.xcresult test

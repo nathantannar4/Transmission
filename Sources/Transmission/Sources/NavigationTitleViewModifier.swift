@@ -240,14 +240,10 @@ open class NavigationTitleViewContentView<ContentView: UIView>: UIView {
         if let preferredPlacement {
             return preferredPlacement
         }
-        guard
-            traitCollection.horizontalSizeClass == .regular,
-            let navigationBar,
-            navigationBar.hasLeadingItems
-        else {
-            return .automatic
+        if traitCollection.horizontalSizeClass == .regular {
+            return .leading
         }
-        return .leading
+        return .automatic
     }
 
     public var navigationBar: UINavigationBar? {

@@ -63,7 +63,9 @@ let package = Package(
         ),
         .testTarget(
             name: "TransmissionTests",
-            dependencies: ["Transmission"]
+            dependencies: [
+                "Transmission"
+            ]
         )
     ]
 )

@@ -349,6 +349,14 @@ open class SheetPresentationController: UISheetPresentationController, PercentDr
     open override func dismissalTransitionWillBegin() {
         super.dismissalTransitionWillBegin()
         delegate?.presentationControllerWillDismiss?(self)
+
+        // Fix dismissal animation
+        if #available(iOS 26.0, *), isDragging, let transitionCoordinator = presentedViewController.transitionCoordinator, transitionCoordinator.isInteractive {
+            transitionCoordinator.notifyWhenInteractionChanges { [weak self] ctx in
+                guard let self, !ctx.isCancelled else { return }
+                presentedView?.transform.ty = 0
+            }
+        }
     }
 
     open override func dismissalTransitionDidEnd(_ completed: Bool) {
