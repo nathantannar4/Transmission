@@ -60,6 +60,10 @@ let package = Package(
                 #endif
                 return settings
             }()
+        ),
+        .testTarget(
+            name: "TransmissionTests",
+            dependencies: ["Transmission"]
         )
     ]
 )
