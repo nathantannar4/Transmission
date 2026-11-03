@@ -359,7 +359,13 @@ public struct SheetPresentationLinkTransition {
                         let idealHeight = presentationController.presentedViewController.view.intrinsicContentSize.height
                         return idealHeight.rounded(scale: scale)
                     }
-                    let width = containerView.frame.width
+                    let width: CGFloat
+                    let frameOfPresentedViewInContainerView = presentationController.frameOfPresentedViewInContainerView
+                    if frameOfPresentedViewInContainerView.width > 0 {
+                        width = frameOfPresentedViewInContainerView.width
+                    } else {
+                        width = containerView.frame.width
+                    }
                     @MainActor
                     func idealHeight(for viewController: UIViewController) -> CGFloat {
                         func innerIdealHeight(for viewController: UIViewController) -> CGFloat? {

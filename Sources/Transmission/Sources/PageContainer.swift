@@ -203,7 +203,7 @@ public struct PageContainer<
     public init(
         transition: PageTransition = .scroll,
         alignment: Alignment = .bottom,
-        style: Style,
+        style: Style = .system(),
         selection: Binding<Selection>,
         transitionProgress: Binding<CGFloat>? = nil,
         @ViewBuilder content: () -> Content

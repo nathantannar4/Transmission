@@ -1103,6 +1103,29 @@ final class DestinationLinkDelegateProxy: NSObject,
 
         let velocity = gestureRecognizer.velocity(in: view)
         if gestureRecognizer.state == .began {
+            if !simultaneousPanGestures.isEmpty {
+                var canBegin = abs(velocity.x) > abs(velocity.y)
+                if canBegin {
+                    if navigationController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft {
+                        if velocity.x > 0 {
+                            canBegin = false
+                        }
+                    } else {
+                        if velocity.x < 0 {
+                            canBegin = false
+                        }
+                    }
+                }
+                if !canBegin {
+                    panGestureDidEnd(gestureRecognizer, didCancel: true)
+                    return
+                } else {
+                    for gesture in simultaneousPanGestures {
+                        gesture.isEnabled = false
+                        gesture.isEnabled = true
+                    }
+                }
+            }
             if isInterruptedInteractiveTransition {
                 if let topViewController = navigationController.topViewController,
                    let frame = topViewController.view.layer.presentation()?.frame
@@ -1110,29 +1133,6 @@ final class DestinationLinkDelegateProxy: NSObject,
                     gestureRecognizer.setTranslation(frame.origin, in: nil)
                 }
             } else {
-                if !simultaneousPanGestures.isEmpty {
-                    var canBegin = abs(velocity.x) > abs(velocity.y)
-                    if canBegin {
-                        if navigationController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft {
-                            if velocity.x > 0 {
-                                canBegin = false
-                            }
-                        } else {
-                            if velocity.x < 0 {
-                                canBegin = false
-                            }
-                        }
-                    }
-                    if !canBegin {
-                        panGestureDidEnd(gestureRecognizer, didCancel: true)
-                        return
-                    } else {
-                        for gesture in simultaneousPanGestures {
-                            gesture.isEnabled = false
-                            gesture.isEnabled = true
-                        }
-                    }
-                }
                 if let transitionCoordinator = navigationController.transitionCoordinator {
                     guard transitionCoordinator.presentationStyle == .none else {
                         panGestureDidEnd(gestureRecognizer, didCancel: true)
@@ -1334,7 +1334,11 @@ final class DestinationLinkDelegateProxy: NSObject,
         didCancel: Bool
     ) {
         if didCancel {
-            transition?.cancel()
+            if isInterruptedInteractiveTransition {
+                transition?.finish()
+            } else {
+                transition?.cancel()
+            }
             transition = nil
             finishedTransition = nil
             transitioningId = nil
@@ -1541,11 +1545,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             if let interactivePresentationPanGestureRecognizer = otherGestureRecognizer as? InteractivePresentationPanGestureRecognizer, interactivePresentationPanGestureRecognizer.edges.contains(.leading) {
                 return false
             }
-            if !isInterruptedInteractiveTransition,
-                let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer,
-                !panGesture.isSimultaneousWithTransition,
-                !panGesture.isZoomDismissGesture
-            {
+            if let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer, !panGesture.isSimultaneousWithTransition {
                 simultaneousPanGestures.append(panGesture)
                 return true
             }
@@ -1584,8 +1584,7 @@ final class DestinationLinkDelegateProxy: NSObject,
             if otherGestureRecognizer.isSwiftUIGestureRecognizer, otherGestureRecognizer.state != .began {
                 return true
             }
-            if !isInterruptedInteractiveTransition,
-                let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer,
+            if let panGesture = otherGestureRecognizer as? UIPanGestureRecognizer,
                 !panGesture.isSimultaneousWithTransition(horizontal: true, vertical: false)
             {
                 return true

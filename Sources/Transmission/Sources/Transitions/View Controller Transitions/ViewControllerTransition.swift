@@ -52,8 +52,11 @@ open class ViewControllerTransition: UIPercentDrivenInteractiveTransition, UIVie
         let animator = makeTransitionAnimatorIfNeeded(using: transitionContext)
 
         if transitionContext.isAnimated {
-            let delay = animation?.delay ?? 0
-            animator.startAnimation(afterDelay: delay)
+            if let delay = animation?.delay, delay > 0 {
+                animator.startAnimation(afterDelay: delay)
+            } else {
+                animator.startAnimation()
+            }
         } else {
             complete(true)
         }

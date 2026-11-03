@@ -12,9 +12,9 @@ import SwiftUI
 open class PresentationController: DelegatedPresentationController, PercentDrivenInteractivePresentationController {
 
     public var isTransitioningSize: Bool {
-        sizeTransitionCoordinator != nil
+        transitionCoordinator != nil
     }
-    private weak var sizeTransitionCoordinator: UIViewControllerTransitionCoordinator?
+    private weak var transitionCoordinator: UIViewControllerTransitionCoordinator?
 
     public private(set) var isTransitioningKeyboard = false
     public private(set) var keyboardHeight: CGFloat = 0
@@ -36,7 +36,6 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
             return true
         }
         return transition == nil
-            && !isTransitioningSize
             && !presentedViewController.isBeingPresented
             && !presentedViewController.isBeingDismissed
     }
@@ -222,7 +221,15 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
     open override func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
         if shouldAutoLayoutPresentedView {
-            layoutPresentedView(frame: frameOfPresentedViewInContainerView)
+            var didLayout = false
+            if let transitionCoordinator {
+                didLayout = transitionCoordinator.animateAlongsideTransition(in: containerView) { _ in
+                    self.layoutPresentedView(frame: self.frameOfPresentedViewInContainerView)
+                }
+            }
+            if !didLayout {
+                layoutPresentedView(frame: frameOfPresentedViewInContainerView)
+            }
         }
     }
 
@@ -230,16 +237,19 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
         to size: CGSize,
         with coordinator: UIViewControllerTransitionCoordinator
     ) {
-        sizeTransitionCoordinator = coordinator
         super.viewWillTransition(to: size, with: coordinator)
+        transitionCoordinator = coordinator
         if keyboardHeight > 0 {
             keyboardHeight = size.height / 2
         }
-        coordinator.animateAlongsideTransition(in: containerView) { _ in
-            self.transitionAlongsideRotation()
-        } completion: { _ in
-            self.sizeTransitionCoordinator = nil
-        }
+    }
+
+    open override func willTransition(
+        to newCollection: UITraitCollection,
+        with coordinator: UIViewControllerTransitionCoordinator
+    ) {
+        super.willTransition(to: newCollection, with: coordinator)
+        transitionCoordinator = coordinator
     }
 
     open func layoutPresentedView(frame: CGRect) {
@@ -348,9 +358,9 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
         containerView.setNeedsLayout()
 
         guard
-            let duration = sizeTransitionCoordinator?.transitionDuration ?? userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
+            let duration = transitionCoordinator?.transitionDuration ?? userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
             duration > 0,
-            let curve = sizeTransitionCoordinator?.completionCurve.rawValue ?? userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int
+            let curve = transitionCoordinator?.completionCurve.rawValue ?? userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int
         else {
             keyboardHeightDidChange()
             containerView.layoutIfNeeded()
@@ -363,6 +373,7 @@ open class PresentationController: DelegatedPresentationController, PercentDrive
             options: [
                 UIView.AnimationOptions(curve: curve),
                 .beginFromCurrentState,
+                .allowUserInteraction,
             ]
         ) {
             self.keyboardHeightDidChange()

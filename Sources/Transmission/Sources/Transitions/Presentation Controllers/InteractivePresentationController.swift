@@ -55,12 +55,23 @@ open class InteractivePresentationController: PresentationController, UIGestureR
 
     public var prefersInteractiveDismissal: Bool = false
 
+    public private(set) var isInteractivlyDismissing: Bool = false {
+        didSet {
+            layoutMargins = isInteractivlyDismissing ? presentedView?.directionalLayoutMargins : nil
+            presentedView?.insetsLayoutMarginsFromSafeArea = !isInteractivlyDismissing
+            presentedViewController.viewRespectsSystemMinimumLayoutMargins = !isInteractivlyDismissing
+            presentedView?.directionalLayoutMargins = layoutMargins ?? .zero
+        }
+    }
+
+    private var layoutMargins: NSDirectionalEdgeInsets?
+
     public var isKeyboardSessionActive: Bool {
         keyboardHeight > 0 || keyboardOffset > 0
     }
 
     open override var shouldAutoLayoutPresentedView: Bool {
-        !panGesture.isInteracting && super.shouldAutoLayoutPresentedView
+        !isInteractivlyDismissing && super.shouldAutoLayoutPresentedView
     }
 
     public override init(
@@ -130,6 +141,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
     open override func dismissalTransitionDidEnd(_ completed: Bool) {
         super.dismissalTransitionDidEnd(completed)
         dismissalDidEnd()
+        isInteractivlyDismissing = false
     }
 
     open func dismissalTransitionShouldBegin(
@@ -194,7 +206,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
         // SwiftUI automatically reduces safe area during a view transform,
         // which causes layout changes. Add back the difference so it stays
         // consistent.
-        guard let presentedView, presentedView.frame != .zero else { return .zero }
+        guard let presentedView, presentedView.frame != .zero, panGesture.isInteracting else { return .zero }
         let frameOfPresentedViewInContainerView = frameOfPresentedViewInContainerView
         let frame = presentedViewController.view.frame
         let safeAreaInsets = containerView?.safeAreaInsets ?? .zero
@@ -341,23 +353,28 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 if let scrollView {
                     if edges.contains(.top), translation.y < 0 {
                         scrollView.contentOffset.y = max(-scrollView.adjustedContentInset.top, scrollView.contentSize.height + scrollView.adjustedContentInset.top - scrollView.frame.height)
-                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
 
                     if edges.contains(.bottom), translation.y > 0 {
                         scrollView.contentOffset.y = -scrollView.adjustedContentInset.top
-                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
 
                     if edges.contains(.leading), translation.x < 0 {
                         scrollView.contentOffset.x = max(-scrollView.adjustedContentInset.left, scrollView.contentSize.width + scrollView.adjustedContentInset.left - scrollView.frame.width)
-                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
 
                     if edges.contains(.trailing), translation.x > 0 {
                         scrollView.contentOffset.x = -scrollView.adjustedContentInset.right
-                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
                     }
+
+                    var translation = scrollView.panGestureRecognizer.translation(in: scrollView)
+                    if edges.contains(.top) || edges.contains(.bottom) {
+                        translation.y = 0
+                    }
+                    if edges.contains(.leading) || edges.contains(.trailing) {
+                        translation.x = 0
+                    }
+                    scrollView.panGestureRecognizer.setTranslation(translation, in: scrollView)
                 }
                 transition.pause()
                 if percentage >= 1, presentedViewController.isBeingPresented, gestureRecognizer.state == .changed {
@@ -494,11 +511,18 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                 {
                     if let scrollView {
                         let contentOffset = CGPoint(
-                            x: -scrollView.adjustedContentInset.left,
-                            y: -scrollView.adjustedContentInset.top
+                            x: edges.contains(.leading) ? -scrollView.adjustedContentInset.left : scrollView.contentOffset.x,
+                            y: edges.contains(.top) ? -scrollView.adjustedContentInset.top : scrollView.contentOffset.y
                         )
                         scrollView.contentOffset = contentOffset
-                        scrollView.panGestureRecognizer.setTranslation(.zero, in: scrollView)
+                        var translation = scrollView.panGestureRecognizer.translation(in: scrollView)
+                        if edges.contains(.top) || edges.contains(.bottom) {
+                            translation.y = 0
+                        }
+                        if edges.contains(.leading) || edges.contains(.trailing) {
+                            translation.x = 0
+                        }
+                        scrollView.panGestureRecognizer.setTranslation(translation, in: scrollView)
                         panGesture.setTranslation(.zero, in: presentedView)
                         lastTranslation = .zero
                     }
@@ -522,6 +546,7 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                         trackingScrollView = nil
                     }
                     if trackingScrollView?.panGestureRecognizer.isInteracting != true {
+                        isInteractivlyDismissing = true
                         let transform = presentedViewTransform(for: translation)
                         transformPresentedView(transform: transform)
                         transformPresentedView(transform: transform) // Invoke twice for safe area double pass
@@ -534,11 +559,29 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                     triggerHapticsIfNeeded(panGesture: gestureRecognizer, isActivationThresholdSatisfied: isActivationThresholdSatisfied)
                 }
 
-            case .ended:
-                let dismissalShouldBegin = panGestureDismissalShouldBegin(translation: translation, delta: delta, velocity: gestureVelocity)
+            case .ended, .cancelled, .failed:
+                let canDismiss: Bool = {
+                    var shouldFinish = false
+                    let targetVelocityThreshold: CGFloat = 100
+                    let targetVelocity = gestureVelocity
+                    let percentage = presentedView.frame.origin.y / presentedView.bounds.height
+                    if edges.contains(.top), !shouldFinish {
+                        shouldFinish = (percentage >= 0.5 && targetVelocity.y < targetVelocityThreshold) || (percentage > 0 && targetVelocity.y <= -800)
+                    }
+                    if edges.contains(.bottom), !shouldFinish {
+                        shouldFinish = (percentage >= 0.5 && targetVelocity.y > -targetVelocityThreshold) || (percentage > 0 && targetVelocity.y >= 800)
+                    }
+                    if edges.contains(.leading), !shouldFinish {
+                        shouldFinish = (percentage >= 0.5 && targetVelocity.x < targetVelocityThreshold) || (percentage > 0 && targetVelocity.x <= -800)
+                    }
+                    if edges.contains(.trailing), !shouldFinish {
+                        shouldFinish = (percentage >= 0.5 && targetVelocity.x > -targetVelocityThreshold) || (percentage > 0 && targetVelocity.x >= 800)
+                    }
+                    return shouldFinish
+                }()
                 if wantsInteractiveDismissal,
                     isScrollViewAtTop,
-                    dismissalShouldBegin,
+                    canDismiss,
                     shouldDismiss()
                 {
                     panGestureDidEnd()
@@ -558,19 +601,20 @@ open class InteractivePresentationController: PresentationController, UIGestureR
                             .allowUserInteraction,
                         ]
                     ) {
+                        self.updatePresentedViewAdditionalSafeAreaInsets()
                         self.transformPresentedView(transform: .identity)
                         self.presentedView?.layoutIfNeeded()
                     } completion: { _ in
-                        self.transformPresentedView(transform: .identity)
-                        if dismissalShouldBegin {
-                            self.delegate?.presentationControllerDidAttemptToDismiss?(self)
-                        }
+                        self.isInteractivlyDismissing = false
+                        self.layoutPresentedView(frame: self.frameOfPresentedViewInContainerView)
+                        self.delegate?.presentationControllerDidAttemptToDismiss?(self)
                     }
                 }
 
             default:
                 transformPresentedView(transform: .identity)
                 panGestureDidEnd()
+                isInteractivlyDismissing = false
             }
         } else {
             panGesture.setTranslation(.zero, in: presentedView)

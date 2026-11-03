@@ -16,6 +16,11 @@ open class DestinationHostingController<
 
     private var didAppear = false
 
+    open override func viewDidLoad() {
+        super.viewDidLoad()
+        view.clipsToBounds = true
+    }
+
     open override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 

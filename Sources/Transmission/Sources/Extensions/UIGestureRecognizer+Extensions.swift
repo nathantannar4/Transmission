@@ -32,6 +32,15 @@ extension UIGestureRecognizer {
 
     func isSimultaneousWithTransition(horizontal: Bool, vertical: Bool) -> Bool {
         if isScrollViewPanGesture, let scrollView = view as? UIScrollView {
+            if scrollView.isQueuingScrollView,
+                let pageViewController = scrollView._viewController as? UIPageViewController,
+                (pageViewController.navigationOrientation == .horizontal && horizontal) || (pageViewController.navigationOrientation == .vertical && vertical),
+                let dataSource = pageViewController.dataSource,
+                let selectedViewController = pageViewController.viewControllers?.first
+            {
+                let isAtBeginning = dataSource.pageViewController(pageViewController, viewControllerBefore: selectedViewController) == nil
+                return isAtBeginning
+            }
             if horizontal, scrollView.contentScrollsAlongXAxis {
                 let minX = -scrollView.adjustedContentInset.left
                 let isAtFarLeft = scrollView.contentOffset.x <= minX
@@ -42,6 +51,7 @@ extension UIGestureRecognizer {
                 let isAtTop = scrollView.contentOffset.y <= minY
                 return isAtTop
             }
+            return true
         }
         return isSimultaneousWithTransition
     }

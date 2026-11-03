@@ -1,8 +1,5 @@
 //
-//  UITextInputSelectionTests.swift
-//  Transmission
-//
-//  Created by gua on 2026/10/22.
+// Copyright (c) Nathan Tannar
 //
 
 #if os(iOS)

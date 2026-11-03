@@ -826,6 +826,40 @@ struct VisualEffectView_Previews: PreviewProvider {
                             Text("Glass")
                                 .font(.headline)
 
+                            HStack {
+                                VStack {
+                                    HStack {
+                                        Color.red
+
+                                        Color.blue
+                                    }
+
+                                    VisualEffectView(
+                                        effect: glassEffect,
+                                        cornerRadius: .capsule(maxCornerRadius: cornerRadius),
+                                        backgroundColor: backgroundColor
+                                    ) {
+                                        label
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                }
+
+                                VStack {
+                                    HStack {
+                                        Color.red
+
+                                        Color.blue
+                                    }
+
+                                    label
+                                        .frame(maxWidth: .infinity)
+                                        .glassEffect(
+                                            glassEffect.style.toSwiftUI().tint(glassEffect.tintColor).interactive(glassEffect.isInteractive),
+                                            in: RoundedRectangle(cornerRadius: cornerRadius)
+                                        )
+                                }
+                            }
+
                             VStack {
                                 HStack {
                                     VisualEffectView(
