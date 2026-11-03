@@ -193,8 +193,9 @@ open class NavigationPaletteHostingView<Content: View>: HostingView<NavigationPa
         super.init(content: NavigationPaletteView(content: content))
         invalidatesIntrinsicContentSizeOnIdealSizeChange = true
         automaticallyLayoutIntrinsicContentSizeChange = false
-        disablesSafeArea = true
         isHitTestingPassthrough = false
+        insetsSafeAreaFromLayoutMargins = true
+        preservesSuperviewLayoutMargins = true
     }
 
     public required init?(coder aDecoder: NSCoder) {
@@ -203,6 +204,13 @@ open class NavigationPaletteHostingView<Content: View>: HostingView<NavigationPa
 
     open func update(content: Content, transaction: Transaction) {
         update(content: NavigationPaletteView(content: content), transaction: transaction)
+    }
+
+    open override var safeAreaInsets: UIEdgeInsets {
+        var safeAreaInsets = super.safeAreaInsets
+        safeAreaInsets.top = 0
+        safeAreaInsets.bottom = 0
+        return safeAreaInsets
     }
 }
 
@@ -217,8 +225,25 @@ open class NavigationPaletteContentView<ContentView: UIView>: UIView {
     public init(contentView: ContentView) {
         self.contentView = contentView
         super.init(frame: .zero)
+
+        // HostingView's won't contribute to the scroll edge effect by default, UILabel will
+        if contentView is AnyHostingView {
+            let label = UILabel()
+            label.isUserInteractionEnabled = false
+            label.isAccessibilityElement = false
+            addSubview(label)
+            label.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                label.heightAnchor.constraint(equalToConstant: 1),
+                label.leadingAnchor.constraint(equalTo: leadingAnchor),
+                label.trailingAnchor.constraint(equalTo: trailingAnchor),
+                label.bottomAnchor.constraint(equalTo: bottomAnchor),
+            ])
+        }
+
         addSubview(contentView)
         autoresizingMask = [.flexibleHeight]
+        preservesSuperviewLayoutMargins = true
 
         UINavigationBar.fixHitTesting()
     }
@@ -236,11 +261,21 @@ open class NavigationPaletteContentView<ContentView: UIView>: UIView {
         }
         let sizeThatFits = contentView.sizeThatFits(bounds.size)
         contentView.frame = CGRect(
-            x: (bounds.width - sizeThatFits.width) / 2,
+            x: 0,
             y: 0,
             width: min(bounds.width, sizeThatFits.width),
             height: max(sizeThatFits.height, height)
         )
+    }
+
+    open override var layoutMargins: UIEdgeInsets {
+        get {
+            if let palette = superview as? _UINavigationBarPalette, palette.isTransitioning {
+                return palette.layoutMargins
+            }
+            return super.layoutMargins
+        }
+        set { super.layoutMargins = newValue }
     }
 
     open override func invalidateIntrinsicContentSize() {

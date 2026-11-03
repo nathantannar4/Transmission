@@ -457,6 +457,7 @@ open class PageContainerController<
 
     private var isTransitioningFromIndex: Int?
     private var isTransitioningToIndex: Int?
+    private var isAnimatingToIndex: Int?
     private var isTransitioningToDirection: UIPageViewController.NavigationDirection?
     private var isTransitioningViewControllers: Int = 0
     private var didCatchTransition = false
@@ -471,6 +472,15 @@ open class PageContainerController<
 
     private var tapGesture: UITapGestureRecognizer? {
         view.gestureRecognizers?.compactMap({ $0 as? UITapGestureRecognizer }).first
+    }
+
+    private var visibleScrollViewPageIndex: Int? {
+        guard let scrollView else { return nil }
+        let center = CGPoint(x: scrollView.bounds.midX, y: scrollView.bounds.midY)
+        return pageViewControllers.viewControllers.firstIndex { page in
+            guard page.isViewLoaded, page.view.isDescendant(of: scrollView) else { return false }
+            return page.view.convert(page.view.bounds, to: scrollView).contains(center)
+        }
     }
 
     public required init(
@@ -583,10 +593,7 @@ open class PageContainerController<
                     animated: transaction.isAnimated
                 )
             }
-        } else if selection != selectedIndex,
-            selection != isTransitioningToIndex,
-            scrollView?.isDragging != true
-        {
+        } else if selection != selectedIndex, selection != isTransitioningToIndex {
             displayViewController(
                 at: selection,
                 animated: transaction.isAnimated
@@ -608,6 +615,15 @@ open class PageContainerController<
         guard index >= 0, index < pageViewControllers.count else {
             return
         }
+        if let scrollView, scrollView.isDragging {
+            let isScrollEnabled = scrollView.isScrollEnabled
+            scrollView.isScrollEnabled = false
+            if isTransitioningFromIndex != nil {
+                dataSource = nil
+                dataSource = self
+            }
+            scrollView.isScrollEnabled = isScrollEnabled
+        }
         let direction: UIPageViewController.NavigationDirection = index > (selectedIndex ?? -1) ? .forward : .reverse
         let didChangeDirections = isTransitioningToDirection != nil && isTransitioningToDirection != direction
         let viewController = pageViewControllers[index]
@@ -615,16 +631,31 @@ open class PageContainerController<
             // Force non-animated if in the middle of a transition, to avoid any NSInternalInconsistencyException crashes
             isTransitioningToDirection = nil
             isTransitioningViewControllers = 0
+            isAnimatingToIndex = nil
+            let isScrollEnabled = scrollView.isScrollEnabled
+            dataSource = nil
+            dataSource = self
+            scrollView.isScrollEnabled = isScrollEnabled
             setViewControllers([viewController], direction: direction, animated: false)
             scrollView.setContentOffset(scrollView.contentOffset, animated: animated)
             selectedPageDidChange()
         } else {
             isTransitioningToDirection = direction
             isTransitioningViewControllers += 1
+            if let isTransitioningFromIndex, let selectedIndex, selectedIndex != isTransitioningFromIndex {
+                setViewControllers([pageViewControllers[selectedIndex]], direction: direction, animated: false)
+            }
+            isTransitioningFromIndex = selectedIndex
+            isAnimatingToIndex = index
             setViewControllers([viewController], direction: direction, animated: animated) { [weak self] success in
                 guard let self, success else { return }
                 isTransitioningToDirection = nil
                 isTransitioningViewControllers = 0
+                if isAnimatingToIndex == index {
+                    isAnimatingToIndex = nil
+                } else if let visibleScrollViewPageIndex, selectedIndex != visibleScrollViewPageIndex {
+                    setViewControllers([viewController], direction: direction, animated: false)
+                }
                 if animated {
                     updateSelection()
                 } else {
@@ -755,6 +786,7 @@ open class PageContainerController<
         defer {
             if didTransition {
                 isTransitioningFromIndex = nil
+                isAnimatingToIndex = nil
             }
         }
         isTransitioningToIndex = nil
@@ -806,7 +838,7 @@ open class PageContainerController<
     open func scrollViewWillBeginDragging(
         _ scrollView: UIScrollView
     ) {
-        if isTransitioningFromIndex != nil {
+        if isTransitioningFromIndex != nil || isAnimatingToIndex != nil {
             didCatchTransition = true
         }
     }
@@ -825,8 +857,9 @@ open class PageContainerController<
             progress = -progress
         }
         let offset = Int(progress.rounded())
-        let indexToTransitionTo = (isTransitioningFromIndex ?? index) + offset
+        let indexToTransitionTo = isAnimatingToIndex ?? ((isTransitioningFromIndex ?? index) + offset)
         let isTransitioningPage = targetContentOffset.pointee.x != scrollView.bounds.width
+        isAnimatingToIndex = nil
         if index != indexToTransitionTo {
             if indexToTransitionTo >= 0,
                 indexToTransitionTo < pageViewControllers.count,
@@ -869,6 +902,18 @@ open class PageContainerController<
     open func scrollViewDidEndDecelerating(
         _ scrollView: UIScrollView
     ) {
+        if didCatchTransition, isTransitioningFromIndex == nil {
+            let isScrollEnabled = scrollView.isScrollEnabled
+            dataSource = nil
+            dataSource = self
+            scrollView.isScrollEnabled = isScrollEnabled
+            if let visibleScrollViewPageIndex, visibleScrollViewPageIndex != selectedIndex {
+                setViewControllers([pageViewControllers.viewControllers[visibleScrollViewPageIndex]], direction: .forward, animated: false)
+            }
+            isTransitioningFromIndex = nil
+            updateSelection()
+        }
+        isTransitioningFromIndex = nil
         didCatchTransition = false
     }
 }

@@ -39,7 +39,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/nathantannar4/Engine", from: "3.0.0"),
+        .package(url: "https://github.com/nathantannar4/Engine", from: "3.0.2"),
     ],
     targets: [
         .target(

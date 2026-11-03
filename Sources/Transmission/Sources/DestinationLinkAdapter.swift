@@ -1308,6 +1308,9 @@ final class DestinationLinkDelegateProxy: NSObject,
                         }
                     }
                 }
+                if isInterruptedInteractiveTransition {
+                    navigationController.firstResponder?.resignFirstResponder()
+                }
                 transition.cancel()
 
                 if isInterruptedInteractiveTransition,
