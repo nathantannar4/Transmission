@@ -28,6 +28,7 @@ extension PresentationLinkTransition {
         zoomTransitionOptions: ZoomTransitionOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         preferredGlassEffect: GlassEffect? = nil,
+        prefersBackgroundColor: Bool = false,
         isInteractive: Bool = true,
         preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
@@ -59,6 +60,7 @@ extension PresentationLinkTransition {
         zoomTransitionOptions: ZoomTransitionOptions? = nil,
         hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
         preferredGlassEffect: GlassEffect? = nil,
+        prefersBackgroundColor: Bool = false,
         isInteractive: Bool = true,
         preferredPresentationSafeAreaInsets: EdgeInsets? = nil,
         preferredPresentationBackgroundColor: Color? = nil
@@ -73,7 +75,8 @@ extension PresentationLinkTransition {
                 prefersZoomTransition: prefersZoomTransition,
                 zoomTransitionOptions: zoomTransitionOptions,
                 hapticsStyle: hapticsStyle,
-                preferredGlassEffect: preferredGlassEffect
+                preferredGlassEffect: preferredGlassEffect,
+                prefersBackgroundColor: prefersBackgroundColor
             ),
             options: .init(
                 isInteractive: isInteractive,
@@ -513,6 +516,7 @@ public struct SheetPresentationLinkTransition {
         public var zoomTransitionOptions: ZoomTransitionOptions?
         public var hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle?
         public var preferredGlassEffect: GlassEffect?
+        public var prefersBackgroundColor: Bool
 
         public init(
             selected: Binding<SheetPresentationLinkTransition.Detent.Identifier?>? = nil,
@@ -531,7 +535,8 @@ public struct SheetPresentationLinkTransition {
             prefersZoomTransition: Bool = false,
             zoomTransitionOptions: ZoomTransitionOptions? = nil,
             hapticsStyle: UIImpactFeedbackGenerator.FeedbackStyle? = nil,
-            preferredGlassEffect: GlassEffect? = nil
+            preferredGlassEffect: GlassEffect? = nil,
+            prefersBackgroundColor: Bool = false
         ) {
             self.selected = selected
             if #available(iOS 15.0, *) {
@@ -554,6 +559,7 @@ public struct SheetPresentationLinkTransition {
             self.zoomTransitionOptions = zoomTransitionOptions
             self.hapticsStyle = hapticsStyle
             self.preferredGlassEffect = preferredGlassEffect
+            self.prefersBackgroundColor = prefersBackgroundColor
         }
     }
 

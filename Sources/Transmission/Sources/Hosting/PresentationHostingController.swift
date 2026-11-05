@@ -15,7 +15,7 @@ open class PresentationHostingController<
     public var tracksContentSize: Bool = false {
         didSet {
             guard tracksContentSize != oldValue else { return }
-            view.setNeedsLayout()
+            viewIfLoaded?.setNeedsLayout()
         }
     }
 

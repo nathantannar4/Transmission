@@ -605,15 +605,6 @@ final class PresentationLinkCoordinatorAdapter<
                             guard let sourceView = self?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
                         }
-                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
-                            zoomGesture.addTarget(self, action: #selector(zoomPanGestureDidChange(_:)))
-                        }
-                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
-                            zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
-                        }
-                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPinchGesture }) {
-                            zoomGesture.addTarget(self, action: #selector(zoomPinchGestureDidChange(_:)))
-                        }
                     }
 
                 case .zoom(let options):
@@ -625,15 +616,6 @@ final class PresentationLinkCoordinatorAdapter<
                         adapter.viewController.preferredTransition = .zoom(options: zoomOptions) { [weak self] _ in
                             guard let sourceView = self?.sourceView, sourceView.window != nil else { return nil }
                             return sourceView
-                        }
-                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
-                            zoomGesture.addTarget(self, action: #selector(zoomPanGestureDidChange(_:)))
-                        }
-                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
-                            zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
-                        }
-                        if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPinchGesture }) {
-                            zoomGesture.addTarget(self, action: #selector(zoomPinchGestureDidChange(_:)))
                         }
                     }
 
@@ -1380,14 +1362,6 @@ final class PresentationLinkCoordinatorAdapter<
                 if #available(iOS 26.0, *) {
                     presentationController.prefersSheetInset = options.prefersSheetInset
                 }
-                if #available(iOS 26.0, *),
-                   transition.options.preferredPresentationBackgroundColor == nil,
-                   options.detents.contains(where: { $0.identifier != .large && $0.identifier != .fullScreen }),
-                   options.selected?.wrappedValue != .large,
-                   options.selected?.wrappedValue != .fullScreen
-                {
-                    presented.view.backgroundColor = .clear
-                }
                 presentationController.overrideTraitCollection = overrideTraitCollection
                 presentationController.delegate = self
                 return presentationController
@@ -1465,29 +1439,58 @@ final class PresentationLinkCoordinatorAdapter<
         willPresentWithAdaptiveStyle style: UIModalPresentationStyle,
         transitionCoordinator: UIViewControllerTransitionCoordinator?
     ) {
-        guard presentationController.presentedViewController == adapter?.viewController else { return }
+        guard let adapter, presentationController.presentedViewController == adapter.viewController else { return }
+        adapter.updateViewController()
+
         if #available(iOS 15.0, *),
-            let sheetPresentationController = presentationController as? UISheetPresentationController,
-            let transitionCoordinator
+            let sheetPresentationController = presentationController as? UISheetPresentationController
         {
-            transitionCoordinator.animate { [weak self] _ in
-                self?.sheetPresentationControllerDidChangeSelectedDetentIdentifier(sheetPresentationController)
-            } completion: { [weak self] ctx in
-                guard !ctx.isCancelled, let self else { return }
-                if let panGesture = sheetPresentationController.panGesture {
-                    panGesture.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
+            sheetPresentationControllerDidChangeSelectedDetentIdentifier(sheetPresentationController)
+            if let panGesture = sheetPresentationController.panGesture {
+                panGesture.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
+            }
+            if #available(iOS 18.0, *), case .sheet(let options) = adapter.transition.value, options.prefersZoomTransition {
+                if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
+                    zoomGesture.addTarget(self, action: #selector(zoomPanGestureDidChange(_:)))
                 }
+                if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
+                    zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
+                }
+                if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPinchGesture }) {
+                    zoomGesture.addTarget(self, action: #selector(zoomPinchGestureDidChange(_:)))
+                }
+            }
+            let onPresented: () -> Void = { [weak self] in
+                guard let self else { return }
                 let scrollView = sheetPresentationController.presentedViewController.view.firstDescendent(
                     ofType: UIScrollView.self,
                     matching: { $0.contentScrollsAlongYAxis }
                 )
                 scrollView?.panGestureRecognizer.addTarget(self, action: #selector(sheetPanGestureDidChange(_:)))
             }
+            if let transitionCoordinator {
+                transitionCoordinator.animate(alongsideTransition: nil) { ctx in
+                    if !ctx.isCancelled {
+                        onPresented()
+                    }
+                }
+            } else {
+                onPresented()
+            }
         } else if presentationController is UIPopoverPresentationController,
-            let viewController = adapter?.viewController,
-            viewController.preferredContentSize == .zero
+            adapter.viewController.preferredContentSize == .zero
         {
             viewController.preferredContentSize = viewController.view.intrinsicContentSize
+        } else if #available(iOS 18.0, *), case .zoom(let options) = adapter.transition.value {
+            if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPanGesture }) {
+                zoomGesture.addTarget(self, action: #selector(zoomPanGestureDidChange(_:)))
+            }
+            if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissEdgeGesture }) {
+                zoomGesture.addTarget(self, action: #selector(zoomEdgePanGestureDidChange(_:)))
+            }
+            if let zoomGesture = adapter.viewController.view.gestureRecognizers?.first(where: { $0.isZoomDismissPinchGesture }) {
+                zoomGesture.addTarget(self, action: #selector(zoomPinchGestureDidChange(_:)))
+            }
         }
         if let transitionCoordinator {
             let animation = animation ?? (transitionCoordinator.isAnimated ? .default : nil)
@@ -1736,8 +1739,7 @@ class PresentationLinkDestinationViewControllerAdapter<
                 options: transition.options,
                 environment: context.environment,
                 transaction: context.transaction
-            ),
-            isUpdate: false
+            )
         )
         return hostingController
     }
@@ -1758,8 +1760,7 @@ class PresentationLinkDestinationViewControllerAdapter<
                 options: transition.options,
                 environment: context.environment,
                 transaction: context.transaction
-            ),
-            isUpdate: true
+            )
         )
     }
 
@@ -1772,9 +1773,20 @@ class PresentationLinkDestinationViewControllerAdapter<
     override func updateViewController(
         context: Representable.Context
     ) {
-        viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
-        if let backgroundColor = transition.options.preferredPresentationBackgroundUIColor {
-            viewController.view.backgroundColor = backgroundColor
+        updateViewController()
+    }
+
+    func updateViewController() {
+        if let viewController = viewController as? DestinationController {
+            let context = PresentationLinkTransitionRepresentableContext(
+                sourceView: sourceView,
+                options: transition.options,
+                environment: environment,
+                transaction: Transaction()
+            )
+            configure(viewController, context: context)
+        } else {
+            configure(viewController)
         }
     }
 
@@ -1782,12 +1794,7 @@ class PresentationLinkDestinationViewControllerAdapter<
         onDismiss(count, transaction)
     }
 
-    func configure<Content: View>(
-        _ viewController: PresentationHostingController<Content>,
-        context: PresentationLinkTransitionRepresentableContext,
-        isUpdate: Bool
-    ) {
-
+    private func configure(_ viewController: UIViewController) {
         viewController.modalPresentationCapturesStatusBarAppearance = transition.options.modalPresentationCapturesStatusBarAppearance
         viewController.isModalInPresentation = !transition.options.isInteractive
 
@@ -1795,14 +1802,21 @@ class PresentationLinkDestinationViewControllerAdapter<
             if case .popover = transition.value {
                 return false
             }
-            if #available(iOS 26.0, *), case .sheet = transition.value, isUpdate {
+            if #available(iOS 26.0, *), case .sheet(let options) = transition.value, !options.prefersBackgroundColor {
                 return false
             }
             return true
         }()
         if shouldUpdateBackgroundColor, let backgroundColor = transition.options.preferredPresentationBackgroundUIColor {
-            viewController.view.backgroundColor = backgroundColor
+            viewController.viewIfLoaded?.backgroundColor = backgroundColor
         }
+    }
+
+    private func configure<Content: View>(
+        _ viewController: PresentationHostingController<Content>,
+        context: PresentationLinkTransitionRepresentableContext
+    ) {
+        configure(viewController)
 
         switch transition.value {
         case .sheet(let options):
@@ -1815,8 +1829,8 @@ class PresentationLinkDestinationViewControllerAdapter<
 
         case .popover:
             viewController.disableSafeArea = transition.options.preferredPresentationSafeAreaInsets == .zero
-            viewController.view.backgroundColor = nil
-            viewController.view.clipsToBounds = false
+            viewController.viewIfLoaded?.backgroundColor = nil
+            viewController.viewIfLoaded?.clipsToBounds = false
             viewController.tracksContentSize = true
 
         case .representable(let representable):

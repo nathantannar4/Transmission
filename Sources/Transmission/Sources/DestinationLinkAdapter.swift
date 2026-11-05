@@ -750,10 +750,14 @@ final class DestinationLinkCoordinatorAdapter<
                 )
             }
         }
-        if isPushing == true, adapter?.viewController == viewController, !isPresented.wrappedValue {
-            let animation = animation ?? (animated ? .default : nil)
-            withAnimation(animation) {
-                isPresented.wrappedValue = true
+        if adapter?.viewController == viewController {
+            adapter?.updateViewController()
+
+            if isPushing == true, !isPresented.wrappedValue {
+                let animation = animation ?? (animated ? .default : nil)
+                withAnimation(animation) {
+                    isPresented.wrappedValue = true
+                }
             }
         }
         if isPushing != true {
@@ -1103,27 +1107,25 @@ final class DestinationLinkDelegateProxy: NSObject,
 
         let velocity = gestureRecognizer.velocity(in: view)
         if gestureRecognizer.state == .began {
-            if !simultaneousPanGestures.isEmpty {
-                var canBegin = abs(velocity.x) > abs(velocity.y)
-                if canBegin {
-                    if navigationController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft {
-                        if velocity.x > 0 {
-                            canBegin = false
-                        }
-                    } else {
-                        if velocity.x < 0 {
-                            canBegin = false
-                        }
+            var canBegin = abs(velocity.x) > abs(velocity.y)
+            if canBegin {
+                if navigationController.view.effectiveUserInterfaceLayoutDirection == .rightToLeft {
+                    if velocity.x > 0 {
+                        canBegin = false
+                    }
+                } else {
+                    if velocity.x < 0 {
+                        canBegin = false
                     }
                 }
-                if !canBegin {
-                    panGestureDidEnd(gestureRecognizer, didCancel: true)
-                    return
-                } else {
-                    for gesture in simultaneousPanGestures {
-                        gesture.isEnabled = false
-                        gesture.isEnabled = true
-                    }
+            }
+            if !canBegin {
+                panGestureDidEnd(gestureRecognizer, didCancel: true)
+                return
+            } else {
+                for gesture in simultaneousPanGestures {
+                    gesture.isEnabled = false
+                    gesture.isEnabled = true
                 }
             }
             if isInterruptedInteractiveTransition {
@@ -1933,19 +1935,42 @@ class DestinationLinkDestinationViewControllerAdapter<
         environment.destinationCoordinator = makeDestinationCoordinator()
     }
 
+    override func updateViewController(
+        context: Representable.Context
+    ) {
+        configure(viewController)
+    }
+
+    func updateViewController() {
+        if let viewController = viewController as? DestinationController {
+            let context = DestinationLinkTransitionRepresentableContext(
+                sourceView: sourceView,
+                options: transition.options,
+                environment: environment,
+                transaction: Transaction()
+            )
+            configure(viewController, context: context)
+        } else {
+            configure(viewController)
+        }
+    }
+
     func pop(_ count: Int, _ transaction: Transaction) {
         onPop(count, transaction)
     }
 
-    func configure<Content: View>(
+    private func configure(_ viewController: UIViewController) {
+        viewController.hidesBottomBarWhenPushed = transition.options.hidesBottomBarWhenPushed
+        if let preferredPresentationBackgroundUIColor = transition.options.preferredPresentationBackgroundUIColor {
+            viewController.viewIfLoaded?.backgroundColor = preferredPresentationBackgroundUIColor
+        }
+    }
+
+    private func configure<Content: View>(
         _ viewController: DestinationHostingController<Content>,
         context: DestinationLinkTransitionRepresentableContext
     ) {
-
-        viewController.hidesBottomBarWhenPushed = transition.options.hidesBottomBarWhenPushed
-        if let preferredPresentationBackgroundUIColor = transition.options.preferredPresentationBackgroundUIColor {
-            viewController.view.backgroundColor = preferredPresentationBackgroundUIColor
-        }
+        configure(viewController)
 
         if case .representable(let representable) = transition.value {
             representable.updateHostingController(

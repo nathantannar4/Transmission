@@ -134,7 +134,7 @@ public struct SlidePresentationLinkTransition: PresentationLinkTransitionReprese
         presenting: PresentationHostingController<Content>,
         context: Context
     ) where Content: View {
-        presenting.view.clipsToBounds = context.options.preferredPresentationBackgroundColor != .clear
+        presenting.viewIfLoaded?.clipsToBounds = context.options.preferredPresentationBackgroundColor != .clear
     }
 
     public func animationController(

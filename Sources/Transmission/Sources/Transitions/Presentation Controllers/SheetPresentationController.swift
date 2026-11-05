@@ -908,15 +908,17 @@ extension SheetPresentationLinkTransition.Options {
         }
         if #available(iOS 26.0, *) {
             var backgroundColor = options.preferredPresentationBackgroundUIColor ?? .systemBackground
-            switch newValue {
-            case .large, .fullScreen:
-                break
-            case .medium:
-                backgroundColor = .clear
-            default:
-                guard let maximumDetentValue = sheetPresentationController.maximumDetentValue else { return }
-                let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
-                backgroundColor = isClear ? .clear : backgroundColor
+            if !prefersBackgroundColor {
+                switch newValue {
+                case .large, .fullScreen:
+                    break
+                case .medium:
+                    backgroundColor = .clear
+                default:
+                    guard let maximumDetentValue = sheetPresentationController.maximumDetentValue else { return }
+                    let isClear = sheetPresentationController.presentedViewController.view.bounds.height < maximumDetentValue
+                    backgroundColor = isClear ? .clear : backgroundColor
+                }
             }
 
             if sheetPresentationController.panGesture?.state != .possible {
