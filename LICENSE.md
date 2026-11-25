@@ -1,6 +1,6 @@
 BSD 2-Clause License
 
-Copyright (C) 2022, Nathan Tannar <nathantannar4@gmail.com>
+Copyright (C) 2026, Nathan Tannar <nathantannar4@gmail.com>
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are

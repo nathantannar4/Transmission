@@ -987,6 +987,34 @@ extension UIMenu {
         }
     }
 
+    @available(iOS 26.0, *)
+    public var pinnedFooterElement: UIMenuElement? {
+        get {
+            guard
+                // _pinnedFooterElement
+                let aSelector = NSSelectorFromBase64EncodedString("X3Bpbm5lZEZvb3RlckVsZW1lbnQ="),
+                responds(to: aSelector)
+            else {
+                return nil
+            }
+            typealias Method = @convention(c) (AnyObject, Selector) -> UIMenuElement?
+            let method = unsafeBitCast(method(for: aSelector), to: Method.self)
+            return method(self, aSelector)
+        }
+        set {
+            guard
+                // _setPinnedFooterElement:
+                let aSelector = NSSelectorFromBase64EncodedString("X3NldFBpbm5lZEZvb3RlckVsZW1lbnQ6"),
+                responds(to: aSelector)
+            else {
+                return
+            }
+            typealias Method = @convention(c) (AnyObject, Selector, UIMenuElement?) -> Void
+            let method = unsafeBitCast(method(for: aSelector), to: Method.self)
+            method(self, aSelector, newValue)
+        }
+    }
+
     @available(iOS 14.0, *)
     @discardableResult
     func update<Menu: MenuElement>(_ menu: Menu, context: MenuRepresentableContext) -> UIMenu {

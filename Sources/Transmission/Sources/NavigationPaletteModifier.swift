@@ -254,17 +254,17 @@ open class NavigationPaletteContentView<ContentView: UIView>: UIView {
 
     open override func layoutSubviews() {
         super.layoutSubviews()
-        let height = intrinsicContentSize.height
-        if let palette = superview as? _UINavigationBarPalette {
-            palette.minimumHeight = height
-            palette.preferredHeight = height
-        }
         let sizeThatFits = contentView.sizeThatFits(bounds.size)
+        let minimumHeight = max(contentView.intrinsicContentSize.height, sizeThatFits.height)
+        if let palette = superview as? _UINavigationBarPalette {
+            palette.minimumHeight = minimumHeight
+            palette.preferredHeight = sizeThatFits.height
+        }
         contentView.frame = CGRect(
             x: 0,
             y: 0,
-            width: min(bounds.width, sizeThatFits.width),
-            height: max(sizeThatFits.height, height)
+            width: bounds.width,
+            height: max(minimumHeight, bounds.height)
         )
     }
 

@@ -40,7 +40,7 @@ open class PresentationHostingController<
             }
         }
 
-        if !isBeingDismissed {
+        if !isBeingPresented, !isBeingDismissed {
             didRelayoutDuringPresentation = false
         }
 
@@ -132,7 +132,7 @@ open class PresentationHostingController<
                 } else if let presentationController = presentationController as? PresentationController {
                     guard presentationController.shouldAutoLayoutPresentedView || isBeingPresented else { return }
                     let frame = presentationController.frameOfPresentedViewInContainerView
-                    guard !view.frame.size.isApproximatelyEqual(to: frame.size) else { return }
+                    guard !view.bounds.size.isApproximatelyEqual(to: frame.size) else { return }
                     layoutIntrinsicContentSizeChange(
                         isAnimated: isAnimated
                     ) {

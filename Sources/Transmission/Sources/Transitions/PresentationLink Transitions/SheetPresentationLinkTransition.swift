@@ -410,15 +410,19 @@ public struct SheetPresentationLinkTransition {
                             if height <= bottomSafeArea {
                                 height = containerView.frame.height
                             }
-                            height -= bottomSafeArea
+                            if height < presentationController.minimumDetentValue {
+                                height -= ceil(bottomSafeArea)
+                            } else {
+                                height -= bottomSafeArea
+                            }
                         }
                         return height.rounded(scale: viewController.view.traitCollection.displayScale)
                     }
 
                     var idealHeight = idealHeight(for: presentationController.presentedViewController)
-                    if #available(iOS 26.0, *), !presentationController.disableSolariumInsets {
-                        // 150 is the minimum before safe area gets wonky
-                        idealHeight = max(idealHeight, 150)
+                    if #available(iOS 26.0, *) {
+                        // Safe area becomes inconsistent below the minimum
+                        idealHeight = max(presentationController.minimumDetentValue, idealHeight)
                     }
                     if (presentationController.presentedViewController as? AnyHostingController)?.disableSafeArea == true {
                         // Deduct the container view bottom safe area since that will be included by UIKit

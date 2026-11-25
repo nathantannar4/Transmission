@@ -149,6 +149,14 @@ extension UISheetPresentationController.Detent {
 @available(iOS 15.0, *)
 extension UISheetPresentationController {
 
+    var minimumDetentValue: CGFloat {
+        if #available(iOS 26.0, *) {
+            // 150 is the minimum before safe area becomes inconsistent
+            return 150
+        }
+        return 0
+    }
+
     var maximumDetentValue: CGFloat? {
         guard let containerView else { return nil }
         let maximumDetentValue = containerView.frame.height - containerView.safeAreaInsets.top - containerView.safeAreaInsets.bottom

@@ -72,7 +72,7 @@ jobs:
     - name: Build for watchOS
       run: xcodebuild -scheme Transmission -destination 'platform=watchOS Simulator,name=Apple Watch Ultra 4 (49mm)' build
     - name: Build for tvOS
-      run: xcodebuild -scheme Transmission -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation)' build
+      run: xcodebuild -scheme Transmission -destination 'platform=tvOS Simulator,name=Apple TV 4K (4th generation)' build
     - name: Build for visionOS
       run: xcodebuild -scheme Transmission -destination 'generic/platform=visionOS Simulator' build
     - name: Test for iOS
